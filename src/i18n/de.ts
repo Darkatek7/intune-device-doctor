@@ -31,7 +31,7 @@ export const de = {
     checkIn: 'Letzter Check-in',
     osVersion: 'Betriebssystem',
     bitlocker: 'BitLocker',
-    defender: 'Microsoft Defender',
+    defender: 'Defender',
     policies: 'Richtlinien',
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
@@ -93,7 +93,8 @@ export const de = {
     graph: 'Microsoft Graph hat einen Fehler gemeldet.',
     unknown: 'Unbekannter Fehler.',
     notFound: 'Ressource nicht gefunden (HTTP 404).',
-    invalidNextLink: 'Ungültiger Seitenlink – nur Adressen von graph.microsoft.com werden abgerufen.',
+    invalidNextLink:
+      'Ungültiger Seitenlink – nur Adressen von graph.microsoft.com werden abgerufen.',
     parse: 'Die Antwort von Microsoft Graph konnte nicht gelesen werden.',
   },
   /** Anmeldung (MSAL) */
@@ -222,7 +223,8 @@ export const de = {
       results: 'Sammelprotokoll wird ausgewertet …',
       dsregcmd: 'Entra-Join-Status wird ausgewertet …',
       registry: 'Registry-Exporte werden ausgewertet …',
-      imeLogs: (done: number, total: number) => `IME-Logs werden ausgewertet … ${done} von ${total}`,
+      imeLogs: (done: number, total: number) =>
+        `IME-Logs werden ausgewertet … ${done} von ${total}`,
       done: 'Analyse abgeschlossen',
     },
     meaning: {
