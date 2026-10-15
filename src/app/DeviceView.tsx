@@ -4,6 +4,7 @@
  */
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DiagnosticsReport } from '../diagnostics/types';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { de } from '../i18n/de';
 import { useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
@@ -11,6 +12,7 @@ import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evalua
 import type { Tile } from '../domain/types';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
+import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
@@ -24,6 +26,9 @@ interface Props {
   onOpenTile: (tileId: string) => void;
   onCloseTile: () => void;
   onRetryDevice: () => void;
+  /** Befunde einer DiagLogs-ZIP, die mit diesem Gerät zusammengeführt wurden */
+  diagnostics?: DiagnosticsReport;
+  onRemoveDiagnostics?: () => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -36,8 +41,14 @@ export function DeviceView({
   onOpenTile,
   onCloseTile,
   onRetryDevice,
+  diagnostics,
+  onRemoveDiagnostics,
 }: Props) {
-  const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(provider, deviceId);
+  const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
+    provider,
+    deviceId,
+    diagnostics,
+  );
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 
   const tiles = useMemo<Tile[]>(
@@ -96,6 +107,11 @@ export function DeviceView({
         device={snapshot?.device ?? null}
         summary={snapshot ? summary : null}
         totalTiles={tiles.length}
+        badges={
+          diagnostics && onRemoveDiagnostics ? (
+            <DiagnosticsChip fileName={diagnostics.fileName} onRemove={onRemoveDiagnostics} />
+          ) : undefined
+        }
       />
       {snapshot ? (
         <TileGrid tiles={ordered} onOpen={handleOpen} />

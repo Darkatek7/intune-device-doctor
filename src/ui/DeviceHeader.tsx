@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { ManagedDeviceInfo } from '../domain/types';
 import { formatDate } from '../domain/format';
 import { de } from '../i18n/de';
@@ -9,10 +10,12 @@ interface Props {
   device: ManagedDeviceInfo | null;
   summary: TileSummary | null;
   totalTiles: number;
+  /** Chips unter der Metazeile, z. B. "+ DiagLogs-ZIP" */
+  badges?: ReactNode;
 }
 
 /** Geräte-Header: Name groß, Metazeile, rechts die Zusammenfassung mit Severity-Icons. */
-export function DeviceHeader({ device, summary, totalTiles }: Props) {
+export function DeviceHeader({ device, summary, totalTiles, badges }: Props) {
   const loading = !device || !summary || summary.loading > 0;
   const meta = device
     ? [
@@ -38,6 +41,7 @@ export function DeviceHeader({ device, summary, totalTiles }: Props) {
         <p className="mt-1 text-sm text-secondary-label">
           {device ? meta.join(' · ') : de.header.loadingDevice}
         </p>
+        {badges && <div className="mt-2 flex flex-wrap items-center gap-2">{badges}</div>}
       </div>
       <div
         aria-label={de.header.summaryLabel}

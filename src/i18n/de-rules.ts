@@ -541,6 +541,7 @@ export const deRules = {
         hybrid: 'Microsoft Entra hybrid joined',
         domain: 'Domain Joined',
         none: 'Nicht verbunden',
+        unknown: 'Join-Status unbekannt',
       },
       valuePrtMissing: 'Kein PRT',
       valueOk: 'PRT vorhanden',
@@ -606,8 +607,8 @@ export const deRules = {
       valueFailed: (failed: number, total: number) => `${failed} von ${total} fehlgeschlagen`,
       valueOk: (total: number) => `${total} ${total === 1 ? 'App' : 'Apps'} ohne Fehler`,
       valueNone: 'Keine Daten',
-      summaryCounts: (installed: number, failed: number, other: number) =>
-        `${installed} installiert · ${failed} fehlgeschlagen · ${other} sonstige`,
+      summaryCounts: (installed: number, _failed: number, other: number) =>
+        `${installed} installiert · ${other} sonstige`,
       summaryNone: 'Keine Win32-App-Zustände im Archiv',
       failedTitle: (appId: string) => `Installation fehlgeschlagen: App ${appId}`,
       failedDetail: (code: string) => `Status „Failed“, ${code}.`,
@@ -636,7 +637,7 @@ export const deRules = {
         'Die Installation ist abgeschlossen, wird aber erst nach einem Neustart wirksam.',
       pendingRebootRemediation: ['Nutzer bitten, das Gerät neu zu starten.'],
       imeTitle: (errors: number, warnings: number) =>
-        `IME-Log: ${errors} Fehler-, ${warnings} Warnzeilen`,
+        `IME-Log: ${errors} ${errors === 1 ? 'Fehlerzeile' : 'Fehlerzeilen'}, ${warnings} ${warnings === 1 ? 'Warnzeile' : 'Warnzeilen'}`,
       imeDetail: (lines: string) => `Auszug: ${lines}`,
       imeCause:
         'Die Intune Management Extension protokolliert Fehler bzw. Warnungen. Typ 3 markiert teils auch Informationen – nur als Hinweis werten.',
@@ -649,8 +650,8 @@ export const deRules = {
       valueCoManaged: 'Co-Management',
       valueMissing: 'Keine MDM-Registrierung',
       valueNone: 'Keine Daten',
-      summary: (count: number, upn: string | null) =>
-        `${count} ${count === 1 ? 'Registrierung' : 'Registrierungen'}${upn ? ` · ${upn}` : ''}`,
+      summary: (count: number) => `${count} ${count === 1 ? 'Registrierung' : 'Registrierungen'}`,
+      upnLabel: 'Benutzer (maskiert)',
       missingTitle: 'Keine Intune-MDM-Registrierung gefunden',
       missingDetail:
         'Unter HKLM\\Software\\Microsoft\\Enrollments gibt es keinen Eintrag mit ProviderID „MS DM Server“.',
@@ -676,8 +677,7 @@ export const deRules = {
       valueOk: 'Vollständig',
       valueFailed: (n: number) => `${n} ${n === 1 ? 'Sammlung' : 'Sammlungen'} fehlgeschlagen`,
       valueHarmless: (n: number) => `${n} erwartbar fehlend`,
-      summary: (entries: number, collected: string | null) =>
-        collected ? `${entries} Einträge · gesammelt ${collected}` : `${entries} Einträge`,
+      summary: (entries: number) => `${entries} Einträge im Archiv`,
       failedTitle: (kind: string, target: string) => `${kind} nicht gesammelt: ${target}`,
       failedDetail: (hresult: string, meaning: string | undefined) =>
         meaning ? `${hresult} – ${meaning}.` : `${hresult}.`,
@@ -703,5 +703,25 @@ export const deRules = {
         FoldersFiles: 'Dateien',
       } as Record<string, string>,
     },
+  },
+  ticket: {
+    heading: (name: string) => `MDM Doctor – Befunde für ${name}`,
+    generated: (date: string, mode: string) => `Erstellt: ${date} · Datenquelle: ${mode}`,
+    modeDemo: 'Demo-Daten (fiktiv)',
+    modeLive: 'Microsoft Graph (live, read-only)',
+    modeZip: 'DiagLogs-ZIP (lokal analysiert)',
+    summary: 'Zusammenfassung',
+    tilesHeading: 'Status',
+    findingsHeading: 'Befunde',
+    noFindings: 'Keine Probleme gefunden.',
+    cause: 'Ursache',
+    remediation: 'Lösung',
+    source: 'Quelle',
+    docs: 'Doku',
+    severity: { ok: 'OK', warning: 'Prüfen', critical: 'Problem', unknown: 'Hinweis' } as Record<
+      string,
+      string
+    >,
+    device: (parts: string[]) => parts.join(' · '),
   },
 } as const;

@@ -36,7 +36,7 @@ export const de = {
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
     enrollment: 'Enrollment',
-    diagCollection: 'Diagnose-Sammlung',
+    diagCollection: 'Diagnosedaten',
   },
   severity: {
     ok: 'In Ordnung',

@@ -79,7 +79,9 @@ function tile(
 
 // ---------- Entra-Join & PRT ----------
 
-function joinType(ds: DsregStatus): string {
+function joinType(ds: DsregStatus): string | null {
+  // Fehlen beide Felder, ist der Join-Status unbekannt (nicht "nicht verbunden").
+  if (ds.azureAdJoined === undefined && ds.domainJoined === undefined) return null;
   const aad = ds.azureAdJoined?.toUpperCase() === 'YES';
   const domain = ds.domainJoined?.toUpperCase() === 'YES';
   if (aad && domain) return z.entraJoin.joinType.hybrid;
@@ -131,7 +133,7 @@ function entraJoinTile(report: DiagnosticsReport): Tile {
   }
 
   const findings: Finding[] = [];
-  const join = joinType(ds);
+  const join = joinType(ds) ?? z.entraJoin.joinType.unknown;
   const prtMissing = ds.azureAdPrt?.toUpperCase() === 'NO';
   const attempt =
     blockField(ds, 'AcquirePrtDiagnostics', 'Previous Prt Attempt') ??
@@ -152,7 +154,7 @@ function entraJoinTile(report: DiagnosticsReport): Tile {
     const codeNotes: string[] = [];
     if (status && statusExplanation) {
       if (
-        statusExplanation.kind === 'ntstatus' &&
+        // NTSTATUS, Win32 oder WinHTTP – Deutung nur aus der Wissensbasis (win32.ts)
         statusExplanation.name &&
         statusExplanation.text
       ) {
@@ -440,12 +442,13 @@ function enrollmentTile(report: DiagnosticsReport): Tile {
     mono: true,
   }));
   const upn = mdm.find((e) => e.upnMasked)?.upnMasked ?? null;
+  if (upn) facts.push({ label: t.upnLabel, value: upn, mono: true });
   const severity = worstActionable(findings);
   return tile(
     'enrollment',
     severity,
     mdm.length === 0 ? t.valueMissing : sccm.length > 0 ? t.valueCoManaged : t.valueMdm,
-    t.summary(enrollments.length, upn),
+    t.summary(enrollments.length),
     findings,
     [source],
     facts,
@@ -493,16 +496,16 @@ function collectionTile(report: DiagnosticsReport): Tile {
     { label: f.zipEntries, value: String(report.entryCount) },
   ];
   if (report.collectedAtUtc)
-    facts.push({ label: f.zipCollected, value: formatDateTime(report.collectedAtUtc) });
+    facts.push({
+      label: f.zipCollected,
+      value: `${formatDateTime(report.collectedAtUtc, 'UTC')} UTC`,
+    });
   const severity = worstActionable(findings);
   return tile(
     'diagCollection',
     severity,
     real > 0 ? t.valueFailed(real) : harmless > 0 ? t.valueHarmless(harmless) : t.valueOk,
-    t.summary(
-      report.entryCount,
-      report.collectedAtUtc ? formatDateTime(report.collectedAtUtc) : null,
-    ),
+    t.summary(report.entryCount),
     findings,
     [source],
     facts,

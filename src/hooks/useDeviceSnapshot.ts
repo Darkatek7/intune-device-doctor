@@ -2,7 +2,7 @@
  * Lädt ein Gerät progressiv: erst getDevice, dann alle Sections parallel. Jede Section aktualisiert
  * den Snapshot einzeln (Kacheln erscheinen nacheinander). Abort bei Gerätewechsel/Unmount.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AppError,
   DataSource,
@@ -11,6 +11,7 @@ import type {
   SectionResult,
   SnapshotSectionKey,
 } from '../domain/types';
+import type { DiagnosticsReport } from '../diagnostics/types';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { isAbort, toAppError } from './useDeviceSearch';
 
@@ -54,7 +55,12 @@ function loadSection(
   }
 }
 
-export function useDeviceSnapshot(provider: DeviceDataProvider | null, deviceId: string | null) {
+export function useDeviceSnapshot(
+  provider: DeviceDataProvider | null,
+  deviceId: string | null,
+  /** Optional: Befunde aus einer DiagLogs-ZIP – werden in den Snapshot übernommen (ohne Neuladen). */
+  diagnostics?: DiagnosticsReport,
+) {
   const key = provider && deviceId ? `${provider.mode}:${deviceId}` : '';
   const [state, setState] = useState<InternalState | null>(null);
   const run = useRef<{
@@ -152,9 +158,14 @@ export function useDeviceSnapshot(provider: DeviceDataProvider | null, deviceId:
   );
 
   const current = state && state.key === key ? state : null;
+  const loaded = current?.snapshot ?? null;
+  const snapshot = useMemo<DeviceSnapshot | null>(
+    () => (loaded && diagnostics ? { ...loaded, diagnostics } : loaded),
+    [loaded, diagnostics],
+  );
   return {
     status: (key ? (current?.status ?? 'loading') : 'loading') as SnapshotStatus,
-    snapshot: current?.snapshot ?? null,
+    snapshot,
     error: current?.error ?? null,
     now: current?.now ?? null,
     retrySection,
