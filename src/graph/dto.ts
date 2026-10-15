@@ -157,7 +157,8 @@ export interface GraphWindowsProtectionState {
 
 // https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdevicemalwarestate?view=graph-rest-1.0
 export type WindowsMalwareSeverity = 'unknown' | 'low' | 'moderate' | 'high' | 'severe';
-export type WindowsMalwareExecutionState = 'unknown' | 'blocked' | 'allowed' | 'running' | 'notRunning';
+export type WindowsMalwareExecutionState =
+  'unknown' | 'blocked' | 'allowed' | 'running' | 'notRunning';
 export type WindowsMalwareState =
   | 'unknown'
   | 'detected'

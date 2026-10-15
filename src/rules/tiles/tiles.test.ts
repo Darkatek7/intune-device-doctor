@@ -561,7 +561,9 @@ describe('Betriebssystem (osVersion)', () => {
     const tile = evaluateOsVersion(withOs('10.0.26100.1'), NOW);
     expect(tile.severity).toBe('ok');
     expect(tile.value).toBe('Windows 11 24H2');
-    expect(tile.findings.map((f) => [f.id, f.severity])).toEqual([['osVersion-homePro', 'unknown']]);
+    expect(tile.findings.map((f) => [f.id, f.severity])).toEqual([
+      ['osVersion-homePro', 'unknown'],
+    ]);
   });
 
   it('Build ohne Revision (10.0.26100) wird trotzdem erkannt', () => {

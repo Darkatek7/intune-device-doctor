@@ -68,6 +68,23 @@ export const Endpoints = {
         $top: '25',
       }),
   },
+  /**
+   * Dokumentierter list-Endpunkt ohne $filter. Nur Fallback für die clientseitige Suche, falls der
+   * (laut v1.0-Doku nicht belegte) $filter auf deviceName mit HTTP 400 abgelehnt wird.
+   */
+  managedDevicesList: {
+    id: 'managedDevicesList',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDevices?$select=…',
+    path: () =>
+      withQuery('/deviceManagement/managedDevices', {
+        $select: MANAGED_DEVICE_LIST_SELECT.join(','),
+      }),
+  },
   managedDevice: {
     id: 'managedDevice',
     method: 'GET',
@@ -95,7 +112,8 @@ export const Endpoints = {
     scope: GraphScope.ManagedDevicesRead,
     docsUrl:
       'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdevicemalwarestate?view=graph-rest-1.0',
-    display: 'GET /deviceManagement/managedDevices/{id}/windowsProtectionState/detectedMalwareState',
+    display:
+      'GET /deviceManagement/managedDevices/{id}/windowsProtectionState/detectedMalwareState',
     path: (id: string) =>
       `/deviceManagement/managedDevices/${enc(id)}/windowsProtectionState/detectedMalwareState`,
   },
@@ -107,7 +125,8 @@ export const Endpoints = {
     docsUrl:
       'https://learn.microsoft.com/en-us/powershell/module/microsoft.graph.devicemanagement/get-mgdevicemanagementmanageddevicecompliancepolicystate?view=graph-powershell-1.0',
     display: 'GET /deviceManagement/managedDevices/{id}/deviceCompliancePolicyStates',
-    path: (id: string) => `/deviceManagement/managedDevices/${enc(id)}/deviceCompliancePolicyStates`,
+    path: (id: string) =>
+      `/deviceManagement/managedDevices/${enc(id)}/deviceCompliancePolicyStates`,
   },
   deviceConfigurationStates: {
     id: 'deviceConfigurationStates',
