@@ -13,6 +13,7 @@ import {
   maskUpn,
   normalizeHex,
   osFamilyFrom,
+  maskUserPaths,
 } from './format';
 
 const NOW = new Date('2026-10-15T12:00:00Z');
@@ -297,5 +298,22 @@ describe('hexToSignedDecimal', () => {
   it('Roundtrip in der Gegenrichtung liefert die normalisierte Hex-Form', () => {
     expect(hresultToHex(hexToSignedDecimal('0x80070642') ?? Number.NaN)).toBe('0x80070642');
     expect(hresultToHex(hexToSignedDecimal('0x87d1fde8') ?? Number.NaN)).toBe('0x87D1FDE8');
+  });
+});
+
+describe('maskUserPaths', () => {
+  it('maskiert Benutzernamen in Windows-Pfaden und flachen ZIP-Namen', () => {
+    expect(maskUserPaths('C:\\Users\\max.mustermann\\AppData\\Local')).toBe(
+      'C:\\Users\\…\\AppData\\Local',
+    );
+    expect(maskUserPaths('FoldersFiles Users_jdoe_AppData_Local_Temp')).toBe(
+      'FoldersFiles Users_…_AppData_Local_Temp',
+    );
+  });
+  it('lässt öffentliche Profile und andere Texte unverändert', () => {
+    expect(maskUserPaths('C:\\Users\\Public\\Desktop')).toBe('C:\\Users\\Public\\Desktop');
+    expect(maskUserPaths('ProgramData_Microsoft_IntuneManagementExtension_Logs')).toBe(
+      'ProgramData_Microsoft_IntuneManagementExtension_Logs',
+    );
   });
 });

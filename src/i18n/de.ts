@@ -60,6 +60,23 @@ export const de = {
     unavailable: 'Daten nicht verfügbar',
     error: 'Fehler beim Laden',
     throttled: 'Microsoft Graph drosselt Anfragen – neuer Versuch folgt automatisch.',
+    retryAfter: (seconds: number) =>
+      seconds === 1
+        ? 'Nächster Versuch in etwa 1 Sekunde.'
+        : `Nächster Versuch in etwa ${seconds} Sekunden.`,
+    offline:
+      'Keine Internetverbindung – Microsoft Graph nicht erreichbar. Demo-Modus und ZIP-Analyse funktionieren weiter.',
+    loadingLive: 'Live-Modus wird geladen …',
+  },
+  /** "Ticket-Notiz kopieren" (rein lokal, Markdown in die Zwischenablage) */
+  ticket: {
+    button: 'Ticket-Notiz kopieren',
+    buttonHint: 'Befunde als Markdown in die Zwischenablage – es wird nichts gesendet.',
+    copied: 'Kopiert',
+    dialogTitle: 'Ticket-Notiz',
+    dialogBody:
+      'Das automatische Kopieren ist in diesem Browser nicht möglich. Markiere den Text und kopiere ihn mit Strg+C bzw. ⌘C.',
+    textLabel: 'Ticket-Notiz als Markdown',
   },
   /** Kurzwert einer Kachel, deren Daten nicht ausgewertet werden konnten */
   availability: {
@@ -187,9 +204,9 @@ export const de = {
     notFoundBody: (query: string) =>
       `Zu „${query}“ gibt es kein Gerät. Prüfe die Schreibweise – es genügt auch ein Teil des Namens.`,
     searchFailedTitle: 'Die Suche ist fehlgeschlagen',
-    liveUnavailableTitle: 'Live-Modus noch nicht verfügbar',
+    liveUnavailableTitle: 'Live-Modus nicht konfiguriert',
     liveUnavailableBody:
-      'Die Anbindung an Microsoft Graph wird in einem späteren Schritt ergänzt. Wechsle in den Demo-Modus, um Beispielgeräte zu sehen.',
+      'Für den Live-Modus fehlen Client-ID und Tenant-ID einer Entra-App (.env.local, siehe README). Der Demo-Modus funktioniert ohne Konfiguration.',
     switchToDemo: 'Zum Demo-Modus wechseln',
     backToSearch: 'Neue Suche',
   },
@@ -203,12 +220,13 @@ export const de = {
       default: 'Gerät konnte nicht geladen werden',
     },
     requiredScope: 'Benötigte Berechtigung',
+    requestId: 'Request-ID (für den Support)',
     retry: 'Erneut versuchen',
   },
   dropZoneUi: {
     label: 'DiagLogs-ZIP analysieren',
     choose: 'Datei auswählen',
-    comingSoon: 'Die ZIP-Analyse folgt in einem späteren Update.',
+    comingSoon: 'Die ZIP-Analyse ist hier nicht verfügbar.',
     dropActive: 'Zum Analysieren loslassen',
     notZip: 'Bitte eine ZIP-Datei auswählen.',
   },
@@ -230,12 +248,11 @@ export const de = {
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
       done: 'Analyse abgeschlossen',
     },
+    aborted: 'Analyse abgebrochen.',
+    workerError: 'Die Analyse im Hintergrund ist fehlgeschlagen.',
     meaning: {
-      registryExportOk: 'Export erfolgreich',
-      registryKeyMissing: 'Registry-Schlüssel nicht vorhanden',
       pathNotFound: 'Pfad nicht gefunden',
       fileNotFound: 'Datei nicht gefunden',
-      commandFailed: 'Befehl fehlgeschlagen',
     },
     notes: {
       binarySkipped: (count: number, byExtension: string) =>

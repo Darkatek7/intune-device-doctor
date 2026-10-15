@@ -106,6 +106,16 @@ export function maskUpn(upn: string | null | undefined): string | null {
   return `${upn.slice(0, Math.min(2, at))}…${upn.slice(at)}`;
 }
 
+const USER_PATH_RE = /(^|[\\/_\s])(Users[\\/_])([^\\/_\s]+)/gi;
+const PUBLIC_PROFILES = new Set(['public', 'default', 'all users', 'default user']);
+
+/** Benutzernamen in Pfaden maskieren: "C:\Users\max\…" bzw. "Users_max_…" → "Users\…". */
+export function maskUserPaths(text: string): string {
+  return text.replace(USER_PATH_RE, (match, lead: string, users: string, name: string) =>
+    PUBLIC_PROFILES.has(name.toLowerCase()) ? match : `${lead}${users}…`,
+  );
+}
+
 /** GUID o. ä. maskieren: "1234abcd-…-…" → "1234…cdef". */
 export function maskId(id: string | null | undefined): string | null {
   if (!id) return null;

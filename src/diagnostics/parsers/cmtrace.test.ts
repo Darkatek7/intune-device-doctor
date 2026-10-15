@@ -43,3 +43,14 @@ describe('parseCmTrace', () => {
     expect(parseCmTrace('nichts', 'a.log')).toEqual([]);
   });
 });
+
+describe('parseCmTrace – Maskierung', () => {
+  it('maskiert GUIDs und Benutzerpfade in Meldungen', () => {
+    const line =
+      '<![LOG[Tenant 12345678-1234-1234-1234-123456789abc at C:\\Users\\jdoe\\AppData]LOG]!><time="12:00:00.0000000" date="10-14-2026" component="Demo" context="" type="3" thread="1" file="">';
+    const [entry] = parseCmTrace(line, 'demo.log');
+    expect(entry?.message).not.toContain('12345678-1234-1234-1234-123456789abc');
+    expect(entry?.message).toContain('1234…9abc');
+    expect(entry?.message).not.toContain('jdoe');
+  });
+});

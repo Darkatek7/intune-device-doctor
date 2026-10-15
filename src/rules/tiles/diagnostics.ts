@@ -3,7 +3,7 @@
  * Enrollment (Registry) und Diagnose-Sammlung (fehlgeschlagene Sammlungen, Analyse-Hinweise).
  * Quelle jedes Befunds ist der ZIP-Eintrag. Codes werden nur über die Wissensbasis gedeutet.
  */
-import { formatDateTime, normalizeHex } from '../../domain/format';
+import { formatDateTime, maskId, maskUserPaths, normalizeHex } from '../../domain/format';
 import type { DataSource, Finding, Severity, Tile, TileFact } from '../../domain/types';
 import type {
   DiagEntry,
@@ -44,7 +44,7 @@ function zipSource(
   entry: DiagEntry | undefined,
   fallback: string,
 ): DataSource {
-  return { kind: 'zip', label: `${z.sourcePrefix} · ${entry?.path ?? fallback}` };
+  return { kind: 'zip', label: `${z.sourcePrefix} · ${maskUserPaths(entry?.path ?? fallback)}` };
 }
 
 function findEntry(
@@ -417,7 +417,9 @@ function enrollmentTile(report: DiagnosticsReport): Tile {
       detail: t.missingDetail,
       cause: t.missingCause,
       remediation: [...t.missingRemediation],
-      evidence: Object.fromEntries(enrollments.map((e) => [e.enrollmentId, e.providerId])),
+      evidence: Object.fromEntries(
+        enrollments.map((e) => [maskId(e.enrollmentId) ?? '…', e.providerId]),
+      ),
       source,
       docsUrl: Docs.windowsEnrollmentErrors,
     });
@@ -457,6 +459,13 @@ function enrollmentTile(report: DiagnosticsReport): Tile {
 
 // ---------- Diagnose-Sammlung ----------
 
+/** Generische Deutung über die Wissensbasis (Win32/NTSTATUS), sonst "Unbekannter Code". */
+function genericCodeText(hresult: string): string {
+  const ex = explainCode(hresult);
+  if (ex.name && ex.text) return z.collection.codeKnown(ex.name, ex.text);
+  return z.collection.codeUnknown;
+}
+
 function collectionTile(report: DiagnosticsReport): Tile {
   const t = z.collection;
   const source: DataSource = { kind: 'zip', label: `${z.sourcePrefix} · ${report.fileName}` };
@@ -468,14 +477,15 @@ function collectionTile(report: DiagnosticsReport): Tile {
     if (isHarmless) harmless++;
     else real++;
     const entry = findEntry(report, (e) => e.failedHresult !== null && e.name === failure.target);
+    const target = maskUserPaths(failure.target);
     findings.push({
-      id: `collection-${failure.kind}-${failure.target}`,
+      id: `collection-${failure.kind}-${target}`,
       severity: isHarmless ? 'unknown' : 'warning',
-      title: t.failedTitle(t.kind[failure.kind] ?? failure.kind, failure.target),
-      detail: t.failedDetail(failure.hresult, failure.meaning),
+      title: t.failedTitle(t.kind[failure.kind] ?? failure.kind, target),
+      detail: t.failedDetail(failure.hresult, failure.meaning ?? genericCodeText(failure.hresult)),
       cause: isHarmless ? t.harmlessCause : t.failedCause,
       remediation: isHarmless ? [...t.harmlessRemediation] : [...t.failedRemediation],
-      evidence: { kind: failure.kind, target: failure.target, hresult: failure.hresult },
+      evidence: { kind: failure.kind, target, hresult: failure.hresult },
       source: zipSource(report, entry, 'results.xml'),
       docsUrl: explainCode(failure.hresult).docsUrl ?? undefined,
     });

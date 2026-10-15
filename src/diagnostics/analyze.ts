@@ -3,6 +3,7 @@
  * Kein Netzwerkzugriff, kein Upload: die Datei wird ausschließlich im Browser gelesen.
  * Nur Text-Einträge werden bei Bedarf entpackt; Binärdateien (.evtx/.etl/.cab …) nie.
  */
+import { maskUserPaths } from '../domain/format';
 import { de } from '../i18n/de';
 import { parseCmTrace } from './parsers/cmtrace';
 import { parseDsregcmd } from './parsers/dsregcmd';
@@ -184,14 +185,19 @@ export async function analyzeDiagnosticsZip(
       const result = await zip.readText(entry, maxBytes);
       if (!result.ok) {
         if (result.reason === 'tooLarge') {
-          notes.push(t.notes.tooLarge(entry.name, Math.ceil(entry.uncompressedSize / 1048576)));
+          notes.push(
+            t.notes.tooLarge(
+              maskUserPaths(entry.name),
+              Math.ceil(entry.uncompressedSize / 1048576),
+            ),
+          );
         } else if (result.reason === 'error') {
-          notes.push(t.notes.unreadable(entry.name));
+          notes.push(t.notes.unreadable(maskUserPaths(entry.name)));
         }
         return null;
       }
       evaluated.add(entry.path);
-      if (result.text.includes('�')) notes.push(t.notes.suspectEncoding(entry.name));
+      if (result.text.includes('�')) notes.push(t.notes.suspectEncoding(maskUserPaths(entry.name)));
       return result.text;
     };
 

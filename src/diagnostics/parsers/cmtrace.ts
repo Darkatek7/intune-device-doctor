@@ -2,7 +2,7 @@
  * Parser für CMTrace-Logs (IME-Logs). Einträge können mehrzeilig sein
  * (docs/diaglogs-format.md). Reine Funktion, regex-basiert.
  */
-import { maskUpn } from '../../domain/format';
+import { maskId, maskUpn, maskUserPaths } from '../../domain/format';
 import type { CmTraceEntry } from '../types';
 
 const ENTRY_RE =
@@ -32,10 +32,15 @@ function toTimestamp(date: string, time: string): string | null {
 }
 
 /** UPNs in Lognachrichten maskieren und überlange Nachrichten kürzen. */
+const GUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
 function cleanMessage(message: string): string {
   let text = message.replace(/\r\n/g, '\n').trim();
   if (text.length > MAX_MESSAGE_LENGTH) text = `${text.slice(0, MAX_MESSAGE_LENGTH)}…`;
-  return text.replace(EMAIL_RE, (m) => maskUpn(m) ?? '…');
+  // UPNs, GUIDs (z. B. Tenant-/Geräte-IDs) und Benutzernamen in Pfaden maskieren (CLAUDE.md Regel 7)
+  return maskUserPaths(
+    text.replace(EMAIL_RE, (m) => maskUpn(m) ?? '…').replace(GUID_RE, (m) => maskId(m) ?? '…'),
+  );
 }
 
 export function parseCmTrace(

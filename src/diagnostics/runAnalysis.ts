@@ -2,6 +2,7 @@
  * Client-Seite der ZIP-Analyse: startet den Web Worker, leitet Fortschritt weiter und beendet
  * den Worker bei Abbruch oder Ende. Ohne Worker-Unterstützung (jsdom/Tests) läuft die Analyse direkt.
  */
+import { de } from '../i18n/de';
 import { analyzeDiagnosticsZip, type AnalysisProgress } from './analyze';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 import type { DiagnosticsReport } from './types';
@@ -12,7 +13,7 @@ export interface RunAnalysisOptions {
 }
 
 function abortError(): DOMException {
-  return new DOMException('Analyse abgebrochen.', 'AbortError');
+  return new DOMException(de.diagnostics.aborted, 'AbortError');
 }
 
 export function runDiagnosticsAnalysis(
@@ -54,7 +55,7 @@ export function runDiagnosticsAnalysis(
       }
     };
     worker.onerror = (event) => {
-      finish(() => reject(new Error(event.message || 'Worker-Fehler')));
+      finish(() => reject(new Error(event.message || de.diagnostics.workerError)));
     };
 
     const request: WorkerRequest = { type: 'analyze', file };

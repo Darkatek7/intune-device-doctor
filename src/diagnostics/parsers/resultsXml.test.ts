@@ -24,7 +24,7 @@ describe('interpretHresult', () => {
 
   it('erkennt fehlende Schlüssel', () => {
     expect(interpretHresult('RegistryKey', -2147024895)).toMatchObject({ ok: false });
-    expect(interpretHresult('RegistryKey', -2147024895).meaning).toBeTruthy();
+    expect(interpretHresult('RegistryKey', -2147024895).meaning).toBeUndefined();
   });
 
   it('deutet FoldersFiles und Command typabhängig', () => {

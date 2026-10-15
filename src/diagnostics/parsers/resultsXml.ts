@@ -79,15 +79,17 @@ export function interpretHresult(
 
   switch (kind) {
     case 'RegistryKey':
-      if (code === HEX_NOT_FOUND_PATH) return { ok: true, meaning: m.registryExportOk };
-      if (code === HEX_KEY_MISSING) return { ok: false, meaning: m.registryKeyMissing };
+      // Beobachtung aus echten Archiven (docs/diaglogs-format.md): 0x80070003 tritt bei erfolgreichen
+      // Registry-Exporten auf → kein Sammelfehler. Keine angezeigte Deutung (keine Microsoft-Quelle).
+      if (code === HEX_NOT_FOUND_PATH) return { ok: true };
+      if (code === HEX_KEY_MISSING) return { ok: false };
       return { ok: false };
     case 'FoldersFiles':
       if (code === HEX_NOT_FOUND_PATH) return { ok: false, meaning: m.pathNotFound };
       if (code === HEX_NOT_FOUND_FILE) return { ok: false, meaning: m.fileNotFound };
       return { ok: false };
     case 'Command':
-      if (code === HEX_COMMAND_FAILED) return { ok: false, meaning: m.commandFailed };
+      if (code === HEX_COMMAND_FAILED) return { ok: false };
       return { ok: false };
     case 'Events':
       return { ok: false };

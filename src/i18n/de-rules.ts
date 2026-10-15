@@ -681,6 +681,8 @@ export const deRules = {
       failedTitle: (kind: string, target: string) => `${kind} nicht gesammelt: ${target}`,
       failedDetail: (hresult: string, meaning: string | undefined) =>
         meaning ? `${hresult} – ${meaning}.` : `${hresult}.`,
+      codeKnown: (name: string, text: string) => `${name} („${text}“)`,
+      codeUnknown: 'Unbekannter Code',
       harmlessCause:
         'Diese Komponente ist auf vielen Geräten nicht installiert; das Fehlen der Daten ist dann erwartbar.',
       failedCause:
