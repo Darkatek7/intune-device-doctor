@@ -31,6 +31,16 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         viewport: { width: 1440, height: 900 },
         colorScheme: 'light',
+        // Standard ist Dunkel – das Light-Projekt wählt Hell wie per Toolbar-Schalter.
+        storageState: {
+          cookies: [],
+          origins: [
+            {
+              origin: 'http://localhost:4173',
+              localStorage: [{ name: 'mdm-doctor.theme', value: 'light' }],
+            },
+          ],
+        },
       },
     },
     {

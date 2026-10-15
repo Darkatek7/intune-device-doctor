@@ -36,9 +36,13 @@ Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten
 
 Weitere Szenarien: `CONTOSO-PC027` (Defender: Signaturen veraltet, Neustart, behandelte Bedrohung), `CONTOSO-PC033` (Check-in vor 41 Tagen), `CONTOSO-LT108` (Windows 10, Entra-Gerät deaktiviert), `CONTOSO-MAC07` (macOS, FileVault, Defender nicht anwendbar). Mehrdeutige Suche: `contoso-pc0`.
 
+## Erscheinungsbild
+
+Standard ist der dunkle Modus; der Schalter oben rechts (Sonne/Mond) wechselt zu Hell. Die Wahl bleibt im Browser gespeichert.
+
 ## DiagLogs-ZIP analysieren
 
-Im Intune Admin Center › Geräte › _Gerät_ › „Diagnosedaten sammeln“ erzeugtes Archiv (`DiagLogs-<Gerät>-<Zeitstempel>.zip`) auf die Startseite ziehen oder über „Datei auswählen“ öffnen. Die Analyse läuft in einem Web Worker komplett im Browser: Es wird nur das Inhaltsverzeichnis gelesen und Texteinträge bei Bedarf entpackt; Binärdateien (`.evtx`, `.etl`, `.cab`) werden übersprungen. UPN, Tenant-ID und GUIDs werden in der Anzeige maskiert, die Push-ChannelURI wird verworfen. Gibt es im aktuellen Modus ein Gerät mit gleichem Namen, lassen sich ZIP- und Intune-Befunde zusammenführen.
+Im Intune Admin Center › Geräte › _Gerät_ › „Diagnosedaten sammeln“ erzeugtes Archiv (`DiagLogs-<Gerät>-<Zeitstempel>.zip`) auf die Startseite ziehen oder über „Datei auswählen“ öffnen. Die Analyse läuft in einem Web Worker komplett im Browser: Es wird nur das Inhaltsverzeichnis gelesen und Texteinträge bei Bedarf entpackt; Binärdateien (`.evtx`, `.etl`, `.cab`) werden übersprungen. UPN, Tenant-ID und GUIDs werden in der Anzeige maskiert, die Push-ChannelURI wird verworfen. Gibt es im aktuellen Modus ein Gerät mit gleichem Namen, lassen sich ZIP- und Intune-Befunde zusammenführen. Fehlgeschlagene Win32-Apps erscheinen mit ihrem Namen (Live: `GET /deviceAppManagement/mobileApps/{id}`, Demo: fiktiver Contoso-Katalog) und einem Link „App im Intune Admin Center öffnen“; ohne Berechtigung oder für gelöschte Apps bleibt die App-ID sichtbar.
 
 ## Live-Modus einrichten
 
@@ -52,7 +56,7 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
    | ----------------------------------------- | ------------------------------------------------------------------------ |
    | `User.Read`                               | Anmeldung/Profil                                                         |
    | `DeviceManagementManagedDevices.Read.All` | Geräte, Defender, Compliance-Status                                      |
-   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status                                              |
+   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps)                      |
    | `Device.Read.All`                         | Entra-Geräteobjekt                                                       |
    | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst) |
 
