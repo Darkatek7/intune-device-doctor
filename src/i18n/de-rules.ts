@@ -610,6 +610,8 @@ export const deRules = {
       summaryCounts: (installed: number, _failed: number, other: number) =>
         `${installed} installiert · ${other} sonstige`,
       summaryNone: 'Keine Win32-App-Zustände im Archiv',
+      statusFact: (status: string) => `Status „${status}“`,
+      statusFactValue: (count: number) => `${count} ${count === 1 ? 'App' : 'Apps'}`,
       failedTitle: (appId: string) => `Installation fehlgeschlagen: App ${appId}`,
       failedDetail: (code: string) => `Status „Failed“, ${code}.`,
       codeWin32: (

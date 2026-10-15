@@ -179,6 +179,16 @@ describe('osFamilyFrom', () => {
 });
 
 describe('maskUpn', () => {
+  it('verwirft eine angehängte Tenant-ID (Enrollment-UPN "user@domain@<Tenant-ID>")', () => {
+    expect(maskUpn('max.mustermann@contoso.com@00000000-0000-0000-0000-0000000000aa')).toBe(
+      'ma…@contoso.com',
+    );
+  });
+
+  it('zeigt eine GUID als Domain nur maskiert', () => {
+    expect(maskUpn('max@12345678-0000-0000-0000-0000000000aa')).not.toContain('0000-0000');
+  });
+
   it('maskiert den Lokalteil auf zwei Zeichen', () => {
     expect(maskUpn('max.mustermann@contoso.com')).toBe('ma…@contoso.com');
   });

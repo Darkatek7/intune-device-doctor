@@ -93,27 +93,39 @@ const ENROLLMENTS_REG = crlf(String.raw`Windows Registry Editor Version 5.00
 // (2) IntuneManagementExtension-.reg (UTF-16LE mit BOM)
 // ---------------------------------------------------------------------------
 
+// Aufbau wie in echten Archiven: Status/ErrorCode/AppId unter SideCarPolicies\StatusServiceReports,
+// unter Win32Apps nur Begleitwerte (RebootStatus, Intent …) ohne Status.
 const IME_REG = crlf(String.raw`Windows Registry Editor Version 5.00
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps\00000000-0000-0000-0000-000000000000]
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\SideCarPolicies\StatusServiceReports]
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A1_1\OperationalState]
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\SideCarPolicies\StatusServiceReports\00000000-0000-0000-0000-000000000000]
+
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\SideCarPolicies\StatusServiceReports\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A1]
+"AppId"="00000000-0000-0000-0000-0000000000A1"
+"ApplicabilityCode"="Applicable"
+"Required"="True"
 "Status"="Installed"
 "ErrorCode"="0"
-"ApplicabilityCode"="0"
-"RebootStatus"="0"
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A2_1\OperationalState]
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\SideCarPolicies\StatusServiceReports\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A2]
+"AppId"="00000000-0000-0000-0000-0000000000A2"
+"ApplicabilityCode"="Applicable"
+"Required"="True"
 "Status"="Failed"
 "ErrorCode"="-2147023294"
-"ApplicabilityCode"="0"
-"RebootStatus"="0"
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A3_1\OperationalState]
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\SideCarPolicies\StatusServiceReports\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A3]
+"AppId"="00000000-0000-0000-0000-0000000000A3"
+"ApplicabilityCode"="NotApplicable"
+"Required"="True"
 "Status"="NotApplicable"
 "ErrorCode"="0"
-"ApplicabilityCode"="0"
-"RebootStatus"="0"
+
+[HKEY_LOCAL_MACHINE\software\microsoft\intunemanagementextension\Win32Apps\00000000-0000-0000-0000-000000000000\00000000-0000-0000-0000-0000000000A2_1]
+"Intent"="3"
+"RebootStatus"="Clean"
+"RebootReason"="None"
 `);
 
 // ---------------------------------------------------------------------------
@@ -270,5 +282,23 @@ export function buildFixtureEntries(): Record<string, Uint8Array> {
 
 /** Komplettes DiagLogs-ZIP (deterministisch: feste mtime, gleiche Eingaben → gleiche Bytes). */
 export function buildFixtureZip(): Uint8Array {
-  return zipSync(buildFixtureEntries(), { mtime: FIXTURE_MTIME });
+  return markLocalHeadersUtf8(zipSync(buildFixtureEntries(), { mtime: FIXTURE_MTIME }));
+}
+
+/**
+ * Wie echte Intune-Archive: Die lokalen Dateiheader tragen andere Bit-Flags als das Central
+ * Directory (Intune: 0x0808 lokal, 0 zentral). Wir setzen lokal Bit 11 (UTF-8), damit Reader, die
+ * die Header strikt abgleichen, in Tests genauso scheitern wie bei echten Archiven.
+ */
+function markLocalHeadersUtf8(zip: Uint8Array): Uint8Array {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  let offset = 0;
+  while (offset + 30 <= zip.length && view.getUint32(offset, true) === 0x04034b50) {
+    view.setUint16(offset + 6, view.getUint16(offset + 6, true) | 0x0800, true);
+    const compressedSize = view.getUint32(offset + 18, true);
+    const nameLength = view.getUint16(offset + 26, true);
+    const extraLength = view.getUint16(offset + 28, true);
+    offset += 30 + nameLength + extraLength + compressedSize;
+  }
+  return zip;
 }

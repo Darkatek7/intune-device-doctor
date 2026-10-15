@@ -103,7 +103,12 @@ export function maskUpn(upn: string | null | undefined): string | null {
   if (!upn) return null;
   const at = upn.indexOf('@');
   if (at < 0) return `${upn.slice(0, 2)}…`;
-  return `${upn.slice(0, Math.min(2, at))}…${upn.slice(at)}`;
+  // Windows speichert die Enrollment-UPN teils als "user@domain@<Tenant-ID>" – nur die Domain behalten.
+  const domain = upn.slice(at + 1).split('@')[0] ?? '';
+  const shownDomain = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(domain)
+    ? maskId(domain)
+    : domain;
+  return `${upn.slice(0, Math.min(2, at))}…@${shownDomain}`;
 }
 
 const USER_PATH_RE = /(^|[\\/_\s])(Users[\\/_])([^\\/_\s]+)/gi;

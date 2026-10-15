@@ -28,10 +28,12 @@ export function extractEnrollments(keys: RegKey[]): EnrollmentInfo[] {
     if (!id) continue;
     const providerId = getRegString(key, 'ProviderID');
     const enrollmentState = numeric(key, 'EnrollmentState');
-    if (providerId === null && enrollmentState === null) continue;
+    // Echte Geräte haben Dutzende Enrollment-Keys ohne ProviderID (System-/Zertifikats-
+    // Enrollments) – für MDM-Troubleshooting zählen nur Enrollments mit ProviderID.
+    if (!providerId) continue;
     result.push({
       enrollmentId: id,
-      providerId: providerId && providerId !== '' ? providerId : null,
+      providerId,
       enrollmentState,
       enrollmentType: numeric(key, 'EnrollmentType'),
       upnMasked: maskUpn(getRegString(key, 'UPN') || null),

@@ -288,6 +288,11 @@ function codeDescription(app: Win32AppState): {
   return { text: w.codeUnknown(ex.hex, ex.decimal), docsUrl: null };
 }
 
+/** Sortierung der Status-Zeilen: Problemfälle zuerst. */
+function rankStatus(status: string): number {
+  return { failed: 3, installedpendingreboot: 2, installed: 1 }[status.toLowerCase()] ?? 0;
+}
+
 function win32AppsTile(report: DiagnosticsReport): Tile {
   const w = z.win32;
   const entry = findEntry(
@@ -362,11 +367,16 @@ function win32AppsTile(report: DiagnosticsReport): Tile {
     });
   }
 
-  const facts: TileFact[] = apps.map((app) => ({
-    label: app.appId,
-    value: [app.status ?? '–', app.errorCodeHex].filter(Boolean).join(' · '),
-    mono: true,
-  }));
+  // Echte Geräte melden Hunderte Apps – statt einer Zeile pro App nur die Anzahl je Status;
+  // die fehlgeschlagenen Apps stehen ohnehin einzeln als Befunde darunter.
+  const statusCounts = new Map<string, number>();
+  for (const app of apps) {
+    const status = app.status ?? '–';
+    statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+  }
+  const facts: TileFact[] = [...statusCounts]
+    .sort(([a, countA], [b, countB]) => rankStatus(b) - rankStatus(a) || countB - countA)
+    .map(([status, count]) => ({ label: w.statusFact(status), value: w.statusFactValue(count) }));
   const severity = apps.length === 0 ? 'unknown' : worstActionable(findings);
   const other = apps.length - failed.length - installed.length;
   return tile(
