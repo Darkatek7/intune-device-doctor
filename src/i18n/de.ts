@@ -262,6 +262,8 @@ export const de = {
       fileNotFound: 'Datei nicht gefunden',
     },
     notes: {
+      parseFailed: (entry: string) =>
+        `„${entry}“ konnte nicht ausgewertet werden (unerwartetes Format).`,
       binarySkipped: (count: number, byExtension: string) =>
         count === 1
           ? `1 Binärdatei nicht ausgewertet (${byExtension}).`

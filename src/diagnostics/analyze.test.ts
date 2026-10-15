@@ -180,3 +180,17 @@ describe('runDiagnosticsAnalysis', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+describe('analyzeDiagnosticsZip – Robustheit', () => {
+  it('ein unlesbarer dsregcmd-Eintrag kippt nicht die ganze Analyse', async () => {
+    const { buildFixtureEntries, FIXTURE_FILE_NAME: name } = await import('./fixture');
+    const { zipSync } = await import('fflate');
+    const entries = buildFixtureEntries();
+    const key = Object.keys(entries).find((k) => /Dsregcmd/i.test(k))!;
+    // Ungültiges UTF-16 ohne Struktur → Parser liefert nichts Sinnvolles, Rest bleibt auswertbar
+    entries[key] = new Uint8Array([0xff, 0xfe, 0x00, 0xd8]);
+    const report = await analyzeDiagnosticsZip(new File([zipSync(entries)], name), {});
+    expect(report.win32Apps.length).toBe(3);
+    expect(report.enrollments.length).toBe(2);
+  });
+});

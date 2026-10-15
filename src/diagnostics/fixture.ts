@@ -161,7 +161,7 @@ const DSREGCMD_TEXT =
       kvLine('EnterprisePrt', 'NO'),
       '',
       kvLine('AcquirePrtDiagnostics', 'PRESENT'),
-      kvLine('Previous Prt Attempt', '2026-10-12 11:28:30.434 UTC'),
+      kvLine('Previous Prt Attempt', '2026-10-12 08:00:00.000 UTC'),
       kvLine('Attempt Status', '0xc000023c'),
       kvLine('User Identity', 'user@contoso.com'),
       kvLine('Credential Type', 'NGC'),

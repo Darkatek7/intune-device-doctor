@@ -173,6 +173,16 @@ export async function analyzeDiagnosticsZip(
     onProgress?.({ stage, message, completed, total });
   };
 
+  /** Ein fehlerhafter Parser kippt nie die ganze Analyse – der Befund fehlt dann, mit Hinweis. */
+  const safe = <T>(label: string, fallback: T, parse: () => T): T => {
+    try {
+      return parse();
+    } catch {
+      notes.push(t.notes.parseFailed(maskUserPaths(label)));
+      return fallback;
+    }
+  };
+
   report('opening', t.progress.opening);
   const zip = await openZip(file);
   try {
@@ -208,17 +218,19 @@ export async function analyzeDiagnosticsZip(
     if (resultsEntry) {
       const xml = await readText(resultsEntry, maxTextBytes);
       if (xml) {
-        resultFailures = parseResultsXml(xml).flatMap((item): CollectionFailure[] => {
-          const interpretation = interpretHresult(item.kind, item.hresultDecimal);
-          if (interpretation.ok) return [];
-          const failure: CollectionFailure = {
-            kind: item.kind,
-            target: item.target,
-            hresult: item.hresultHex,
-          };
-          if (interpretation.meaning) failure.meaning = interpretation.meaning;
-          return [failure];
-        });
+        resultFailures = safe(resultsEntry.name, [], () => parseResultsXml(xml)).flatMap(
+          (item): CollectionFailure[] => {
+            const interpretation = interpretHresult(item.kind, item.hresultDecimal);
+            if (interpretation.ok) return [];
+            const failure: CollectionFailure = {
+              kind: item.kind,
+              target: item.target,
+              hresult: item.hresultHex,
+            };
+            if (interpretation.meaning) failure.meaning = interpretation.meaning;
+            return [failure];
+          },
+        );
       }
     }
     const collectionFailures = mergeCollectionFailures(
@@ -235,7 +247,7 @@ export async function analyzeDiagnosticsZip(
     );
     if (dsregEntry) {
       const text = await readText(dsregEntry, maxTextBytes);
-      if (text) dsregcmd = parseDsregcmd(text);
+      if (text) dsregcmd = safe(dsregEntry.name, null, () => parseDsregcmd(text));
     }
     if (!dsregcmd) notes.push(t.notes.noDsregcmd);
     completed = 3;
@@ -251,15 +263,23 @@ export async function analyzeDiagnosticsZip(
       if (/(^|_)Microsoft_Enrollments$/i.test(entry.name)) {
         sawEnrollmentExport = true;
         const text = await readText(entry, maxRegBytes);
-        if (text) enrollmentKeys.push(...parseRegExport(text, { keyFilter: isEnrollmentRootKey }));
+        if (text)
+          enrollmentKeys.push(
+            ...safe(entry.name, [], () => parseRegExport(text, { keyFilter: isEnrollmentRootKey })),
+          );
       } else if (/(^|_)Microsoft_IntuneManagementExtension$/i.test(entry.name)) {
         sawImeExport = true;
         const text = await readText(entry, maxRegBytes);
-        if (text) imeKeys.push(...parseRegExport(text, { keyFilter: isWin32AppsKey }));
+        if (text)
+          imeKeys.push(
+            ...safe(entry.name, [], () => parseRegExport(text, { keyFilter: isWin32AppsKey })),
+          );
       }
     }
-    const enrollments: EnrollmentInfo[] = extractEnrollments(enrollmentKeys);
-    const win32Apps: Win32AppState[] = extractWin32Apps(imeKeys);
+    const enrollments: EnrollmentInfo[] = safe('Enrollments', [], () =>
+      extractEnrollments(enrollmentKeys),
+    );
+    const win32Apps: Win32AppState[] = safe('Win32Apps', [], () => extractWin32Apps(imeKeys));
     if (!sawEnrollmentExport) notes.push(t.notes.noEnrollments);
     if (!sawImeExport) notes.push(t.notes.noWin32Apps);
     completed = 4;
@@ -274,10 +294,12 @@ export async function analyzeDiagnosticsZip(
       const text = await readText(entry, maxTextBytes);
       if (text) {
         imeIssues.push(
-          ...parseCmTrace(text, logFileName(entry), {
-            onlyIssues: true,
-            limit: MAX_IME_ISSUES_PER_FILE,
-          }),
+          ...safe(entry.name, [], () =>
+            parseCmTrace(text, logFileName(entry), {
+              onlyIssues: true,
+              limit: MAX_IME_ISSUES_PER_FILE,
+            }),
+          ),
         );
       }
       logsDone++;

@@ -6,7 +6,7 @@
 
 | Befehl                                                                                         | Ergebnis                                                    |
 | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `npm run check` (ESLint, `tsc` app + node, Vitest, `vite build`)                               | grün – 40 Testdateien, 684 Tests; Build ok                  |
+| `npm run check` (ESLint, `tsc` app + node, Vitest, `vite build`)                               | grün – 40 Testdateien, 685 Tests; Build ok                  |
 | `npm run test:e2e` (4 Projekte: desktop-light, desktop-dark, mobile, reduced-motion)           | grün – 116/116                                              |
 | `npm run check:full`                                                                           | grün (Summe der beiden Zeilen oben)                         |
 | Netzwerk-Guard in allen E2E-Tests                                                              | keine Anfrage an andere Hosts als localhost, kein Nicht-GET |
@@ -66,6 +66,7 @@ Restpunkt (nicht behoben, kosmetisch): Mit `scrollbar-gutter: stable` bleibt in 
 - **M2/M3:** englische Fehlercode-Titel → deutsch (Originaltext in Anführungszeichen), Doku-URLs zentral in `knowledge/docs.ts`. Begründet beibehalten: Texte der Wissensbasis liegen neben ihrer Quelle in `src/rules/knowledge/` (CLAUDE.md verortet die Wissensbasis dort; so ist die Quellenpflicht je Eintrag testbar). Wörtliche englische Microsoft-Fehlertexte werden bewusst als Zitat angezeigt.
 - **M4:** BitLocker-Felder in der Referenz belegt, nicht dokumentierte DTO-Felder entfernt, Malware-Listen-Fehler wird als Hinweis ausgewiesen (keine falsche Entwarnung), 404 bei Entra/BitLocker → `unavailable`.
 - **M5:** GUIDs und Benutzerpfade in IME-Logmeldungen/Pfaden maskiert, unbelegte HRESULT-Kurzdeutungen entfernt (generisch über Win32-Tabelle oder „Unbekannter Code“), Texte nach `src/i18n`.
+- **Abschluss-Review (gesamter Branch):** keine Verstöße bei Read-only, Endpunkten, Daten, Quellen, UI-Texten. Umgesetzt: lokaler Benutzerpfad aus `docs/PLAN.md` entfernt, exakter Zeitstempel in Formatdoku/Fixture durch offensichtlich fiktiven Wert ersetzt, ZIP-Analyse fängt Parserfehler je Eintrag ab (Hinweis statt Abbruch der ganzen Analyse).
 - **Test-Writer-Funde:** 4 productStatus-Flags gingen verloren (behoben); bekannte Codes als „unbekannt“ gemeldet und fehlende Join-Felder als „nicht verbunden“ gewertet (beide behoben).
 
 ## Bekannte Grenzen
