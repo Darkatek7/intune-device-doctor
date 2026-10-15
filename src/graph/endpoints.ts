@@ -8,7 +8,8 @@
 import { ENTRA_DEVICE_SELECT, MANAGED_DEVICE_LIST_SELECT } from './dto';
 import { GraphScope } from './scopes';
 
-export const GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0';
+export const GRAPH_ORIGIN = 'https://graph.microsoft.com';
+export const GRAPH_BASE_URL = `${GRAPH_ORIGIN}/v1.0`;
 
 export interface GraphEndpointDef<TArgs extends unknown[]> {
   id: string;

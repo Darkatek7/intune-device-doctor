@@ -266,7 +266,7 @@ describe('GraphProvider – Sections', () => {
     expect(result.source.label).toBe(Endpoints.windowsProtectionState.display);
   });
 
-  it('Defender: Fehler bei detectedMalwareState → leere Liste, Section bleibt ok', async () => {
+  it('Defender: Fehler bei detectedMalwareState → Section ok, Fehler wird ausgewiesen', async () => {
     const { provider } = setup(
       contosoHandler({
         overrides: {
@@ -276,6 +276,7 @@ describe('GraphProvider – Sections', () => {
     );
     const result = expectStatus(await provider.getProtectionState(windowsDevice()), 'ok');
     expect(result.data.detectedMalware).toEqual([]);
+    expect(result.data.detectedMalwareError?.code).toBe('forbidden');
   });
 
   it('Defender: lädt erkannte Malware mit', async () => {

@@ -128,6 +128,26 @@ export function evaluateDefender(snapshot: DeviceSnapshot, now: Date): Tile {
     }
   }
 
+  if (p.detectedMalwareError) {
+    add(
+      {
+        id: 'defender-malwareListError',
+        severity: 'unknown',
+        title: t.malwareListErrorTitle,
+        detail: t.malwareListErrorDetail(p.detectedMalwareError.message),
+        cause: t.malwareListErrorCause,
+        remediation: [...t.malwareListErrorRemediation],
+        evidence: {
+          code: p.detectedMalwareError.code,
+          httpStatus: p.detectedMalwareError.httpStatus ?? null,
+          requestId: p.detectedMalwareError.requestId ?? null,
+        },
+        docsUrl: Docs.malwareState,
+      },
+      t.valueAttention,
+    );
+  }
+
   if (p.malwareProtectionEnabled === false) {
     add(
       {

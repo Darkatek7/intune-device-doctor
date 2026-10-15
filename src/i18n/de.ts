@@ -78,6 +78,9 @@ export const de = {
     noAzureAdDeviceId:
       'Das Gerät hat keine Entra-Geräte-ID (azureADDeviceId) – Entra-Daten können nicht zugeordnet werden.',
     bitlockerNotWindows: 'BitLocker-Wiederherstellungsschlüssel gibt es nur für Windows-Geräte.',
+    entraNotReported: 'Microsoft Entra ID hat für dieses Gerät keine Daten geliefert (HTTP 404).',
+    bitlockerNotReported:
+      'Für dieses Gerät wurden keine BitLocker-Schlüsselinformationen gefunden (HTTP 404).',
     configurationPoliciesNotReported:
       'Für dieses Gerät wurden keine Konfigurationsprofil-Zustände gemeldet.',
     compliancePoliciesNotReported:
@@ -256,6 +259,44 @@ export const de = {
       noEnrollments: 'Kein Enrollments-Registry-Export im Archiv gefunden.',
       noWin32Apps: 'Kein IntuneManagementExtension-Registry-Export im Archiv gefunden.',
       noImeLogs: 'Keine IME-Logdateien im Archiv gefunden.',
+    },
+  },
+  /** DiagLogs-ZIP-Ansicht (M5): Fortschritt, Ergebnis, Fehler, Zusammenführen */
+  zipView: {
+    kind: 'DiagLogs-ZIP',
+    collectedAt: (date: string) => `gesammelt am ${date}`,
+    back: 'Andere Datei',
+    exampleChip: 'Beispiel-ZIP analysieren',
+    exampleChipHint: 'Fiktive Diagnosedaten',
+    progress: {
+      title: 'ZIP-Datei wird analysiert',
+      starting: 'Analyse wird gestartet …',
+      barLabel: 'Analysefortschritt',
+      step: (done: number, total: number) => `Schritt ${done} von ${total}`,
+      cancel: 'Abbrechen',
+    },
+    errors: {
+      invalid: 'Keine gültige DiagLogs-ZIP-Datei.',
+      invalidHint:
+        'Erwartet wird die ZIP aus der Intune-Geräteaktion „Diagnose sammeln“ (DiagLogs-<Gerät>-<Zeitstempel>.zip).',
+      notZip: 'Bitte eine ZIP-Datei auswählen.',
+    },
+    overlay: {
+      title: 'DiagLogs-ZIP hier ablegen',
+    },
+    a11y: {
+      analyzing: (fileName: string) => `${fileName} wird analysiert …`,
+      done: (name: string, summary: string) => `${name}: Analyse abgeschlossen. ${summary}`,
+    },
+    merge: {
+      title: (deviceName: string) => `Gerät ${deviceName} ist in Intune vorhanden`,
+      body: 'Die Befunde aus der ZIP-Datei lassen sich mit den Intune-Daten in einer Ansicht zusammen anzeigen.',
+      action: 'Mit Intune-Daten zusammenführen',
+    },
+    chip: {
+      label: '+ DiagLogs-ZIP',
+      title: (fileName: string) => `Befunde aus ${fileName}`,
+      remove: 'DiagLogs-ZIP entfernen',
     },
   },
   demo: {

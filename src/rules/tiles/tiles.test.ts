@@ -344,6 +344,20 @@ describe('Defender (defender)', () => {
     expect(findingWithId(tile, 'defender-error').title).toBe(de.rules.common.throttledTitle);
   });
 
+  it('Malware-Liste nicht abrufbar → Hinweis-Befund, keine falsche Entwarnung', () => {
+    const tile = evaluateDefender(
+      withProtection(base, {
+        detectedMalwareError: {
+          code: 'forbidden',
+          message: 'Zugriff verweigert (HTTP 403).',
+          httpStatus: 403,
+        },
+      }),
+      NOW,
+    );
+    expect(findingWithId(tile, 'defender-malwareListError').severity).toBe('unknown');
+  });
+
   /** Nicht über Booleans abgedeckte productStatus-Flags landen im Sammelbefund (Warnung). */
   const COLLECTED_FLAGS = [
     'asSignaturesOutOfDate',

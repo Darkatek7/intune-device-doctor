@@ -141,6 +141,8 @@ export interface WindowsProtectionInfo {
   lastReportedDateTime: string | null;
   isVirtualMachine: boolean | null;
   detectedMalware: DetectedMalware[];
+  /** Gesetzt, wenn die Malware-Liste (detectedMalwareState) nicht abgerufen werden konnte */
+  detectedMalwareError?: AppError;
 }
 
 export interface PolicySettingInfo {

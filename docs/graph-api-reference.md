@@ -48,6 +48,10 @@ Parent (`deviceCompliancePolicyState` / `deviceConfigurationState`): `id, displa
 
 **Bekannte Grenze:** Ob die Listen `deviceCompliancePolicyStates`/`deviceConfigurationStates` `settingStates` ohne `$expand` mitliefern, ist in der v1.0-Doku nicht belegt. Die App fordert kein `$expand` an; fehlen die Einstellungen, zeigt sie Befunde auf Richtlinienebene (Zustand ohne Einstellungsdetails).
 
+## bitlockerRecoveryKey (v1.0)
+[resource](https://learn.microsoft.com/en-us/graph/api/resources/bitlockerrecoverykey?view=graph-rest-1.0): genutzt `id, createdDateTime, deviceId, volumeType` – **nie** `key`.
+- `volumeType`: `1` (operatingSystemVolume), `2` (fixedDataVolume), `3` (removableDataVolume), `4` (unknownFutureValue); laut Doku als Zahl beschrieben, im JSON-Beispiel als String → Mapper akzeptiert beides.
+
 ## Entra device (v1.0)
 `id, deviceId, displayName, accountEnabled, trustType (Workplace | AzureAd | ServerAd), approximateLastSignInDateTime, isCompliant, isManaged, operatingSystem, operatingSystemVersion, registrationDateTime`. `deviceId` unterstützt `eq`. Header `ConsistencyLevel: eventual` ist für einfache `eq`-Filter nicht nötig, schadet aber nicht.
 

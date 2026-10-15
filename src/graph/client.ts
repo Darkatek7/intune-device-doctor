@@ -11,9 +11,7 @@
 import type { AppError, AppErrorCode } from '../domain/types';
 import { de } from '../i18n/de';
 import type { GraphCollection, GraphErrorBody } from './dto';
-import { GRAPH_BASE_URL } from './endpoints';
-
-const GRAPH_ORIGIN = 'https://graph.microsoft.com';
+import { GRAPH_BASE_URL, GRAPH_ORIGIN } from './endpoints';
 
 /** Insgesamt 3 Versuche (= bis zu 2 Wiederholungen). */
 export const MAX_ATTEMPTS = 3;

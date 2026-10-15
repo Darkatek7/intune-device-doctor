@@ -413,6 +413,15 @@ export const deRules = {
     offlineScanRemediation: [
       'Microsoft Defender Offline-Scan am Gerät starten lassen (Neustart erforderlich).',
     ],
+    malwareListErrorTitle: 'Liste erkannter Bedrohungen nicht abrufbar',
+    malwareListErrorDetail: (message: string) =>
+      `detectedMalwareState konnte nicht geladen werden: ${message} – ob Bedrohungen vorliegen, ist unbekannt.`,
+    malwareListErrorCause:
+      'Der Abruf der Malware-Liste ist fehlgeschlagen (Berechtigung, Drosselung oder Dienstfehler).',
+    malwareListErrorRemediation: [
+      'Ansicht später erneut laden; bei HTTP 403 die Berechtigung DeviceManagementManagedDevices.Read.All prüfen.',
+      'Bedrohungen zusätzlich im Microsoft Defender-Portal bzw. am Gerät prüfen.',
+    ],
     tamperTitle: 'Manipulationsschutz ist aus',
     tamperDetail: 'tamperProtectionEnabled = false.',
     tamperCause:

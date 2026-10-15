@@ -205,6 +205,7 @@ export class GraphProvider implements DeviceDataProvider {
         });
         // Fehler bei der Malware-Liste kippen nicht die ganze Section.
         let malware: GraphWindowsDeviceMalwareState[] = [];
+        let malwareError: AppError | undefined;
         try {
           malware = await this.client.getAllPages<GraphWindowsDeviceMalwareState>(
             Endpoints.detectedMalwareState.path(device.id),
@@ -212,8 +213,14 @@ export class GraphProvider implements DeviceDataProvider {
           );
         } catch (error) {
           if (isAbort(error)) throw error;
+          // Keine falsche Entwarnung: der Fehler wird im Befund ausgewiesen.
+          malwareError = toAppError(error);
         }
-        return this.ok(mapWindowsProtection(state, malware), source);
+        const info = mapWindowsProtection(state, malware);
+        return this.ok(
+          malwareError ? { ...info, detectedMalwareError: malwareError } : info,
+          source,
+        );
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.defenderNotReported, source }),
     );
@@ -274,18 +281,22 @@ export class GraphProvider implements DeviceDataProvider {
     options: RequestOptions = {},
   ): Promise<SectionResult<EntraDeviceInfo | null>> {
     const endpoint = Endpoints.entraDeviceByDeviceId;
-    return this.run<EntraDeviceInfo | null>('entraDeviceByDeviceId', async (source) => {
-      const azureAdId = usableAzureAdId(device);
-      if (!azureAdId) {
-        return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
-      }
-      const page = await this.client.get<GraphCollection<GraphEntraDevice>>(
-        endpoint.path(azureAdId),
-        { signal: options.signal, scope: endpoint.scope },
-      );
-      const first = page?.value?.[0];
-      return this.ok(first ? mapEntraDevice(first) : null, source);
-    });
+    return this.run<EntraDeviceInfo | null>(
+      'entraDeviceByDeviceId',
+      async (source) => {
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const page = await this.client.get<GraphCollection<GraphEntraDevice>>(
+          endpoint.path(azureAdId),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        const first = page?.value?.[0];
+        return this.ok(first ? mapEntraDevice(first) : null, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.entraNotReported, source }),
+    );
   }
 
   getBitLockerKeys(
@@ -293,21 +304,25 @@ export class GraphProvider implements DeviceDataProvider {
     options: RequestOptions = {},
   ): Promise<SectionResult<BitLockerKeyInfo[]>> {
     const endpoint = Endpoints.bitlockerRecoveryKeys;
-    return this.run<BitLockerKeyInfo[]>('bitlockerRecoveryKeys', async (source) => {
-      if (device.osFamily !== 'windows') {
-        return { status: 'notApplicable', reason: de.reasons.bitlockerNotWindows, source };
-      }
-      const azureAdId = usableAzureAdId(device);
-      if (!azureAdId) {
-        return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
-      }
-      // Nur Metadaten: der Endpoint enthält kein $select=key.
-      const keys = await this.client.getAllPages<GraphBitlockerRecoveryKey>(
-        endpoint.path(azureAdId),
-        { signal: options.signal, scope: endpoint.scope },
-      );
-      return this.ok(keys.map(mapBitlockerKey), source);
-    });
+    return this.run<BitLockerKeyInfo[]>(
+      'bitlockerRecoveryKeys',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.bitlockerNotWindows, source };
+        }
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        // Nur Metadaten: der Endpoint enthält kein $select=key.
+        const keys = await this.client.getAllPages<GraphBitlockerRecoveryKey>(
+          endpoint.path(azureAdId),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        return this.ok(keys.map(mapBitlockerKey), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.bitlockerNotReported, source }),
+    );
   }
 }
 

@@ -229,7 +229,6 @@ export type PolicyPlatformType =
 export interface GraphSettingSource {
   id: string | null;
   displayName: string | null;
-  sourceType?: string | null;
 }
 
 export interface GraphPolicySettingState {
@@ -239,9 +238,6 @@ export interface GraphPolicySettingState {
   state: ComplianceStatus;
   errorCode: number | null;
   errorDescription: string | null;
-  userId?: string | null;
-  userName?: string | null;
-  userEmail?: string | null;
   userPrincipalName: string | null;
   sources: GraphSettingSource[] | null;
   currentValue: string | null;
@@ -274,7 +270,6 @@ export interface GraphEntraDevice {
   operatingSystem: string | null;
   operatingSystemVersion: string | null;
   registrationDateTime: string | null;
-  managementType?: string | null;
 }
 
 export const ENTRA_DEVICE_SELECT = [
