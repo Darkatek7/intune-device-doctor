@@ -8,6 +8,7 @@ Stand: Oktober 2026, gegengeprüft auf learn.microsoft.com. **Nur diese Endpunkt
 |---|---|---|---|
 | Gerät suchen (exakt) | `GET /deviceManagement/managedDevices?$filter=deviceName eq '{name}'&$select=…` | `DeviceManagementManagedDevices.Read.All` | [list](https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0) |
 | Gerät suchen (Teilstring) | `…?$filter=contains(deviceName,'{x}')` | dto. | Filter `eq`/`contains` auf `deviceName` nur in der [Beta-Ressource](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-beta) dokumentiert → live verifizieren; bei 400 auf clientseitige Filterung über paginierte Liste mit `$select` zurückfallen |
+| Gerät suchen (Fallback) | `GET /deviceManagement/managedDevices?$select=…` (ohne `$filter`, max. 5 Seiten, clientseitig gefiltert) | dto. | [list](https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0) – nur, wenn `eq`/`contains` mit HTTP 400 abgelehnt werden |
 | Gerätedetails | `GET /deviceManagement/managedDevices/{id}` | dto. | [get](https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-get?view=graph-rest-1.0) |
 | Defender | `GET /deviceManagement/managedDevices/{id}/windowsProtectionState` | dto. | [resource](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsprotectionstate?view=graph-rest-1.0) |
 | Erkannte Malware | `GET …/windowsProtectionState/detectedMalwareState` | dto. | [resource](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdevicemalwarestate?view=graph-rest-1.0) |
@@ -44,6 +45,12 @@ Parent (`deviceCompliancePolicyState` / `deviceConfigurationState`): `id, displa
 - `state` / `settingStates[].state` (`complianceStatus`): `unknown, notApplicable, compliant, remediated, nonCompliant, error, conflict, notAssigned`
 - `platformType`: `android, androidForWork, iOS, macOS, windowsPhone81, windows81AndLater, windows10AndLater, all`
 - settingState: `setting, settingName, instanceDisplayName, state, errorCode (Int64), errorDescription, userPrincipalName, sources[] (id, displayName), currentValue`
+
+**Bekannte Grenze:** Ob die Listen `deviceCompliancePolicyStates`/`deviceConfigurationStates` `settingStates` ohne `$expand` mitliefern, ist in der v1.0-Doku nicht belegt. Die App fordert kein `$expand` an; fehlen die Einstellungen, zeigt sie Befunde auf Richtlinienebene (Zustand ohne Einstellungsdetails).
+
+## bitlockerRecoveryKey (v1.0)
+[resource](https://learn.microsoft.com/en-us/graph/api/resources/bitlockerrecoverykey?view=graph-rest-1.0): genutzt `id, createdDateTime, deviceId, volumeType` – **nie** `key`.
+- `volumeType`: `1` (operatingSystemVolume), `2` (fixedDataVolume), `3` (removableDataVolume), `4` (unknownFutureValue); laut Doku als Zahl beschrieben, im JSON-Beispiel als String → Mapper akzeptiert beides.
 
 ## Entra device (v1.0)
 `id, deviceId, displayName, accountEnabled, trustType (Workplace | AzureAd | ServerAd), approximateLastSignInDateTime, isCompliant, isManaged, operatingSystem, operatingSystemVersion, registrationDateTime`. `deviceId` unterstützt `eq`. Header `ConsistencyLevel: eventual` ist für einfache `eq`-Filter nicht nötig, schadet aber nicht.

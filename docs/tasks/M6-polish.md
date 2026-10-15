@@ -11,5 +11,5 @@
 6. PR `mvp → main` mit Zusammenfassung und Checkliste.
 
 ## Akzeptanz
-- [ ] `npm run check` grün, PR offen
-- [ ] Reviewer-Befunde behoben oder begründet
+- [x] `npm run check` grün, PR offen
+- [x] Reviewer-Befunde behoben oder begründet

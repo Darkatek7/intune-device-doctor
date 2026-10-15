@@ -21,6 +21,6 @@ Umgebung: Das Cloud-Environment installiert per Setup-Script Chromium inkl. Syst
 6. Abnahmeprotokoll `docs/acceptance.md`: Datum, ausgeführte Befehle + Ergebnis, Tabelle Akzeptanzkriterien M1–M6 (erfüllt/offen), gefundene und behobene UI-Mängel, bekannte Grenzen. 2–3 Screenshots (desktop-light Dashboard, desktop-dark Sheet, mobile) nach `docs/screenshots/` kopieren und in README einbinden – nur fiktive Demo-Daten sichtbar.
 
 ## Akzeptanz
-- [ ] `npm run check:full` grün in allen vier Projekten
-- [ ] Kein Request an andere Hosts als localhost während der E2E-Tests
-- [ ] Screenshots gesichtet, Mängel behoben, `docs/acceptance.md` vollständig
+- [x] `npm run check:full` grün in allen vier Projekten
+- [x] Kein Request an andere Hosts als localhost während der E2E-Tests
+- [x] Screenshots gesichtet, Mängel behoben, `docs/acceptance.md` vollständig

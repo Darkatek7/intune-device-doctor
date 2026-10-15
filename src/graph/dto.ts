@@ -157,7 +157,8 @@ export interface GraphWindowsProtectionState {
 
 // https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsdevicemalwarestate?view=graph-rest-1.0
 export type WindowsMalwareSeverity = 'unknown' | 'low' | 'moderate' | 'high' | 'severe';
-export type WindowsMalwareExecutionState = 'unknown' | 'blocked' | 'allowed' | 'running' | 'notRunning';
+export type WindowsMalwareExecutionState =
+  'unknown' | 'blocked' | 'allowed' | 'running' | 'notRunning';
 export type WindowsMalwareState =
   | 'unknown'
   | 'detected'
@@ -228,7 +229,6 @@ export type PolicyPlatformType =
 export interface GraphSettingSource {
   id: string | null;
   displayName: string | null;
-  sourceType?: string | null;
 }
 
 export interface GraphPolicySettingState {
@@ -238,9 +238,6 @@ export interface GraphPolicySettingState {
   state: ComplianceStatus;
   errorCode: number | null;
   errorDescription: string | null;
-  userId?: string | null;
-  userName?: string | null;
-  userEmail?: string | null;
   userPrincipalName: string | null;
   sources: GraphSettingSource[] | null;
   currentValue: string | null;
@@ -273,7 +270,6 @@ export interface GraphEntraDevice {
   operatingSystem: string | null;
   operatingSystemVersion: string | null;
   registrationDateTime: string | null;
-  managementType?: string | null;
 }
 
 export const ENTRA_DEVICE_SELECT = [

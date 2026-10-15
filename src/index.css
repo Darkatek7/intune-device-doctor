@@ -16,7 +16,9 @@
   --color-secondary-label: var(--c-secondary-label);
   --color-tertiary-label: var(--c-tertiary-label);
   --color-separator: var(--c-separator);
+  --color-control: var(--c-control);
   --color-accent: var(--c-accent);
+  --color-accent-fill: var(--c-accent-fill);
   --color-ok: var(--c-ok);
   --color-warning: var(--c-warning);
   --color-critical: var(--c-critical);
@@ -38,14 +40,20 @@
   --c-surface: #ffffff;
   --c-surface-raised: rgb(255 255 255 / 0.72);
   --c-label: #1d1d1f;
-  --c-secondary-label: rgb(60 60 67 / 0.72);
-  --c-tertiary-label: rgb(60 60 67 / 0.45);
+  /* Kontrast (WCAG 1.4.3) gegen surface/canvas: label 16,8/15,5 · secondary 5,9/5,3 */
+  --c-secondary-label: rgb(60 60 67 / 0.78);
+  /* Nur für dekorative, nicht-textliche Elemente (≥ 3:1) – nie für lesbaren Text verwenden. */
+  --c-tertiary-label: rgb(60 60 67 / 0.62);
   --c-separator: rgb(60 60 67 / 0.14);
-  --c-accent: #0071e3;
-  --c-ok: #248a3d;
+  /* Neutrale Füllung für Buttons/Segmented Control mit Text – bleibt auch bei erhöhtem Kontrast gedämpft */
+  --c-control: rgb(60 60 67 / 0.14);
+  /* accent: Text/Links/Fokus (5,1:1 auf canvas); accent-fill: Fläche mit weißem Text (5,6:1) */
+  --c-accent: #0066cc;
+  --c-accent-fill: #0066cc;
+  --c-ok: #1f7a35;
   --c-warning: #c93400;
   --c-critical: #d70015;
-  --c-unknown: #8e8e93;
+  --c-unknown: #7c7c82;
   color-scheme: light;
 }
 
@@ -56,9 +64,12 @@
     --c-surface-raised: rgb(44 44 46 / 0.72);
     --c-label: #f5f5f7;
     --c-secondary-label: rgb(235 235 245 / 0.68);
-    --c-tertiary-label: rgb(235 235 245 / 0.4);
+    --c-tertiary-label: rgb(235 235 245 / 0.5);
     --c-separator: rgb(84 84 88 / 0.5);
+    --c-control: rgb(120 120 128 / 0.32);
     --c-accent: #0a84ff;
+    /* Weißer Text auf #0a84ff erreicht nur 3,7:1 – für Flächen daher ein dunkleres Blau (4,9:1). */
+    --c-accent-fill: #0a6fd8;
     --c-ok: #30d158;
     --c-warning: #ff9f0a;
     --c-critical: #ff453a;
@@ -67,10 +78,18 @@
   }
 }
 
+/* Erhöhter Kontrast: kräftigere Trennlinien/Texte; Rahmen siehe .hc-edge */
 @media (prefers-contrast: more) {
   :root {
-    --c-separator: rgb(60 60 67 / 0.5);
+    --c-separator: rgb(60 60 67 / 0.6);
     --c-secondary-label: rgb(60 60 67 / 0.9);
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --c-separator: rgb(160 160 170 / 0.7);
+    --c-secondary-label: rgb(235 235 245 / 0.9);
   }
 }
 
@@ -80,7 +99,30 @@
   }
 }
 
+/*
+ * Sichtbarer 1px-Rahmen an Kacheln, Sheet und Karten – nur bei prefers-contrast: more.
+ * Ohne Medienabfrage bleibt die Optik unverändert (Schatten statt Rahmen).
+ */
+@media (prefers-contrast: more) {
+  .hc-edge {
+    border: 1px solid var(--c-separator);
+  }
+
+  .hc-edge-b {
+    border-bottom: 1px solid var(--c-separator);
+  }
+}
+
+/* Transluzenz abschalten: Toolbar ohne Blur, dafür solide Fläche (--c-surface-raised s. o.). */
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 html {
+  scrollbar-gutter: stable;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -89,4 +131,39 @@ html {
 body {
   background: var(--c-canvas);
   color: var(--c-label);
+}
+
+/* Skeleton-Shimmer: nur transform; bei reduced-motion statisch. */
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-separator);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton::after {
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    display: none;
+  }
 }

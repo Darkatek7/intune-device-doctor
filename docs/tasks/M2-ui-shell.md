@@ -12,8 +12,8 @@
 7. URL-State: `?device=<id>&mode=demo` (Teilen/Neuladen), Browser-Zurück schließt Sheet bzw. kehrt zur Suche zurück.
 
 ## Akzeptanz
-- [ ] Gerätename eingeben → Kacheln erscheinen progressiv, Klick öffnet Detail-Sheet, Escape schließt, Fokus kehrt zurück
-- [ ] Mehrdeutige Suche zeigt Auswahl, unbekannter Name zeigt freundlichen Leerzustand
-- [ ] Mobil (375 px) und Desktop sauber, Dark Mode korrekt
-- [ ] Komponententests: Suche → Kacheln, Sheet öffnen/schließen per Tastatur
-- [ ] `npm run check` grün
+- [x] Gerätename eingeben → Kacheln erscheinen progressiv, Klick öffnet Detail-Sheet, Escape schließt, Fokus kehrt zurück
+- [x] Mehrdeutige Suche zeigt Auswahl, unbekannter Name zeigt freundlichen Leerzustand
+- [x] Mobil (375 px) und Desktop sauber, Dark Mode korrekt
+- [x] Komponententests: Suche → Kacheln, Sheet öffnen/schließen per Tastatur
+- [x] `npm run check` grün

@@ -141,6 +141,8 @@ export interface WindowsProtectionInfo {
   lastReportedDateTime: string | null;
   isVirtualMachine: boolean | null;
   detectedMalware: DetectedMalware[];
+  /** Gesetzt, wenn die Malware-Liste (detectedMalwareState) nicht abgerufen werden konnte */
+  detectedMalwareError?: AppError;
 }
 
 export interface PolicySettingInfo {
@@ -178,7 +180,8 @@ export interface EntraDeviceInfo {
   registrationDateTime: string | null;
 }
 
-export type BitLockerVolumeType = 'operatingSystemVolume' | 'fixedDataVolume' | 'removableDataVolume' | 'unknown';
+export type BitLockerVolumeType =
+  'operatingSystemVolume' | 'fixedDataVolume' | 'removableDataVolume' | 'unknown';
 
 /** Nur Metadaten – niemals der Schlüssel selbst. */
 export interface BitLockerKeyInfo {
@@ -233,6 +236,23 @@ export interface Finding {
   docsUrl?: string;
 }
 
+/** Sections eines DeviceSnapshot, die unabhängig laden (und erneut geladen werden können). */
+export type SnapshotSectionKey =
+  'protection' | 'compliancePolicies' | 'configurationPolicies' | 'entraDevice' | 'bitlockerKeys';
+
+/** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
+export interface TileFact {
+  label: string;
+  value: string;
+  /** Monospace-Darstellung (IDs, Versionen, Codes) */
+  mono?: boolean;
+  /** z. B. absolutes Datum als Tooltip zu einer relativen Zeit */
+  title?: string;
+}
+
+/** Warum eine Kachel (teilweise) nicht ausgewertet werden konnte. */
+export type TileAvailability = 'forbidden' | 'notApplicable' | 'unavailable' | 'error';
+
 export interface Tile {
   id: TileId;
   title: string;
@@ -245,4 +265,10 @@ export interface Tile {
   summary: string;
   findings: Finding[];
   sources: DataSource[];
+  /** Geprüfte Werte (Key/Value) für das Detail-Sheet */
+  facts: TileFact[];
+  /** Gesetzt, wenn eine benötigte Section forbidden/notApplicable/unavailable/error ist */
+  availability?: TileAvailability;
+  /** Sections, von denen die Kachel abhängt (für "Erneut laden" im Detail-Sheet) */
+  sections: SnapshotSectionKey[];
 }

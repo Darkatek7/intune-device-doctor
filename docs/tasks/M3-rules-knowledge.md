@@ -16,7 +16,7 @@
 4. Gesamtzusammenfassung für den Header (`summarize(tiles)`).
 
 ## Akzeptanz
-- [ ] Jedes Mock-Szenario erzeugt die in M1 erwarteten Severities (Tests mit festem `now`)
-- [ ] Jeder Finding hat `cause`, mind. 1 `remediation`, `source`
-- [ ] Keine Wissensbasis-Einträge ohne `docsUrl` (Test erzwingt das)
-- [ ] `npm run check` grün
+- [x] Jedes Mock-Szenario erzeugt die in M1 erwarteten Severities (Tests mit festem `now`)
+- [x] Jeder Finding hat `cause`, mind. 1 `remediation`, `source`
+- [x] Keine Wissensbasis-Einträge ohne `docsUrl` (Test erzwingt das)
+- [x] `npm run check` grün
