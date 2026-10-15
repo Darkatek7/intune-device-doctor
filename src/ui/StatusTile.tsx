@@ -47,14 +47,17 @@ export function StatusTile({ tile, onOpen, ref }: Props) {
           <span className="truncate text-sm font-medium">{tile.title}</span>
         </span>
         {availability && AvailabilityIcon ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-unknown/12 px-2 py-0.5 text-xs font-medium text-label">
+          <span
+            title={de.availability[availability]}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-unknown/12 px-2 py-0.5 text-xs font-medium text-label"
+          >
             <AvailabilityIcon
               aria-hidden="true"
               size={14}
               strokeWidth={2.25}
               className={AVAILABILITY_ICON_CLASS[availability]}
             />
-            {de.availability[availability]}
+            {de.availabilityShort[availability]}
           </span>
         ) : (
           <SeverityBadge severity={tile.severity} />

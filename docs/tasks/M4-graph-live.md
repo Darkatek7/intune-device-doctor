@@ -15,7 +15,7 @@
 7. README-Abschnitt „Live-Modus einrichten“ verifizieren/ergänzen.
 
 ## Akzeptanz
-- [ ] Ohne `.env.local` bleibt Live deaktiviert, Demo unverändert
-- [ ] Kein Code-Pfad sendet etwas anderes als GET an graph.microsoft.com
-- [ ] Alle URLs kommen aus `endpoints.ts`
-- [ ] `npm run check` grün
+- [x] Ohne `.env.local` bleibt Live deaktiviert, Demo unverändert
+- [x] Kein Code-Pfad sendet etwas anderes als GET an graph.microsoft.com
+- [x] Alle URLs kommen aus `endpoints.ts`
+- [x] `npm run check` grün

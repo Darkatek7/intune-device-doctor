@@ -32,12 +32,12 @@ describe('StatusTile', () => {
         onOpen={vi.fn()}
       />,
     );
-    expect(screen.getByRole('button')).toHaveTextContent(de.availability.forbidden);
+    expect(screen.getByRole('button')).toHaveTextContent(de.availabilityShort.forbidden);
   });
 
   it('zeigt "Nicht anwendbar" für notApplicable', () => {
     render(<StatusTile tile={makeTile({ availability: 'notApplicable' })} onOpen={vi.fn()} />);
-    expect(screen.getByRole('button')).toHaveTextContent(de.availability.notApplicable);
+    expect(screen.getByRole('button')).toHaveTextContent(de.availabilityShort.notApplicable);
   });
 });
 

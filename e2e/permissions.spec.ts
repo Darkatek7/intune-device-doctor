@@ -8,7 +8,8 @@ test.describe('Fehlende Berechtigung (CONTOSO-PC050)', () => {
     await openDevice(page, 'CONTOSO-PC050');
 
     const policies = tile(page, 'Richtlinien');
-    await expect(statusBadge(policies, T.forbidden)).toBeVisible();
+    await expect(statusBadge(policies, T.forbiddenBadge)).toBeVisible();
+    await expect(policies).toContainText(T.forbidden);
 
     const dialog = await openTile(page, 'Richtlinien');
     await settleSheet(page);
@@ -22,7 +23,7 @@ test.describe('Fehlende Berechtigung (CONTOSO-PC050)', () => {
     await openDevice(page, 'CONTOSO-PC050');
 
     const bitlocker = tile(page, 'BitLocker');
-    await expect(statusBadge(bitlocker, T.forbidden)).toBeVisible();
+    await expect(statusBadge(bitlocker, T.forbiddenBadge)).toBeVisible();
 
     const dialog = await openTile(page, 'BitLocker');
     await settleSheet(page);

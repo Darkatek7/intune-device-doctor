@@ -12,7 +12,7 @@
 7. Ein Demo-Chip „Beispiel-ZIP analysieren“ lädt das Fixture (zur Laufzeit via `buildFixtureZip`, kein Binär-Asset im Repo).
 
 ## Akzeptanz
-- [ ] Fixture-ZIP → erwartete Befunde (PRT fehlt, WamDefaultSet-Fehler, 1 Failed-App mit `0x80070642`, 2 fehlgeschlagene Sammlungen)
-- [ ] 100-MB-ZIP friert die UI nicht ein (Worker), Speicher bleibt moderat (nur Text-Einträge on demand)
-- [ ] Datei wird nirgends hochgeladen (kein fetch im Analysepfad)
-- [ ] `npm run check` grün
+- [x] Fixture-ZIP → erwartete Befunde (PRT fehlt, WamDefaultSet-Fehler, 1 Failed-App mit `0x80070642`, 2 fehlgeschlagene Sammlungen)
+- [x] 100-MB-ZIP friert die UI nicht ein (Worker), Speicher bleibt moderat (nur Text-Einträge on demand) – per Design erfüllt, mit echtem Archiv noch nicht gemessen (siehe docs/acceptance.md)
+- [x] Datei wird nirgends hochgeladen (kein fetch im Analysepfad)
+- [x] `npm run check` grün

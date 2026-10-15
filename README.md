@@ -9,7 +9,11 @@
 
 > Status: Hackathon-MVP (M1–M7 umgesetzt). Abnahmeprotokoll: [`docs/acceptance.md`](docs/acceptance.md).
 
-<!-- SCREENSHOTS -->
+| Dashboard (hell)                                                 | Detail-Sheet (dunkel)                                        | ZIP-Analyse (mobil)                                    |
+| ---------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| ![Dashboard CONTOSO-PC042](docs/screenshots/dashboard-light.png) | ![Detail-Sheet Richtlinien](docs/screenshots/sheet-dark.png) | ![DiagLogs-ZIP mobil](docs/screenshots/mobile-zip.png) |
+
+_Alle Screenshots zeigen ausschließlich fiktive Demo-Daten (Contoso)._
 
 ## Schnellstart
 

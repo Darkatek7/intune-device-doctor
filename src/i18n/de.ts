@@ -85,6 +85,13 @@ export const de = {
     unavailable: 'Nicht verfügbar',
     error: 'Fehler beim Laden',
   },
+  /** Kurzform für den Kachel-Badge (volle Form steht als Wert/Tooltip) */
+  availabilityShort: {
+    forbidden: 'Kein Zugriff',
+    notApplicable: 'Nicht anwendbar',
+    unavailable: 'Nicht verfügbar',
+    error: 'Fehler',
+  },
   /** Texte der Regel-Engine – siehe ./de-rules.ts */
   rules: deRules,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
@@ -153,7 +160,7 @@ export const de = {
     checking: (done: number, total: number) => `Auswertung läuft … ${done} von ${total}`,
     critical: (n: number) => (n === 1 ? '1 Problem' : `${n} Probleme`),
     warning: (n: number) => (n === 1 ? '1 Hinweis' : `${n} Hinweise`),
-    unknown: (n: number) => `${n} unbekannt`,
+    unknown: (n: number) => `${n} ohne Bewertung`,
     allOk: 'Alles in Ordnung',
     enrolled: (date: string) => `Registriert am ${date}`,
     summaryLabel: 'Zusammenfassung',

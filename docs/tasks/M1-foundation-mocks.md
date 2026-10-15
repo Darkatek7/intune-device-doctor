@@ -22,6 +22,6 @@
 6. Unit-Tests: MockProvider (Suche exakt/Teilstring/keine Treffer, Abort), `format.ts`.
 
 ## Akzeptanz
-- [ ] `npm run check` grün, Lockfile committet
-- [ ] 8 Szenarien abrufbar, alle Felder typkonform zu Graph-Enums
-- [ ] Keine echten Namen/IDs in Mock-Daten
+- [x] `npm run check` grün, Lockfile committet
+- [x] 8 Szenarien abrufbar, alle Felder typkonform zu Graph-Enums
+- [x] Keine echten Namen/IDs in Mock-Daten

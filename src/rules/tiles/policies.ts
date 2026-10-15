@@ -112,9 +112,10 @@ export function evaluatePolicies(snapshot: DeviceSnapshot, _now: Date): Tile {
       : compliance.status !== 'ok'
         ? compliance.status
         : undefined;
+  // Bei fehlender Berechtigung nennt der Kachelwert das Problem; die Zeile zeigt, was lesbar war.
   const summary =
     configuration.status === 'forbidden'
-      ? [t.forbiddenProfilesSummary, t.summary(null, complianceCount)].filter(Boolean).join(' · ')
+      ? t.summary(null, complianceCount) || t.forbiddenProfilesSummary
       : t.summary(configCount, complianceCount);
 
   return {

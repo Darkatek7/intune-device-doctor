@@ -34,6 +34,7 @@ export const T = {
   warning: 'Prüfen',
   critical: 'Problem',
   forbidden: 'Fehlende Berechtigung',
+  forbiddenBadge: 'Kein Zugriff',
   notApplicable: 'Nicht anwendbar',
 } as const;
 
