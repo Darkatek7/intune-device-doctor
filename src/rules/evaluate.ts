@@ -85,12 +85,16 @@ export function summarize(tiles: Tile[]): TileSummary {
     }
     summary[tile.severity]++;
   }
-  summary.worst = summary.critical
-    ? 'critical'
-    : summary.warning
-      ? 'warning'
-      : summary.unknown
-        ? 'unknown'
-        : 'ok';
+  const ready = summary.critical + summary.warning + summary.unknown + summary.ok;
+  summary.worst =
+    ready === 0
+      ? 'unknown'
+      : summary.critical
+        ? 'critical'
+        : summary.warning
+          ? 'warning'
+          : summary.unknown
+            ? 'unknown'
+            : 'ok';
   return summary;
 }

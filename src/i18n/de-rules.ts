@@ -268,6 +268,12 @@ export const deRules = {
       'Update-Ringe und Bereitstellungsstatus im Intune Admin Center (Berichte › Windows-Updates) prüfen.',
     ],
     homeProHint: 'Für Home/Pro-Editionen gelten frühere Enddaten.',
+    homeProEndedTitle: (version: string) =>
+      `Windows 11 ${version}: Home/Pro erhalten keine Updates mehr`,
+    homeProEndedDetail: (date: string) =>
+      `Für Home-, Pro-, Pro-Education- und Pro-for-Workstations-Editionen endeten die Updates am ${date}. Enterprise/Education werden länger versorgt. Die Edition meldet die dokumentierte Graph-API nicht.`,
+    homeProEndedCause:
+      'Läuft das Gerät mit einer Home- oder Pro-Edition, erhält es keine Sicherheitsupdates mehr.',
     unknownBuildTitle: 'Windows-Build nicht in der Release-Tabelle',
     unknownBuildDetail: (version: string) =>
       `Der Build ${version} ist in der hinterlegten Tabelle (Microsoft Learn „Windows release information“) nicht enthalten – Supportstatus wird nicht geraten.`,

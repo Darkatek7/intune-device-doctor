@@ -131,6 +131,21 @@ export function evaluateOsVersion(snapshot: DeviceSnapshot, now: Date): Tile {
     });
   }
 
+  const homeProEnd = new Date(`${release.endOfUpdatesHomePro}T23:59:59Z`);
+  if (release.product === 'Windows 11' && daysLeft >= 0 && homeProEnd.getTime() < now.getTime()) {
+    findings.push({
+      id: 'osVersion-homePro',
+      severity: 'unknown',
+      title: t.homeProEndedTitle(release.version),
+      detail: t.homeProEndedDetail(formatDate(release.endOfUpdatesHomePro)),
+      cause: t.homeProEndedCause,
+      remediation: [...t.endRemediation],
+      evidence,
+      source: device.source,
+      docsUrl: release.docsUrl,
+    });
+  }
+
   return {
     ...base,
     severity,

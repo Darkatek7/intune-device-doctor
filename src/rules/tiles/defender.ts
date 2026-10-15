@@ -37,11 +37,7 @@ const COVERED_FLAGS = new Set([
   'noStatus',
   'noStatusFlagsSet',
   'avSignaturesOutOfDate',
-  'asSignaturesOutOfDate',
   'pendingRebootDueToThreatAction',
-  'pendingFullScanDueToThreatAction',
-  'pendingManualStepsDueToThreatAction',
-  'noQuickScanHappenedForSpecifiedPeriod',
   'offlineScanRequired',
 ]);
 const CRITICAL_FLAGS = new Set([
