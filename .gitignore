@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# Lokale Konfiguration (Client-ID/Tenant-ID gehören NICHT ins Repo)
+.env.local
+.env.*.local
+
+# Echte Diagnose-ZIPs enthalten Kundendaten – niemals committen
+*.zip
+*.cab
+*.evtx
+*.etl
+DiagLogs-*/
