@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  AppInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -26,6 +27,7 @@ import type {
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphMobileApp,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
@@ -35,6 +37,7 @@ import {
   mapBitlockerKey,
   mapEntraDevice,
   mapManagedDevice,
+  mapMobileApp,
   mapPolicyState,
   mapSearchResult,
   mapWindowsProtection,
@@ -44,6 +47,9 @@ import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../
 
 const MAX_SEARCH_RESULTS = 25;
 const MAX_LIST_PAGES = 5;
+/** Höchstens so viele App-Namen je Aufruf nachschlagen (nur fehlgeschlagene/auffällige Apps). */
+const MAX_APP_LOOKUPS = 25;
+const APP_LOOKUP_CONCURRENCY = 4;
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
 export interface GraphProviderOptions {
@@ -323,6 +329,46 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.bitlockerNotReported, source }),
     );
+  }
+
+  /** App-Namen per GET /deviceAppManagement/mobileApps/{id} – je ID ein GET, gedrosselt parallel. */
+  getMobileApps(appIds: string[], options: RequestOptions = {}): Promise<SectionResult<AppInfo[]>> {
+    const endpoint = Endpoints.mobileApp;
+    return this.run<AppInfo[]>('mobileApp', async (source) => {
+      const ids = [...new Map(appIds.map((id) => [id.toLowerCase(), id])).values()].slice(
+        0,
+        MAX_APP_LOOKUPS,
+      );
+      const apps: AppInfo[] = [];
+      let firstError: unknown = null;
+      for (let i = 0; i < ids.length; i += APP_LOOKUP_CONCURRENCY) {
+        const batch = ids.slice(i, i + APP_LOOKUP_CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((id) =>
+            this.client.get<GraphMobileApp>(endpoint.path(id), {
+              signal: options.signal,
+              scope: endpoint.scope,
+            }),
+          ),
+        );
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            const app = result.value ? mapMobileApp(result.value) : null;
+            if (app) apps.push(app);
+            continue;
+          }
+          if (isAbort(result.reason)) throw result.reason;
+          const appError = toAppError(result.reason);
+          // Fehlende Berechtigung betrifft alle IDs → ganze Section "forbidden".
+          if (appError.code === 'forbidden') throw result.reason;
+          // Gelöschte/unbekannte App: einfach ohne Namen weiter.
+          if (appError.code === 'notFound') continue;
+          firstError ??= result.reason;
+        }
+      }
+      if (apps.length === 0 && firstError) throw firstError;
+      return this.ok(apps, source);
+    });
   }
 }
 

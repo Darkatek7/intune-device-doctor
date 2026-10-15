@@ -78,6 +78,22 @@ export function FindingCard({ finding }: { finding: Finding }) {
           </ol>
         </Section>
       )}
+      {finding.links && finding.links.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {finding.links.map((link) => (
+            <a
+              key={link.url}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent/6 px-3 py-1.5 text-sm font-medium text-accent outline-none transition-transform hover:bg-accent/8 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+            >
+              {link.label}
+              <ExternalLink aria-hidden="true" size={14} />
+            </a>
+          ))}
+        </div>
+      )}
       {finding.evidence && <EvidenceTable evidence={finding.evidence} />}
       <SourceLine source={finding.source} docsUrl={finding.docsUrl} />
     </article>

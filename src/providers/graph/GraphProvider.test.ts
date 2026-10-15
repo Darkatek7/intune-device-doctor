@@ -359,3 +359,38 @@ describe('GraphProvider – Sections', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+describe('GraphProvider – App-Namen', () => {
+  const A = '11111111-1111-1111-1111-111111111111';
+  const B = '22222222-2222-2222-2222-222222222222';
+
+  it('liest Namen per GET mobileApps/{id} mit $select, überspringt 404 und doppelte IDs', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.pathname.endsWith(`/mobileApps/${A}`)) {
+        return jsonResponse({ id: A, displayName: 'Contoso VPN', publisher: 'Contoso' });
+      }
+      return graphError(404, 'ResourceNotFound');
+    });
+    const result = expectStatus(await provider.getMobileApps([A, A.toUpperCase(), B]), 'ok');
+    expect(result.data).toEqual([{ id: A, displayName: 'Contoso VPN', publisher: 'Contoso' }]);
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.method).toBe('GET');
+      expect(call.parsed.pathname).toMatch(/^\/v1\.0\/deviceAppManagement\/mobileApps\//);
+      expect(call.parsed.searchParams.get('$select')).toBe('id,displayName,publisher');
+    }
+    expect(result.source.label).toBe(Endpoints.mobileApp.display);
+  });
+
+  it('meldet fehlende Berechtigung als forbidden mit Scope', async () => {
+    const { provider } = setup(() => graphError(403, 'Forbidden'));
+    const result = expectStatus(await provider.getMobileApps([A]), 'forbidden');
+    expect(result.error.requiredScope).toBe(Endpoints.mobileApp.scope);
+  });
+
+  it('fragt ohne IDs nichts ab', async () => {
+    const { provider, calls } = setup();
+    expectStatus(await provider.getMobileApps([]), 'ok');
+    expect(calls).toHaveLength(0);
+  });
+});

@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  AppInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -17,6 +18,7 @@ import type {
 import { Endpoints, type EndpointId } from '../../graph/endpoints';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
+import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
@@ -205,5 +207,21 @@ export class MockProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<BitLockerKeyInfo[]>(device, 'bitlockerKeys', options);
+  }
+
+  async getMobileApps(
+    appIds: string[],
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AppInfo[]>> {
+    await this.delay(`apps:${appIds.join(',')}`, options.signal);
+    const apps = [...new Set(appIds.map((id) => id.toLowerCase()))]
+      .map((id) => findMockApp(id))
+      .filter((app): app is AppInfo => app !== undefined);
+    return {
+      status: 'ok',
+      data: apps,
+      source: sourceFor('mobileApp'),
+      fetchedAt: this.now().toISOString(),
+    };
   }
 }

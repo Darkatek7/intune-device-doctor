@@ -533,3 +533,17 @@ describe('MockProvider – AbortSignal', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+describe('MockProvider – App-Namen', () => {
+  it('löst Fixture-App-IDs unabhängig von der Schreibweise auf und lässt Unbekanntes weg', async () => {
+    const provider = new MockProvider({ latency: false });
+    const result = await provider.getMobileApps([
+      '00000000-0000-0000-0000-0000000000a2',
+      '99999999-9999-9999-9999-999999999999',
+    ]);
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+    expect(result.data.map((app) => app.displayName)).toEqual(['Contoso VPN Client 5.1']);
+    expect(result.source.kind).toBe('mock');
+  });
+});

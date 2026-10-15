@@ -46,6 +46,15 @@ describe('ZIP-Analyse in der App', () => {
     await user.click(tile('win32Apps')!);
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('0x80070642');
+    // Demo-Modus: App-Name aus dem Mock-Katalog statt GUID, mit Link ins Intune Admin Center.
+    expect(
+      await within(dialog).findByText('Installation fehlgeschlagen: Contoso VPN Client 5.1'),
+    ).toBeInTheDocument();
+    const appLink = within(dialog).getByRole('link', { name: new RegExp(de.links.openApp) });
+    expect(appLink).toHaveAttribute(
+      'href',
+      'https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/00000000-0000-0000-0000-0000000000A2',
+    );
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });

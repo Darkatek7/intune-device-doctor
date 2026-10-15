@@ -12,6 +12,8 @@ import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
+import { de } from '../i18n/de';
+import { IntunePortal } from '../links/intunePortal';
 
 /** Standard-Reihenfolge der Kacheln (vor der Sortierung nach Schweregrad). */
 export const TILE_ORDER: TileId[] = [
@@ -39,7 +41,27 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
     evaluatePolicies(snapshot, now),
   ];
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
-  return tiles;
+  return withPortalLinks(tiles, snapshot);
+}
+
+/** Befunde zu Compliance und Richtlinien verlinken auf das Gerät im Intune Admin Center. */
+function withPortalLinks(tiles: Tile[], snapshot: DeviceSnapshot): Tile[] {
+  const deviceLink = { label: de.links.openDevice, url: IntunePortal.device(snapshot.device.id) };
+  const policyListLink = {
+    label: de.links.configurationPolicies,
+    url: IntunePortal.configurationPolicies,
+  };
+  return tiles.map((tile) => {
+    if (tile.id !== 'compliance' && tile.id !== 'policies') return tile;
+    const extra = tile.id === 'policies' ? [deviceLink, policyListLink] : [deviceLink];
+    return {
+      ...tile,
+      findings: tile.findings.map((finding) => ({
+        ...finding,
+        links: [...(finding.links ?? []), ...extra],
+      })),
+    };
+  });
 }
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, unknown: 2, ok: 3 };

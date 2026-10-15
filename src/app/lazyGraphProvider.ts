@@ -4,6 +4,7 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  AppInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -96,5 +97,9 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
+  }
+
+  getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>> {
+    return this.section((provider) => provider.getMobileApps(appIds, options));
   }
 }

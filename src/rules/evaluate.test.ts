@@ -376,3 +376,23 @@ describe('summarize', () => {
     });
   });
 });
+
+describe('Links ins Intune Admin Center', () => {
+  it('verlinkt Richtlinien- und Compliance-Befunde auf das Gerät, Richtlinien zusätzlich auf die Profilübersicht', async () => {
+    const snapshot = await loadSnapshot('CONTOSO-PC042');
+    const tiles = evaluateTiles(snapshot, NOW);
+    const deviceUrl = `https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsMenuBlade/~/overview/mdmDeviceId/${snapshot.device.id}`;
+    const policies = tileOf(tiles, 'policies');
+    expect(policies.findings.length).toBeGreaterThan(0);
+    for (const finding of policies.findings) {
+      expect(finding.links?.map((l) => l.url)).toEqual([
+        deviceUrl,
+        'https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesMenu/~/configuration',
+      ]);
+    }
+    for (const finding of tileOf(tiles, 'compliance').findings) {
+      expect(finding.links?.map((l) => l.url)).toEqual([deviceUrl]);
+    }
+    expect(tileOf(tiles, 'defender').findings.every((f) => !f.links)).toBe(true);
+  });
+});

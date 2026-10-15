@@ -3,6 +3,7 @@
  * Enrollment (Registry) und Diagnose-Sammlung (fehlgeschlagene Sammlungen, Analyse-Hinweise).
  * Quelle jedes Befunds ist der ZIP-Eintrag. Codes werden nur über die Wissensbasis gedeutet.
  */
+import { IntunePortal } from '../../links/intunePortal';
 import { formatDateTime, maskId, maskUserPaths, normalizeHex } from '../../domain/format';
 import type { DataSource, Finding, Severity, Tile, TileFact } from '../../domain/types';
 import type {
@@ -307,16 +308,27 @@ function win32AppsTile(report: DiagnosticsReport): Tile {
   const pendingReboot = apps.filter((a) => a.status?.toLowerCase() === 'installedpendingreboot');
   const installed = apps.filter((a) => a.status?.toLowerCase() === 'installed');
 
+  const appInfo = (appId: string) => report.resolvedApps?.[appId.toLowerCase()];
+  const appEvidence = (appId: string): Record<string, string | null> => {
+    const info = appInfo(appId);
+    return info
+      ? { [de.links.appName]: info.displayName, [de.links.publisher]: info.publisher }
+      : {};
+  };
+  const appLinks = (appId: string) => [{ label: de.links.openApp, url: IntunePortal.app(appId) }];
+
   for (const app of failed) {
     const code = codeDescription(app);
+    const info = appInfo(app.appId);
     findings.push({
       id: `win32-failed-${app.appId}`,
       severity: 'warning',
-      title: w.failedTitle(app.appId),
+      title: info ? w.failedTitleNamed(info.displayName) : w.failedTitle(app.appId),
       detail: w.failedDetail(code.text),
       cause: [w.failedCause, code.installer?.cause].filter(Boolean).join(' '),
       remediation: [...(code.installer?.remediation ?? []), ...w.failedRemediation],
       evidence: {
+        ...appEvidence(app.appId),
         appId: app.appId,
         status: app.status,
         errorCode: app.errorCodeHex,
@@ -324,19 +336,23 @@ function win32AppsTile(report: DiagnosticsReport): Tile {
       },
       source,
       docsUrl: code.docsUrl ?? Docs.win32AppTroubleshoot,
+      links: appLinks(app.appId),
     });
   }
   for (const app of pendingReboot) {
     findings.push({
       id: `win32-reboot-${app.appId}`,
       severity: 'warning',
-      title: w.pendingRebootTitle(app.appId),
+      title: appInfo(app.appId)
+        ? w.pendingRebootTitleNamed(appInfo(app.appId)!.displayName)
+        : w.pendingRebootTitle(app.appId),
       detail: w.pendingRebootDetail,
       cause: w.pendingRebootCause,
       remediation: [...w.pendingRebootRemediation],
-      evidence: { appId: app.appId, status: app.status },
+      evidence: { ...appEvidence(app.appId), appId: app.appId, status: app.status },
       source,
       docsUrl: Docs.win32AppTroubleshoot,
+      links: appLinks(app.appId),
     });
   }
 

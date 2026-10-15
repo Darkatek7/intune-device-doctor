@@ -632,3 +632,33 @@ describe('Synthetisch: Diagnose-Sammlung', () => {
     expect(tile.severity).toBe('ok');
   });
 });
+
+describe('Win32-Apps – App-Namen und Intune-Link', () => {
+  const failedFinding = (report: DiagnosticsReport): Finding =>
+    evaluateDiagnosticsTiles(report, NOW)
+      .find((t) => t.id === 'win32Apps')!
+      .findings.find((f) => f.id.startsWith('win32-failed-'))!;
+
+  it('zeigt ohne aufgelöste Namen die App-ID und verlinkt trotzdem auf die App', () => {
+    const finding = failedFinding(fixture);
+    expect(finding.title).toContain('00000000-0000-0000-0000-0000000000A2');
+    expect(finding.links?.[0]?.url).toBe(
+      'https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/00000000-0000-0000-0000-0000000000A2',
+    );
+  });
+
+  it('nutzt den aufgelösten Namen im Titel und in den Rohdaten', () => {
+    const finding = failedFinding({
+      ...fixture,
+      resolvedApps: {
+        '00000000-0000-0000-0000-0000000000a2': {
+          id: '00000000-0000-0000-0000-0000000000A2',
+          displayName: 'Contoso VPN Client 5.1',
+          publisher: 'Contoso Ltd.',
+        },
+      },
+    });
+    expect(finding.title).toBe('Installation fehlgeschlagen: Contoso VPN Client 5.1');
+    expect(Object.values(finding.evidence ?? {})).toContain('Contoso Ltd.');
+  });
+});

@@ -10,6 +10,7 @@
  */
 import type {
   AppError,
+  AppInfo,
   BitLockerKeyInfo,
   DataMode,
   DeviceSearchResult,
@@ -56,6 +57,12 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<BitLockerKeyInfo[]>>;
+
+  /**
+   * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im
+   * Ergebnis einfach; eine fehlende Berechtigung liefert "forbidden".
+   */
+  getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>>;
 }
 
 export class ProviderError extends Error {

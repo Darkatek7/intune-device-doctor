@@ -219,6 +219,19 @@ export type TileId =
   | 'enrollment'
   | 'diagCollection';
 
+/** Name einer Intune-App, aufgelöst über GET /deviceAppManagement/mobileApps/{id} (bzw. Mock-Katalog). */
+export interface AppInfo {
+  id: string;
+  displayName: string;
+  publisher: string | null;
+}
+
+/** Weiterführender Link, z. B. "In Intune öffnen". */
+export interface ResourceLink {
+  label: string;
+  url: string;
+}
+
 export interface Finding {
   id: string;
   severity: Severity;
@@ -234,6 +247,8 @@ export interface Finding {
   evidence?: Record<string, string | number | boolean | null>;
   source: DataSource;
   docsUrl?: string;
+  /** Links ins Intune Admin Center (App, Gerät, Richtlinienübersicht) */
+  links?: ResourceLink[];
 }
 
 /** Sections eines DeviceSnapshot, die unabhängig laden (und erneut geladen werden können). */

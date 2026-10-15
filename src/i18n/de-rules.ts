@@ -613,6 +613,7 @@ export const deRules = {
       statusFact: (status: string) => `Status „${status}“`,
       statusFactValue: (count: number) => `${count} ${count === 1 ? 'App' : 'Apps'}`,
       failedTitle: (appId: string) => `Installation fehlgeschlagen: App ${appId}`,
+      failedTitleNamed: (name: string) => `Installation fehlgeschlagen: ${name}`,
       failedDetail: (code: string) => `Status „Failed“, ${code}.`,
       codeWin32: (
         hex: string,
@@ -629,11 +630,12 @@ export const deRules = {
       failedCause:
         'Die Intune Management Extension (IME) meldet für diese Win32-App eine fehlgeschlagene Installation.',
       failedRemediation: [
-        'App im Intune Admin Center über die App-ID finden (Apps › Windows; die ID steht in der URL der App) und den Gerätestatus prüfen.',
+        'App im Intune Admin Center öffnen (Link unten bzw. Apps › Windows, Suche nach der App-ID) und den Installationsstatus des Geräts prüfen.',
         'IME-Logs im Archiv bzw. am Gerät auswerten: AppWorkload.log und IntuneManagementExtension.log unter C:\\ProgramData\\Microsoft\\IntuneManagementExtension\\Logs.',
         'Installationsbefehl, Erkennungsregel und Rückgabecodes der App prüfen; bei Benutzerzuweisung beachten, dass Apps mit Administratorbedarf im Benutzerkontext scheitern.',
       ],
       pendingRebootTitle: (appId: string) => `Neustart ausstehend: App ${appId}`,
+      pendingRebootTitleNamed: (name: string) => `Neustart ausstehend: ${name}`,
       pendingRebootDetail: 'Status „InstalledPendingReboot“.',
       pendingRebootCause:
         'Die Installation ist abgeschlossen, wird aber erst nach einem Neustart wirksam.',

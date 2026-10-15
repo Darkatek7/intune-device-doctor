@@ -3,6 +3,7 @@
  * (DiagLogs-<Gerät>-<UTC-Zeitstempel>.zip). Format: docs/diaglogs-format.md.
  * Das ZIP verlässt den Browser nie.
  */
+import type { AppInfo } from '../domain/types';
 
 export type DiagEntryKind = 'RegistryKey' | 'Command' | 'Events' | 'FoldersFiles' | 'results';
 
@@ -96,6 +97,11 @@ export interface DiagnosticsReport {
   win32Apps: Win32AppState[];
   /** Ausgewählte Fehler-/Warnzeilen aus IME-Logs (begrenzt) */
   imeIssues: CmTraceEntry[];
+  /**
+   * App-Namen zu Win32-App-IDs (Schlüssel: ID in Kleinschreibung). Stammt nicht aus dem ZIP, sondern
+   * wird nach der Analyse über den aktiven Provider (Graph bzw. Mock-Katalog) nachgeladen.
+   */
+  resolvedApps?: Record<string, AppInfo>;
   /** Hinweise zur Analyse selbst (übersprungene Binärdateien, unbekanntes Encoding …) */
   analysisNotes: string[];
 }
