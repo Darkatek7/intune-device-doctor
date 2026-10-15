@@ -13,6 +13,7 @@ import type {
   TileId,
 } from '../domain/types';
 import { de } from '../i18n/de';
+import { Docs } from './knowledge/docs';
 
 export const SEVERITY_RANK: Record<Severity, number> = {
   critical: 0,
@@ -100,7 +101,7 @@ export function sectionIssueFinding(
           graphCode: section.error.graphCode ?? null,
           requestId: section.error.requestId ?? null,
         },
-        docsUrl: PERMISSIONS_DOCS_URL,
+        docsUrl: Docs.graphPermissions,
       };
     }
     case 'notApplicable':
@@ -142,15 +143,11 @@ export function sectionIssueFinding(
           requestId: section.error.requestId ?? null,
           retryAfterSeconds: section.error.retryAfterSeconds ?? null,
         },
-        docsUrl: throttled ? THROTTLING_DOCS_URL : ERRORS_DOCS_URL,
+        docsUrl: throttled ? Docs.graphThrottling : Docs.graphErrors,
       };
     }
   }
 }
-
-export const PERMISSIONS_DOCS_URL = 'https://learn.microsoft.com/en-us/graph/permissions-reference';
-export const THROTTLING_DOCS_URL = 'https://learn.microsoft.com/en-us/graph/throttling';
-export const ERRORS_DOCS_URL = 'https://learn.microsoft.com/en-us/graph/errors';
 
 /** Kachel, deren einzige Section nicht ok ist. */
 export function unavailableTile(

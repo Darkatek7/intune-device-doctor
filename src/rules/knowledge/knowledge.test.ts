@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hexToSignedDecimal, hresultToHex } from '../../domain/format';
 import { de } from '../../i18n/de';
-import { ERRORS_DOCS_URL, PERMISSIONS_DOCS_URL, THROTTLING_DOCS_URL } from '../helpers';
 import { Docs } from './docs';
 import {
   INSTALLER_EXIT_CODES,
@@ -98,9 +97,6 @@ describe('Quellenpflicht: feste URLs', () => {
   });
 
   it.each([
-    ['PERMISSIONS_DOCS_URL', PERMISSIONS_DOCS_URL],
-    ['THROTTLING_DOCS_URL', THROTTLING_DOCS_URL],
-    ['ERRORS_DOCS_URL', ERRORS_DOCS_URL],
     ['WINDOWS11_RELEASE_INFO_URL', WINDOWS11_RELEASE_INFO_URL],
     ['WINDOWS10_RELEASE_INFO_URL', WINDOWS10_RELEASE_INFO_URL],
     ['WINHTTP_ERRORS_URL', WINHTTP_ERRORS_URL],

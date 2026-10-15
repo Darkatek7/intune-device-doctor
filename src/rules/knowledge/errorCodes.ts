@@ -18,7 +18,7 @@ function entry(decimal: number, data: Omit<KnowledgeEntry, 'hex' | 'decimal'>): 
 
 export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
   entry(-2016281112, {
-    title: 'Remediation failed (0x87D1FDE8)',
+    title: 'Einstellung nicht angewendet – „Remediation failed“ (0x87D1FDE8)',
     cause:
       'Das Gerät konnte die Einstellung nicht wie vorgegeben anwenden, oder die Rückmeldung des Geräts stimmte nicht mit dem Sollwert überein. Bei benutzerdefinierten VPN-Profilen (OMA-URI) ist bekannt, dass abweichend formatiertes XML in der Rückmeldung diesen Fehler auslöst, obwohl die Verbindung funktioniert.',
     remediation: [
@@ -30,7 +30,8 @@ export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
       'https://learn.microsoft.com/troubleshoot/mem/intune/device-configuration/device-configuration-profile-reports-error-2016281112',
   }),
   entry(-2016281106, {
-    title: 'Not applicable because it lost in conflict resolution (0x87D1FDEE)',
+    title:
+      'Konflikt verloren – „Not applicable because it lost in conflict resolution“ (0x87D1FDEE)',
     cause:
       'Eine andere Richtlinie setzt dieselbe Einstellung auf einen anderen Wert und hat sich durchgesetzt.',
     remediation: [
@@ -40,7 +41,7 @@ export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
     docsUrl: CONFLICTS_URL,
   }),
   entry(-2016281111, {
-    title: 'Not applicable for this device (0x87D1FDE9)',
+    title: 'Für dieses Gerät nicht anwendbar – „Not applicable for this device“ (0x87D1FDE9)',
     cause: 'Die Einstellung gilt für diese Geräteplattform, Edition oder Version nicht.',
     remediation: [
       'Zuweisung prüfen (z. B. per Filter auf passende Editionen/Versionen einschränken).',
@@ -49,7 +50,7 @@ export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
     docsUrl: INTUNE_COMMON_ERRORS_URL,
   }),
   entry(-2016281109, {
-    title: 'Data type conversion failed (0x87D1FDEB)',
+    title: 'Datentyp-Konvertierung fehlgeschlagen – „Data type conversion failed“ (0x87D1FDEB)',
     cause: 'Der konfigurierte Wert passt nicht zum erwarteten Datentyp der Einstellung.',
     remediation: [
       'Wert und Datentyp der Einstellung im Profil prüfen (bei OMA-URI: Datentyp laut CSP-Dokumentation).',
@@ -57,7 +58,7 @@ export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
     docsUrl: INTUNE_COMMON_ERRORS_URL,
   }),
   entry(-2016281108, {
-    title: 'Referenced setting not found in CI (0x87D1FDEC)',
+    title: 'Einstellung unbekannt – „Referenced setting not found in CI“ (0x87D1FDEC)',
     cause: 'Das Gerät kennt die referenzierte Einstellung nicht.',
     remediation: [
       'Prüfen, ob die Einstellung für die Windows-Version des Geräts existiert und korrekt geschrieben ist.',

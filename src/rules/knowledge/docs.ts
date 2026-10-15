@@ -71,4 +71,6 @@ export const Docs = {
   windows11Releases:
     'https://learn.microsoft.com/windows/release-health/windows11-release-information',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
+  graphThrottling: 'https://learn.microsoft.com/graph/throttling',
+  graphErrors: 'https://learn.microsoft.com/graph/errors',
 } as const;
