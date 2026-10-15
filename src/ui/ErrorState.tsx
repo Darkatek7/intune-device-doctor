@@ -38,7 +38,7 @@ export function ErrorState({ error, onRetry, title }: Props) {
   return (
     <div
       role="alert"
-      className="mx-auto flex max-w-md flex-col items-center gap-3 hc-edge rounded-tile bg-surface p-8 text-center shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]"
+      className="mx-auto flex max-w-md flex-col items-center gap-3 hc-edge rounded-tile material-card p-8 text-center"
     >
       <Icon aria-hidden="true" size={32} className="text-critical" />
       <h2 className="text-title font-semibold text-label">{title ?? titleFor(error.code)}</h2>

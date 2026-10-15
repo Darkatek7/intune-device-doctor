@@ -26,6 +26,7 @@
   --color-warning: var(--c-warning);
   --color-critical: var(--c-critical);
   --color-unknown: var(--c-unknown);
+  --color-fill: var(--c-fill);
 
   --text-display: 2.5rem;
   --text-display--line-height: 1.08;
@@ -52,13 +53,23 @@
   --c-tertiary-label: rgb(235 235 245 / 0.5);
   --c-separator: rgb(84 84 88 / 0.5);
   --c-control: rgb(120 120 128 / 0.32);
-  --c-accent: #0a84ff;
+  /* Etwas heller als #0a84ff: ≥ 4,5:1 auch auf gruppierten Flächen (--c-fill + Akzent-Tönung) */
+  --c-accent: #4aa3ff;
   /* Weißer Text auf #0a84ff erreicht nur 3,7:1 – für Flächen daher ein dunkleres Blau (4,9:1). */
   --c-accent-fill: #0a6fd8;
   --c-ok: #30d158;
   --c-warning: #ff9f0a;
   --c-critical: #ff453a;
   --c-unknown: #98989d;
+  /* Gruppierte Fläche innerhalb einer Karte (iOS „secondarySystemGroupedBackground“) */
+  --c-fill: #2c2c2e;
+  /* Material: Toolbar-Glas, Lichtkante oben, Schatten nach Flächengröße */
+  --c-glass: rgb(28 28 30 / 0.62);
+  --c-highlight: rgb(255 255 255 / 0.07);
+  --c-spot: rgb(255 255 255 / 0.06);
+  --shadow-tile: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-tile-hover: 0 2px 4px rgb(0 0 0 / 0.5), 0 14px 36px rgb(0 0 0 / 0.5);
+  --ambient-strength: 34%;
   color-scheme: dark;
 }
 
@@ -81,6 +92,13 @@
   --c-warning: #c93400;
   --c-critical: #d70015;
   --c-unknown: #7c7c82;
+  --c-fill: #f2f2f7;
+  --c-glass: rgb(250 250 252 / 0.72);
+  --c-highlight: rgb(255 255 255 / 0.9);
+  --c-spot: rgb(0 0 0 / 0.025);
+  --shadow-tile: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 20px rgb(0 0 0 / 0.05);
+  --shadow-tile-hover: 0 2px 4px rgb(0 0 0 / 0.05), 0 12px 32px rgb(0 0 0 / 0.09);
+  --ambient-strength: 16%;
   color-scheme: light;
 }
 
@@ -98,8 +116,10 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  :root {
+  :root,
+  :root[data-theme='light'] {
     --c-surface-raised: var(--c-surface);
+    --c-glass: var(--c-surface);
   }
 }
 
@@ -127,6 +147,7 @@
 
 html {
   scrollbar-gutter: stable;
+  font-optical-sizing: auto;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -178,4 +199,143 @@ body {
     animation: none;
     display: none;
   }
+}
+
+/*
+ * Material „Karte“: solide Fläche mit Lichtkante oben (Licht fängt sich an der Kante) und einem
+ * Schatten, der mit der Flächengröße wächst. Kacheln heben sich bei Hover minimal an.
+ */
+.material-card {
+  background-color: var(--c-surface);
+  box-shadow:
+    inset 0 1px 0 var(--c-highlight),
+    var(--shadow-tile);
+}
+
+/*
+ * Kachel: Severity-Tönung als weicher Schein aus der linken oberen Ecke – nur bei Problem/Prüfen,
+ * damit der Blick in < 3 s dort landet. Gesunde Kacheln bleiben ruhig.
+ */
+.tile {
+  --tone: transparent;
+  position: relative;
+  isolation: isolate;
+  background-image: radial-gradient(
+    120% 90% at 0% 0%,
+    color-mix(in srgb, var(--tone) 16%, transparent),
+    transparent 62%
+  );
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms ease-out;
+}
+
+.tile[data-severity='critical'] {
+  --tone: var(--c-critical);
+}
+
+.tile[data-severity='warning'] {
+  --tone: var(--c-warning);
+}
+
+/* Lichtfleck folgt dem Zeiger 1:1 (direkte Rückmeldung, kein Bewegungsreiz) */
+.tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 0%),
+    var(--c-spot),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    box-shadow:
+      inset 0 1px 0 var(--c-highlight),
+      var(--shadow-tile-hover);
+  }
+
+  .tile:hover::before {
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tile:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Feedback auf Pointer-Down: sofort, kurz, ease-out */
+.tile:active {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+/* Icon-Kachel („Squircle“) wie in den iOS-Einstellungen */
+.squircle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 28%;
+}
+
+/* App-Glyphe: Verlauf + farbiger Schein */
+.app-glyph {
+  background-image: linear-gradient(145deg, #3d9bff 0%, #0a6fd8 45%, #5e5ce6 100%);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 6px 18px rgb(10 111 216 / 0.35);
+}
+
+/*
+ * Umgebungslicht oben: statischer, weicher Schein in der Farbe des Gesamtzustands. Die Farbe ist
+ * eine registrierte Property und blendet beim Wechsel weich über (kein Helligkeitssprung).
+ */
+@property --ambient {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 42rem;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 75% at 50% -12%,
+    color-mix(in srgb, var(--ambient) var(--ambient-strength), transparent),
+    transparent 72%
+  );
+  transition:
+    --ambient 600ms ease,
+    opacity 600ms ease;
+}
+
+@starting-style {
+  .ambient {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .ambient {
+    display: none;
+  }
+}
+
+/* Große Überschriften: optisch enger, ausbalancierte Zeilen */
+.display-type {
+  letter-spacing: -0.028em;
+  line-height: 1.06;
+  text-wrap: balance;
 }

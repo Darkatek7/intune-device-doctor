@@ -11,13 +11,13 @@ export function TileSkeleton({ tile }: { tile: Pick<Tile, 'id' | 'title'> }) {
       aria-label={`${tile.title}: ${de.states.loading}`}
       role="group"
       data-tile-skeleton={tile.id}
-      className="hc-edge flex min-h-36 flex-col gap-3 rounded-tile bg-surface p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]"
+      className="material-card hc-edge flex h-full min-h-36 flex-col rounded-tile p-5 sm:min-h-44"
     >
-      <div className="flex items-center gap-2 text-secondary-label">
-        <Icon aria-hidden="true" size={20} className="shrink-0" />
-        <span className="text-sm font-medium">{tile.title}</span>
-      </div>
-      <div className="skeleton mt-2 h-6 w-2/3 rounded-md" />
+      <span aria-hidden="true" className="squircle size-9 bg-fill text-secondary-label">
+        <Icon size={19} />
+      </span>
+      <span className="mt-3.5 text-sm font-medium text-secondary-label">{tile.title}</span>
+      <div className="skeleton mt-auto mb-2 h-7 w-2/3 rounded-md" />
       <div className="skeleton h-4 w-full rounded-md" />
     </div>
   );

@@ -13,6 +13,7 @@ import { usePageFileDrop } from '../hooks/usePageFileDrop';
 import { closeTileInHistory, navigateTo, parseUrl, useUrlState } from '../hooks/useUrlState';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
+import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
 import { DropOverlay } from '../ui/DropOverlay';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorState';
@@ -70,6 +71,7 @@ function Shell({ account, extraChips }: Props) {
   const [retryKey, setRetryKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchedAt, setSearchedAt] = useState(() => new Date());
+  const [deviceTone, setDeviceTone] = useState<AmbientTone>('accent');
 
   // DiagLogs-ZIP: Analyse, Ansicht und optionale Zusammenführung mit einem Gerät.
   const { state: zip, analyze, reset: resetZip } = useDiagnosticsAnalysis();
@@ -249,6 +251,7 @@ function Shell({ account, extraChips }: Props) {
           if (current.tile) closeTileInHistory(current);
         }}
         onRetryDevice={() => setRetryKey((k) => k + 1)}
+        onToneChange={setDeviceTone}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
@@ -289,6 +292,7 @@ function Shell({ account, extraChips }: Props) {
           offer={zipMatch ? { deviceName: zipMatch.deviceName } : null}
           onMerge={mergeZip}
           onBack={leaveZip}
+          onToneChange={setDeviceTone}
         />
       );
     }
@@ -349,6 +353,7 @@ function Shell({ account, extraChips }: Props) {
 
   return (
     <div className="min-h-dvh bg-canvas text-label">
+      <AmbientGlow tone={showDevice || (showZip && zipReport) ? deviceTone : 'accent'} />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:ring-2 focus:ring-accent"
@@ -364,7 +369,7 @@ function Shell({ account, extraChips }: Props) {
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}
-      <main id="main" className="mx-auto max-w-[80rem] px-4 py-6 sm:px-8 sm:py-8">
+      <main id="main" className="relative mx-auto max-w-[80rem] px-4 py-6 sm:px-8 sm:py-8">
         <p className="sr-only" role="status" aria-live="polite">
           {liveStatus}
         </p>

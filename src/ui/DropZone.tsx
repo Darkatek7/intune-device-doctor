@@ -47,12 +47,19 @@ export function DropZone({ onFile }: Props) {
       }}
       onDragLeave={() => setOver(false)}
       onDrop={onDrop}
-      className={`flex flex-col items-center gap-2 rounded-tile border border-dashed p-6 text-center transition-colors ${
-        over ? 'border-accent bg-accent/12' : 'border-separator bg-surface/60'
+      className={`flex flex-col items-center gap-2.5 rounded-tile border-[1.5px] border-dashed px-6 py-7 text-center transition-[background-color,border-color,transform] duration-200 ${
+        over ? 'scale-[1.01] border-accent bg-accent/12' : 'border-separator bg-surface/50'
       }`}
     >
-      <FileUp aria-hidden="true" size={24} className="text-secondary-label" />
-      <p className="text-base text-label">{over ? de.dropZoneUi.dropActive : de.dropZone.hint}</p>
+      <span
+        aria-hidden="true"
+        className={`squircle size-11 transition-colors duration-200 ${over ? 'bg-accent/20 text-accent' : 'bg-fill text-secondary-label'}`}
+      >
+        <FileUp size={22} />
+      </span>
+      <p className="text-base font-medium text-label">
+        {over ? de.dropZoneUi.dropActive : de.dropZone.hint}
+      </p>
       <input
         ref={inputRef}
         type="file"
@@ -68,7 +75,7 @@ export function DropZone({ onFile }: Props) {
         type="button"
         disabled={!enabled}
         onClick={() => inputRef.current?.click()}
-        className="rounded-full bg-control px-4 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-full bg-control px-4 py-1.5 transition-[transform,background-color] hover:bg-separator text-sm font-medium text-label outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {de.dropZoneUi.choose}
       </button>

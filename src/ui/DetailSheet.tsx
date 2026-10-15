@@ -41,6 +41,13 @@ function rubberBand(offset: number, dimension = 120): number {
   return -dimension * (1 - 1 / ((Math.abs(offset) * 0.55) / dimension + 1));
 }
 
+const SHEET_ICON_CLASS = {
+  ok: 'bg-ok/15 text-ok',
+  warning: 'bg-warning/15 text-warning',
+  critical: 'bg-critical/15 text-critical',
+  unknown: 'bg-fill text-secondary-label',
+} as const;
+
 function uniqueSources(sources: DataSource[]): DataSource[] {
   const seen = new Set<string>();
   return sources.filter((s) => {
@@ -221,7 +228,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
         data-testid="sheet-scrim"
         style={{ opacity: scrimOpacity }}
         onClick={close}
-        className="absolute inset-0 bg-black/20 dark:bg-black/40"
+        className="absolute inset-0 bg-black/25 dark:bg-black/50"
       />
       <motion.div
         ref={panelRef}
@@ -231,7 +238,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
         aria-busy={loading || undefined}
         tabIndex={-1}
         style={{ x, y, scaleX, scaleY, opacity: panelOpacity, transformOrigin: '0 0' }}
-        className="absolute bottom-0 left-0 right-0 flex max-h-[90dvh] flex-col overflow-hidden hc-edge rounded-t-sheet bg-surface text-label shadow-[0_-8px_40px_rgb(0_0_0/0.18)] outline-none sm:bottom-2 sm:left-auto sm:right-2 sm:top-2 sm:max-h-none sm:w-[32rem] sm:max-w-[calc(100%-1rem)] sm:rounded-sheet sm:shadow-[0_8px_40px_rgb(0_0_0/0.22)]"
+        className="absolute bottom-0 left-0 right-0 flex max-h-[90dvh] flex-col overflow-hidden hc-edge rounded-t-sheet bg-surface text-label shadow-[inset_0_1px_0_var(--c-highlight),0_-8px_40px_rgb(0_0_0/0.18)] outline-none sm:bottom-2 sm:left-auto sm:right-2 sm:top-2 sm:max-h-none sm:w-[32rem] sm:max-w-[calc(100%-1rem)] sm:rounded-sheet sm:shadow-[inset_0_1px_0_var(--c-highlight),0_24px_64px_rgb(0_0_0/0.35)]"
       >
         <motion.div style={{ opacity: contentOpacity }} className="flex min-h-0 flex-1 flex-col">
           <div
@@ -248,9 +255,21 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
             />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-secondary-label">
-                  <Icon aria-hidden="true" size={20} className="shrink-0" />
-                  <h2 id={titleId} className="text-title font-semibold text-label">
+                <div className="flex items-center gap-3 text-secondary-label">
+                  <span
+                    aria-hidden="true"
+                    className={`squircle size-10 ${
+                      loading || tile.availability
+                        ? 'bg-fill text-secondary-label'
+                        : SHEET_ICON_CLASS[tile.severity]
+                    }`}
+                  >
+                    <Icon size={22} />
+                  </span>
+                  <h2
+                    id={titleId}
+                    className="text-title font-semibold tracking-[-0.016em] text-label"
+                  >
                     {tile.title}
                   </h2>
                 </div>
@@ -277,7 +296,9 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
             ) : (
               <>
                 <div>
-                  <p className="text-title font-semibold tabular-nums">{tile.value}</p>
+                  <p className="display-type text-[1.75rem] font-semibold tabular-nums">
+                    {tile.value}
+                  </p>
                   {tile.summary && (
                     <p className="mt-1 text-sm text-secondary-label">{tile.summary}</p>
                   )}
@@ -289,7 +310,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                     <section
                       key={notice.key}
                       data-notice={notice.status}
-                      className="hc-edge flex gap-3 rounded-2xl bg-canvas p-4"
+                      className="hc-edge flex gap-3 rounded-2xl bg-fill p-4"
                     >
                       <NoticeIcon
                         aria-hidden="true"
@@ -344,7 +365,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-secondary-label">
                       {de.sheet.facts}
                     </h3>
-                    <dl className="mt-2 hc-edge divide-y divide-separator rounded-2xl bg-canvas px-4 text-sm">
+                    <dl className="mt-2 hc-edge divide-y divide-separator rounded-2xl bg-fill px-4 text-sm">
                       {tile.facts.map((fact) => (
                         <div
                           key={fact.label}

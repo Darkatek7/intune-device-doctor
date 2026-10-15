@@ -1,6 +1,8 @@
+import { ChevronRight, Laptop, Stethoscope } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { de } from '../i18n/de';
 import type { ExampleDevice } from '../hooks/useExampleDevices';
+import { EXAMPLE_CHIP_CLASS } from './chipStyles';
 import { DropZone } from './DropZone';
 
 interface Props {
@@ -17,29 +19,48 @@ interface Props {
 /** Leerer Zustand: großes Suchfeld, Beispiel-Chips, Drop-Zone. */
 export function Landing({ search, examples, onPickExample, extraChips, onFile }: Props) {
   return (
-    <section className="mx-auto flex max-w-2xl flex-col items-center gap-8 py-10 sm:py-20">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-label sm:text-display">
+    <section className="mx-auto flex max-w-3xl flex-col items-center gap-9 py-8 sm:py-16">
+      <div className="flex flex-col items-center text-center">
+        <span aria-hidden="true" className="squircle app-glyph mb-6 size-16 sm:size-20">
+          <Stethoscope className="size-8 sm:size-10" strokeWidth={2} />
+        </span>
+        <h1 className="display-type text-[2rem] font-bold text-label sm:text-[3.25rem]">
           {de.hero.title}
         </h1>
-        <p className="mt-3 text-base text-secondary-label">{de.hero.subtitle}</p>
+        <p className="mt-4 max-w-md text-lg text-secondary-label text-balance">
+          {de.hero.subtitle}
+        </p>
       </div>
-      {search}
+      <div className="w-full max-w-2xl">{search}</div>
       {(examples.length > 0 || extraChips) && (
         <div className="w-full">
-          <h2 className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-secondary-label">
+          <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.06em] text-secondary-label">
             {de.demo.examplesTitle}
           </h2>
-          <ul className="flex flex-wrap justify-center gap-2">
+          <ul className="grid grid-cols-1 gap-2.5 min-[30rem]:grid-cols-2 sm:grid-cols-3">
             {examples.map((scenario) => (
-              <li key={scenario.deviceName}>
+              <li key={scenario.deviceName} className="min-w-0">
                 <button
                   type="button"
                   onClick={() => onPickExample(scenario.deviceName)}
-                  className="flex flex-col items-start rounded-2xl bg-surface px-4 py-2 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-separator outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+                  className={EXAMPLE_CHIP_CLASS}
                 >
-                  <span className="text-sm font-semibold text-label">{scenario.deviceName}</span>
-                  <span className="text-xs text-secondary-label">{scenario.label}</span>
+                  <span aria-hidden="true" className="squircle size-8 bg-fill text-secondary-label">
+                    <Laptop size={17} />
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-semibold text-label">
+                      {scenario.deviceName}
+                    </span>
+                    <span title={scenario.label} className="truncate text-xs text-secondary-label">
+                      {scenario.label}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    aria-hidden="true"
+                    size={16}
+                    className="shrink-0 text-tertiary-label"
+                  />
                 </button>
               </li>
             ))}
@@ -47,7 +68,7 @@ export function Landing({ search, examples, onPickExample, extraChips, onFile }:
           </ul>
         </div>
       )}
-      <div className="w-full">
+      <div className="w-full max-w-2xl">
         <DropZone onFile={onFile} />
       </div>
     </section>

@@ -33,7 +33,12 @@ export function TileGrid({ tiles, onOpen }: Props) {
           {tile.state === 'loading' ? (
             <TileSkeleton tile={tile} />
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={fade}
+              className="h-full"
+            >
               <StatusTile tile={tile} onOpen={onOpen} />
             </motion.div>
           )}

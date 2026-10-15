@@ -1,3 +1,4 @@
+import { Stethoscope } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
@@ -28,14 +29,17 @@ export function Toolbar({ search, mode, onModeChange, liveAvailable, onHome, acc
 
   return (
     <header className="sticky top-0 z-20">
-      <div className="glass hc-edge-b bg-surface-raised backdrop-blur-xl backdrop-saturate-150">
+      <div className="glass hc-edge-b bg-(--c-glass) backdrop-blur-2xl backdrop-saturate-[1.8]">
         <div className="mx-auto flex min-h-14 max-w-[80rem] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-8">
           <button
             type="button"
             onClick={onHome}
             aria-label={de.toolbar.home}
-            className="shrink-0 rounded-lg px-1 text-base font-semibold tracking-tight text-label outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-1 text-base font-semibold tracking-[-0.01em] text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
           >
+            <span aria-hidden="true" className="squircle app-glyph size-7">
+              <Stethoscope size={16} strokeWidth={2.25} />
+            </span>
             {de.app.name}
           </button>
           {search && (

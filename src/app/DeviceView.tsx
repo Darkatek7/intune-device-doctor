@@ -12,6 +12,7 @@ import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
 import type { Tile } from '../domain/types';
+import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
 import { deviceMeta } from '../ui/deviceMeta';
@@ -33,6 +34,8 @@ interface Props {
   /** Befunde einer DiagLogs-ZIP, die mit diesem Gerät zusammengeführt wurden */
   diagnostics?: DiagnosticsReport;
   onRemoveDiagnostics?: () => void;
+  /** Gesamtzustand für das Umgebungslicht (accent, solange geladen wird) */
+  onToneChange?: (tone: AmbientTone) => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -47,6 +50,7 @@ export function DeviceView({
   onRetryDevice,
   diagnostics,
   onRemoveDiagnostics,
+  onToneChange,
 }: Props) {
   const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
@@ -64,6 +68,11 @@ export function DeviceView({
   const stillLoading = tiles.some((tile) => tile.state === 'loading');
   // Sortierung erst, wenn nichts mehr lädt – vorher springt sonst die Anordnung.
   const ordered = useMemo(() => (stillLoading ? tiles : sortTiles(tiles)), [tiles, stillLoading]);
+
+  const tone: AmbientTone = !snapshot || stillLoading ? 'accent' : summary.worst;
+  useEffect(() => {
+    onToneChange?.(tone);
+  }, [tone, onToneChange]);
 
   // Drosselung (HTTP 429): mind. eine Section ist mit code "throttled" fehlgeschlagen.
   const throttle = useMemo(() => {
@@ -140,6 +149,7 @@ export function DeviceView({
         summary={snapshot ? summary : null}
         totalTiles={tiles.length}
         tiles={tiles}
+        tone={tone}
         throttle={throttle}
         actions={<TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />}
         badges={
