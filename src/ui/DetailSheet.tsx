@@ -231,7 +231,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
         aria-busy={loading || undefined}
         tabIndex={-1}
         style={{ x, y, scaleX, scaleY, opacity: panelOpacity, transformOrigin: '0 0' }}
-        className="absolute bottom-0 left-0 right-0 flex max-h-[90dvh] flex-col overflow-hidden rounded-t-sheet bg-surface text-label shadow-[0_-8px_40px_rgb(0_0_0/0.18)] outline-none sm:bottom-2 sm:left-auto sm:right-2 sm:top-2 sm:max-h-none sm:w-[32rem] sm:max-w-[calc(100%-1rem)] sm:rounded-sheet sm:shadow-[0_8px_40px_rgb(0_0_0/0.22)]"
+        className="absolute bottom-0 left-0 right-0 flex max-h-[90dvh] flex-col overflow-hidden hc-edge rounded-t-sheet bg-surface text-label shadow-[0_-8px_40px_rgb(0_0_0/0.18)] outline-none sm:bottom-2 sm:left-auto sm:right-2 sm:top-2 sm:max-h-none sm:w-[32rem] sm:max-w-[calc(100%-1rem)] sm:rounded-sheet sm:shadow-[0_8px_40px_rgb(0_0_0/0.22)]"
       >
         <motion.div style={{ opacity: contentOpacity }} className="flex min-h-0 flex-1 flex-col">
           <div
@@ -264,7 +264,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                 type="button"
                 onClick={close}
                 aria-label={de.detail.close}
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-separator text-secondary-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-control text-secondary-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
               >
                 <X aria-hidden="true" size={16} />
               </button>
@@ -289,7 +289,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                     <section
                       key={notice.key}
                       data-notice={notice.status}
-                      className="flex gap-3 rounded-2xl bg-canvas p-4"
+                      className="hc-edge flex gap-3 rounded-2xl bg-canvas p-4"
                     >
                       <NoticeIcon
                         aria-hidden="true"
@@ -307,6 +307,12 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                             </code>
                           </p>
                         )}
+                        {notice.requestId && (
+                          <p className="text-secondary-label">
+                            {de.errorState.requestId}:{' '}
+                            <code className="break-all font-mono text-xs">{notice.requestId}</code>
+                          </p>
+                        )}
                       </div>
                     </section>
                   );
@@ -316,7 +322,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                   <button
                     type="button"
                     onClick={onRetry}
-                    className="inline-flex w-fit items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
+                    className="inline-flex w-fit items-center gap-2 rounded-full bg-accent-fill px-4 py-2 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
                   >
                     <RotateCw aria-hidden="true" size={16} />
                     {de.sheet.retry}
@@ -324,7 +330,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                 )}
 
                 {allGood && (
-                  <section className="flex gap-3 rounded-2xl bg-ok/12 p-4">
+                  <section className="hc-edge flex gap-3 rounded-2xl bg-ok/12 p-4">
                     <CircleCheck aria-hidden="true" size={20} className="mt-0.5 shrink-0 text-ok" />
                     <div>
                       <h3 className="font-semibold text-label">{de.sheet.allGood}</h3>
@@ -338,7 +344,7 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-secondary-label">
                       {de.sheet.facts}
                     </h3>
-                    <dl className="mt-2 divide-y divide-separator rounded-2xl bg-canvas px-4 text-sm">
+                    <dl className="mt-2 hc-edge divide-y divide-separator rounded-2xl bg-canvas px-4 text-sm">
                       {tile.facts.map((fact) => (
                         <div
                           key={fact.label}

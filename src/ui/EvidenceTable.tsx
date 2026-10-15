@@ -79,7 +79,7 @@ export function EvidenceTable({ evidence }: { evidence: Evidence }) {
       {open && (
         <dl
           id={panelId}
-          className="mt-2 grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-xl bg-canvas p-3 text-sm"
+          className="mt-2 grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-xl bg-canvas p-3 text-sm hc-edge"
         >
           {entries.map(([key, value]) => (
             <div key={key} className="contents">

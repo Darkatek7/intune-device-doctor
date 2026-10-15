@@ -11,7 +11,7 @@ export function DiagnosticsChip({ fileName, onRemove }: Props) {
   return (
     <span
       title={de.zipView.chip.title(fileName)}
-      className="inline-flex items-center gap-1 rounded-full bg-accent/12 py-0.5 pr-0.5 pl-3 text-sm font-medium text-accent"
+      className="inline-flex items-center gap-1 rounded-full bg-accent/12 py-0.5 pr-0.5 pl-3 text-sm font-medium text-label"
     >
       {de.zipView.chip.label}
       <button

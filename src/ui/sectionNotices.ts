@@ -7,6 +7,8 @@ export interface SectionNotice {
   title: string;
   message: string;
   requiredScope?: string;
+  /** Graph-Request-ID (client-request-id) für den Support */
+  requestId?: string;
   sourceLabel: string;
 }
 
@@ -24,10 +26,16 @@ export function sectionNotices(snapshot: DeviceSnapshot, tile: Tile): SectionNot
           title: de.availability.forbidden,
           message: result.error.message,
           requiredScope: result.error.requiredScope,
+          requestId: result.error.requestId,
         });
         break;
       case 'error':
-        notices.push({ ...base, title: de.states.error, message: result.error.message });
+        notices.push({
+          ...base,
+          title: de.states.error,
+          message: result.error.message,
+          requestId: result.error.requestId,
+        });
         break;
       case 'notApplicable':
         notices.push({ ...base, title: de.states.notApplicable, message: result.reason });

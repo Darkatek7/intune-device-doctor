@@ -1,9 +1,25 @@
+import { lazy, Suspense } from 'react';
 import { AppShell } from './app/AppShell';
 import { ProviderContextProvider } from './app/providerContext';
 import { useProviderContext } from './app/providerContextValue';
-import { AccountButton, AuthGate } from './auth/AuthGate';
 import { navigateTo } from './hooks/useUrlState';
 import { de } from './i18n/de';
+
+// MSAL (~300 kB) wird nur im Live-Modus gebraucht – der Demo-Modus lädt es nie.
+const AuthGate = lazy(() => import('./auth/AuthGate').then((m) => ({ default: m.AuthGate })));
+const AccountButton = lazy(() =>
+  import('./auth/AuthGate').then((m) => ({ default: m.AccountButton })),
+);
+
+function LiveLoading() {
+  return (
+    <div className="grid min-h-dvh place-items-center bg-canvas px-4 text-secondary-label">
+      <p role="status" aria-live="polite">
+        {de.states.loadingLive}
+      </p>
+    </div>
+  );
+}
 
 /** Im Live-Modus liegt die App hinter der MSAL-Anmeldung; Demo bleibt ohne Anmeldung nutzbar. */
 function Root() {
@@ -22,9 +38,17 @@ function Root() {
     </button>
   );
   return (
-    <AuthGate secondaryAction={backToDemo}>
-      <AppShell account={<AccountButton />} />
-    </AuthGate>
+    <Suspense fallback={<LiveLoading />}>
+      <AuthGate secondaryAction={backToDemo}>
+        <AppShell
+          account={
+            <Suspense fallback={null}>
+              <AccountButton />
+            </Suspense>
+          }
+        />
+      </AuthGate>
+    </Suspense>
   );
 }
 

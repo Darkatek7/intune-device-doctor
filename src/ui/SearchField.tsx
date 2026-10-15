@@ -145,7 +145,7 @@ export function SearchField({
         {large && (
           <button
             type="submit"
-            className="h-10 shrink-0 rounded-full bg-accent px-5 text-base font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
+            className="h-10 shrink-0 rounded-full bg-accent-fill px-5 text-base font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
           >
             {de.search.button}
           </button>
@@ -170,12 +170,12 @@ export function SearchField({
               onClick={() => select(s)}
               onMouseEnter={() => setActiveIndex(index)}
               className={`flex cursor-pointer items-baseline justify-between gap-3 rounded-xl px-3 py-2 text-sm ${
-                index === activeIndex ? 'bg-accent text-white' : 'text-label'
+                index === activeIndex ? 'bg-accent-fill text-white' : 'text-label'
               }`}
             >
               <span className="truncate font-medium">{s.deviceName}</span>
               <span
-                className={`truncate text-xs ${index === activeIndex ? 'text-white/85' : 'text-secondary-label'}`}
+                className={`truncate text-xs ${index === activeIndex ? 'text-white' : 'text-secondary-label'}`}
               >
                 {s.userDisplayName ?? s.userPrincipalName ?? de.picker.noUser}
               </span>

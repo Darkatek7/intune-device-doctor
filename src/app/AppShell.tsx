@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { DataMode, DeviceSearchResult } from '../domain/types';
 import { useDeviceSearch } from '../hooks/useDeviceSearch';
 import { useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useExampleDevices } from '../hooks/useExampleDevices';
 import { usePageFileDrop } from '../hooks/usePageFileDrop';
 import { closeTileInHistory, navigateTo, parseUrl, useUrlState } from '../hooks/useUrlState';
@@ -17,6 +18,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorState';
 import { ExampleZipChip } from '../ui/ExampleZipChip';
 import { Landing } from '../ui/Landing';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
 import { Toolbar } from '../ui/Toolbar';
@@ -61,6 +63,7 @@ function Shell({ account, extraChips }: Props) {
   const { mode, setMode, provider, liveAvailable } = useProviderContext();
   const url = useUrlState();
   const examples = useExampleDevices(mode);
+  const online = useOnlineStatus();
   const { state, suggestions, search, suggest, clearSuggestions, reset } =
     useDeviceSearch(provider);
   const [query, setQuery] = useState('');
@@ -224,7 +227,7 @@ function Shell({ account, extraChips }: Props) {
           <button
             type="button"
             onClick={() => changeMode('demo')}
-            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
+            className="rounded-full bg-accent-fill px-4 py-2 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
           >
             {de.empty.switchToDemo}
           </button>
@@ -269,7 +272,7 @@ function Shell({ account, extraChips }: Props) {
               <button
                 type="button"
                 onClick={leaveZip}
-                className="inline-flex items-center gap-0.5 rounded-full bg-accent py-2 pr-4 pl-3 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
+                className="inline-flex items-center gap-0.5 rounded-full bg-accent-fill py-2 pr-4 pl-3 text-sm font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
               >
                 <ChevronLeft aria-hidden="true" size={18} />
                 {de.zipView.back}
@@ -360,6 +363,7 @@ function Shell({ account, extraChips }: Props) {
         onHome={goHome}
         account={account}
       />
+      {mode === 'live' && provider && !online && <OfflineBanner />}
       <main id="main" className="mx-auto max-w-[80rem] px-4 py-6 sm:px-8 sm:py-8">
         <p className="sr-only" role="status" aria-live="polite">
           {liveStatus}

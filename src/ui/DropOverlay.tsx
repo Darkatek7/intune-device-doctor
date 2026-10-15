@@ -20,7 +20,7 @@ export function DropOverlay({ visible }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={fade}
-          className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-canvas/80 p-4 backdrop-blur-md"
+          className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-canvas/80 p-4 backdrop-blur-md glass"
         >
           <motion.div
             initial={reduced ? false : { scale: 0.96 }}

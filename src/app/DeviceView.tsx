@@ -7,15 +7,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { de } from '../i18n/de';
-import { useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
+import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
+import { buildTicketNote } from '../rules/ticketNote';
 import type { Tile } from '../domain/types';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
+import { deviceMeta } from '../ui/deviceMeta';
 import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
+import { TicketNoteButton } from '../ui/TicketNoteButton';
 import { TileSkeleton } from '../ui/TileSkeleton';
 
 interface Props {
@@ -59,6 +62,33 @@ export function DeviceView({
   const stillLoading = tiles.some((tile) => tile.state === 'loading');
   // Sortierung erst, wenn nichts mehr lädt – vorher springt sonst die Anordnung.
   const ordered = useMemo(() => (stillLoading ? tiles : sortTiles(tiles)), [tiles, stillLoading]);
+
+  // Drosselung (HTTP 429): mind. eine Section ist mit code "throttled" fehlgeschlagen.
+  const throttle = useMemo(() => {
+    if (!snapshot) return null;
+    const waits: number[] = [];
+    let throttled = false;
+    for (const key of SECTION_KEYS) {
+      const section = snapshot[key];
+      if (section?.status === 'error' && section.error.code === 'throttled') {
+        throttled = true;
+        if (section.error.retryAfterSeconds) waits.push(section.error.retryAfterSeconds);
+      }
+    }
+    if (!throttled) return null;
+    return waits.length > 0 ? { retryAfterSeconds: Math.max(...waits) } : {};
+  }, [snapshot]);
+
+  const getTicketNote = useCallback(() => {
+    if (!snapshot) return '';
+    return buildTicketNote({
+      title: snapshot.device.deviceName,
+      details: deviceMeta(snapshot.device, tiles, { enrolled: false }),
+      mode: provider.mode,
+      tiles,
+      now: new Date(),
+    });
+  }, [snapshot, tiles, provider.mode]);
 
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
@@ -107,6 +137,9 @@ export function DeviceView({
         device={snapshot?.device ?? null}
         summary={snapshot ? summary : null}
         totalTiles={tiles.length}
+        tiles={tiles}
+        throttle={throttle}
+        actions={<TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />}
         badges={
           diagnostics && onRemoveDiagnostics ? (
             <DiagnosticsChip fileName={diagnostics.fileName} onRemove={onRemoveDiagnostics} />

@@ -20,7 +20,7 @@ export function ResultPicker({ results, query, now, onSelect }: Props) {
       </p>
       <ul
         aria-label={de.picker.list}
-        className="mt-4 divide-y divide-separator overflow-hidden rounded-tile bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]"
+        className="mt-4 divide-y divide-separator hc-edge overflow-hidden rounded-tile bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]"
       >
         {results.map((r) => (
           <li key={r.id}>

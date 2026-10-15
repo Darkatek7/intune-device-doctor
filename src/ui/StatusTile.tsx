@@ -39,7 +39,7 @@ export function StatusTile({ tile, onOpen, ref }: Props) {
       data-tile-id={tile.id}
       aria-haspopup="dialog"
       onClick={(event) => onOpen(tile, event.currentTarget)}
-      className="flex min-h-36 w-full cursor-pointer flex-col gap-3 rounded-tile bg-surface p-5 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] outline-none transition-[transform,box-shadow] duration-100 ease-out hover:shadow-[0_1px_2px_rgb(0_0_0/0.06),0_6px_20px_rgb(0_0_0/0.07)] focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+      className="hc-edge flex min-h-36 w-full cursor-pointer flex-col gap-3 rounded-tile bg-surface p-5 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] outline-none transition-[transform,box-shadow] duration-100 ease-out hover:shadow-[0_1px_2px_rgb(0_0_0/0.06),0_6px_20px_rgb(0_0_0/0.07)] focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
     >
       <span className="flex items-start justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-secondary-label">

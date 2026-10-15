@@ -40,7 +40,7 @@ export function ModeSwitch({ mode, onChange, liveAvailable }: Props) {
     <div
       role="radiogroup"
       aria-label={de.toolbar.modeLabel}
-      className="relative inline-flex shrink-0 rounded-full bg-separator p-0.5"
+      className="relative inline-flex shrink-0 rounded-full bg-control p-0.5"
     >
       {OPTIONS.map((option, index) => {
         const selected = option === mode;

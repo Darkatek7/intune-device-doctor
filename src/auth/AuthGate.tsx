@@ -26,7 +26,7 @@ export interface AuthGateProps extends AuthProps {
 function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-dvh place-items-center bg-canvas px-4 text-label">
-      <div className="w-full max-w-md space-y-4 rounded-tile bg-surface p-6 text-center shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]">
+      <div className="w-full max-w-md hc-edge space-y-4 rounded-tile bg-surface p-6 text-center shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]">
         {children}
       </div>
     </div>
@@ -76,7 +76,7 @@ function ConfiguredGate({
         type="button"
         onClick={startSignIn}
         disabled={redirecting}
-        className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-transform duration-100 ease-out focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.97] disabled:opacity-60"
+        className="rounded-full bg-accent-fill px-5 py-2.5 text-sm font-medium text-white transition-transform duration-100 ease-out focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.97] disabled:opacity-60"
       >
         {redirecting ? de.auth.signingIn : de.auth.signIn}
       </button>

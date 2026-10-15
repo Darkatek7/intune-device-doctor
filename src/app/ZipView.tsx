@@ -8,9 +8,11 @@ import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile } from '../domain/types';
 import { de } from '../i18n/de';
 import { sortTiles, summarize } from '../rules/evaluate';
+import { buildTicketNote } from '../rules/ticketNote';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import { DetailSheet } from '../ui/DetailSheet';
 import { MergeOffer } from '../ui/MergeOffer';
+import { TicketNoteButton } from '../ui/TicketNoteButton';
 import { TileGrid } from '../ui/TileGrid';
 import { ZipHeader } from '../ui/ZipHeader';
 import { zipTitle } from '../ui/zipTitle';
@@ -33,6 +35,17 @@ export function ZipView({ report, offer, onMerge, onBack }: Props) {
   const openTile = openId ? tiles.find((tile) => tile.id === openId) : undefined;
 
   const title = zipTitle(report);
+  const getTicketNote = useCallback(
+    () =>
+      buildTicketNote({
+        title,
+        details: [de.zipView.kind, report.fileName],
+        mode: 'zip',
+        tiles,
+        now: new Date(),
+      }),
+    [title, report.fileName, tiles],
+  );
   useEffect(() => {
     const previous = document.title;
     document.title = `${title} – ${de.app.name}`;
@@ -58,7 +71,12 @@ export function ZipView({ report, offer, onMerge, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <ZipHeader report={report} summary={summary} onBack={onBack} />
+      <ZipHeader
+        report={report}
+        summary={summary}
+        onBack={onBack}
+        actions={<TicketNoteButton getNote={getTicketNote} />}
+      />
       {offer && <MergeOffer deviceName={offer.deviceName} onMerge={onMerge} />}
       <TileGrid tiles={tiles} onOpen={handleOpen} />
       <AnimatePresence>

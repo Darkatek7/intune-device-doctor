@@ -22,7 +22,7 @@ export function ZipProgress({ fileName, progress, onCancel }: Props) {
   return (
     <section
       aria-labelledby="zip-progress-title"
-      className="mx-auto flex max-w-xl flex-col gap-5 rounded-tile bg-surface p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] sm:p-8"
+      className="mx-auto flex max-w-xl flex-col gap-5 hc-edge rounded-tile bg-surface p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] sm:p-8"
     >
       <div className="flex items-start gap-3">
         <FileArchive
@@ -49,7 +49,7 @@ export function ZipProgress({ fileName, progress, onCancel }: Props) {
           className="h-2 overflow-hidden rounded-full bg-separator"
         >
           <motion.div
-            className="h-full origin-left rounded-full bg-accent"
+            className="h-full origin-left rounded-full bg-accent-fill"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: ratio }}
             transition={reduced ? { duration: 0 } : spring}
@@ -73,7 +73,7 @@ export function ZipProgress({ fileName, progress, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full bg-separator px-4 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+          className="rounded-full bg-control px-4 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
         >
           {de.zipView.progress.cancel}
         </button>

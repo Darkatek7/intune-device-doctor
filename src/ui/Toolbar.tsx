@@ -27,7 +27,7 @@ export function Toolbar({ search, mode, onModeChange, liveAvailable, onHome, acc
 
   return (
     <header className="sticky top-0 z-20">
-      <div className="bg-surface-raised backdrop-blur-xl backdrop-saturate-150">
+      <div className="glass hc-edge-b bg-surface-raised backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex min-h-14 max-w-[80rem] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:px-8">
           <button
             type="button"

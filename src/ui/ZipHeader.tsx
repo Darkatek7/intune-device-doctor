@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { formatDateTime } from '../domain/format';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import { de } from '../i18n/de';
@@ -11,10 +12,12 @@ interface Props {
   report: DiagnosticsReport;
   summary: TileSummary;
   onBack: () => void;
+  /** Aktionen rechts unter der Zusammenfassung, z. B. "Ticket-Notiz kopieren" */
+  actions?: ReactNode;
 }
 
 /** Header der reinen ZIP-Ansicht – analog zum Geräte-Header. */
-export function ZipHeader({ report, summary, onBack }: Props) {
+export function ZipHeader({ report, summary, onBack, actions }: Props) {
   const title = zipTitle(report);
   const kind = report.collectedAtUtc
     ? `${de.zipView.kind} · ${de.zipView.collectedAt(formatDateTime(report.collectedAtUtc))}`
@@ -40,16 +43,19 @@ export function ZipHeader({ report, summary, onBack }: Props) {
           <p className="mt-1 text-sm text-secondary-label">{kind}</p>
           <p className="break-all text-xs text-secondary-label">{report.fileName}</p>
         </div>
-        <div
-          aria-label={de.header.summaryLabel}
-          className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-label sm:pb-1"
-        >
-          {summaryParts(summary).map((part) => (
-            <span key={part.severity} className="inline-flex items-center gap-1.5">
-              <SeverityIcon severity={part.severity} size={18} />
-              {part.text}
-            </span>
-          ))}
+        <div className="flex shrink-0 flex-col gap-2 sm:items-end sm:pb-1">
+          <div
+            aria-label={de.header.summaryLabel}
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-label"
+          >
+            {summaryParts(summary).map((part) => (
+              <span key={part.severity} className="inline-flex items-center gap-1.5">
+                <SeverityIcon severity={part.severity} size={18} />
+                {part.text}
+              </span>
+            ))}
+          </div>
+          {actions}
         </div>
       </div>
       <p className="sr-only" aria-live="polite" role="status">

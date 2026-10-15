@@ -68,7 +68,7 @@ export function DropZone({ onFile }: Props) {
         type="button"
         disabled={!enabled}
         onClick={() => inputRef.current?.click()}
-        className="rounded-full bg-separator px-4 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-full bg-control px-4 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {de.dropZoneUi.choose}
       </button>

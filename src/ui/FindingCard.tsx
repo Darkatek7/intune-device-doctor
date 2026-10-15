@@ -43,7 +43,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function FindingCard({ finding }: { finding: Finding }) {
   const isHint = finding.severity === 'unknown';
   return (
-    <article className="flex flex-col gap-4 rounded-2xl bg-canvas p-4">
+    <article className="hc-edge flex flex-col gap-4 rounded-2xl bg-canvas p-4">
       <header className="flex items-start gap-2">
         {isHint ? (
           <Info aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-unknown" />

@@ -164,3 +164,36 @@ describe('ZIP-Analyse in der App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(de.zipView.errors.notZip);
   });
 });
+
+describe('Ticket-Notiz mit ZIP-Befunden', () => {
+  it('kopiert in der reinen ZIP-Ansicht eine Notiz im ZIP-Modus', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+    await openExampleZip(user);
+    await waitFor(() => expect(tileButtons()).toHaveLength(4));
+
+    await user.click(screen.getByRole('button', { name: de.ticket.button }));
+    const note = writeText.mock.calls[0]![0];
+    expect(note).toContain(de.rules.ticket.heading('CONTOSO-PC042'));
+    expect(note).toContain(de.rules.ticket.modeZip);
+    expect(note).toContain('0x80070642');
+    writeText.mockRestore();
+  });
+
+  it('enthält nach dem Zusammenführen auch die ZIP-Kacheln', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+    await openExampleZip(user);
+    await user.click(await screen.findByRole('button', { name: de.zipView.merge.action }));
+    await waitFor(() => expect(tileButtons()).toHaveLength(11));
+
+    const button = screen.getByRole('button', { name: de.ticket.button });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+    const note = writeText.mock.calls[0]![0];
+    expect(note).toContain(de.rules.ticket.modeDemo);
+    expect(note).toContain(de.tiles.win32Apps);
+    expect(note).toContain(de.tiles.compliance);
+    writeText.mockRestore();
+  });
+});
