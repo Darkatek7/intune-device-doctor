@@ -1,4 +1,6 @@
+import { ChevronRight, FileArchive } from 'lucide-react';
 import { de } from '../i18n/de';
+import { EXAMPLE_CHIP_CLASS } from './chipStyles';
 
 interface Props {
   onClick: () => void;
@@ -8,15 +10,20 @@ interface Props {
 /** Chip für die Startseite (Demo): lädt die synthetische Beispiel-ZIP. Muss in einer <ul> stehen. */
 export function ExampleZipChip({ onClick, disabled }: Props) {
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className="flex flex-col items-start rounded-2xl bg-surface px-4 py-2 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-separator outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <span className="text-sm font-semibold text-label">{de.zipView.exampleChip}</span>
-        <span className="text-xs text-secondary-label">{de.zipView.exampleChipHint}</span>
+    <li className="min-w-0">
+      <button type="button" onClick={onClick} disabled={disabled} className={EXAMPLE_CHIP_CLASS}>
+        <span aria-hidden="true" className="squircle size-8 bg-accent/15 text-accent">
+          <FileArchive size={17} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-semibold text-label">
+            {de.zipView.exampleChip}
+          </span>
+          <span className="truncate text-xs text-secondary-label">
+            {de.zipView.exampleChipHint}
+          </span>
+        </span>
+        <ChevronRight aria-hidden="true" size={16} className="shrink-0 text-tertiary-label" />
       </button>
     </li>
   );

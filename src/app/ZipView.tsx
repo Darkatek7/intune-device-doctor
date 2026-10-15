@@ -12,6 +12,7 @@ import { useProviderContext } from './providerContextValue';
 import { sortTiles, summarize } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
+import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { MergeOffer } from '../ui/MergeOffer';
 import { TicketNoteButton } from '../ui/TicketNoteButton';
@@ -25,9 +26,11 @@ interface Props {
   offer: { deviceName: string } | null;
   onMerge: () => void;
   onBack: () => void;
+  /** Gesamtzustand für das Umgebungslicht */
+  onToneChange?: (tone: AmbientTone) => void;
 }
 
-export function ZipView({ report: rawReport, offer, onMerge, onBack }: Props) {
+export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChange }: Props) {
   const { provider } = useProviderContext();
   const report = useResolvedApps(provider, rawReport);
   const [now] = useState(() => new Date());
@@ -36,6 +39,9 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack }: Props) {
 
   const tiles = useMemo(() => sortTiles(evaluateDiagnosticsTiles(report, now)), [report, now]);
   const summary = useMemo(() => summarize(tiles), [tiles]);
+  useEffect(() => {
+    onToneChange?.(summary.worst);
+  }, [summary.worst, onToneChange]);
   const openTile = openId ? tiles.find((tile) => tile.id === openId) : undefined;
 
   const title = zipTitle(report);

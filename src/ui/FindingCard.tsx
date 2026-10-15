@@ -43,7 +43,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function FindingCard({ finding }: { finding: Finding }) {
   const isHint = finding.severity === 'unknown';
   return (
-    <article className="hc-edge flex flex-col gap-4 rounded-2xl bg-canvas p-4">
+    <article className="hc-edge flex flex-col gap-4 rounded-2xl bg-fill p-4 shadow-[inset_0_1px_0_var(--c-highlight)]">
       <header className="flex items-start gap-2">
         {isHint ? (
           <Info aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-unknown" />
@@ -71,9 +71,14 @@ export function FindingCard({ finding }: { finding: Finding }) {
       )}
       {finding.remediation.length > 0 && (
         <Section title={de.detail.remediation}>
-          <ol className="list-decimal space-y-1 pl-5 marker:text-secondary-label">
+          <ol className="mt-1 space-y-2.5 [counter-reset:step]">
             {finding.remediation.map((step, index) => (
-              <li key={index}>{step}</li>
+              <li
+                key={index}
+                className="flex gap-3 [counter-increment:step] before:mt-0.5 before:grid before:size-6 before:shrink-0 before:place-items-center before:rounded-full before:bg-accent/15 before:text-xs before:font-semibold before:text-accent before:tabular-nums before:content-[counter(step)]"
+              >
+                <span className="min-w-0">{step}</span>
+              </li>
             ))}
           </ol>
         </Section>

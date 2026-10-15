@@ -9,7 +9,7 @@ export function OfflineBanner() {
         role="status"
         aria-live="polite"
         data-testid="offline-banner"
-        className="hc-edge flex items-start gap-2 rounded-2xl bg-surface px-4 py-3 text-sm text-label shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+        className="hc-edge flex items-start gap-2 rounded-2xl material-card px-4 py-3 text-sm text-label"
       >
         <WifiOff aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-warning" />
         {de.states.offline}

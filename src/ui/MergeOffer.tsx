@@ -19,7 +19,7 @@ export function MergeOffer({ deviceName, onMerge }: Props) {
       initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
       animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
       transition={reduced ? fade : spring}
-      className="flex flex-col gap-3 hc-edge rounded-tile bg-surface p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] sm:flex-row sm:items-center sm:gap-4"
+      className="flex flex-col gap-3 hc-edge rounded-tile material-card p-5 sm:flex-row sm:items-center sm:gap-4"
     >
       <Link2 aria-hidden="true" size={20} className="hidden shrink-0 text-accent sm:block" />
       <div className="min-w-0 flex-1">

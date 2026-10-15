@@ -22,15 +22,12 @@ export function ZipProgress({ fileName, progress, onCancel }: Props) {
   return (
     <section
       aria-labelledby="zip-progress-title"
-      className="mx-auto flex max-w-xl flex-col gap-5 hc-edge rounded-tile bg-surface p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] sm:p-8"
+      className="mx-auto flex max-w-xl flex-col gap-5 material-card hc-edge rounded-tile p-6 sm:p-8"
     >
       <div className="flex items-start gap-3">
-        <FileArchive
-          aria-hidden="true"
-          size={28}
-          strokeWidth={1.5}
-          className="shrink-0 text-accent"
-        />
+        <span aria-hidden="true" className="squircle size-12 bg-accent/15 text-accent">
+          <FileArchive size={24} strokeWidth={1.75} />
+        </span>
         <div className="min-w-0">
           <h1 id="zip-progress-title" className="text-title font-semibold text-label">
             {de.zipView.progress.title}
@@ -46,7 +43,7 @@ export function ZipProgress({ fileName, progress, onCancel }: Props) {
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={progress ? percent : undefined}
-          className="h-2 overflow-hidden rounded-full bg-separator"
+          className="h-1.5 overflow-hidden rounded-full bg-fill"
         >
           <motion.div
             className="h-full origin-left rounded-full bg-accent-fill"

@@ -68,7 +68,7 @@ describe('AppShell', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(dialog).toHaveAccessibleName(tile.querySelector('span span:last-child')!.textContent!);
+    expect(dialog).toHaveAccessibleName(tile.querySelector('[data-tile-title]')!.textContent!);
     expect(window.location.search).toContain('tile=bitlocker');
 
     await user.keyboard('{Escape}');

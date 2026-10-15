@@ -13,7 +13,9 @@ interface Props {
 export function EmptyState({ icon: Icon, title, description, action }: Props) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center">
-      <Icon aria-hidden="true" size={40} strokeWidth={1.5} className="text-secondary-label" />
+      <span aria-hidden="true" className="squircle mb-2 size-16 bg-fill text-secondary-label">
+        <Icon size={32} strokeWidth={1.5} />
+      </span>
       <h1 className="text-title font-semibold text-label">{title}</h1>
       {description && <p className="text-base text-secondary-label">{description}</p>}
       {action && <div className="mt-2">{action}</div>}

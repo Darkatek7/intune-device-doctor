@@ -1,11 +1,12 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, FileArchive } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatDateTime } from '../domain/format';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import { de } from '../i18n/de';
 import type { TileSummary } from '../rules/evaluate';
-import { SeverityIcon } from './SeverityBadge';
-import { summaryParts, summarySentence } from './summaryText';
+import { summarySentence } from './summaryText';
+import { SummaryPills } from './SummaryPills';
+import { TONE_CLASS } from './tone';
 import { zipTitle } from './zipTitle';
 
 interface Props {
@@ -35,25 +36,28 @@ export function ZipHeader({ report, summary, onBack, actions }: Props) {
           {de.zipView.back}
         </button>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="break-words text-3xl font-semibold tracking-tight text-label sm:text-display">
-            {title}
-          </h1>
-          <p className="mt-1 text-sm text-secondary-label">{kind}</p>
-          <p className="break-all text-xs text-secondary-label">{report.fileName}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <span
+            aria-hidden="true"
+            className={`squircle mt-1 size-14 shadow-[inset_0_1px_0_var(--c-highlight)] sm:size-16 ${TONE_CLASS[summary.worst]}`}
+          >
+            <FileArchive size={30} strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0">
+            <h1 className="display-type break-words text-3xl font-semibold text-label sm:text-display">
+              {title}
+            </h1>
+            <p className="mt-1.5 text-sm text-secondary-label">{kind}</p>
+            <p className="break-all text-xs text-secondary-label">{report.fileName}</p>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:items-end sm:pb-1">
           <div
             aria-label={de.header.summaryLabel}
-            className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-label"
+            className="flex flex-wrap items-center gap-2 text-sm font-medium text-label"
           >
-            {summaryParts(summary).map((part) => (
-              <span key={part.severity} className="inline-flex items-center gap-1.5">
-                <SeverityIcon severity={part.severity} size={18} />
-                {part.text}
-              </span>
-            ))}
+            <SummaryPills summary={summary} />
           </div>
           {actions}
         </div>

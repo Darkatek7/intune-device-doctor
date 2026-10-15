@@ -11,9 +11,10 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 
 ## Kachel (`StatusTile`)
 
-- `rounded-tile bg-surface`, feiner Schatten (`shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]`), Padding 1.25rem.
-- Oben: Icon (lucide, 20px) + Titel (`text-sm font-medium text-secondary-label`) + Status-Badge rechts (Punkt + Text, z. B. „Problem“). **Status nie nur über Farbe** – immer Icon/Text.
-- Mitte: Hauptwert groß (`text-title font-semibold`), darunter 1 Zeile Kontext (`text-sm text-secondary-label`, `line-clamp-1`).
+- `tile material-card rounded-tile`, Padding 1.25rem. `material-card` = solide Fläche + Lichtkante oben (`inset 0 1px 0 var(--c-highlight)`) + Schatten aus `--shadow-tile`; größere Flächen bekommen tiefere Schatten.
+- Aufbau: oben links Icon im **Squircle** (`squircle size-9`), oben rechts Status-Badge (Icon + Text). Darunter Titel (`text-sm font-medium text-secondary-label`), dann Hauptwert groß (1.5rem semibold, -0.018em) und 1 Zeile Kontext. **Status nie nur über Farbe** – immer Icon/Text.
+- Farbe nur, wo Aufmerksamkeit nötig ist: Problem/Prüfen tönen Squircle und einen weichen Schein aus der linken oberen Ecke (`data-severity`); gesunde Kacheln bleiben neutral.
+- Hover (nur bei Zeigergeräten): 2px Anheben + stärkerer Schatten, Lichtfleck folgt dem Zeiger 1:1 (`--mx/--my`). Bei reduced-motion kein Anheben.
 - Ganze Kachel ist ein `<button>` (Tastatur, `aria-haspopup="dialog"`, Fokus-Ring `ring-2 ring-accent`).
 - Feedback auf **Pointer-Down**: `active:scale-[0.97]` mit 100 ms ease-out; Hover nur dezent (Schatten minimal stärker).
 - Lädt: Skeleton in Kachelform (sanftes Shimmer, bei reduced-motion statisch).
@@ -40,6 +41,13 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 - Systemschrift (`--font-sans`). Display 2.5rem/1.08/-0.022em, Titel 1.375rem/1.2/-0.012em, Fließtext 1rem/1.5/0, klein 0.875rem/1.45/+0.005em.
 - Hierarchie über Gewicht + Größe; Zahlen tabellarisch (`tabular-nums`) bei Versionen/Daten.
 - Relative Zeiten („vor 3 Std.“) mit absolutem Datum im `title`/Detail (`Intl.RelativeTimeFormat('de')`, `Intl.DateTimeFormat('de-DE')`).
+
+## Material & Tiefe
+
+- Toolbar: Glas (`--c-glass`, `backdrop-blur-2xl backdrop-saturate-[1.8]`), Inhalt scrollt darunter.
+- Umgebungslicht (`AmbientGlow`): statischer, weicher Schein oben in der Farbe des Gesamtzustands (Startseite: Akzent; Gerät/ZIP: schlechteste Severity). Farbwechsel blendet über eine registrierte CSS-Property weich über. Entfällt bei `prefers-reduced-transparency` und `prefers-contrast: more`.
+- Gruppierte Inhalte im Sheet (Befunde, geprüfte Werte) liegen auf `bg-fill` (iOS „grouped“): im Dunkeln heller als die Sheet-Fläche, nicht dunkler.
+- App-Glyphe: Squircle mit Blau-Indigo-Verlauf (`app-glyph`) in Toolbar und Startseite.
 
 ## Erscheinungsbild
 

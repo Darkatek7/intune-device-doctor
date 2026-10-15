@@ -76,8 +76,8 @@ export function SearchField({
       }}
     >
       <div
-        className={`flex items-center gap-2 rounded-full bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)] ring-1 ring-separator transition-shadow focus-within:ring-2 focus-within:ring-accent ${
-          large ? 'h-14 pl-5 pr-2 text-lg' : 'h-10 pl-3.5 pr-2 text-sm'
+        className={`material-card flex items-center gap-2 rounded-full ring-1 ring-separator transition-shadow focus-within:ring-2 focus-within:ring-accent ${
+          large ? 'h-16 pl-5 pr-2 text-lg' : 'h-10 pl-3.5 pr-2 text-sm'
         }`}
       >
         <Search
@@ -137,7 +137,7 @@ export function SearchField({
         {!value && !large && (
           <kbd
             aria-hidden="true"
-            className="hidden shrink-0 rounded-md bg-canvas px-1.5 py-0.5 font-sans text-xs text-secondary-label sm:block"
+            className="hidden shrink-0 rounded-md bg-fill px-1.5 py-0.5 font-sans text-xs text-secondary-label sm:block"
           >
             {de.field.shortcut}
           </kbd>
@@ -145,7 +145,7 @@ export function SearchField({
         {large && (
           <button
             type="submit"
-            className="h-10 shrink-0 rounded-full bg-accent-fill px-5 text-base font-medium text-white outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
+            className="h-11 shrink-0 rounded-full bg-accent-fill px-5 text-base sm:h-12 sm:px-6 font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_4px_14px_rgb(10_111_216/0.35)] outline-none transition-transform focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent active:scale-[0.97]"
           >
             {de.search.button}
           </button>
@@ -157,7 +157,7 @@ export function SearchField({
         role="listbox"
         aria-label={de.field.suggestions}
         hidden={!open}
-        className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl bg-surface p-1 shadow-[0_8px_32px_rgb(0_0_0/0.16)] ring-1 ring-separator"
+        className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl bg-surface p-1 shadow-[0_12px_40px_rgb(0_0_0/0.28)] ring-1 ring-separator"
       >
         {open &&
           suggestions.map((s, index) => (

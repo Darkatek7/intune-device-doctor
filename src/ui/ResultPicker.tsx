@@ -20,7 +20,7 @@ export function ResultPicker({ results, query, now, onSelect }: Props) {
       </p>
       <ul
         aria-label={de.picker.list}
-        className="mt-4 divide-y divide-separator hc-edge overflow-hidden rounded-tile bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_16px_rgb(0_0_0/0.04)]"
+        className="mt-4 divide-y divide-separator hc-edge overflow-hidden rounded-tile material-card"
       >
         {results.map((r) => (
           <li key={r.id}>
@@ -28,7 +28,7 @@ export function ResultPicker({ results, query, now, onSelect }: Props) {
               type="button"
               onClick={() => onSelect(r)}
               aria-label={de.picker.select(r.deviceName)}
-              className="flex w-full items-center gap-3 px-5 py-3 text-left outline-none transition-colors hover:bg-canvas focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:scale-[0.99]"
+              className="flex w-full items-center gap-3 px-5 py-3 text-left outline-none transition-colors hover:bg-fill focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:scale-[0.99]"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-base font-semibold text-label">
