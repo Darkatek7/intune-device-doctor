@@ -124,6 +124,18 @@ export const de = {
       'Ungültiger Seitenlink – nur Adressen von graph.microsoft.com werden abgerufen.',
     parse: 'Die Antwort von Microsoft Graph konnte nicht gelesen werden.',
   },
+  theme: {
+    toLight: 'Helles Erscheinungsbild',
+    toDark: 'Dunkles Erscheinungsbild',
+  },
+  /** Links ins Intune Admin Center (src/links/intunePortal.ts) */
+  links: {
+    openApp: 'App im Intune Admin Center öffnen',
+    openDevice: 'Gerät im Intune Admin Center öffnen',
+    configurationPolicies: 'Konfigurationsprofile im Intune Admin Center',
+    appName: 'App-Name',
+    publisher: 'Herausgeber',
+  },
   /** Anmeldung (MSAL) */
   auth: {
     title: 'Anmeldung erforderlich',

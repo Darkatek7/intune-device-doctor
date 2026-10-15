@@ -33,6 +33,7 @@ export function liveMockProvider(overrides: Partial<DeviceDataProvider> = {}): D
       inner.getConfigurationPolicyStates(device, options),
     getEntraDevice: (device, options) => inner.getEntraDevice(device, options),
     getBitLockerKeys: (device, options) => inner.getBitLockerKeys(device, options),
+    getMobileApps: (appIds, options) => inner.getMobileApps(appIds, options),
     ...overrides,
   };
 }

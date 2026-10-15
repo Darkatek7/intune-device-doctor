@@ -297,3 +297,14 @@ export interface GraphBitlockerRecoveryKey {
   /** volumeType: operatingSystemVolume(1) | fixedDataVolume(2) | removableDataVolume(3) | unknownFutureValue(4) – Mapper muss Name ODER Zahl akzeptieren. */
   volumeType: string | number | null;
 }
+
+// ---------- mobileApp (v1.0) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileapp-get?view=graph-rest-1.0
+
+export interface GraphMobileApp {
+  id: string;
+  displayName: string | null;
+  publisher: string | null;
+}
+
+export const MOBILE_APP_SELECT = ['id', 'displayName', 'publisher'] as const;

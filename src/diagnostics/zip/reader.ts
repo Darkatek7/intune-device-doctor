@@ -70,7 +70,12 @@ export async function openZip(source: Blob | Uint8Array): Promise<OpenedZip> {
       const raw = byPath.get(entry.path);
       if (!raw || raw.directory) return { ok: false, reason: 'error' };
       try {
-        const bytes = await raw.getData(new zip.Uint8ArrayWriter());
+        // Intune schreibt lokale Header mit Bit-Flags 0x0808 (Data Descriptor + UTF-8), das Central
+        // Directory aber mit 0. zip.js lehnt das standardmäßig als "Ambiguous archive" ab – wir
+        // lesen ohnehin nur über das Central Directory, daher den Abgleich abschalten.
+        const bytes = await raw.getData(new zip.Uint8ArrayWriter(), {
+          checkLocalDirectory: false,
+        });
         const decoded = decodeText(bytes);
         return { ok: true, text: decoded.text, encoding: decoded.encoding };
       } catch {

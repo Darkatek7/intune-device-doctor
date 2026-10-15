@@ -3,6 +3,7 @@
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
 import type {
+  AppInfo,
   BitLockerKeyInfo,
   BitLockerVolumeType,
   DataSource,
@@ -22,6 +23,7 @@ import type {
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphMobileApp,
   GraphPolicySettingState,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
@@ -373,4 +375,11 @@ export function mapBitlockerKey(dto: GraphBitlockerRecoveryKey): BitLockerKeyInf
     createdDateTime: str(dto.createdDateTime),
     volumeType: mapVolumeType(dto.volumeType),
   };
+}
+
+/** mobileApp → AppInfo; ohne Anzeigenamen gibt es nichts aufzulösen (null). */
+export function mapMobileApp(dto: GraphMobileApp): AppInfo | null {
+  const displayName = dto.displayName?.trim();
+  if (!dto.id || !displayName) return null;
+  return { id: dto.id, displayName, publisher: dto.publisher?.trim() || null };
 }

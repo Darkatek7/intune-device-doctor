@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Tailwind-Variante dark: folgt data-theme (Standard dunkel), nicht der Systemeinstellung. */
+@custom-variant dark (&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *));
+
 /*
  * Design-Tokens nach docs/ui-guidelines.md (Apple-HIG-nah, für das Web übersetzt).
  * Farben als CSS-Variablen, damit Light/Dark/High-Contrast an einer Stelle umschalten.
@@ -35,7 +38,31 @@
   --radius-sheet: 1.5rem;
 }
 
+/*
+ * Erscheinungsbild: Dunkel ist Standard (:root), Hell über data-theme="light" am <html>-Element
+ * (Schalter in der Toolbar, src/theme.ts). Die Systemeinstellung prefers-color-scheme wird bewusst
+ * nicht ausgewertet.
+ */
 :root {
+  --c-canvas: #000000;
+  --c-surface: #1c1c1e;
+  --c-surface-raised: rgb(44 44 46 / 0.72);
+  --c-label: #f5f5f7;
+  --c-secondary-label: rgb(235 235 245 / 0.68);
+  --c-tertiary-label: rgb(235 235 245 / 0.5);
+  --c-separator: rgb(84 84 88 / 0.5);
+  --c-control: rgb(120 120 128 / 0.32);
+  --c-accent: #0a84ff;
+  /* Weißer Text auf #0a84ff erreicht nur 3,7:1 – für Flächen daher ein dunkleres Blau (4,9:1). */
+  --c-accent-fill: #0a6fd8;
+  --c-ok: #30d158;
+  --c-warning: #ff9f0a;
+  --c-critical: #ff453a;
+  --c-unknown: #98989d;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
   --c-canvas: #f5f5f7;
   --c-surface: #ffffff;
   --c-surface-raised: rgb(255 255 255 / 0.72);
@@ -57,39 +84,16 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --c-canvas: #000000;
-    --c-surface: #1c1c1e;
-    --c-surface-raised: rgb(44 44 46 / 0.72);
-    --c-label: #f5f5f7;
-    --c-secondary-label: rgb(235 235 245 / 0.68);
-    --c-tertiary-label: rgb(235 235 245 / 0.5);
-    --c-separator: rgb(84 84 88 / 0.5);
-    --c-control: rgb(120 120 128 / 0.32);
-    --c-accent: #0a84ff;
-    /* Weißer Text auf #0a84ff erreicht nur 3,7:1 – für Flächen daher ein dunkleres Blau (4,9:1). */
-    --c-accent-fill: #0a6fd8;
-    --c-ok: #30d158;
-    --c-warning: #ff9f0a;
-    --c-critical: #ff453a;
-    --c-unknown: #98989d;
-    color-scheme: dark;
-  }
-}
-
 /* Erhöhter Kontrast: kräftigere Trennlinien/Texte; Rahmen siehe .hc-edge */
 @media (prefers-contrast: more) {
   :root {
-    --c-separator: rgb(60 60 67 / 0.6);
-    --c-secondary-label: rgb(60 60 67 / 0.9);
-  }
-}
-
-@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
-  :root {
     --c-separator: rgb(160 160 170 / 0.7);
     --c-secondary-label: rgb(235 235 245 / 0.9);
+  }
+
+  :root[data-theme='light'] {
+    --c-separator: rgb(60 60 67 / 0.6);
+    --c-secondary-label: rgb(60 60 67 / 0.9);
   }
 }
 
@@ -133,6 +137,15 @@ body {
   color: var(--c-label);
 }
 
+/* Weicher Wechsel Hell ↔ Dunkel statt hartem Helligkeitssprung (entfällt bei reduced-motion). */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
+  }
+}
+
 /* Skeleton-Shimmer: nur transform; bei reduced-motion statisch. */
 @keyframes shimmer {
   to {
@@ -155,10 +168,9 @@ body {
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
-@media (prefers-color-scheme: dark) {
-  .skeleton::after {
-    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
-  }
+/* Dunkel (Standard): dezenterer Schimmer */
+:root:not([data-theme='light']) .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

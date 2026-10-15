@@ -5,7 +5,7 @@
  * READ-ONLY: Es gibt ausschließlich GET. Neue Endpunkte nur, wenn sie in
  * docs/graph-api-reference.md mit offiziellem Doku-Link stehen.
  */
-import { ENTRA_DEVICE_SELECT, MANAGED_DEVICE_LIST_SELECT } from './dto';
+import { ENTRA_DEVICE_SELECT, MANAGED_DEVICE_LIST_SELECT, MOBILE_APP_SELECT } from './dto';
 import { GraphScope } from './scopes';
 
 export const GRAPH_ORIGIN = 'https://graph.microsoft.com';
@@ -150,6 +150,21 @@ export const Endpoints = {
       withQuery('/devices', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
         $select: ENTRA_DEVICE_SELECT.join(','),
+      }),
+  },
+  /** App-Name zu einer Win32-App-ID (z. B. aus einem DiagLogs-ZIP). */
+  mobileApp: {
+    id: 'mobileApp',
+    method: 'GET',
+    version: 'v1.0',
+    // Least privileged laut Doku: DeviceManagementConfiguration.Read.All (wird ohnehin angefragt).
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileapp-get?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/mobileApps/{id}',
+    path: (appId: string) =>
+      withQuery(`/deviceAppManagement/mobileApps/${enc(appId)}`, {
+        $select: MOBILE_APP_SELECT.join(','),
       }),
   },
   bitlockerRecoveryKeys: {

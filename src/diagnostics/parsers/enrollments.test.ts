@@ -44,4 +44,23 @@ describe('extractEnrollments', () => {
       '[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Enrollments\\00000000-0000-0000-0000-0000000000FF]\r\n"Foo"="bar"\r\n';
     expect(extractEnrollments(parseRegExport(reg))).toEqual([]);
   });
+
+  it('ignoriert Enrollment-Keys ohne ProviderID und kürzt die UPN um die Tenant-ID', () => {
+    const key = (id: string): string =>
+      `[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Enrollments\\${id}]`;
+    const reg = [
+      key('11111111-1111-1111-1111-111111111111'),
+      '"EnrollmentState"=dword:00000001',
+      '"EnrollmentType"=dword:00000001',
+      key('22222222-2222-2222-2222-222222222222'),
+      '"EnrollmentState"=dword:00000001',
+      '"EnrollmentType"=dword:00000006',
+      '"ProviderID"="MS DM Server"',
+      '"UPN"="max@contoso.com@00000000-0000-0000-0000-0000000000aa"',
+    ].join('\r\n');
+    const result = extractEnrollments(parseRegExport(reg, { keyFilter: isEnrollmentRootKey }));
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ providerId: 'MS DM Server', upnMasked: 'ma…@contoso.com' });
+    expect(JSON.stringify(result)).not.toContain('0000000000aa');
+  });
 });

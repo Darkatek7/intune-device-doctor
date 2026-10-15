@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
 import { ModeSwitch } from './ModeSwitch';
+import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
   /** Kompaktes Suchfeld (im leeren Zustand null – dort steht das große Suchfeld) */
@@ -44,6 +45,7 @@ export function Toolbar({ search, mode, onModeChange, liveAvailable, onHome, acc
           )}
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />
+            <ThemeToggle />
             {account}
           </div>
         </div>

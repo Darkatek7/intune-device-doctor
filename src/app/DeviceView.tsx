@@ -8,6 +8,7 @@ import type { DiagnosticsReport } from '../diagnostics/types';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { de } from '../i18n/de';
 import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
+import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
 import type { Tile } from '../domain/types';
@@ -47,10 +48,11 @@ export function DeviceView({
   diagnostics,
   onRemoveDiagnostics,
 }: Props) {
+  const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
     provider,
     deviceId,
-    diagnostics,
+    namedDiagnostics,
   );
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 

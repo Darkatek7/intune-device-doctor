@@ -6,6 +6,7 @@ Abgeleitet aus zwei echten Archiven (Windows 11, Entra-joined, teils co-managed)
 
 - `DiagLogs-<GERÄTENAME>-<yyyyMMddTHHmmssZ>.zip`, z. B. `DiagLogs-CONTOSO-PC042-20261014T125356Z.zip`
 - 75–115 MB komprimiert, ~470–490 MB entpackt, 800–1100 Einträge → **nie komplett entpacken**: Central Directory lesen, Text-Einträge on demand inflaten (`@zip.js/zip.js` mit `BlobReader` auf dem `File`), Binärdateien überspringen.
+- **ZIP-Eigenheit:** Die lokalen Dateiheader tragen die Bit-Flags `0x0808` (Data Descriptor + UTF-8), das Central Directory dagegen `0`. Strikte Reader (zip.js im Standardmodus) lehnen das als „Ambiguous archive“ ab → beim Entpacken `checkLocalDirectory: false` setzen. Der Fixture-Generator bildet die Abweichung nach.
 
 ## Eintragsnamen
 
@@ -80,8 +81,8 @@ Ordner `ProgramData_Microsoft_IntuneManagementExtension_Logs/` (intunemanagement
 
 Format „Windows Registry Editor Version 5.00“, Keys teils kleingeschrieben, Werte `"str"`, `dword:xxxxxxxx`, `hex:`, `hex(b):`, Escapes `\"`.
 
-- **Enrollments** (`…HKLM_Software_Microsoft_Enrollments export.reg`): je `[…\Enrollments\<GUID>]` u. a. `EnrollmentState` (dword, 1 = enrolled), `EnrollmentType` (6 bei Intune-MDM), `ProviderID` (`MS DM Server` = Intune; `WMI_Bridge_SCCM_Server` = ConfigMgr/Co-Management), `UPN` (maskieren!), `AADTenantID` (maskieren!), Unterkeys `FirstSync` (`IsSyncDone`), `DMClient\<ProviderID>`, `Push` (`ChannelURI` – **nie anzeigen**).
-- **IntuneManagementExtension** (`…IntuneManagementExtension export.reg`, mehrere MB): `Win32Apps\<UserOrDeviceId>\<AppGUID>…` mit Unterkeys `OperationalState`/`ReportCache`, Werte `Status` (`Installed`, `Failed`, `NotApplicable`, `InstalledPendingReboot`), `ErrorCode` (signierte Dezimal-HRESULT → Hex `0x80070642`), `ApplicabilityCode`, `RebootStatus`, `ComplianceStateMessage` (JSON). Beobachtet: 8–13 `Failed`, Codes z. B. `0x80070642` (Win32 1602), `0x80070BC2` (Win32 3010), `0x80070490`, `0x87D30065`.
+- **Enrollments** (`…HKLM_Software_Microsoft_Enrollments export.reg`): 30–40 Keys, davon nur ~6 mit `ProviderID` (übrige = System-/Zertifikats-Enrollments, für MDM-Diagnose ignorieren). Je `[…\Enrollments\<GUID>]` u. a. `EnrollmentState` (dword, 1 = enrolled), `EnrollmentType` (6 bei Intune-MDM), `ProviderID` (`MS DM Server` = Intune; `WMI_Bridge_SCCM_Server` = ConfigMgr/Co-Management), `UPN` (Form teils `user@domain@<Tenant-ID>` – maskieren, Tenant-Teil verwerfen!), `AADTenantID` (maskieren!), Unterkeys `FirstSync` (`IsSyncDone`), `DMClient\<ProviderID>`, `Push` (`ChannelURI` – **nie anzeigen**).
+- **IntuneManagementExtension** (`…IntuneManagementExtension export.reg`, 4–8 MB): Der App-Status steht unter `SideCarPolicies\StatusServiceReports\<UserOrDeviceId>\<AppGUID>` mit den Werten `AppId`, `ApplicabilityCode`, `Required`, `Status` (`Installed`, `Failed`, `NotApplicable`, `InstalledPendingReboot`), `Status2` und `ErrorCode` (signierte Dezimal-HRESULT als String → Hex `0x80070642`). Dieselbe App erscheint pro Nutzer erneut (GUID-Schreibweise kann abweichen) → per AppId zusammenführen. Unter `Win32Apps\<UserOrDeviceId>\<AppGUID>_<Revision>` stehen nur Begleitwerte (`Intent`, `RebootStatus`, `DownloadStatus`, `ComplianceStateMessage`/`EnforcementStateMessage` als Unterkeys), **kein** `Status`. Beobachtet: 7–10 `Failed` bei 450–770 Apps, Codes z. B. `0x80070642` (Win32 1602), `0x80070046`, `0x80079C51`, `0x87D30065`, `0x87D1041C`.
 - **DeviceHealthMonitoring** (PolicyManager): Endpoint-Analytics-Konfiguration – nur informativ.
 
 ## Weitere Einträge

@@ -6,7 +6,9 @@ import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile } from '../domain/types';
+import { useResolvedApps } from '../hooks/useResolvedApps';
 import { de } from '../i18n/de';
+import { useProviderContext } from './providerContextValue';
 import { sortTiles, summarize } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
@@ -25,7 +27,9 @@ interface Props {
   onBack: () => void;
 }
 
-export function ZipView({ report, offer, onMerge, onBack }: Props) {
+export function ZipView({ report: rawReport, offer, onMerge, onBack }: Props) {
+  const { provider } = useProviderContext();
+  const report = useResolvedApps(provider, rawReport);
   const [now] = useState(() => new Date());
   const [openId, setOpenId] = useState<string | null>(null);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
