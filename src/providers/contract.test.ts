@@ -129,6 +129,7 @@ describe.each(factories)('DeviceDataProvider-Vertrag: %s', (_name, create) => {
         'source',
         'totalStorageSpaceInBytes',
         'userDisplayName',
+        'userId',
         'userPrincipalName',
       ].sort(),
     );

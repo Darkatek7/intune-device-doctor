@@ -1,6 +1,6 @@
 # MDM Doctor
 
-**One-Click Intune Device Troubleshooter** – Gerätename eingeben und sofort Gerätestatus, Compliance, letzten Check-in, OS-Version, BitLocker, Defender und fehlgeschlagene Richtlinien als klare Status-Kacheln sehen. Jede Kachel zeigt Befund, Ursache und Lösungsvorschläge. Zusätzlich lassen sich Intune-„Collect diagnostics“-ZIPs (`DiagLogs-*.zip`) direkt im Browser analysieren.
+**One-Click Intune Device Troubleshooter** – Gerätename eingeben und sofort Gerätestatus, Compliance, letzten Check-in, OS-Version, BitLocker, Defender, fehlgeschlagene Richtlinien und den App-Installationsstatus als klare Status-Kacheln sehen. Jede Kachel zeigt Befund, Ursache und Lösungsvorschläge. Zusätzlich lassen sich Intune-„Collect diagnostics“-ZIPs (`DiagLogs-*.zip`) direkt im Browser analysieren.
 
 - **Read-only** – die App verändert keine Intune- oder Entra-Objekte.
 - **Demo-Modus** mit realistischen, fiktiven Daten (Contoso) – keine Anmeldung nötig.
@@ -28,10 +28,10 @@ npm run dev
 
 Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten):
 
-1. **Gesundes Gerät (30 s):** Chip `CONTOSO-PC001` → sieben grüne Kacheln. Eine Kachel öffnen: „Alles in Ordnung“ mit geprüften Werten und Quelle (`GET …`). Zeigen: alles read-only, nur dokumentierte Graph-Endpunkte.
+1. **Gesundes Gerät (30 s):** Chip `CONTOSO-PC001` → acht grüne Kacheln. Eine Kachel öffnen: „Alles in Ordnung“ mit geprüften Werten und Quelle (`GET …`). Zeigen: alles read-only, nur dokumentierte Graph-Endpunkte.
 2. **BitLocker aus (30 s):** `CONTOSO-PC014` eintippen (⌘K/Strg+K) → Compliance und BitLocker rot. BitLocker-Kachel: Befund · Ursache · nummerierte Lösung · Rohdaten · Link zur Microsoft-Dokumentation.
-3. **Richtlinienkonflikt (45 s):** `CONTOSO-PC042` → Richtlinien „2 Probleme“: Konflikt (beteiligte Profile) und Fehler `0x87D1FDE8` mit belegter Deutung; Compliance in Schonfrist; Windows 11 23H2 kurz vor Supportende. Hinweis auf die offen ausgewiesene Settings-Catalog-Lücke. „Ticket-Notiz kopieren“ zeigen.
-4. **Beispiel-ZIP (45 s):** Startseite › „Beispiel-ZIP analysieren“ → Entra-Join & PRT rot (Attempt Status `0xc000023c`, HTTP Error `0x80072ee7` mit Microsoft-Learn-Deutung), Win32-App `0x80070642` (= Win32 1602, Installation abgebrochen). „Mit Intune-Daten zusammenführen“ → elf Kacheln in einer Ansicht. Betonen: Datei verlässt den Browser nie.
+3. **Richtlinienkonflikt (45 s):** `CONTOSO-PC042` → Richtlinien „2 Probleme“: Konflikt (beteiligte Profile) und Fehler `0x87D1FDE8` mit belegter Deutung; Compliance in Schonfrist; Windows 11 23H2 kurz vor Supportende; Apps „1 fehlgeschlagen“ (VPN-Client, Beta-Datenquelle ausgewiesen). Hinweis auf die offen ausgewiesene Settings-Catalog-Lücke. „Ticket-Notiz kopieren“ zeigen.
+4. **Beispiel-ZIP (45 s):** Startseite › „Beispiel-ZIP analysieren“ → Entra-Join & PRT rot (Attempt Status `0xc000023c`, HTTP Error `0x80072ee7` mit Microsoft-Learn-Deutung), Win32-App `0x80070642` (= Win32 1602, Installation abgebrochen). „Mit Intune-Daten zusammenführen“ → zwölf Kacheln in einer Ansicht; die Apps-Kachel zeigt denselben VPN-Client auch laut Intune als fehlgeschlagen. Betonen: Datei verlässt den Browser nie.
 5. **Berechtigungsfall (30 s):** `CONTOSO-PC050` → Richtlinien und BitLocker zeigen „Fehlende Berechtigung“ inkl. Scope (`DeviceManagementConfiguration.Read.All`, `BitlockerKey.ReadBasic.All`); der Rest des Dashboards funktioniert.
 
 Weitere Szenarien: `CONTOSO-PC027` (Defender: Signaturen veraltet, Neustart, behandelte Bedrohung), `CONTOSO-PC033` (Check-in vor 41 Tagen), `CONTOSO-LT108` (Windows 10, Entra-Gerät deaktiviert), `CONTOSO-MAC07` (macOS, FileVault, Defender nicht anwendbar). Mehrdeutige Suche: `contoso-pc0`.
@@ -99,8 +99,9 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 
 - **Settings Catalog:** Gerätebezogene Zustände von Settings-Catalog-Profilen liefert die dokumentierte Graph-v1.0-API nicht; die Richtlinien-Kachel weist das offen aus (Status im Intune Admin Center prüfen). Undokumentierte Beta-Reports werden bewusst nicht genutzt.
 - **Einstellungsdetails im Live-Modus:** Ob `deviceCompliancePolicyStates`/`deviceConfigurationStates` die `settingStates` ohne `$expand` liefern, ist nicht dokumentiert; ohne sie zeigt die App Befunde auf Richtlinienebene.
+- **App-Status (Beta):** Die Kachel „Apps“ nutzt als einzige Ausnahme den dokumentierten Beta-Endpunkt `GET /beta/users/{userId}/mobileAppIntentAndStates` (kein v1.0-Pendant, gleicher Scope `DeviceManagementManagedDevices.Read.All`, kein zusätzlicher Consent). Er liefert den Status pro primärem Benutzer, ohne Fehlercode; In einem echten Tenant lieferte der Endpunkt eine leere Liste; die Kachel erscheint deshalb **nur, wenn Graph tatsächlich App-Status für das Gerät liefert** (sonst fehlt sie, statt dauerhaft „nicht verfügbar“ zu zeigen). Beta-APIs können sich ändern.
 - **Suche:** `$filter` auf `deviceName` ist nur in der Beta-Ressource dokumentiert; bei HTTP 400 fällt die App auf die paginierte Liste (max. 5 Seiten) zurück. Gegen einen echten Tenant noch nicht verifiziert.
-- **App-Status pro Gerät** (Intune-Apps) ist über dokumentierte v1.0-Endpunkte nicht verfügbar; Win32-App-Zustände gibt es nur aus dem DiagLogs-ZIP.
+- **Fehlercodes von App-Installationen** liefert der Beta-Endpunkt nicht; Win32-App-Fehlercodes gibt es aus dem DiagLogs-ZIP.
 - **Windows-Edition** (Home/Pro vs. Enterprise) meldet Graph v1.0 nicht; Supportenden werden für Enterprise/Education bewertet, Home/Pro als Hinweis.
 - **Binärlogs** (`.evtx`, `.etl`, `.cab`) und OEM-Codepage-Ausgaben (ipconfig, certutil) werden im MVP nicht ausgewertet. dsregcmd läuft bei der Diagnosesammlung nicht im Benutzerkontext; SSO-/Benutzerstatus kann abweichen (wird im Befund erwähnt).
 - **macOS/iOS/Android:** Kein hinterlegter Supportstatus für das Betriebssystem (Kachel „ohne Bewertung“).

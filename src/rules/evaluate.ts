@@ -4,6 +4,7 @@
  * benötigten Sections noch undefined ist.
  */
 import type { DeviceSnapshot, Severity, Tile, TileId } from '../domain/types';
+import { evaluateApps } from './tiles/apps';
 import { evaluateBitLocker } from './tiles/bitlocker';
 import { evaluateCheckIn } from './tiles/checkIn';
 import { evaluateCompliance } from './tiles/compliance';
@@ -24,6 +25,7 @@ export const TILE_ORDER: TileId[] = [
   'bitlocker',
   'defender',
   'policies',
+  'apps',
   'entraJoin',
   'win32Apps',
   'enrollment',
@@ -40,11 +42,14 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
     evaluateDefender(snapshot, now),
     evaluatePolicies(snapshot, now),
   ];
+  // App-Status (Graph beta) liefert in vielen Tenants keine Daten → Kachel nur, wenn Daten kamen;
+  // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
+  if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }
 
-/** Befunde zu Compliance und Richtlinien verlinken auf das Gerät im Intune Admin Center. */
+/** Befunde zu Compliance, Richtlinien und Apps verlinken auf das Gerät im Intune Admin Center. */
 function withPortalLinks(tiles: Tile[], snapshot: DeviceSnapshot): Tile[] {
   const deviceLink = { label: de.links.openDevice, url: IntunePortal.device(snapshot.device.id) };
   const policyListLink = {
@@ -52,7 +57,7 @@ function withPortalLinks(tiles: Tile[], snapshot: DeviceSnapshot): Tile[] {
     url: IntunePortal.configurationPolicies,
   };
   return tiles.map((tile) => {
-    if (tile.id !== 'compliance' && tile.id !== 'policies') return tile;
+    if (tile.id !== 'compliance' && tile.id !== 'policies' && tile.id !== 'apps') return tile;
     const extra = tile.id === 'policies' ? [deviceLink, policyListLink] : [deviceLink];
     return {
       ...tile,

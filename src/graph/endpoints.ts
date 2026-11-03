@@ -10,14 +10,16 @@ import { GraphScope } from './scopes';
 
 export const GRAPH_ORIGIN = 'https://graph.microsoft.com';
 export const GRAPH_BASE_URL = `${GRAPH_ORIGIN}/v1.0`;
+/** Nur für ausdrücklich freigegebene, dokumentierte Beta-Endpunkte (CLAUDE.md, Regel 2). */
+export const GRAPH_BETA_URL = `${GRAPH_ORIGIN}/beta`;
 
 export interface GraphEndpointDef<TArgs extends unknown[]> {
   id: string;
   method: 'GET';
-  version: 'v1.0';
+  version: 'v1.0' | 'beta';
   scope: GraphScope;
   docsUrl: string;
-  /** Relativer Pfad inkl. Query, bereits korrekt encodiert. */
+  /** Relativer v1.0-Pfad bzw. absolute Beta-URL inkl. Query, bereits korrekt encodiert. */
   path: (...args: TArgs) => string;
   /** Lesbare Form für die UI ("GET /deviceManagement/managedDevices/{id}"). */
   display: string;
@@ -195,6 +197,20 @@ export const Endpoints = {
       withQuery('/informationProtection/bitlocker/recoveryKeys', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
       }),
+  },
+  /**
+   * BETA (freigegebene Ausnahme, CLAUDE.md Regel 2): App-Absicht und Installationsstatus aller
+   * Geräte eines Benutzers. Es gibt keinen v1.0-GET für den App-Status pro Gerät.
+   */
+  mobileAppIntentAndStates: {
+    id: 'mobileAppIntentAndStates',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta',
+    display: 'GET /beta/users/{userId}/mobileAppIntentAndStates',
+    path: (userId: string) => `${GRAPH_BETA_URL}/users/${enc(userId)}/mobileAppIntentAndStates`,
   },
 } satisfies Record<string, GraphEndpointDef<[string]>>;
 

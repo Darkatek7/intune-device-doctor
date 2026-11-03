@@ -66,6 +66,7 @@ export function createFakeFetch(handler: FakeHandler) {
 
 export const PC001_ID = '00000000-0000-4000-8000-000000000001';
 export const PC001_ENTRA_ID = '00000000-0000-4000-9000-000000000001';
+export const PC001_USER_ID = '00000000-0000-4000-d000-000000000001';
 export const MAC07_ID = '00000000-0000-4000-8000-000000000007';
 export const MAC07_ENTRA_ID = '00000000-0000-4000-9000-000000000007';
 
@@ -76,6 +77,7 @@ export function pc001Device(overrides: Partial<GraphManagedDevice> = {}): GraphM
   return {
     id: PC001_ID,
     deviceName: 'CONTOSO-PC001',
+    userId: PC001_USER_ID,
     userPrincipalName: 'anna.schmidt@contoso.com',
     userDisplayName: 'Anna Schmidt',
     operatingSystem: 'Windows',

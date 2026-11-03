@@ -6,6 +6,7 @@
 import type {
   AppError,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -28,12 +29,14 @@ import type {
   GraphEntraDevice,
   GraphManagedDevice,
   GraphMobileApp,
+  GraphMobileAppIntentAndState,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
 import { Endpoints, type EndpointId } from '../../graph/endpoints';
 import {
   graphSource,
+  mapAppInstallStates,
   mapBitlockerKey,
   mapEntraDevice,
   mapManagedDevice,
@@ -350,6 +353,42 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(keys.map(mapBitlockerKey), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.bitlockerNotReported, source }),
+    );
+  }
+
+  /** Beta: App-Status kommt pro Benutzer; gefiltert wird auf dieses Gerät (managedDeviceIdentifier). */
+  getAppInstallStates(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AppInstallStateInfo[]>> {
+    const endpoint = Endpoints.mobileAppIntentAndStates;
+    return this.run<AppInstallStateInfo[]>(
+      'mobileAppIntentAndStates',
+      async (source) => {
+        if (!device.userId) {
+          return { status: 'notApplicable', reason: de.reasons.appsNoPrimaryUser, source };
+        }
+        const entries = await this.client.getAllPages<GraphMobileAppIntentAndState>(
+          endpoint.path(device.userId),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        const { apps, matched } = mapAppInstallStates(entries, [device.id, device.azureADDeviceId]);
+        if (!matched) {
+          this.log(
+            `mobileAppIntentAndStates: ${entries.length} Einträge für den Benutzer, keiner passt zu diesem Gerät.`,
+          );
+          return {
+            status: 'unavailable',
+            reason:
+              entries.length === 0
+                ? de.reasons.appsNoEntries
+                : de.reasons.appsDeviceNotListed(entries.length),
+            source,
+          };
+        }
+        return this.ok(apps, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.appsNotReported, source }),
     );
   }
 

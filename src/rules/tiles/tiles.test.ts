@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type {
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
   DetectedMalware,
@@ -19,6 +20,7 @@ import { MockProvider } from '../../providers/mock/MockProvider';
 import { Docs } from '../knowledge/docs';
 import { evaluateBitLocker } from './bitlocker';
 import { evaluateCheckIn } from './checkIn';
+import { evaluateApps } from './apps';
 import { evaluateCompliance } from './compliance';
 import { evaluateDefender } from './defender';
 import { evaluateDeviceStatus } from './deviceStatus';
@@ -621,6 +623,80 @@ describe('Richtlinien (policies)', () => {
     expect(findingWithId(tile, 'policies-configuration-error').title).toBe(
       de.rules.common.throttledTitle,
     );
+  });
+});
+
+describe('Apps (apps)', () => {
+  const app = (overrides: Partial<AppInstallStateInfo>): AppInstallStateInfo => ({
+    appId: 'app-1',
+    displayName: 'Contoso App',
+    version: '1.0',
+    intent: 'requiredInstall',
+    installState: 'installed',
+    ...overrides,
+  });
+  const withApps = (section: SectionResult<AppInstallStateInfo[]>): DeviceSnapshot => ({
+    ...base,
+    appInstallStates: section,
+  });
+  const okApps = (data: AppInstallStateInfo[]): SectionResult<AppInstallStateInfo[]> => ({
+    status: 'ok',
+    data,
+    source: base.device.source,
+    fetchedAt: NOW.toISOString(),
+  });
+
+  it('ohne Section → loading', () => {
+    expect(evaluateApps({ device: base.device }, NOW).state).toBe('loading');
+  });
+
+  it('alles installiert → ok, nur Beta-Hinweis', () => {
+    const tile = evaluateApps(
+      withApps(
+        okApps([app({}), app({ appId: 'b', intent: 'available', installState: 'notInstalled' })]),
+      ),
+      NOW,
+    );
+    expect(tile.severity).toBe('ok');
+    expect(tile.value).toBe(de.rules.apps.valueOk);
+    expect(tile.summary).toBe(de.rules.apps.summary(1, 1, 1));
+    expect(tile.findings.map((f) => f.id)).toEqual(['apps-beta']);
+    expect(findingWithId(tile, 'apps-beta').docsUrl).toBe(Docs.appIntentAndStatesBeta);
+  });
+
+  it('fehlgeschlagen → critical mit Link zur App; Pflicht-App fehlt → warning; ausstehend → Hinweis', () => {
+    const tile = evaluateApps(
+      withApps(
+        okApps([
+          app({ appId: 'f', displayName: 'Contoso VPN', installState: 'failed' }),
+          app({ appId: 'm', installState: 'notInstalled' }),
+          app({ appId: 'p', installState: 'pendingInstall' }),
+        ]),
+      ),
+      NOW,
+    );
+    expect(tile.severity).toBe('critical');
+    expect(tile.value).toBe(de.rules.apps.valueFailed(1));
+    const failed = findingWithId(tile, 'apps-failed-f');
+    expect(failed.title).toBe(de.rules.apps.failedTitle('Contoso VPN'));
+    expect(failed.docsUrl).toBe(Docs.appInstallTroubleshoot);
+    expect(failed.links?.[0]?.url).toContain('/appId/f');
+    expect(findingWithId(tile, 'apps-missing-m').severity).toBe('warning');
+    expect(findingWithId(tile, 'apps-pending-p').severity).toBe('unknown');
+  });
+
+  it('ohne primären Benutzer → notApplicable-Kachel (unknown)', () => {
+    const tile = evaluateApps(
+      withApps({
+        status: 'notApplicable',
+        reason: de.reasons.appsNoPrimaryUser,
+        source: base.device.source,
+      }),
+      NOW,
+    );
+    expect(tile.severity).toBe('unknown');
+    expect(tile.availability).toBe('notApplicable');
+    expect(tile.summary).toBe(de.reasons.appsNoPrimaryUser);
   });
 });
 

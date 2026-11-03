@@ -65,6 +65,9 @@ export const deRules = {
     lastReported: 'Zuletzt gemeldet',
     profiles: 'Konfigurationsprofile',
     compliancePolicies: 'Compliance-Richtlinien',
+    appsAssigned: 'Zugewiesene Apps',
+    appsInstalled: 'Installiert',
+    appsFailed: 'Fehlgeschlagen',
     yes: 'Ja',
     no: 'Nein',
     on: 'An',
@@ -469,6 +472,68 @@ export const deRules = {
       windowsSModeSignaturesInUseOnNonWin10SInstall:
         'S-Modus-Signaturen auf Nicht-S-Modus-Installation',
     } as Record<string, string>,
+  },
+  apps: {
+    valueOk: 'Alle installiert',
+    valueNone: 'Keine zugewiesen',
+    valueFailed: (n: number) => `${n} fehlgeschlagen`,
+    valueMissing: (n: number) => `${n} nicht installiert`,
+    summary: (installed: number, required: number, available: number) =>
+      [
+        required > 0 ? `${installed} von ${required} Pflicht-Apps installiert` : null,
+        available > 0 ? `${available} verfügbar` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Keine Pflicht-Apps zugewiesen',
+    failedTitle: (name: string) => `App „${name}“: Installation fehlgeschlagen`,
+    uninstallFailedTitle: (name: string) => `App „${name}“: Deinstallation fehlgeschlagen`,
+    missingTitle: (name: string) => `Pflicht-App „${name}“ nicht installiert`,
+    pendingTitle: (name: string) => `App „${name}“: Installation ausstehend`,
+    detail: (state: string, intent: string, version: string | null) =>
+      `Installationsstatus ${state}, Zuweisung ${intent}${version ? `, Version ${version}` : ''}.`,
+    failedCause:
+      'Intune meldet für diese App auf dem Gerät „fehlgeschlagen“. Den Fehlercode liefert diese Schnittstelle nicht; er steht im Intune Admin Center unter „Managed Apps“ des Geräts.',
+    uninstallFailedCause:
+      'Die App ist zur Deinstallation zugewiesen, die Deinstallation auf dem Gerät ist aber fehlgeschlagen.',
+    missingCause:
+      'Die App ist als erforderlich zugewiesen, laut Intune aber nicht auf dem Gerät installiert.',
+    pendingCause:
+      'Die Installation ist angestoßen, aber noch nicht abgeschlossen – z. B. weil das Gerät noch nicht eingecheckt hat oder die Installation auf die Anmeldung des Benutzers wartet.',
+    remediation: [
+      'Im Intune Admin Center unter „Problembehandlung und Support“ den Benutzer und das Gerät wählen und unter „Managed Apps“ die Installationsdetails der App mit Fehlercode ansehen.',
+      'Für eine erforderliche App das Gerät synchronisieren lassen; Intune versucht die Installation dann erneut.',
+      'Für Win32-Apps zusätzlich das DiagLogs-ZIP („Diagnosedaten sammeln“) hier analysieren – es enthält Fehlercode und Logs der Intune Management Extension.',
+    ],
+    pendingRemediation: [
+      'Gerät synchronisieren lassen und nach dem nächsten Check-in erneut prüfen.',
+    ],
+    betaTitle: 'Datenquelle: Microsoft Graph beta',
+    betaDetail:
+      'Der App-Status stammt aus der Beta-Schnittstelle mobileAppIntentAndStates (pro primärem Benutzer). Für v1.0 gibt es keinen gerätebezogenen App-Status.',
+    betaCause:
+      'Microsoft unterstützt Intune-Beta-APIs, sie können sich aber häufiger ändern. Apps anderer Benutzer des Geräts sind nicht enthalten.',
+    betaRemediation: [
+      'Bei Abweichungen den App-Status im Intune Admin Center unter „Problembehandlung und Support“ › Benutzer › Gerät › „Managed Apps“ prüfen.',
+    ],
+    intent: {
+      available: 'verfügbar',
+      notAvailable: 'nicht verfügbar',
+      requiredInstall: 'erforderlich',
+      requiredUninstall: 'Deinstallation erforderlich',
+      requiredAndAvailableInstall: 'erforderlich und verfügbar',
+      availableInstallWithoutEnrollment: 'verfügbar ohne Registrierung',
+      exclude: 'ausgeschlossen',
+    } as Record<string, string>,
+    state: {
+      installed: 'installiert',
+      failed: 'fehlgeschlagen',
+      notInstalled: 'nicht installiert',
+      uninstallFailed: 'Deinstallation fehlgeschlagen',
+      pendingInstall: 'ausstehend',
+      unknown: 'unbekannt',
+      notApplicable: 'nicht anwendbar',
+    } as Record<string, string>,
+    unknownIntent: 'unbekannt',
   },
   policies: {
     valueOk: 'Alle angewendet',

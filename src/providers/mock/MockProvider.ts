@@ -6,6 +6,7 @@
 import type {
   AppError,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -20,6 +21,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
+import { defaultAppStates } from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -38,6 +40,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   configurationPolicies: 'deviceConfigurationStates',
   entraDevice: 'entraDeviceByDeviceId',
   bitlockerKeys: 'bitlockerRecoveryKeys',
+  appInstallStates: 'mobileAppIntentAndStates',
 };
 
 export function abortError(): DOMException {
@@ -170,7 +173,10 @@ export class MockProvider implements DeviceDataProvider {
       };
       return { status: 'error', error, source };
     }
-    const spec = fixture[key] as MockSection<T>;
+    const spec = (fixture[key] ??
+      (key === 'appInstallStates'
+        ? { status: 'ok', data: defaultAppStates(fixture.device) }
+        : undefined)) as MockSection<T>;
     switch (spec.status) {
       case 'ok':
         return { status: 'ok', data: spec.data, source, fetchedAt: this.now().toISOString() };
@@ -212,6 +218,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<BitLockerKeyInfo[]>(device, 'bitlockerKeys', options);
+  }
+
+  getAppInstallStates(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AppInstallStateInfo[]>(device, 'appInstallStates', options);
   }
 
   async getMobileApps(

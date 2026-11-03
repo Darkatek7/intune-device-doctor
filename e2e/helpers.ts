@@ -38,7 +38,7 @@ export const T = {
   notApplicable: 'Nicht anwendbar',
 } as const;
 
-/** Die sieben Standard-Kacheln eines Windows-Geräts (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
+/** Die acht Standard-Kacheln eines Windows-Geräts (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
 export const BASE_TILE_TITLES = [
   'Gerätestatus',
   'Compliance',
@@ -47,6 +47,7 @@ export const BASE_TILE_TITLES = [
   'BitLocker',
   'Defender',
   'Richtlinien',
+  'Apps',
 ] as const;
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);

@@ -84,6 +84,8 @@ export type ManagedDevicePartnerReportedHealthState =
 export interface GraphManagedDevice {
   id: string;
   deviceName: string | null;
+  /** Primärer Benutzer (Entra-Objekt-ID); leer bzw. Null-GUID bei Geräten ohne Benutzer */
+  userId: string | null;
   userPrincipalName: string | null;
   userDisplayName: string | null;
   operatingSystem: string | null;
@@ -308,3 +310,41 @@ export interface GraphMobileApp {
 }
 
 export const MOBILE_APP_SELECT = ['id', 'displayName', 'publisher'] as const;
+
+// ---------- App-Absicht und Installationsstatus pro Benutzer/Gerät (BETA) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-mobileappintentandstatedetail?view=graph-rest-beta
+
+export type MobileAppIntent =
+  | 'available'
+  | 'notAvailable'
+  | 'requiredInstall'
+  | 'requiredUninstall'
+  | 'requiredAndAvailableInstall'
+  | 'availableInstallWithoutEnrollment'
+  | 'exclude';
+
+/** resultantAppState */
+export type ResultantAppState =
+  | 'installed'
+  | 'failed'
+  | 'notInstalled'
+  | 'uninstallFailed'
+  | 'pendingInstall'
+  | 'unknown'
+  | 'notApplicable';
+
+export interface GraphMobileAppIntentAndStateDetail {
+  applicationId: string | null;
+  displayName: string | null;
+  mobileAppIntent: MobileAppIntent | null;
+  displayVersion: string | null;
+  installState: ResultantAppState | null;
+}
+
+export interface GraphMobileAppIntentAndState {
+  id: string;
+  managedDeviceIdentifier: string | null;
+  userId: string | null;
+  mobileAppList: GraphMobileAppIntentAndStateDetail[] | null;
+}

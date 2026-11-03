@@ -4,6 +4,7 @@
  */
 import type {
   AppError,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
   ManagedDeviceInfo,
@@ -28,6 +29,8 @@ export interface MockDeviceFixture {
   /** data null = kein Entra-Objekt gefunden */
   entraDevice: MockSection<EntraDeviceInfo | null>;
   bitlockerKeys: MockSection<BitLockerKeyInfo[]>;
+  /** Optional – ohne Angabe liefert der MockProvider den Standard-App-Satz (alle installiert). */
+  appInstallStates?: MockSection<AppInstallStateInfo[]>;
 }
 
 export interface MockScenario {

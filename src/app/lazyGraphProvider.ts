@@ -5,6 +5,7 @@
  */
 import type {
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -93,6 +94,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getEntraDevice(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<EntraDeviceInfo | null>((p) => p.getEntraDevice(device, options));
+  }
+
+  getAppInstallStates(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<AppInstallStateInfo[]>((p) => p.getAppInstallStates(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

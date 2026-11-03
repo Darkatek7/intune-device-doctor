@@ -11,6 +11,7 @@
 import type {
   AppError,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataMode,
   DeviceSearchResult,
@@ -57,6 +58,12 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<BitLockerKeyInfo[]>>;
+
+  /** App-Absicht + Installationsstatus der Apps auf diesem Gerät (pro primärem Benutzer). */
+  getAppInstallStates(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AppInstallStateInfo[]>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

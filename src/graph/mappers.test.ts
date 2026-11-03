@@ -47,6 +47,14 @@ describe('mapManagedDevice', () => {
     expect(mapManagedDevice(pc001Device({ operatingSystem: 'Android' })).osFamily).toBe('android');
   });
 
+  it('userId: Null-GUID und leere Werte (Geräte ohne Benutzer) werden zu null', () => {
+    expect(
+      mapManagedDevice(pc001Device({ userId: '00000000-0000-0000-0000-000000000000' })).userId,
+    ).toBeNull();
+    expect(mapManagedDevice(pc001Device({ userId: '' })).userId).toBeNull();
+    expect(mapManagedDevice(pc001Device()).userId).toBe(pc001Device().userId);
+  });
+
   it('ist null-sicher und mappt unbekannte Enum-Werte auf unknown', () => {
     const dto = {
       id: 'x',

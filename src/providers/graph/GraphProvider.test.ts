@@ -397,6 +397,137 @@ describe('GraphProvider – Sections', () => {
   });
 });
 
+describe('GraphProvider – App-Installationsstatus (beta)', () => {
+  const USER_ID = '00000000-0000-4000-d000-000000000001';
+  const detail = (
+    applicationId: string,
+    installState: string,
+    mobileAppIntent = 'requiredInstall',
+  ) => ({
+    applicationId,
+    displayName: `App ${applicationId}`,
+    mobileAppIntent,
+    displayVersion: '1.0',
+    installState,
+  });
+
+  it('liest per GET aus /beta/users/{userId}/mobileAppIntentAndStates und filtert auf das Gerät', async () => {
+    const { provider, calls } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ID.toUpperCase(),
+          userId: USER_ID,
+          mobileAppList: [
+            detail('A1', 'installed'),
+            detail('A2', 'failed'),
+            detail('A2', 'failed'),
+          ],
+        },
+        {
+          id: 'b',
+          managedDeviceIdentifier: 'anderes-geraet',
+          userId: USER_ID,
+          mobileAppList: [detail('X9', 'failed')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data.map((a) => [a.appId, a.installState])).toEqual([
+      ['A1', 'installed'],
+      ['A2', 'failed'],
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method ?? 'GET').toBe('GET');
+    expect(calls[0]!.url).toBe(
+      `https://graph.microsoft.com/beta/users/${USER_ID}/mobileAppIntentAndStates`,
+    );
+    expect(result.source.label).toBe(Endpoints.mobileAppIntentAndStates.display);
+  });
+
+  it('ordnet Einträge auch über die Entra-Geräte-ID zu', async () => {
+    const { provider } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ENTRA_ID,
+          userId: USER_ID,
+          mobileAppList: [detail('A1', 'installed')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data.map((a) => a.appId)).toEqual(['A1']);
+  });
+
+  it('keine Einträge → unavailable (appsNoEntries) statt „keine Apps“', async () => {
+    const { provider } = setup(() => collection([]));
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.appsNoEntries);
+  });
+
+  it('nur Einträge anderer Geräte → unavailable mit Anzahl und Log', async () => {
+    const { provider, log } = setup(() =>
+      collection([
+        { id: 'b', managedDeviceIdentifier: 'x', userId: USER_ID, mobileAppList: [] },
+        { id: 'c', managedDeviceIdentifier: 'y', userId: USER_ID, mobileAppList: [] },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.appsDeviceNotListed(2));
+    expect(log).toHaveBeenCalledTimes(1);
+  });
+
+  it('ohne primären Benutzer → notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(result.reason).toBe(de.reasons.appsNoPrimaryUser);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('unbekannte Enum-Werte werden zu unknown bzw. null', async () => {
+    const { provider } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ID,
+          userId: USER_ID,
+          mobileAppList: [detail('A1', 'brandNew', 'somethingElse')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data[0]).toMatchObject({ installState: 'unknown', intent: null });
+  });
+
+  it('403 → forbidden mit Scope aus der Endpoint-Definition', async () => {
+    const { provider } = setup(() => graphError(403, 'Forbidden'));
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe(Endpoints.mobileAppIntentAndStates.scope);
+  });
+});
+
 describe('GraphProvider – App-Namen', () => {
   const A = '11111111-1111-1111-1111-111111111111';
   const B = '22222222-2222-2222-2222-222222222222';

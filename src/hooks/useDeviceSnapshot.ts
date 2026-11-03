@@ -21,6 +21,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'configurationPolicies',
   'entraDevice',
   'bitlockerKeys',
+  'appInstallStates',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -52,6 +53,8 @@ function loadSection(
       return provider.getEntraDevice(device, { signal });
     case 'bitlockerKeys':
       return provider.getBitLockerKeys(device, { signal });
+    case 'appInstallStates':
+      return provider.getAppInstallStates(device, { signal });
   }
 }
 

@@ -35,6 +35,7 @@ export const de = {
     policies: 'Richtlinien',
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
+    apps: 'Apps',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -109,6 +110,13 @@ export const de = {
       'Für dieses Gerät wurden keine Konfigurationsprofil-Zustände gemeldet.',
     compliancePoliciesNotReported:
       'Für dieses Gerät wurden keine Compliance-Richtlinien-Zustände gemeldet.',
+    appsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – Intune meldet den App-Status über die dokumentierte API nur pro Benutzer.',
+    appsNotReported: 'Für den primären Benutzer wurde kein App-Status gefunden (HTTP 404).',
+    appsNoEntries:
+      'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
+    appsDeviceNotListed: (n: number) =>
+      `Graph (beta) liefert App-Status für ${n} ${n === 1 ? 'Gerät' : 'Geräte'} des primären Benutzers, aber nicht für dieses Gerät. Status im Intune Admin Center unter „Managed Apps“ prüfen.`,
   },
   errors: {
     forbidden: 'Zugriff verweigert (HTTP 403).',

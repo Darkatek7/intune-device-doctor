@@ -55,6 +55,10 @@ export const Docs = {
   coManagement: 'https://learn.microsoft.com/intune/configmgr/comanage/overview',
   windowsEnrollmentErrors:
     'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-enrollment-errors',
+  appInstallTroubleshoot:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/app-management/troubleshoot-app-install#get-app-troubleshooting-details',
+  appIntentAndStatesBeta:
+    'https://learn.microsoft.com/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta',
   win32AppTroubleshoot:
     'https://learn.microsoft.com/intune/app-management/deployment/troubleshoot-win32',
   dsregcmdDeviceState:
