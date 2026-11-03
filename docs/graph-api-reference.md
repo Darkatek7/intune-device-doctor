@@ -72,6 +72,7 @@ Zentral in `src/links/intunePortal.ts`. Microsoft Learn verlinkt selbst nur Übe
 - App: `https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{appId}`
 - Gerät (inkl. Compliance/Konfiguration): `https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsMenuBlade/~/overview/mdmDeviceId/{managedDeviceId}`
 - Managed Apps eines Geräts: `https://intune.microsoft.com/#view/Microsoft_Intune_ManagedDevices/ManagedDeviceMenu.MenuView/~/managedApps/managedDeviceId/{managedDeviceId}` (live im Portal übernommen, 11/2026)
+- Geräteinventar eines Geräts: `https://intune.microsoft.com/#view/Microsoft_Intune_ManagedDevices/ManagedDeviceMenu.MenuView/~/deviceInventory/managedDeviceId/{managedDeviceId}` (live im Portal übernommen, 11/2026; Inventardaten selbst sind über Graph nicht abrufbar)
 
 Bei Live-Einsatz einmal prüfen; ändern sich die Portal-Adressen, nur diese Datei anpassen. Direktlinks auf einzelne Richtlinien werden bewusst nicht gebaut (Adressen je Richtlinientyp unterschiedlich und undokumentiert) – Richtlinienbefunde verlinken auf das Gerät und die Profilübersicht.
 

@@ -68,6 +68,10 @@ export function DeviceHeader({
               {[
                 { label: de.links.openDevice, url: IntunePortal.device(device.id) },
                 { label: de.links.openManagedApps, url: IntunePortal.deviceManagedApps(device.id) },
+                {
+                  label: de.links.openDeviceInventory,
+                  url: IntunePortal.deviceInventory(device.id),
+                },
               ].map((link) => (
                 <a
                   key={link.url}

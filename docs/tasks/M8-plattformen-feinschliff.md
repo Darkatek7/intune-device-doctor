@@ -32,7 +32,7 @@ Nach den ersten Live-Tests (11/2026). Schritte **der Reihe nach**; nach jedem Sc
 - [x] README (Scope-Tabelle) und `docs/graph-api-reference.md` ergänzen.
 
 ## Bewusst nicht (über dokumentierte API nicht verfügbar)
-- Geräteinventar (Properties Catalog) – keine Graph-API.
+- Geräteinventar (Properties Catalog) – keine Graph-API; der Geräte-Header verlinkt stattdessen auf „Geräteinventar“ im Admin Center.
 - Letzter angemeldeter Benutzer (`usersLoggedOn`) – nur beta.
 - Supportende macOS/iOS – Apple veröffentlicht keine offiziellen Daten.
 - App-Status in Tenants, in denen `mobileAppIntentAndStates` leer ist – Kachel bleibt ausgeblendet.

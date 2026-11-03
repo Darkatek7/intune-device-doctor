@@ -44,9 +44,11 @@ describe('DeviceHeader', () => {
 
     const deviceLink = screen.getByRole('link', { name: de.links.openDevice });
     const appsLink = screen.getByRole('link', { name: de.links.openManagedApps });
+    const inventoryLink = screen.getByRole('link', { name: de.links.openDeviceInventory });
     expect(deviceLink).toHaveAttribute('href', IntunePortal.device('dev-0001'));
     expect(appsLink).toHaveAttribute('href', IntunePortal.deviceManagedApps('dev-0001'));
-    for (const link of [deviceLink, appsLink]) {
+    expect(inventoryLink).toHaveAttribute('href', IntunePortal.deviceInventory('dev-0001'));
+    for (const link of [deviceLink, appsLink, inventoryLink]) {
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     }
@@ -55,6 +57,8 @@ describe('DeviceHeader', () => {
     expect(deviceLink).toHaveFocus();
     await user.tab();
     expect(appsLink).toHaveFocus();
+    await user.tab();
+    expect(inventoryLink).toHaveFocus();
   });
 
   it('zeigt ohne Gerät keine Portal-Links', () => {

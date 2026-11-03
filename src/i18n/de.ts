@@ -144,6 +144,7 @@ export const de = {
     openApp: 'App im Intune Admin Center öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
+    openDeviceInventory: 'Geräteinventar im Intune Admin Center',
     configurationPolicies: 'Konfigurationsprofile im Intune Admin Center',
     appName: 'App-Name',
     publisher: 'Herausgeber',
