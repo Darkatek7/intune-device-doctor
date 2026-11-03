@@ -16,9 +16,9 @@ export const de = {
       'Live-Modus nicht konfiguriert – Client-ID und Tenant-ID in .env.local setzen.',
   },
   search: {
-    placeholder: 'Gerätename eingeben …',
+    placeholder: 'Gerätename oder Benutzer eingeben …',
     button: 'Prüfen',
-    noResults: 'Kein Gerät mit diesem Namen gefunden.',
+    noResults: 'Kein Gerät mit diesem Namen oder Benutzer gefunden.',
     multipleResults: 'Mehrere Geräte gefunden – bitte auswählen.',
   },
   dropZone: {
@@ -35,6 +35,7 @@ export const de = {
     policies: 'Richtlinien',
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
+    apps: 'Apps',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -109,6 +110,16 @@ export const de = {
       'Für dieses Gerät wurden keine Konfigurationsprofil-Zustände gemeldet.',
     compliancePoliciesNotReported:
       'Für dieses Gerät wurden keine Compliance-Richtlinien-Zustände gemeldet.',
+    appsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – Intune meldet den App-Status über die dokumentierte API nur pro Benutzer.',
+    applePushNotApple: 'Das Apple-MDM-Push-Zertifikat betrifft nur macOS-, iOS- und iPadOS-Geräte.',
+    applePushNotReported:
+      'Graph meldet HTTP 404 für das Apple-MDM-Push-Zertifikat – über diese Schnittstelle nicht verfügbar.',
+    appsNotReported: 'Für den primären Benutzer wurde kein App-Status gefunden (HTTP 404).',
+    appsNoEntries:
+      'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
+    appsDeviceNotListed: (n: number) =>
+      `Graph (beta) liefert App-Status für ${n} ${n === 1 ? 'Gerät' : 'Geräte'} des primären Benutzers, aber nicht für dieses Gerät. Status im Intune Admin Center unter „Managed Apps“ prüfen.`,
   },
   errors: {
     forbidden: 'Zugriff verweigert (HTTP 403).',
@@ -132,6 +143,13 @@ export const de = {
   links: {
     openApp: 'App im Intune Admin Center öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
+    openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
+    openDeviceInventory: 'Geräteinventar im Intune Admin Center',
+    /** Kurztexte der Link-Zeile im Geräte-Header (voller Text als A11y-Name/Tooltip) */
+    portalPrefix: 'Intune Admin Center:',
+    shortDevice: 'Gerät',
+    shortManagedApps: 'Managed Apps',
+    shortDeviceInventory: 'Geräteinventar',
     configurationPolicies: 'Konfigurationsprofile im Intune Admin Center',
     appName: 'App-Name',
     publisher: 'Herausgeber',
@@ -156,7 +174,7 @@ export const de = {
     skipToContent: 'Zum Inhalt springen',
   },
   field: {
-    label: 'Gerätename',
+    label: 'Gerätename oder Benutzer',
     shortcut: '⌘K',
     shortcutHint: 'Zum Suchen ⌘K, Strg+K oder / drücken',
     suggestions: 'Vorschläge',
@@ -165,7 +183,7 @@ export const de = {
   },
   hero: {
     title: 'Intune-Geräte in Sekunden diagnostizieren',
-    subtitle: 'Gerätenamen eingeben – oder ein Beispielgerät laden.',
+    subtitle: 'Gerätenamen oder Benutzer eingeben – oder ein Beispielgerät laden.',
   },
   header: {
     loadingDevice: 'Gerät wird geladen …',
@@ -176,6 +194,7 @@ export const de = {
     allOk: 'Alles in Ordnung',
     enrolled: (date: string) => `Registriert am ${date}`,
     summaryLabel: 'Zusammenfassung',
+    portalLinks: 'Links ins Intune Admin Center',
   },
   grid: {
     label: 'Statuskacheln',
@@ -347,6 +366,8 @@ export const de = {
       'CONTOSO-PC042': 'Richtlinienkonflikt',
       'CONTOSO-LT108': 'Windows 10 · Entra deaktiviert',
       'CONTOSO-MAC07': 'macOS-Gerät',
+      'CONTOSO-IP015': 'iPhone · nicht beaufsichtigt',
+      'CONTOSO-AND21': 'Android · alter Patch',
       'CONTOSO-PC050': 'Fehlende Berechtigung',
     },
   },

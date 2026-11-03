@@ -4,6 +4,8 @@
  */
 import type {
   AppError,
+  ApplePushCertificateInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
   ManagedDeviceInfo,
@@ -28,6 +30,10 @@ export interface MockDeviceFixture {
   /** data null = kein Entra-Objekt gefunden */
   entraDevice: MockSection<EntraDeviceInfo | null>;
   bitlockerKeys: MockSection<BitLockerKeyInfo[]>;
+  /** Optional – ohne Angabe liefert der MockProvider den Standard-App-Satz (alle installiert). */
+  appInstallStates?: MockSection<AppInstallStateInfo[]>;
+  /** Optional – ohne Angabe: Apple-Geräte ok (läuft in ~200 Tagen ab), andere notApplicable. */
+  applePushCertificate?: MockSection<ApplePushCertificateInfo>;
 }
 
 export interface MockScenario {

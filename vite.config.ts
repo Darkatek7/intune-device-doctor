@@ -32,5 +32,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+    // Tests unabhängig von einer lokalen .env.local (Live-Konfiguration) halten
+    env: { VITE_APP_MODE: 'demo', VITE_MSAL_CLIENT_ID: '', VITE_MSAL_TENANT_ID: '' },
   },
 });

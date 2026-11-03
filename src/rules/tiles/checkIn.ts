@@ -1,5 +1,5 @@
 /**
- * Letzter Check-in (lastSyncDateTime). ≤ 24 h ok, ≤ 7 Tage Warnung, sonst kritisch.
+ * Letzter Check-in (lastSyncDateTime). ≤ 7 Tage ok, ≤ 30 Tage Warnung, sonst kritisch.
  * Entra-Anmeldung wird – sobald geladen – nur als zusätzlicher Wert angezeigt.
  */
 import { daysSince, formatDateTime, formatRelativeTime, hoursSince } from '../../domain/format';
@@ -53,7 +53,7 @@ export function evaluateCheckIn(snapshot: DeviceSnapshot, now: Date): Tile {
       source: device.source,
       docsUrl: Docs.deviceSync,
     });
-  } else if (hours > THRESHOLDS.checkInWarningDays * 24) {
+  } else if (hours > THRESHOLDS.checkInCriticalDays * 24) {
     severity = 'critical';
     findings.push({
       id: 'checkIn-stale',
@@ -66,13 +66,13 @@ export function evaluateCheckIn(snapshot: DeviceSnapshot, now: Date): Tile {
       source: device.source,
       docsUrl: Docs.deviceSync,
     });
-  } else if (hours > THRESHOLDS.checkInOkHours) {
+  } else if (hours > THRESHOLDS.checkInWarningDays * 24) {
     severity = 'warning';
     findings.push({
       id: 'checkIn-delayed',
       severity,
       title: t.warnTitle(formatRelativeTime(last, now)),
-      detail: t.warnDetail(formatDateTime(last)),
+      detail: t.warnDetail(formatDateTime(last), days),
       cause: t.cause,
       remediation,
       evidence,

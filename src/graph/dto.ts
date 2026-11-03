@@ -84,6 +84,8 @@ export type ManagedDevicePartnerReportedHealthState =
 export interface GraphManagedDevice {
   id: string;
   deviceName: string | null;
+  /** Primärer Benutzer (Entra-Objekt-ID); leer bzw. Null-GUID bei Geräten ohne Benutzer */
+  userId: string | null;
   userPrincipalName: string | null;
   userDisplayName: string | null;
   operatingSystem: string | null;
@@ -103,6 +105,13 @@ export interface GraphManagedDevice {
   partnerReportedThreatState: ManagedDevicePartnerReportedHealthState;
   freeStorageSpaceInBytes: number | null;
   totalStorageSpaceInBytes: number | null;
+  /** Ablauf des MDM-Gerätezertifikats */
+  managementCertificateExpirationDate: string | null;
+  /** iOS/iPadOS: beaufsichtigt (supervised) */
+  isSupervised: boolean | null;
+  /** Android: Sicherheitspatch-Level, z. B. "2026-09-01" */
+  androidSecurityPatchLevel: string | null;
+  enrollmentProfileName: string | null;
 }
 
 /** Felder für die Trefferliste der Suche ($select). */
@@ -308,3 +317,57 @@ export interface GraphMobileApp {
 }
 
 export const MOBILE_APP_SELECT = ['id', 'displayName', 'publisher'] as const;
+
+// ---------- applePushNotificationCertificate (v1.0, Tenant) ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-applepushnotificationcertificate?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-devices-applepushnotificationcertificate-get?view=graph-rest-1.0
+
+export interface GraphApplePushNotificationCertificate {
+  id: string;
+  expirationDateTime: string | null;
+  lastModifiedDateTime: string | null;
+}
+
+/** Bewusst ohne appleIdentifier (Apple-ID, personenbezogen) und ohne certificate. */
+export const APPLE_PUSH_CERTIFICATE_SELECT = [
+  'expirationDateTime',
+  'lastModifiedDateTime',
+] as const;
+
+// ---------- App-Absicht und Installationsstatus pro Benutzer/Gerät (BETA) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-mobileappintentandstatedetail?view=graph-rest-beta
+
+export type MobileAppIntent =
+  | 'available'
+  | 'notAvailable'
+  | 'requiredInstall'
+  | 'requiredUninstall'
+  | 'requiredAndAvailableInstall'
+  | 'availableInstallWithoutEnrollment'
+  | 'exclude';
+
+/** resultantAppState */
+export type ResultantAppState =
+  | 'installed'
+  | 'failed'
+  | 'notInstalled'
+  | 'uninstallFailed'
+  | 'pendingInstall'
+  | 'unknown'
+  | 'notApplicable';
+
+export interface GraphMobileAppIntentAndStateDetail {
+  applicationId: string | null;
+  displayName: string | null;
+  mobileAppIntent: MobileAppIntent | null;
+  displayVersion: string | null;
+  installState: ResultantAppState | null;
+}
+
+export interface GraphMobileAppIntentAndState {
+  id: string;
+  managedDeviceIdentifier: string | null;
+  userId: string | null;
+  mobileAppList: GraphMobileAppIntentAndStateDetail[] | null;
+}

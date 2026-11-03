@@ -5,7 +5,9 @@
  */
 import type {
   AppError,
+  ApplePushCertificateInfo,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
@@ -20,6 +22,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
+import { defaultAppStates } from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -38,6 +41,8 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   configurationPolicies: 'deviceConfigurationStates',
   entraDevice: 'entraDeviceByDeviceId',
   bitlockerKeys: 'bitlockerRecoveryKeys',
+  appInstallStates: 'mobileAppIntentAndStates',
+  applePushCertificate: 'applePushNotificationCertificate',
 };
 
 export function abortError(): DOMException {
@@ -117,8 +122,13 @@ export class MockProvider implements DeviceDataProvider {
     if (!q) return [];
     const all = this.fixtures();
     const exact = all.filter((f) => f.device.deviceName.toLowerCase() === q);
-    const hits =
-      exact.length > 0 ? exact : all.filter((f) => f.device.deviceName.toLowerCase().includes(q));
+    const byName = all.filter((f) => f.device.deviceName.toLowerCase().includes(q));
+    const byUser = all.filter((f) =>
+      [f.device.userPrincipalName, f.device.userDisplayName].some((v) =>
+        (v ?? '').toLowerCase().includes(q),
+      ),
+    );
+    const hits = exact.length > 0 ? exact : byName.length > 0 ? byName : byUser;
     return hits.map(({ device }) => ({
       id: device.id,
       deviceName: device.deviceName,
@@ -148,6 +158,27 @@ export class MockProvider implements DeviceDataProvider {
     return { ...fixture.device, source: sourceFor('managedDevice') };
   }
 
+  /** Standardantwort für optionale Fixture-Sections. */
+  private defaultSection(key: SectionKey, fixture: MockDeviceFixture): MockSection<unknown> {
+    if (key === 'appInstallStates') {
+      return { status: 'ok', data: defaultAppStates(fixture.device) };
+    }
+    if (key === 'applePushCertificate') {
+      const { osFamily } = fixture.device;
+      if (osFamily !== 'macos' && osFamily !== 'ios') {
+        return { status: 'notApplicable', reason: de.reasons.applePushNotApple };
+      }
+      const now = this.now();
+      const DAY = 24 * 60 * 60 * 1000;
+      const data: ApplePushCertificateInfo = {
+        expirationDateTime: new Date(now.getTime() + 200 * DAY).toISOString(),
+        lastModifiedDateTime: new Date(now.getTime() - 165 * DAY).toISOString(),
+      };
+      return { status: 'ok', data };
+    }
+    throw new Error(`Keine Standardantwort für Section ${key}`);
+  }
+
   private async section<T>(
     device: ManagedDeviceInfo,
     key: SectionKey,
@@ -165,7 +196,7 @@ export class MockProvider implements DeviceDataProvider {
       };
       return { status: 'error', error, source };
     }
-    const spec = fixture[key] as MockSection<T>;
+    const spec = (fixture[key] ?? this.defaultSection(key, fixture)) as MockSection<T>;
     switch (spec.status) {
       case 'ok':
         return { status: 'ok', data: spec.data, source, fetchedAt: this.now().toISOString() };
@@ -207,6 +238,14 @@ export class MockProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<BitLockerKeyInfo[]>(device, 'bitlockerKeys', options);
+  }
+
+  getAppInstallStates(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AppInstallStateInfo[]>(device, 'appInstallStates', options);
+  }
+
+  getApplePushCertificate(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<ApplePushCertificateInfo>(device, 'applePushCertificate', options);
   }
 
   async getMobileApps(

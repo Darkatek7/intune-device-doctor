@@ -104,6 +104,43 @@ describe('GraphProvider – Suche', () => {
     ]);
   });
 
+  it('sucht bei "@" per dokumentiertem eq-Filter auf userPrincipalName', async () => {
+    const { provider, calls } = setup((call) => {
+      const filter = call.parsed.searchParams.get('$filter');
+      if (filter === "userPrincipalName eq 'ada@contoso.com'") {
+        return collection([
+          pc001Device({ userPrincipalName: 'ada@contoso.com' }),
+          pc001Device({
+            id: 'lt',
+            deviceName: 'CONTOSO-LT042',
+            userPrincipalName: 'ada@contoso.com',
+          }),
+        ]);
+      }
+      return collection([]);
+    });
+    const hits = await provider.searchDevices('ada@contoso.com');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC001', 'CONTOSO-LT042']);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('findet Geräte über den Anzeigenamen clientseitig, wenn kein Gerätename passt', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ userDisplayName: 'Ada Admin' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', userDisplayName: 'Bob Builder' }),
+      ]);
+    });
+    const hits = await provider.searchDevices('ada');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC001']);
+    expect(calls.map((c) => c.parsed.searchParams.get('$filter'))).toEqual([
+      "deviceName eq 'ada'",
+      "contains(deviceName,'ada')",
+      null,
+    ]);
+  });
+
   it('liefert für leere Eingabe eine leere Liste ohne Request', async () => {
     const { provider, calls } = setup();
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);
@@ -360,6 +397,137 @@ describe('GraphProvider – Sections', () => {
   });
 });
 
+describe('GraphProvider – App-Installationsstatus (beta)', () => {
+  const USER_ID = '00000000-0000-4000-d000-000000000001';
+  const detail = (
+    applicationId: string,
+    installState: string,
+    mobileAppIntent = 'requiredInstall',
+  ) => ({
+    applicationId,
+    displayName: `App ${applicationId}`,
+    mobileAppIntent,
+    displayVersion: '1.0',
+    installState,
+  });
+
+  it('liest per GET aus /beta/users/{userId}/mobileAppIntentAndStates und filtert auf das Gerät', async () => {
+    const { provider, calls } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ID.toUpperCase(),
+          userId: USER_ID,
+          mobileAppList: [
+            detail('A1', 'installed'),
+            detail('A2', 'failed'),
+            detail('A2', 'failed'),
+          ],
+        },
+        {
+          id: 'b',
+          managedDeviceIdentifier: 'anderes-geraet',
+          userId: USER_ID,
+          mobileAppList: [detail('X9', 'failed')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data.map((a) => [a.appId, a.installState])).toEqual([
+      ['A1', 'installed'],
+      ['A2', 'failed'],
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method ?? 'GET').toBe('GET');
+    expect(calls[0]!.url).toBe(
+      `https://graph.microsoft.com/beta/users/${USER_ID}/mobileAppIntentAndStates`,
+    );
+    expect(result.source.label).toBe(Endpoints.mobileAppIntentAndStates.display);
+  });
+
+  it('ordnet Einträge auch über die Entra-Geräte-ID zu', async () => {
+    const { provider } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ENTRA_ID,
+          userId: USER_ID,
+          mobileAppList: [detail('A1', 'installed')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data.map((a) => a.appId)).toEqual(['A1']);
+  });
+
+  it('keine Einträge → unavailable (appsNoEntries) statt „keine Apps“', async () => {
+    const { provider } = setup(() => collection([]));
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.appsNoEntries);
+  });
+
+  it('nur Einträge anderer Geräte → unavailable mit Anzahl und Log', async () => {
+    const { provider, log } = setup(() =>
+      collection([
+        { id: 'b', managedDeviceIdentifier: 'x', userId: USER_ID, mobileAppList: [] },
+        { id: 'c', managedDeviceIdentifier: 'y', userId: USER_ID, mobileAppList: [] },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.appsDeviceNotListed(2));
+    expect(log).toHaveBeenCalledTimes(1);
+  });
+
+  it('ohne primären Benutzer → notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(result.reason).toBe(de.reasons.appsNoPrimaryUser);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('unbekannte Enum-Werte werden zu unknown bzw. null', async () => {
+    const { provider } = setup(() =>
+      collection([
+        {
+          id: 'a',
+          managedDeviceIdentifier: PC001_ID,
+          userId: USER_ID,
+          mobileAppList: [detail('A1', 'brandNew', 'somethingElse')],
+        },
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'ok',
+    );
+    expect(result.data[0]).toMatchObject({ installState: 'unknown', intent: null });
+  });
+
+  it('403 → forbidden mit Scope aus der Endpoint-Definition', async () => {
+    const { provider } = setup(() => graphError(403, 'Forbidden'));
+    const result = expectStatus(
+      await provider.getAppInstallStates(windowsDevice({ userId: USER_ID })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe(Endpoints.mobileAppIntentAndStates.scope);
+  });
+});
+
 describe('GraphProvider – App-Namen', () => {
   const A = '11111111-1111-1111-1111-111111111111';
   const B = '22222222-2222-2222-2222-222222222222';
@@ -392,5 +560,87 @@ describe('GraphProvider – App-Namen', () => {
     const { provider, calls } = setup();
     expectStatus(await provider.getMobileApps([]), 'ok');
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('GraphProvider – Apple-MDM-Push-Zertifikat', () => {
+  const CERT_URL =
+    'https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate';
+
+  it('ruft für macOS per GET mit $select ohne appleIdentifier/certificate ab', async () => {
+    const { provider, calls } = setup();
+    const mac = await provider.getDevice(MAC07_ID);
+    const before = calls.length;
+    const result = expectStatus(await provider.getApplePushCertificate(mac), 'ok');
+    expect(result.data).toEqual({
+      expirationDateTime: '2027-05-03T12:00:00Z',
+      lastModifiedDateTime: '2026-05-03T12:00:00Z',
+    });
+    expect(calls).toHaveLength(before + 1);
+    const call = calls[calls.length - 1]!;
+    expect(call.method ?? 'GET').toBe('GET');
+    expect(call.parsed.origin + call.parsed.pathname).toBe(CERT_URL);
+    expect(call.parsed.searchParams.get('$select')).toBe('expirationDateTime,lastModifiedDateTime');
+    expect(call.url).not.toMatch(/appleIdentifier|certificate(?!.*DateTime)/);
+    expect(result.source.label).toBe(Endpoints.applePushNotificationCertificate.display);
+  });
+
+  it('akzeptiert auch die in `value` verpackte Antwort (Doku-Beispiel)', async () => {
+    const { provider } = setup(() =>
+      jsonResponse({
+        value: {
+          id: 'x',
+          expirationDateTime: '2027-01-02T00:00:00Z',
+          lastModifiedDateTime: '2026-01-02T00:00:00Z',
+        },
+      }),
+    );
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'ios' })),
+      'ok',
+    );
+    expect(result.data.expirationDateTime).toBe('2027-01-02T00:00:00Z');
+  });
+
+  it('Windows/Android: notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    for (const osFamily of ['windows', 'android', 'linux', 'other'] as const) {
+      const result = expectStatus(
+        await provider.getApplePushCertificate(windowsDevice({ osFamily })),
+        'notApplicable',
+      );
+      expect(result.reason).toBe(de.reasons.applePushNotApple);
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit requiredScope DeviceManagementServiceConfig.Read.All', async () => {
+    const { provider } = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'macos' })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe('DeviceManagementServiceConfig.Read.All');
+    expect(result.source.label).toBe(Endpoints.applePushNotificationCertificate.display);
+  });
+
+  it('404 → unavailable (kein Zertifikat hinterlegt)', async () => {
+    const { provider } = setup(() => graphError(404, 'ResourceNotFound'));
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'ios' })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.applePushNotReported);
+  });
+
+  it('Ablaufdatum fehlt/ungültig → ok mit null', async () => {
+    const { provider } = setup(() =>
+      jsonResponse({ id: 'x', expirationDateTime: '0001-01-01T00:00:00Z' }),
+    );
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'macos' })),
+      'ok',
+    );
+    expect(result.data).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
   });
 });

@@ -1,5 +1,7 @@
 /** Alle Demo-Szenarien (fiktiv, Contoso). Reihenfolge = Reihenfolge der Beispiel-Chips. */
 import type { MockScenario } from '../types';
+import { and21Android } from './and21-android';
+import { ip015Ios } from './ip015-ios';
 import { lt108Win10 } from './lt108-win10';
 import { mac07Macos } from './mac07-macos';
 import { pc001Healthy } from './pc001-healthy';
@@ -17,5 +19,7 @@ export const scenarios: MockScenario[] = [
   pc042PolicyConflict,
   lt108Win10,
   mac07Macos,
+  ip015Ios,
+  and21Android,
   pc050Forbidden,
 ];

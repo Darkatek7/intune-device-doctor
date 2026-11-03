@@ -65,6 +65,14 @@ export const deRules = {
     lastReported: 'Zuletzt gemeldet',
     profiles: 'Konfigurationsprofile',
     compliancePolicies: 'Compliance-Richtlinien',
+    mdmCertificate: 'MDM-Zertifikat gültig bis',
+    apnsCertificate: 'Apple-MDM-Push-Zertifikat gültig bis',
+    supervised: 'Beaufsichtigt (supervised)',
+    enrollmentProfile: 'Enrollment-Profil',
+    securityPatch: 'Sicherheitspatch',
+    appsAssigned: 'Zugewiesene Apps',
+    appsInstalled: 'Installiert',
+    appsFailed: 'Fehlgeschlagen',
     yes: 'Ja',
     no: 'Nein',
     on: 'An',
@@ -137,6 +145,37 @@ export const deRules = {
       'Gerät mit dem Nutzer klären und Zugriff auf Unternehmensdaten sperren (Compliance-Einstellung „Gejailbreakte Geräte blockieren“).',
       'Gerät auf Werkszustand zurücksetzen lassen und neu registrieren.',
     ],
+    valueCertExpired: 'MDM-Zertifikat abgelaufen',
+    valueCertExpiring: 'MDM-Zertifikat läuft ab',
+    certExpiredTitle: 'MDM-Gerätezertifikat abgelaufen',
+    certExpiringTitle: (relative: string) => `MDM-Gerätezertifikat läuft ${relative} ab`,
+    certDetail: (date: string) => `managementCertificateExpirationDate: ${date}.`,
+    certCause:
+      'Das MDM-Zertifikat gilt ein Jahr ab Registrierung und wird jährlich automatisch erneuert. Checkt das Gerät vor Ablauf nicht ein, kann es danach nicht mehr beim Dienst einchecken; 180 Tage nach Ablauf wird es automatisch entfernt.',
+    certRemediation: [
+      'Gerät vor Ablauf einschalten, mit dem Internet verbinden und synchronisieren lassen, damit es eincheckt.',
+      'Ist das Zertifikat bereits abgelaufen, kann das Gerät nicht mehr einchecken – Vorgehen mit dem Gerätenutzer klären.',
+    ],
+    valueApnsExpired: 'Apple-Push-Zertifikat abgelaufen',
+    valueApnsExpiring: 'Apple-Push-Zertifikat läuft ab',
+    apnsExpiredTitle: 'Apple-MDM-Push-Zertifikat des Mandanten abgelaufen',
+    apnsExpiringTitle: (relative: string) =>
+      `Apple-MDM-Push-Zertifikat des Mandanten läuft ${relative} ab`,
+    apnsDetail: (date: string) => `applePushNotificationCertificate.expirationDateTime: ${date}.`,
+    apnsCause:
+      'Das Apple-MDM-Push-Zertifikat ist 365 Tage gültig und muss jährlich erneuert werden, damit iOS/iPadOS- und macOS-Geräte verwaltet werden können. Nach Ablauf bleibt eine Kulanzfrist von 30 Tagen für die Erneuerung.',
+    apnsRemediation: [
+      'Im Intune Admin Center unter Geräte › Geräteonboarding › Registrierung › Apple › „Apple MDM Push Certificate“ das Zertifikat erneuern.',
+      'Mit derselben Apple-ID erneuern, mit der es erstellt wurde – im Apple Push Certificates Portal beim vorhandenen Zertifikat „Renew“ wählen.',
+    ],
+    notSupervisedTitle: 'iOS/iPadOS-Gerät ist nicht beaufsichtigt',
+    notSupervisedDetail: 'isSupervised: false.',
+    notSupervisedCause:
+      'Beaufsichtigung (supervised mode) gibt mehr Verwaltungsoptionen; bestimmte Einschränkungen, z. B. für AirDrop, setzen sie voraus. Intune aktiviert sie über die automatische Geräteregistrierung (ADE).',
+    notSupervisedRemediation: [
+      'Prüfen, ob das Gerät firmeneigen ist und über ADE registriert werden sollte.',
+      'Nachträglich lässt sich Beaufsichtigung nur über Apple Configurator aktivieren (setzt das Gerät zurück).',
+    ],
     lowStorageTitle: 'Wenig freier Speicherplatz',
     lowStorageDetail: (free: string, total: string, percent: string) =>
       `Frei: ${free} von ${total} (${percent}).`,
@@ -157,10 +196,12 @@ export const deRules = {
       configManager: 'Über Configuration Manager',
       unknown: 'Unbekannt',
     } as Record<string, string>,
-    summaryPolicies: (bad: number, total: number) =>
+    summaryPolicies: (bad: number, total: number, stale = false) =>
       bad === 0
         ? `${total} ${total === 1 ? 'Richtlinie' : 'Richtlinien'} · alle konform`
-        : `${bad} von ${total} Richtlinien nicht konform`,
+        : stale
+          ? `${bad} von ${total} Richtlinien mit abweichendem Status`
+          : `${bad} von ${total} Richtlinien nicht konform`,
     summaryGrace: (date: string) => `Schonfrist bis ${date}`,
     summaryNoPolicies: 'Keine Compliance-Richtlinie gemeldet',
     stateTitle: {
@@ -223,8 +264,8 @@ export const deRules = {
     staleDetail: (date: string, days: number) =>
       `lastSyncDateTime: ${date} – seit ${days} ${days === 1 ? 'Tag' : 'Tagen'} keine Verbindung zu Intune.`,
     warnTitle: (relative: string) => `Check-in verzögert (${relative})`,
-    warnDetail: (date: string) =>
-      `lastSyncDateTime: ${date} – länger als 24 Stunden ohne Check-in.`,
+    warnDetail: (date: string, days: number) =>
+      `lastSyncDateTime: ${date} – seit ${days} Tagen kein Check-in (mehr als 7 Tage).`,
     neverTitle: 'Kein Check-in gemeldet',
     neverDetail: 'Für das Gerät ist kein lastSyncDateTime vorhanden.',
     cause:
@@ -245,6 +286,16 @@ export const deRules = {
     summaryEnded: 'Keine Updates mehr',
     summaryBuild: (build: string) => `Build ${build}`,
     summaryNotEvaluated: 'Supportstatus nur für Windows hinterlegt',
+    summaryPatch: (date: string) => `Sicherheitspatch ${date}`,
+    patchOldTitle: (days: number) => `Android-Sicherheitspatch ist ${days} Tage alt`,
+    patchOldDetail: (level: string, limit: number) =>
+      `androidSecurityPatchLevel: ${level} – älter als ${limit} Tage.`,
+    patchOldCause:
+      'Android-Geräte können monatliche Sicherheitspatches erhalten; die Auslieferung hängt von Hersteller bzw. Mobilfunkanbieter ab. Über die Compliance-Einstellung „Mindest-Sicherheitspatchlevel“ kann Intune Geräte mit älterem Patchstand als nicht konform markieren.',
+    patchOldRemediation: [
+      'Am Gerät nach verfügbaren Systemupdates suchen und sie installieren.',
+      'Prüfen, ob Hersteller bzw. Mobilfunkanbieter für das Modell noch Sicherheitspatches ausliefern.',
+    ],
     win10Title: 'Windows 10 – Support beendet',
     win10Detail: (build: string) =>
       `Das Gerät läuft mit Windows 10 22H2 (Build ${build}). Windows 10 hat am 14.10.2025 das Supportende erreicht.`,
@@ -468,6 +519,68 @@ export const deRules = {
         'S-Modus-Signaturen auf Nicht-S-Modus-Installation',
     } as Record<string, string>,
   },
+  apps: {
+    valueOk: 'Alle installiert',
+    valueNone: 'Keine zugewiesen',
+    valueFailed: (n: number) => `${n} fehlgeschlagen`,
+    valueMissing: (n: number) => `${n} nicht installiert`,
+    summary: (installed: number, required: number, available: number) =>
+      [
+        required > 0 ? `${installed} von ${required} Pflicht-Apps installiert` : null,
+        available > 0 ? `${available} verfügbar` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'Keine Pflicht-Apps zugewiesen',
+    failedTitle: (name: string) => `App „${name}“: Installation fehlgeschlagen`,
+    uninstallFailedTitle: (name: string) => `App „${name}“: Deinstallation fehlgeschlagen`,
+    missingTitle: (name: string) => `Pflicht-App „${name}“ nicht installiert`,
+    pendingTitle: (name: string) => `App „${name}“: Installation ausstehend`,
+    detail: (state: string, intent: string, version: string | null) =>
+      `Installationsstatus ${state}, Zuweisung ${intent}${version ? `, Version ${version}` : ''}.`,
+    failedCause:
+      'Intune meldet für diese App auf dem Gerät „fehlgeschlagen“. Den Fehlercode liefert diese Schnittstelle nicht; er steht im Intune Admin Center unter „Managed Apps“ des Geräts.',
+    uninstallFailedCause:
+      'Die App ist zur Deinstallation zugewiesen, die Deinstallation auf dem Gerät ist aber fehlgeschlagen.',
+    missingCause:
+      'Die App ist als erforderlich zugewiesen, laut Intune aber nicht auf dem Gerät installiert.',
+    pendingCause:
+      'Die Installation ist angestoßen, aber noch nicht abgeschlossen – z. B. weil das Gerät noch nicht eingecheckt hat oder die Installation auf die Anmeldung des Benutzers wartet.',
+    remediation: [
+      'Im Intune Admin Center unter „Problembehandlung und Support“ den Benutzer und das Gerät wählen und unter „Managed Apps“ die Installationsdetails der App mit Fehlercode ansehen.',
+      'Für eine erforderliche App das Gerät synchronisieren lassen; Intune versucht die Installation dann erneut.',
+      'Für Win32-Apps zusätzlich das DiagLogs-ZIP („Diagnosedaten sammeln“) hier analysieren – es enthält Fehlercode und Logs der Intune Management Extension.',
+    ],
+    pendingRemediation: [
+      'Gerät synchronisieren lassen und nach dem nächsten Check-in erneut prüfen.',
+    ],
+    betaTitle: 'Datenquelle: Microsoft Graph beta',
+    betaDetail:
+      'Der App-Status stammt aus der Beta-Schnittstelle mobileAppIntentAndStates (pro primärem Benutzer). Für v1.0 gibt es keinen gerätebezogenen App-Status.',
+    betaCause:
+      'Microsoft unterstützt Intune-Beta-APIs, sie können sich aber häufiger ändern. Apps anderer Benutzer des Geräts sind nicht enthalten.',
+    betaRemediation: [
+      'Bei Abweichungen den App-Status im Intune Admin Center unter „Problembehandlung und Support“ › Benutzer › Gerät › „Managed Apps“ prüfen.',
+    ],
+    intent: {
+      available: 'verfügbar',
+      notAvailable: 'nicht verfügbar',
+      requiredInstall: 'erforderlich',
+      requiredUninstall: 'Deinstallation erforderlich',
+      requiredAndAvailableInstall: 'erforderlich und verfügbar',
+      availableInstallWithoutEnrollment: 'verfügbar ohne Registrierung',
+      exclude: 'ausgeschlossen',
+    } as Record<string, string>,
+    state: {
+      installed: 'installiert',
+      failed: 'fehlgeschlagen',
+      notInstalled: 'nicht installiert',
+      uninstallFailed: 'Deinstallation fehlgeschlagen',
+      pendingInstall: 'ausstehend',
+      unknown: 'unbekannt',
+      notApplicable: 'nicht anwendbar',
+    } as Record<string, string>,
+    unknownIntent: 'unbekannt',
+  },
   policies: {
     valueOk: 'Alle angewendet',
     valueProblems: (n: number) => `${n} ${n === 1 ? 'Problem' : 'Probleme'}`,
@@ -501,6 +614,21 @@ export const deRules = {
       settings ? `Zustand ${state}. Betroffen: ${settings}.` : `Zustand ${state}.`,
     settingWithCode: (name: string, code: string) => `${name} (${code})`,
     errorCause: 'Das Gerät konnte mindestens eine Einstellung des Profils nicht anwenden.',
+    errorCauseCompliance:
+      'Mindestens eine Einstellung der Compliance-Richtlinie meldet „Fehler“. Der Status bleibt bis zu sieben Tage unverändert; danach wird das Gerät nicht konform bzw. in die Schonfrist gesetzt.',
+    errorRemediationCompliance: [
+      'Im Intune Admin Center unter Geräte › <Gerät> › Gerätekonformität die Richtlinie öffnen und die Einstellung mit Fehler prüfen.',
+      'Gerät synchronisieren lassen und den Status erneut prüfen.',
+    ],
+    staleTitle: (kind: string, name: string) => `${kind} „${name}“: Status weicht ab`,
+    staleDetail: (state: string) =>
+      `Graph meldet für diese Richtlinie den Zustand ${state}, der Gesamtstatus des Geräts (complianceState) ist aber „konform“.`,
+    staleCause:
+      'Der Richtlinienstatus pro Gerät (deviceCompliancePolicyStates) widerspricht dem Gesamtstatus des Geräts. Einen Grund für die Abweichung nennt die dokumentierte API nicht; das Intune Admin Center zeigt den Stand je Einstellung.',
+    staleRemediation: [
+      'Im Intune Admin Center unter Geräte › <Gerät> › Gerätekonformität die Richtlinie öffnen und den Status je Einstellung prüfen.',
+      'Sind dort alle Einstellungen konform, ist nichts zu tun – das Gerät gilt insgesamt als konform.',
+    ],
     conflictCause:
       'Mehrere Richtlinien setzen dieselbe Einstellung auf unterschiedliche Werte. Intune löst Konflikte zwischen Konfigurationsprofilen nicht automatisch auf; Compliance-Einstellungen haben Vorrang vor Konfigurationsprofilen.',
     conflictSources: (names: string) => `Beteiligte Richtlinien: ${names}.`,

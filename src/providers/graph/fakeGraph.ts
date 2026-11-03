@@ -66,6 +66,7 @@ export function createFakeFetch(handler: FakeHandler) {
 
 export const PC001_ID = '00000000-0000-4000-8000-000000000001';
 export const PC001_ENTRA_ID = '00000000-0000-4000-9000-000000000001';
+export const PC001_USER_ID = '00000000-0000-4000-d000-000000000001';
 export const MAC07_ID = '00000000-0000-4000-8000-000000000007';
 export const MAC07_ENTRA_ID = '00000000-0000-4000-9000-000000000007';
 
@@ -76,6 +77,7 @@ export function pc001Device(overrides: Partial<GraphManagedDevice> = {}): GraphM
   return {
     id: PC001_ID,
     deviceName: 'CONTOSO-PC001',
+    userId: PC001_USER_ID,
     userPrincipalName: 'anna.schmidt@contoso.com',
     userDisplayName: 'Anna Schmidt',
     operatingSystem: 'Windows',
@@ -95,6 +97,10 @@ export function pc001Device(overrides: Partial<GraphManagedDevice> = {}): GraphM
     partnerReportedThreatState: 'secured',
     freeStorageSpaceInBytes: 195_421_011_968,
     totalStorageSpaceInBytes: 511_101_108_224,
+    managementCertificateExpirationDate: new Date(Date.now() + 155 * 24 * HOUR).toISOString(),
+    isSupervised: false,
+    androidSecurityPatchLevel: '',
+    enrollmentProfileName: null,
     ...overrides,
   };
 }
@@ -271,6 +277,13 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         ]);
       }
       return collection(id === PC001_ENTRA_ID ? [pc001Entra()] : []);
+    }
+    if (path === '/v1.0/deviceManagement/applePushNotificationCertificate') {
+      return jsonResponse({
+        id: '00000000-0000-4000-8000-0000000000a1',
+        expirationDateTime: '2027-05-03T12:00:00Z',
+        lastModifiedDateTime: '2026-05-03T12:00:00Z',
+      });
     }
     if (path === '/v1.0/informationProtection/bitlocker/recoveryKeys') {
       const id = /^deviceId eq '(.*)'$/.exec(filter)?.[1];

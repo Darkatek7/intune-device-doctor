@@ -1,7 +1,8 @@
-/** CONTOSO-PC042 – Konfigurationskonflikt (SmartScreen), Profil mit errorCode, Compliance in Schonfrist. Erwartung: Richtlinien critical, Compliance warning. */
+/** CONTOSO-PC042 – Konfigurationskonflikt (SmartScreen), Profil mit errorCode, Compliance in Schonfrist. Erwartung: Richtlinien critical, Compliance warning, Apps critical (VPN-Client fehlgeschlagen). */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
+  appState,
   demoGuid,
   entraDevice,
   healthyConfigurationPolicies,
@@ -80,6 +81,23 @@ export const pc042PolicyConflict: MockScenario = {
       },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 42)] },
+      // Passend zum Beispiel-ZIP: VPN-Client fehlgeschlagen, Zeiterfassung installiert
+      appInstallStates: {
+        status: 'ok',
+        data: [
+          appState('00000000-0000-0000-0000-0000000000A1', 'Contoso Zeiterfassung 3.4', {
+            version: '3.4.0',
+          }),
+          appState('00000000-0000-0000-0000-0000000000A2', 'Contoso VPN Client 5.1', {
+            version: '5.1.2',
+            installState: 'failed',
+          }),
+          appState('00000000-0000-0000-0000-0000000000A4', 'Fabrikam PDF Studio 12', {
+            intent: 'available',
+            installState: 'notInstalled',
+          }),
+        ],
+      },
     };
   },
 };

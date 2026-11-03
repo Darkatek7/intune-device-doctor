@@ -1,7 +1,9 @@
 /**
- * Gerätestatus: Entra-Objekt (aktiviert/vorhanden), Mobile-Threat-Defense, Jailbreak, Speicher.
+ * Gerätestatus: Entra-Objekt (aktiviert/vorhanden), Mobile-Threat-Defense, Jailbreak, Speicher,
+ * MDM-Gerätezertifikat (Ablauf), – für iOS/iPadOS – Beaufsichtigung und – für macOS/iOS/iPadOS –
+ * das Apple-MDM-Push-Zertifikat des Mandanten (Ablauf).
  */
-import { formatBytes, formatDate, formatPercent } from '../../domain/format';
+import { formatBytes, formatDate, formatPercent, formatRelativeTime } from '../../domain/format';
 import type { DeviceSnapshot, Finding, Severity, Tile, TileFact } from '../../domain/types';
 import { de } from '../../i18n/de';
 import {
@@ -23,9 +25,15 @@ const f = de.rules.facts;
 const THREAT_CRITICAL = new Set(['highSeverity', 'compromised']);
 const THREAT_WARNING = new Set(['mediumSeverity']);
 
-export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile {
-  void _now;
-  const sections: Tile['sections'] = ['entraDevice'];
+const DAY = 86_400_000;
+
+const APPLE = new Set(['macos', 'ios']);
+
+export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile {
+  const apple = APPLE.has(snapshot.device.osFamily);
+  const sections: Tile['sections'] = apple
+    ? ['entraDevice', 'applePushCertificate']
+    : ['entraDevice'];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('deviceStatus', sections);
   const { device } = snapshot;
   const entra = snapshot.entraDevice!;
@@ -116,6 +124,82 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile
     values.push({ severity: 'critical', value: t.valueJailbroken });
   }
 
+  const certExpiry = device.managementCertificateExpirationDate;
+  if (certExpiry) {
+    facts.push({ label: f.mdmCertificate, value: formatDate(certExpiry) });
+    const daysLeft = (new Date(certExpiry).getTime() - now.getTime()) / DAY;
+    if (daysLeft <= THRESHOLDS.certificateWarningDays) {
+      const expired = daysLeft <= 0;
+      const severity: Severity = expired ? 'critical' : 'warning';
+      findings.push({
+        id: expired ? 'deviceStatus-certExpired' : 'deviceStatus-certExpiring',
+        severity,
+        title: expired
+          ? t.certExpiredTitle
+          : t.certExpiringTitle(formatRelativeTime(certExpiry, now)),
+        detail: t.certDetail(formatDate(certExpiry)),
+        cause: t.certCause,
+        remediation: [...t.certRemediation],
+        evidence: {
+          managementCertificateExpirationDate: certExpiry,
+          lastSyncDateTime: device.lastSyncDateTime,
+        },
+        source: device.source,
+        docsUrl: Docs.mdmCertificateLifetime,
+      });
+      values.push({ severity, value: expired ? t.valueCertExpired : t.valueCertExpiring });
+    }
+  }
+
+  if (device.osFamily === 'ios' && device.isSupervised !== null) {
+    facts.push({ label: f.supervised, value: device.isSupervised ? f.yes : f.no });
+    if (!device.isSupervised) {
+      findings.push({
+        id: 'deviceStatus-notSupervised',
+        severity: 'unknown',
+        title: t.notSupervisedTitle,
+        detail: t.notSupervisedDetail,
+        cause: t.notSupervisedCause,
+        remediation: [...t.notSupervisedRemediation],
+        evidence: { isSupervised: false, deviceEnrollmentType: device.deviceEnrollmentType },
+        source: device.source,
+        docsUrl: Docs.appleSupervisedMode,
+      });
+    }
+  }
+
+  const apns = apple ? snapshot.applePushCertificate : undefined;
+  if (apns?.status === 'ok') {
+    const expiry = apns.data.expirationDateTime;
+    if (expiry) {
+      facts.push({ label: f.apnsCertificate, value: formatDate(expiry) });
+      const daysLeft = (new Date(expiry).getTime() - now.getTime()) / DAY;
+      if (daysLeft <= THRESHOLDS.certificateWarningDays) {
+        const expired = daysLeft <= 0;
+        const severity: Severity = expired ? 'critical' : 'warning';
+        findings.push({
+          id: expired ? 'deviceStatus-apnsExpired' : 'deviceStatus-apnsExpiring',
+          severity,
+          title: expired
+            ? t.apnsExpiredTitle
+            : t.apnsExpiringTitle(formatRelativeTime(expiry, now)),
+          detail: t.apnsDetail(formatDate(expiry)),
+          cause: t.apnsCause,
+          remediation: [...t.apnsRemediation],
+          evidence: {
+            expirationDateTime: expiry,
+            lastModifiedDateTime: apns.data.lastModifiedDateTime,
+          },
+          source: apns.source,
+          docsUrl: Docs.appleMdmPushCertificate,
+        });
+        values.push({ severity, value: expired ? t.valueApnsExpired : t.valueApnsExpiring });
+      }
+    }
+  } else if (apns && apns.status !== 'notApplicable') {
+    findings.push(sectionIssueFinding('deviceStatus-apns', apns));
+  }
+
   const free = device.freeStorageSpaceInBytes;
   const total = device.totalStorageSpaceInBytes;
   if (free != null && total != null && total > 0) {
@@ -144,6 +228,8 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile
   facts.push({ label: f.enrollmentType, value: device.deviceEnrollmentType, mono: true });
   if (device.enrolledDateTime)
     facts.push({ label: f.enrolled, value: formatDate(device.enrolledDateTime) });
+  if (device.enrollmentProfileName)
+    facts.push({ label: f.enrollmentProfile, value: device.enrollmentProfileName });
   if (threat !== 'unknown') facts.push({ label: f.threatState, value: threat, mono: true });
 
   const severity = worstActionable(findings, entra.status === 'ok' ? 'ok' : 'unknown');
@@ -165,7 +251,11 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile
     value: primary ?? (entra.status === 'ok' ? t.valueActive : de.availability[entra.status]),
     summary: t.summary(summaryParts),
     findings: sortFindings(findings),
-    sources: uniqueSources([device.source, entra.source]),
+    sources: uniqueSources(
+      apns && apns.status !== 'notApplicable'
+        ? [device.source, entra.source, apns.source]
+        : [device.source, entra.source],
+    ),
     facts,
     availability: availabilityOf(entra),
     sections,

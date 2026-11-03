@@ -91,6 +91,8 @@ const SCENARIO_NAMES = [
   'CONTOSO-PC042',
   'CONTOSO-LT108',
   'CONTOSO-MAC07',
+  'CONTOSO-IP015',
+  'CONTOSO-AND21',
   'CONTOSO-PC050',
 ];
 
@@ -153,6 +155,14 @@ describe('MockProvider – Suche', () => {
     await expect(provider.searchDevices('CONTOSO-NIX')).resolves.toEqual([]);
   });
 
+  it('findet Geräte auch über UPN oder Anzeigenamen des Benutzers', async () => {
+    const provider = instantProvider();
+    const byName = await provider.searchDevices('Lukas Wagner');
+    expect(byName.map((d) => d.deviceName)).toEqual(['CONTOSO-LT108']);
+    const byUpn = await provider.searchDevices('lukas.wagner@contoso.com');
+    expect(byUpn.map((d) => d.deviceName)).toEqual(['CONTOSO-LT108']);
+  });
+
   it('liefert für leere oder nur aus Leerraum bestehende Suche ein leeres Array', async () => {
     await expect(provider.searchDevices('')).resolves.toEqual([]);
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);
@@ -208,7 +218,7 @@ describe('MockProvider – Suche', () => {
 describe('MockProvider – Geräte und Szenarien', () => {
   const provider = instantProvider();
 
-  it('enthält genau die 8 Szenarien aus der M1-Tabelle', () => {
+  it('enthält genau die 10 Szenarien (M1-Tabelle plus iOS/Android aus M8)', () => {
     expect(scenarios.map((s) => s.deviceName).sort()).toEqual([...SCENARIO_NAMES].sort());
   });
 
@@ -545,5 +555,38 @@ describe('MockProvider – App-Namen', () => {
     if (result.status !== 'ok') return;
     expect(result.data.map((app) => app.displayName)).toEqual(['Contoso VPN Client 5.1']);
     expect(result.source.kind).toBe('mock');
+  });
+});
+
+describe('MockProvider – Apple-MDM-Push-Zertifikat', () => {
+  const provider = new MockProvider({ latency: false, now: () => NOW });
+
+  it('Apple-Geräte: ok, nur Zeitstempel; MAC07 Ablauf in 200 Tagen, IP015 in 20 Tagen', async () => {
+    for (const [name, days] of [
+      ['CONTOSO-MAC07', 200],
+      ['CONTOSO-IP015', 20],
+    ] as const) {
+      const device = await loadDevice(provider, name);
+      const result = await provider.getApplePushCertificate(device);
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') continue;
+      expect(Object.keys(result.data).sort()).toEqual([
+        'expirationDateTime',
+        'lastModifiedDateTime',
+      ]);
+      expect(Date.parse(result.data.expirationDateTime!) - NOW.getTime()).toBe(days * DAY);
+      expect(result.source.label).toBe('GET /deviceManagement/applePushNotificationCertificate');
+    }
+  });
+
+  it('Windows/Android: notApplicable', async () => {
+    for (const name of ['CONTOSO-PC001', 'CONTOSO-AND21']) {
+      const device = await loadDevice(provider, name);
+      const result = await provider.getApplePushCertificate(device);
+      expect(result.status).toBe('notApplicable');
+      if (result.status === 'notApplicable') {
+        expect(result.reason).toBe(de.reasons.applePushNotApple);
+      }
+    }
   });
 });

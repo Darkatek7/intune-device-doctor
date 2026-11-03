@@ -5,19 +5,26 @@
  * READ-ONLY: Es gibt ausschließlich GET. Neue Endpunkte nur, wenn sie in
  * docs/graph-api-reference.md mit offiziellem Doku-Link stehen.
  */
-import { ENTRA_DEVICE_SELECT, MANAGED_DEVICE_LIST_SELECT, MOBILE_APP_SELECT } from './dto';
+import {
+  APPLE_PUSH_CERTIFICATE_SELECT,
+  ENTRA_DEVICE_SELECT,
+  MANAGED_DEVICE_LIST_SELECT,
+  MOBILE_APP_SELECT,
+} from './dto';
 import { GraphScope } from './scopes';
 
 export const GRAPH_ORIGIN = 'https://graph.microsoft.com';
 export const GRAPH_BASE_URL = `${GRAPH_ORIGIN}/v1.0`;
+/** Nur für ausdrücklich freigegebene, dokumentierte Beta-Endpunkte (CLAUDE.md, Regel 2). */
+export const GRAPH_BETA_URL = `${GRAPH_ORIGIN}/beta`;
 
 export interface GraphEndpointDef<TArgs extends unknown[]> {
   id: string;
   method: 'GET';
-  version: 'v1.0';
+  version: 'v1.0' | 'beta';
   scope: GraphScope;
   docsUrl: string;
-  /** Relativer Pfad inkl. Query, bereits korrekt encodiert. */
+  /** Relativer v1.0-Pfad bzw. absolute Beta-URL inkl. Query, bereits korrekt encodiert. */
   path: (...args: TArgs) => string;
   /** Lesbare Form für die UI ("GET /deviceManagement/managedDevices/{id}"). */
   display: string;
@@ -67,6 +74,21 @@ export const Endpoints = {
         $filter: `contains(deviceName,${odataString(fragment)})`,
         $select: MANAGED_DEVICE_LIST_SELECT.join(','),
         $top: '25',
+      }),
+  },
+  /** Geräte eines Benutzers: userPrincipalName unterstützt laut v1.0-Ressource $filter 'eq'/'ne'. */
+  managedDevicesByUser: {
+    id: 'managedDevicesByUser',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0#properties',
+    display: "GET /deviceManagement/managedDevices?$filter=userPrincipalName eq '…'",
+    path: (userPrincipalName: string) =>
+      withQuery('/deviceManagement/managedDevices', {
+        $filter: `userPrincipalName eq ${odataString(userPrincipalName)}`,
+        $select: MANAGED_DEVICE_LIST_SELECT.join(','),
       }),
   },
   /**
@@ -180,6 +202,38 @@ export const Endpoints = {
       withQuery('/informationProtection/bitlocker/recoveryKeys', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
       }),
+  },
+  /**
+   * Tenant-weites Apple-MDM-Push-Zertifikat (nur Ablauf/Änderung). Bewusst KEIN appleIdentifier
+   * (Apple-ID ist personenbezogen) und kein certificate. Erfordert Admin-Consent für
+   * DeviceManagementServiceConfig.Read.All.
+   */
+  applePushNotificationCertificate: {
+    id: 'applePushNotificationCertificate',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-applepushnotificationcertificate-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/applePushNotificationCertificate',
+    path: () =>
+      withQuery('/deviceManagement/applePushNotificationCertificate', {
+        $select: APPLE_PUSH_CERTIFICATE_SELECT.join(','),
+      }),
+  },
+  /**
+   * BETA (freigegebene Ausnahme, CLAUDE.md Regel 2): App-Absicht und Installationsstatus aller
+   * Geräte eines Benutzers. Es gibt keinen v1.0-GET für den App-Status pro Gerät.
+   */
+  mobileAppIntentAndStates: {
+    id: 'mobileAppIntentAndStates',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta',
+    display: 'GET /beta/users/{userId}/mobileAppIntentAndStates',
+    path: (userId: string) => `${GRAPH_BETA_URL}/users/${enc(userId)}/mobileAppIntentAndStates`,
   },
 } satisfies Record<string, GraphEndpointDef<[string]>>;
 

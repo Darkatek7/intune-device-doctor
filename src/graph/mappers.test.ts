@@ -10,6 +10,7 @@ import {
 import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
 import {
   graphSource,
+  mapApplePushCertificate,
   mapBitlockerKey,
   mapDetectedMalware,
   mapEntraDevice,
@@ -45,6 +46,14 @@ describe('mapManagedDevice', () => {
     expect(mapManagedDevice(pc001Device({ operatingSystem: 'macOS' })).osFamily).toBe('macos');
     expect(mapManagedDevice(pc001Device({ operatingSystem: 'iOS' })).osFamily).toBe('ios');
     expect(mapManagedDevice(pc001Device({ operatingSystem: 'Android' })).osFamily).toBe('android');
+  });
+
+  it('userId: Null-GUID und leere Werte (Geräte ohne Benutzer) werden zu null', () => {
+    expect(
+      mapManagedDevice(pc001Device({ userId: '00000000-0000-0000-0000-000000000000' })).userId,
+    ).toBeNull();
+    expect(mapManagedDevice(pc001Device({ userId: '' })).userId).toBeNull();
+    expect(mapManagedDevice(pc001Device()).userId).toBe(pc001Device().userId);
   });
 
   it('ist null-sicher und mappt unbekannte Enum-Werte auf unknown', () => {
@@ -269,5 +278,176 @@ describe('BitLocker volumeType', () => {
     expect(Object.keys(info).sort()).toEqual(['createdDateTime', 'id', 'volumeType']);
     expect(info.volumeType).toBe('operatingSystemVolume');
     expect(JSON.stringify(info)).not.toContain('SECRET');
+  });
+});
+
+describe('mapManagedDevice – Zertifikat, Beaufsichtigung, Android-Patch, Enrollment-Profil', () => {
+  /** Graph-DTO ohne das angegebene Feld (Graph lässt Felder je nach $select weg). */
+  const withoutField = (key: keyof GraphManagedDevice): GraphManagedDevice => {
+    const dto: Partial<GraphManagedDevice> = pc001Device();
+    delete dto[key];
+    return dto as GraphManagedDevice;
+  };
+
+  describe('managementCertificateExpirationDate (validDate)', () => {
+    it('gültiges Datum bleibt unverändert erhalten', () => {
+      const value = '2027-01-15T08:00:00Z';
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBe(value);
+    });
+
+    it('Jahr 2000 ist die untere Grenze und bleibt erhalten', () => {
+      const value = '2000-01-01T00:00:00Z';
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBe(value);
+    });
+
+    it.each([
+      ['Graph-Platzhalter „nicht gesetzt“ 0001-01-01', '0001-01-01T00:00:00Z'],
+      ['Jahr 1999 (kurz vor der Grenze)', '1999-12-31T23:59:59Z'],
+      ['ungültiger Text', 'kein-datum'],
+      ['leerer String', ''],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('managementCertificateExpirationDate'))
+          .managementCertificateExpirationDate,
+      ).toBeNull();
+    });
+  });
+
+  describe('isSupervised (bool)', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+      ['null', null],
+    ] as const)('%s wird übernommen', (_label, value) => {
+      expect(mapManagedDevice(pc001Device({ isSupervised: value })).isSupervised).toBe(value);
+    });
+
+    it('nur echte Booleans gelten: Text "true" und Zahl 1 werden zu null', () => {
+      expect(
+        mapManagedDevice(pc001Device({ isSupervised: 'true' as never })).isSupervised,
+      ).toBeNull();
+      expect(mapManagedDevice(pc001Device({ isSupervised: 1 as never })).isSupervised).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(mapManagedDevice(withoutField('isSupervised')).isSupervised).toBeNull();
+    });
+  });
+
+  describe('androidSecurityPatchLevel', () => {
+    it('Datum wird übernommen und getrimmt', () => {
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: '2026-09-01' }))
+          .androidSecurityPatchLevel,
+      ).toBe('2026-09-01');
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: '  2026-09-01 ' }))
+          .androidSecurityPatchLevel,
+      ).toBe('2026-09-01');
+    });
+
+    it.each([
+      ['leerer String', ''],
+      ['nur Leerzeichen', '   '],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: value }))
+          .androidSecurityPatchLevel,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('androidSecurityPatchLevel')).androidSecurityPatchLevel,
+      ).toBeNull();
+    });
+  });
+
+  describe('enrollmentProfileName', () => {
+    it('Name wird übernommen und getrimmt', () => {
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: 'Contoso Autopilot' }))
+          .enrollmentProfileName,
+      ).toBe('Contoso Autopilot');
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: '  Contoso Autopilot  ' }))
+          .enrollmentProfileName,
+      ).toBe('Contoso Autopilot');
+    });
+
+    it.each([
+      ['leerer String', ''],
+      ['nur Leerzeichen', '   '],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: value })).enrollmentProfileName,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('enrollmentProfileName')).enrollmentProfileName,
+      ).toBeNull();
+    });
+  });
+});
+
+describe('mapApplePushCertificate', () => {
+  const dto = {
+    id: 'c1',
+    expirationDateTime: '2027-05-03T12:00:00Z',
+    lastModifiedDateTime: '2026-05-03T12:00:00Z',
+  };
+  const expected = {
+    expirationDateTime: '2027-05-03T12:00:00Z',
+    lastModifiedDateTime: '2026-05-03T12:00:00Z',
+  };
+
+  it('akzeptiert das Objekt direkt und unter `value`', () => {
+    expect(mapApplePushCertificate(dto)).toEqual(expected);
+    expect(mapApplePushCertificate({ value: dto })).toEqual(expected);
+  });
+
+  it('gibt nur die Zeitstempel zurück (keine Apple-ID, kein Zertifikat)', () => {
+    const mapped = mapApplePushCertificate({
+      ...dto,
+      appleIdentifier: 'admin@contoso.com',
+      certificate: 'AAAA',
+    } as never);
+    expect(Object.keys(mapped).sort()).toEqual(['expirationDateTime', 'lastModifiedDateTime']);
+  });
+
+  it('ungültige Daten und Jahr < 2000 → null', () => {
+    expect(
+      mapApplePushCertificate({
+        id: 'c',
+        expirationDateTime: '0001-01-01T00:00:00Z',
+        lastModifiedDateTime: 'kein-datum',
+      }),
+    ).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
+    expect(mapApplePushCertificate({ value: { expirationDateTime: 42 as never } })).toEqual({
+      expirationDateTime: null,
+      lastModifiedDateTime: null,
+    });
+    expect(mapApplePushCertificate(null)).toEqual({
+      expirationDateTime: null,
+      lastModifiedDateTime: null,
+    });
   });
 });

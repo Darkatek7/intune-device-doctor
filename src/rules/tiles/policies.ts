@@ -15,6 +15,7 @@ import type {
 } from '../../domain/types';
 import { de } from '../../i18n/de';
 import {
+  isPolicyStateContradicted,
   loadingTile,
   sectionIssueFinding,
   sectionsLoaded,
@@ -56,7 +57,12 @@ export function evaluatePolicies(snapshot: DeviceSnapshot, _now: Date): Tile {
     }
     for (const policy of section.data) {
       const severity = STATE_SEVERITY[policy.state];
-      if (severity) findings.push(policyFinding(policy, severity, section.source));
+      if (!severity) continue;
+      findings.push(
+        isPolicyStateContradicted(snapshot, policy)
+          ? contradictedFinding(policy, section.source)
+          : policyFinding(policy, severity, section.source),
+      );
     }
   }
 
@@ -175,9 +181,12 @@ function policyFinding(policy: PolicyStateInfo, severity: Severity, source: Data
       : policy.state === 'conflict'
         ? t.conflictTitle(kind, policy.displayName)
         : t.nonCompliantTitle(kind, policy.displayName);
+  const isCompliance = policy.kind === 'compliance';
   const baseCause =
     policy.state === 'error'
-      ? t.errorCause
+      ? isCompliance
+        ? t.errorCauseCompliance
+        : t.errorCause
       : policy.state === 'conflict'
         ? t.conflictCause
         : t.nonCompliantCause;
@@ -190,7 +199,7 @@ function policyFinding(policy: PolicyStateInfo, severity: Severity, source: Data
     .join(' ');
   const baseRemediation =
     policy.state === 'error'
-      ? [...t.errorRemediation]
+      ? [...(isCompliance ? t.errorRemediationCompliance : t.errorRemediation)]
       : policy.state === 'conflict'
         ? [...t.conflictRemediation]
         : [...t.nonCompliantRemediation];
@@ -238,8 +247,34 @@ function policyFinding(policy: PolicyStateInfo, severity: Severity, source: Data
       knowledge?.docsUrl ??
       (policy.state === 'conflict'
         ? Docs.policyConflicts
-        : policy.kind === 'compliance'
-          ? Docs.complianceMonitor
+        : isCompliance
+          ? policy.state === 'error'
+            ? Docs.complianceErrorState
+            : Docs.complianceMonitor
           : Docs.intuneCommonErrors),
+  };
+}
+
+/** Richtlinienstatus widerspricht dem konformen Gesamtstatus → Hinweis statt Problem. */
+export function contradictedFinding(policy: PolicyStateInfo, source: DataSource): Finding {
+  const kind = policy.kind === 'configuration' ? t.kindProfile : t.kindCompliance;
+  return {
+    id: `policies-${policy.kind}-${policy.id}`,
+    severity: 'unknown',
+    title: t.staleTitle(kind, policy.displayName),
+    detail: t.staleDetail(t.stateLabel[policy.state] ?? policy.state),
+    cause: t.staleCause,
+    remediation: [...t.staleRemediation],
+    evidence: {
+      policyId: policy.id,
+      kind: policy.kind,
+      state: policy.state,
+      deviceComplianceState: 'compliant',
+      version: policy.version,
+      platformType: policy.platformType,
+      settingsReported: policy.settings.length,
+    },
+    source,
+    docsUrl: Docs.complianceMonitor,
   };
 }

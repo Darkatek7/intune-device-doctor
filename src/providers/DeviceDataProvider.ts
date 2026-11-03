@@ -10,7 +10,9 @@
  */
 import type {
   AppError,
+  ApplePushCertificateInfo,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   DataMode,
   DeviceSearchResult,
@@ -57,6 +59,21 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<BitLockerKeyInfo[]>>;
+
+  /** App-Absicht + Installationsstatus der Apps auf diesem Gerät (pro primärem Benutzer). */
+  getAppInstallStates(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AppInstallStateInfo[]>>;
+
+  /**
+   * Tenant-weites Apple-MDM-Push-Zertifikat (Ablauf). Nur für macOS/iOS/iPadOS; sonst
+   * notApplicable ohne Request.
+   */
+  getApplePushCertificate(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<ApplePushCertificateInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

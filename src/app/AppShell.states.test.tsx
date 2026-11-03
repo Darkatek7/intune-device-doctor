@@ -72,7 +72,7 @@ describe('Drosselung', () => {
     const user = userEvent.setup();
     renderApp({ provider: liveMockProvider(), liveAvailable: true });
     await search(user, 'CONTOSO-PC001');
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(8));
     expect(screen.queryByTestId('throttle-notice')).not.toBeInTheDocument();
   });
 });
@@ -126,7 +126,7 @@ describe('Ticket-Notiz im Geräte-Header', () => {
     const user = userEvent.setup();
     renderApp();
     await search(user, 'CONTOSO-PC042');
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(8));
     const meta = screen.getByRole('heading', { level: 1 }).parentElement!.querySelector('p')!;
     expect(meta.textContent).toMatch(/Windows 11 \d\dH\d/);
     expect(meta.textContent).not.toContain('10.0.22631');

@@ -8,6 +8,7 @@ import type { IPublicClientApplication } from '@azure/msal-browser';
 import { LogOut } from 'lucide-react';
 import { isLiveConfigured } from '../config';
 import { de } from '../i18n/de';
+import { describeAuthError } from './describeAuthError';
 import { getMsalInstance } from './msalConfig';
 import { signIn, signOut } from './token';
 import { useMsalAccount } from './useMsalAccount';
@@ -40,7 +41,7 @@ function ConfiguredGate({
 }: AuthGateProps & { instance: IPublicClientApplication }) {
   const auth = useMsalAccount(instance);
   const [redirecting, setRedirecting] = useState(false);
-  const [signInError, setSignInError] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   if (auth.status === 'signedIn') return <>{children}</>;
 
@@ -56,10 +57,10 @@ function ConfiguredGate({
 
   const startSignIn = () => {
     setRedirecting(true);
-    setSignInError(false);
-    signIn(instance).catch(() => {
+    setSignInError(null);
+    signIn(instance).catch((error: unknown) => {
       setRedirecting(false);
-      setSignInError(true);
+      setSignInError(describeAuthError(error));
     });
   };
 
@@ -67,10 +68,15 @@ function ConfiguredGate({
     <Centered>
       <h1 className="text-title font-semibold">{de.auth.title}</h1>
       <p className="text-sm text-secondary-label">{de.auth.description}</p>
-      {(auth.status === 'error' || signInError) && (
-        <p role="alert" className="text-sm text-critical">
-          {de.auth.failed}
-        </p>
+      {(auth.status === 'error' || signInError !== null) && (
+        <div role="alert" className="space-y-1 text-sm">
+          <p className="text-critical">{de.auth.failed}</p>
+          {(signInError || (auth.status === 'error' && auth.message)) && (
+            <p className="break-words font-mono text-xs text-secondary-label">
+              {signInError || (auth.status === 'error' ? auth.message : '')}
+            </p>
+          )}
+        </div>
       )}
       <button
         type="button"

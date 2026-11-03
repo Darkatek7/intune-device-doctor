@@ -8,8 +8,8 @@ import { TILE_ORDER, evaluateTiles, sortTiles, summarize } from './evaluate';
 const NOW = new Date('2026-10-15T12:00:00Z');
 const LEARN_URL = /^https:\/\/learn\.microsoft\.com\//;
 
-/** Die sieben Kacheln ohne DiagLogs-ZIP, in Standardreihenfolge. */
-const BASE_TILES: TileId[] = TILE_ORDER.slice(0, 7);
+/** Die acht Kacheln ohne DiagLogs-ZIP, in Standardreihenfolge. */
+const BASE_TILES: TileId[] = TILE_ORDER.slice(0, 8);
 
 /** Erwartete Severity je Mock-Szenario. Nicht genannte Kacheln müssen 'ok' sein. */
 const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
@@ -22,9 +22,16 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     defender: 'warning',
     policies: 'warning',
   },
-  'CONTOSO-PC042': { policies: 'critical', compliance: 'warning', osVersion: 'warning' },
+  'CONTOSO-PC042': {
+    policies: 'critical',
+    compliance: 'warning',
+    osVersion: 'warning',
+    apps: 'critical',
+  },
   'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
+  'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
+  'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
   'CONTOSO-PC050': { policies: 'unknown' },
 };
 
@@ -34,14 +41,23 @@ async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<Device
   const [hit] = await provider.searchDevices(deviceName);
   if (!hit || hit.deviceName !== deviceName) throw new Error(`Szenario ${deviceName} fehlt`);
   const device = await provider.getDevice(hit.id);
-  const [protection, compliancePolicies, configurationPolicies, entraDevice, bitlockerKeys] =
-    await Promise.all([
-      provider.getProtectionState(device),
-      provider.getCompliancePolicyStates(device),
-      provider.getConfigurationPolicyStates(device),
-      provider.getEntraDevice(device),
-      provider.getBitLockerKeys(device),
-    ]);
+  const [
+    protection,
+    compliancePolicies,
+    configurationPolicies,
+    entraDevice,
+    bitlockerKeys,
+    appInstallStates,
+    applePushCertificate,
+  ] = await Promise.all([
+    provider.getProtectionState(device),
+    provider.getCompliancePolicyStates(device),
+    provider.getConfigurationPolicyStates(device),
+    provider.getEntraDevice(device),
+    provider.getBitLockerKeys(device),
+    provider.getAppInstallStates(device),
+    provider.getApplePushCertificate(device),
+  ]);
   return {
     device,
     protection,
@@ -49,6 +65,8 @@ async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<Device
     configurationPolicies,
     entraDevice,
     bitlockerKeys,
+    appInstallStates,
+    applePushCertificate,
   };
 }
 
@@ -82,7 +100,7 @@ function fakeTile(id: TileId, severity: Severity, state: Tile['state'] = 'ready'
 const SCENARIO_NAMES = scenarios.map((s) => s.deviceName);
 
 describe('evaluateTiles – Mock-Szenarien', () => {
-  it('liefert ohne DiagLogs-ZIP genau die sieben Basis-Kacheln in Standardreihenfolge', async () => {
+  it('liefert ohne DiagLogs-ZIP genau die acht Basis-Kacheln in Standardreihenfolge', async () => {
     const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC001'), NOW);
     expect(tiles.map((t) => t.id)).toEqual(BASE_TILES);
   });
@@ -143,14 +161,14 @@ describe('evaluateTiles – Mock-Szenarien', () => {
 });
 
 describe('evaluateTiles – Szenario-Details', () => {
-  it('CONTOSO-PC001: alle sieben Kacheln ok, Zusammenfassung 7× ok', async () => {
+  it('CONTOSO-PC001: alle acht Kacheln ok, Zusammenfassung 8× ok', async () => {
     const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC001'), NOW);
-    expect(tiles).toHaveLength(7);
+    expect(tiles).toHaveLength(8);
     expect(summarize(tiles)).toEqual({
       critical: 0,
       warning: 0,
       unknown: 0,
-      ok: 7,
+      ok: 8,
       loading: 0,
       worst: 'ok',
     });
@@ -226,6 +244,17 @@ describe('evaluateTiles – Szenario-Details', () => {
     expect(tiles.some((t) => t.severity === 'critical' || t.severity === 'warning')).toBe(false);
   });
 
+  it('CONTOSO-IP015: MDM-Zertifikat und Apple-Push-Zertifikat laufen ab, nicht beaufsichtigt', async () => {
+    const status = tileOf(evaluateTiles(await loadSnapshot('CONTOSO-IP015'), NOW), 'deviceStatus');
+    expect(status.findings.map((f) => f.id)).toEqual(
+      expect.arrayContaining([
+        'deviceStatus-certExpiring',
+        'deviceStatus-apnsExpiring',
+        'deviceStatus-notSupervised',
+      ]),
+    );
+  });
+
   it('CONTOSO-PC050: fehlende Berechtigungen zeigen Scope, ohne das Dashboard zu brechen', async () => {
     const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC050'), NOW);
 
@@ -241,6 +270,34 @@ describe('evaluateTiles – Szenario-Details', () => {
     expect(bitlocker.severity).toBe('ok');
     const keysFinding = findingOf(bitlocker, 'bitlocker-keys-forbidden');
     expect(keysFinding.cause).toContain('BitlockerKey.ReadBasic.All');
+  });
+});
+
+describe('evaluateTiles – Apps-Kachel nur mit Daten', () => {
+  it.each(['unavailable', 'notApplicable', 'forbidden', 'error', 'loading'] as const)(
+    'appInstallStates %s → keine Apps-Kachel, die übrigen sieben bleiben',
+    async (status) => {
+      const full = await loadSnapshot('CONTOSO-PC001');
+      const source = full.device.source;
+      const section =
+        status === 'loading'
+          ? undefined
+          : status === 'forbidden' || status === 'error'
+            ? ({
+                status,
+                source,
+                error: { code: status, message: 'x' },
+              } as DeviceSnapshot['appInstallStates'])
+            : { status, reason: 'x', source };
+      const tiles = evaluateTiles({ ...full, appInstallStates: section }, NOW);
+      expect(tiles.map((t) => t.id)).not.toContain('apps');
+      expect(tiles).toHaveLength(7);
+    },
+  );
+
+  it('appInstallStates ok → Apps-Kachel erscheint', async () => {
+    const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC001'), NOW);
+    expect(tiles.map((t) => t.id)).toContain('apps');
   });
 });
 

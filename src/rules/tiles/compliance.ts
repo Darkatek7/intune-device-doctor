@@ -14,6 +14,7 @@ import type { ComplianceState } from '../../graph/dto';
 import { de } from '../../i18n/de';
 import {
   availabilityOf,
+  isPolicyStateContradicted,
   loadingTile,
   sectionIssueFinding,
   sectionsLoaded,
@@ -21,6 +22,7 @@ import {
   uniqueSources,
 } from '../helpers';
 import { Docs } from '../knowledge/docs';
+import { contradictedFinding } from './policies';
 import { settingLabel } from './policySettings';
 
 const t = de.rules.compliance;
@@ -110,14 +112,19 @@ export function evaluateCompliance(snapshot: DeviceSnapshot, now: Date): Tile {
     facts.push({ label: f.policiesEvaluated, value: String(policies.length) });
     for (const policy of bad)
       findings.push(
-        policyFinding(policy, severity === 'ok' ? 'warning' : severity, policiesSection.source),
+        isPolicyStateContradicted(snapshot, policy)
+          ? {
+              ...contradictedFinding(policy, policiesSection.source),
+              id: `compliance-policy-${policy.id}`,
+            }
+          : policyFinding(policy, severity === 'ok' ? 'warning' : severity, policiesSection.source),
       );
     summary =
       state === 'inGracePeriod' && grace
         ? t.summaryGrace(formatDate(grace))
         : policies.length === 0
           ? t.summaryNoPolicies
-          : t.summaryPolicies(bad.length, policies.length);
+          : t.summaryPolicies(bad.length, policies.length, state === 'compliant');
   } else {
     findings.push(sectionIssueFinding('compliance-policies', policiesSection));
     summary =

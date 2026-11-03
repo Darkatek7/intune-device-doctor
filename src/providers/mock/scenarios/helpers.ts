@@ -2,6 +2,7 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
   ManagedDeviceInfo,
@@ -28,10 +29,12 @@ export function inFuture(now: Date, span: { days?: number; hours?: number }): st
 
 /** Fiktive, eindeutig erkennbare GUIDs: 00000000-0000-4000-8000-0000000000NN */
 export function demoGuid(
-  group: 'device' | 'entra' | 'object' | 'policy' | 'key',
+  group: 'device' | 'entra' | 'object' | 'policy' | 'key' | 'user',
   n: number,
 ): string {
-  const groupDigit = { device: '8', entra: '9', object: 'a', policy: 'b', key: 'c' }[group];
+  const groupDigit = { device: '8', entra: '9', object: 'a', policy: 'b', key: 'c', user: 'd' }[
+    group
+  ];
   return `00000000-0000-4000-${groupDigit}000-${n.toString(16).padStart(12, '0')}`;
 }
 
@@ -50,6 +53,7 @@ export function windowsDevice(now: Date, n: number, overrides: Partial<DeviceBas
     model: 'Surface Laptop 6',
     manufacturer: 'Microsoft Corporation',
     serialNumber: `DEMO-${n.toString().padStart(6, '0')}`,
+    userId: demoGuid('user', n),
     userPrincipalName: 'max.mustermann@contoso.com',
     userDisplayName: 'Max Mustermann',
     complianceState: 'compliant',
@@ -64,6 +68,10 @@ export function windowsDevice(now: Date, n: number, overrides: Partial<DeviceBas
     partnerReportedThreatState: 'secured',
     freeStorageSpaceInBytes: 182 * GB,
     totalStorageSpaceInBytes: 476 * GB,
+    managementCertificateExpirationDate: inFuture(now, { days: 155 }),
+    isSupervised: null,
+    androidSecurityPatchLevel: null,
+    enrollmentProfileName: null,
     ...overrides,
   };
 }
@@ -178,4 +186,39 @@ export function osVolumeKey(now: Date, n: number, createdDaysAgo = 200): BitLock
     createdDateTime: ago(now, { days: createdDaysAgo }),
     volumeType: 'operatingSystemVolume',
   };
+}
+
+/** App-Status aus dem fiktiven Katalog (src/providers/mock/apps.ts). */
+export function appState(
+  appId: string,
+  displayName: string,
+  overrides: Partial<AppInstallStateInfo> = {},
+): AppInstallStateInfo {
+  return {
+    appId,
+    displayName,
+    version: null,
+    intent: 'requiredInstall',
+    installState: 'installed',
+    ...overrides,
+  };
+}
+
+/** Standard: Pflicht-Apps installiert, eine verfügbare App nicht installiert. */
+export function defaultAppStates(device: Pick<DeviceBase, 'osFamily'>): AppInstallStateInfo[] {
+  if (device.osFamily === 'macos') {
+    return [
+      appState('00000000-0000-0000-0000-0000000000A3', 'Contoso Mac Tools', { version: '2.0' }),
+    ];
+  }
+  return [
+    appState('00000000-0000-0000-0000-0000000000A2', 'Contoso VPN Client 5.1', {
+      version: '5.1.2',
+    }),
+    appState('00000000-0000-0000-0000-0000000000A5', 'Northwind CRM Desktop', { version: '8.4' }),
+    appState('00000000-0000-0000-0000-0000000000A4', 'Fabrikam PDF Studio 12', {
+      intent: 'available',
+      installState: 'notInstalled',
+    }),
+  ];
 }

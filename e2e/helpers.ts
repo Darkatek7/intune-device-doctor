@@ -15,7 +15,7 @@ export { expect };
 
 /** Texte der Oberfläche (src/i18n/de.ts) */
 export const T = {
-  searchLabel: 'Gerätename',
+  searchLabel: 'Gerätename oder Benutzer',
   notFoundTitle: 'Kein Gerät gefunden',
   pickerTitle: 'Mehrere Geräte gefunden',
   pickerList: 'Gefundene Geräte',
@@ -38,7 +38,7 @@ export const T = {
   notApplicable: 'Nicht anwendbar',
 } as const;
 
-/** Die sieben Standard-Kacheln eines Windows-Geräts (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
+/** Die acht Standard-Kacheln eines Windows-Geräts (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
 export const BASE_TILE_TITLES = [
   'Gerätestatus',
   'Compliance',
@@ -47,6 +47,7 @@ export const BASE_TILE_TITLES = [
   'BitLocker',
   'Defender',
   'Richtlinien',
+  'Apps',
 ] as const;
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -103,7 +104,7 @@ export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename“) und bestätigt mit Enter. */
+/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename oder Benutzer“) und bestätigt mit Enter. */
 export async function searchDevice(page: Page, query: string): Promise<void> {
   const field = page.getByRole('combobox', { name: T.searchLabel });
   await field.fill(query);

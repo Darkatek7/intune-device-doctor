@@ -265,7 +265,8 @@ interface Moment {
   cutouts?: (page: Page) => Record<string, Locator>;
 }
 
-const searchField = (page: Page) => page.getByRole('combobox', { name: 'Gerätename' });
+const searchField = (page: Page) =>
+  page.getByRole('combobox', { name: 'Gerätename oder Benutzer' });
 
 async function submitSearch(page: Page, device: string): Promise<void> {
   await searchField(page).fill(device);

@@ -3,7 +3,9 @@
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
 import type {
+  ApplePushCertificateInfo,
   AppInfo,
+  AppInstallStateInfo,
   BitLockerKeyInfo,
   BitLockerVolumeType,
   DataSource,
@@ -19,11 +21,15 @@ import type {
   ComplianceState,
   ComplianceStatus,
   DeviceEnrollmentType,
+  GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
   GraphMobileApp,
+  GraphMobileAppIntentAndState,
+  MobileAppIntent,
+  ResultantAppState,
   GraphPolicySettingState,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
@@ -63,6 +69,22 @@ const num = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 // ---------- Erlaubte Enum-Werte (exakt nach docs/graph-api-reference.md) ----------
+
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+
+/** Datumswerte; Graph meldet "nicht gesetzt" teils als 0001-01-01 → null. */
+function validDate(value: unknown): string | null {
+  const text = str(value);
+  if (!text) return null;
+  const time = Date.parse(text);
+  return Number.isNaN(time) || new Date(time).getUTCFullYear() < 2000 ? null : text;
+}
+
+/** Leere Strings und die Null-GUID (Geräte ohne Benutzer) → null. */
+function usableId(value: unknown): string | null {
+  const id = typeof value === 'string' ? value.trim() : '';
+  return id && id !== EMPTY_GUID ? id : null;
+}
 
 const COMPLIANCE_STATES: readonly ComplianceState[] = [
   'unknown',
@@ -200,6 +222,7 @@ export function mapManagedDevice(dto: GraphManagedDevice): ManagedDeviceInfo {
     model: str(dto.model),
     manufacturer: str(dto.manufacturer),
     serialNumber: str(dto.serialNumber),
+    userId: usableId(dto.userId),
     userPrincipalName: str(dto.userPrincipalName),
     userDisplayName: str(dto.userDisplayName),
     complianceState: pick(dto.complianceState, COMPLIANCE_STATES, 'unknown'),
@@ -214,6 +237,10 @@ export function mapManagedDevice(dto: GraphManagedDevice): ManagedDeviceInfo {
     partnerReportedThreatState: pick(dto.partnerReportedThreatState, PARTNER_STATES, 'unknown'),
     freeStorageSpaceInBytes: num(dto.freeStorageSpaceInBytes),
     totalStorageSpaceInBytes: num(dto.totalStorageSpaceInBytes),
+    managementCertificateExpirationDate: validDate(dto.managementCertificateExpirationDate),
+    isSupervised: bool(dto.isSupervised),
+    androidSecurityPatchLevel: str(dto.androidSecurityPatchLevel)?.trim() || null,
+    enrollmentProfileName: str(dto.enrollmentProfileName)?.trim() || null,
     source: graphSource('managedDevice'),
   };
 }
@@ -382,4 +409,82 @@ export function mapMobileApp(dto: GraphMobileApp): AppInfo | null {
   const displayName = dto.displayName?.trim();
   if (!dto.id || !displayName) return null;
   return { id: dto.id, displayName, publisher: dto.publisher?.trim() || null };
+}
+
+// ---------- App-Installationsstatus (beta) ----------
+
+const APP_INTENTS: readonly MobileAppIntent[] = [
+  'available',
+  'notAvailable',
+  'requiredInstall',
+  'requiredUninstall',
+  'requiredAndAvailableInstall',
+  'availableInstallWithoutEnrollment',
+  'exclude',
+];
+
+const APP_STATES: readonly ResultantAppState[] = [
+  'installed',
+  'failed',
+  'notInstalled',
+  'uninstallFailed',
+  'pendingInstall',
+  'unknown',
+  'notApplicable',
+];
+
+/**
+ * mobileAppIntentAndStates liefert Einträge für alle Geräte eines Benutzers; übernommen werden nur
+ * die Apps des Geräts, dessen managedDeviceIdentifier zur Intune- oder Entra-Geräte-ID passt
+ * (doppelte App-IDs einmal). `matched` = mindestens ein Eintrag gehörte zu diesem Gerät.
+ */
+export function mapAppInstallStates(
+  entries: GraphMobileAppIntentAndState[],
+  deviceIds: Array<string | null>,
+): { apps: AppInstallStateInfo[]; matched: boolean } {
+  const wanted = new Set(
+    deviceIds.filter((id): id is string => Boolean(id)).map((id) => id.toLowerCase()),
+  );
+  const apps = new Map<string, AppInstallStateInfo>();
+  let matched = false;
+  for (const entry of entries) {
+    const id = str(entry.managedDeviceIdentifier)?.toLowerCase();
+    if (!id || !wanted.has(id)) continue;
+    matched = true;
+    for (const detail of Array.isArray(entry.mobileAppList) ? entry.mobileAppList : []) {
+      const appId = str(detail?.applicationId);
+      if (!appId || apps.has(appId.toLowerCase())) continue;
+      apps.set(appId.toLowerCase(), {
+        appId,
+        displayName: str(detail.displayName)?.trim() || appId,
+        version: str(detail.displayVersion),
+        intent: pickOrNull(detail.mobileAppIntent, APP_INTENTS),
+        installState: pick(detail.installState, APP_STATES, 'unknown'),
+      });
+    }
+  }
+  return { apps: [...apps.values()], matched };
+}
+
+// ---------- Apple-MDM-Push-Zertifikat (Tenant) ----------
+
+/**
+ * Akzeptiert das Objekt direkt (echte Graph-Antwort) oder – wie im Doku-Beispiel – unter `value`.
+ * Nur Zeitstempel werden übernommen; ungültige Werte und Jahre < 2000 werden zu null.
+ */
+export function mapApplePushCertificate(
+  dto:
+    | Partial<GraphApplePushNotificationCertificate>
+    | { value?: Partial<GraphApplePushNotificationCertificate> | null }
+    | null
+    | undefined,
+): ApplePushCertificateInfo {
+  const raw = dto && typeof dto === 'object' && 'value' in dto && dto.value ? dto.value : dto;
+  const cert = (
+    raw && typeof raw === 'object' ? raw : {}
+  ) as Partial<GraphApplePushNotificationCertificate>;
+  return {
+    expirationDateTime: validDate(cert.expirationDateTime),
+    lastModifiedDateTime: validDate(cert.lastModifiedDateTime),
+  };
 }

@@ -8,7 +8,9 @@ import type {
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
+  MobileAppIntent,
   PolicyPlatformType,
+  ResultantAppState,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
   WindowsMalwareState,
@@ -90,6 +92,8 @@ export interface ManagedDeviceInfo {
   model: string | null;
   manufacturer: string | null;
   serialNumber: string | null;
+  /** Entra-Objekt-ID des primären Benutzers (null bei Geräten ohne Benutzer) */
+  userId: string | null;
   userPrincipalName: string | null;
   userDisplayName: string | null;
   complianceState: ComplianceState;
@@ -104,6 +108,10 @@ export interface ManagedDeviceInfo {
   partnerReportedThreatState: ManagedDevicePartnerReportedHealthState;
   freeStorageSpaceInBytes: number | null;
   totalStorageSpaceInBytes: number | null;
+  managementCertificateExpirationDate: string | null;
+  isSupervised: boolean | null;
+  androidSecurityPatchLevel: string | null;
+  enrollmentProfileName: string | null;
   source: DataSource;
 }
 
@@ -190,6 +198,21 @@ export interface BitLockerKeyInfo {
   volumeType: BitLockerVolumeType;
 }
 
+/** App-Absicht und Installationsstatus auf dem Gerät (Graph beta: mobileAppIntentAndStates). */
+export interface AppInstallStateInfo {
+  appId: string;
+  displayName: string;
+  version: string | null;
+  intent: MobileAppIntent | null;
+  installState: ResultantAppState;
+}
+
+/** Tenant-weites Apple-MDM-Push-Zertifikat (nur Zeitstempel; keine Apple-ID). */
+export interface ApplePushCertificateInfo {
+  expirationDateTime: string | null;
+  lastModifiedDateTime: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -199,6 +222,9 @@ export interface DeviceSnapshot {
   /** data null = kein Entra-Objekt gefunden */
   entraDevice?: SectionResult<EntraDeviceInfo | null>;
   bitlockerKeys?: SectionResult<BitLockerKeyInfo[]>;
+  appInstallStates?: SectionResult<AppInstallStateInfo[]>;
+  /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
+  applePushCertificate?: SectionResult<ApplePushCertificateInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -213,6 +239,7 @@ export type TileId =
   | 'bitlocker'
   | 'defender'
   | 'policies'
+  | 'apps'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -253,7 +280,13 @@ export interface Finding {
 
 /** Sections eines DeviceSnapshot, die unabhängig laden (und erneut geladen werden können). */
 export type SnapshotSectionKey =
-  'protection' | 'compliancePolicies' | 'configurationPolicies' | 'entraDevice' | 'bitlockerKeys';
+  | 'protection'
+  | 'compliancePolicies'
+  | 'configurationPolicies'
+  | 'entraDevice'
+  | 'bitlockerKeys'
+  | 'appInstallStates'
+  | 'applePushCertificate';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

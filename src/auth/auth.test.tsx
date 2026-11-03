@@ -6,7 +6,7 @@ import {
   type IPublicClientApplication,
 } from '@azure/msal-browser';
 import { describe, expect, it, vi } from 'vitest';
-import { LOGIN_SCOPES } from '../graph/scopes';
+import { GraphScope, LOGIN_SCOPES } from '../graph/scopes';
 import { de } from '../i18n/de';
 import { GraphRequestError } from '../graph/client';
 import { AccountButton, AuthGate } from './AuthGate';
@@ -46,6 +46,13 @@ function fakeMsal(
   };
   return instance as typeof instance & IPublicClientApplication;
 }
+
+describe('LOGIN_SCOPES', () => {
+  it('fordert den optionalen APNs-Scope beim Login nicht an (fehlender Consent darf den Login nicht blockieren)', () => {
+    expect(LOGIN_SCOPES).not.toContain(GraphScope.ServiceConfigRead);
+    expect(LOGIN_SCOPES).toContain(GraphScope.ManagedDevicesRead);
+  });
+});
 
 describe('createMsalConfiguration', () => {
   it('nutzt Tenant-Authority, Redirect-URI und sessionStorage', () => {

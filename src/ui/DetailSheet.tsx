@@ -220,6 +220,12 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
   const allGood = !loading && tile.findings.length === 0 && !tile.availability;
   const sources = uniqueSources(tile.sources);
   const hasError = notices.some((n) => n.status === 'error');
+  // Der Grund steht nur einmal im Sheet: in der Befund-Karte (mit Ursache, Lösung, Quelle).
+  const findingDetails = new Set(tile.findings.map((f) => f.detail));
+  const showSummary = Boolean(tile.summary) && !findingDetails.has(tile.summary);
+  const visibleNotices = notices.filter(
+    (n) => n.requiredScope || n.requestId || !findingDetails.has(n.message),
+  );
 
   return createPortal(
     <div ref={rootRef} className="fixed inset-0 z-40">
@@ -299,12 +305,12 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                   <p className="display-type text-[1.75rem] font-semibold tabular-nums">
                     {tile.value}
                   </p>
-                  {tile.summary && (
+                  {showSummary && (
                     <p className="mt-1 text-sm text-secondary-label">{tile.summary}</p>
                   )}
                 </div>
 
-                {notices.map((notice) => {
+                {visibleNotices.map((notice) => {
                   const NoticeIcon = NOTICE_ICON[notice.status];
                   return (
                     <section

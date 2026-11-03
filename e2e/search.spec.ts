@@ -11,7 +11,7 @@ import {
 } from './helpers';
 
 test.describe('Suche', () => {
-  test('CONTOSO-PC001 öffnet das Gerät mit sieben Kacheln, alle in Ordnung', async ({ page }) => {
+  test('CONTOSO-PC001 öffnet das Gerät mit acht Kacheln, alle in Ordnung', async ({ page }) => {
     await openDevice(page, 'CONTOSO-PC001');
 
     await expect(tileButtons(page)).toHaveCount(BASE_TILE_TITLES.length);

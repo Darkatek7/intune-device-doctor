@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   Clock,
   Cpu,
   FileArchive,
@@ -22,6 +23,7 @@ export const TILE_ICON: Record<TileId, LucideIcon> = {
   bitlocker: HardDrive,
   defender: Shield,
   policies: ListChecks,
+  apps: AppWindow,
   entraJoin: UserCheck,
   win32Apps: Package,
   enrollment: UserPlus,

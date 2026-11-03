@@ -32,11 +32,35 @@ export function evaluateOsVersion(snapshot: DeviceSnapshot, now: Date): Tile {
   };
 
   if (device.osFamily !== 'windows') {
+    let severity: Severity = 'unknown';
+    let summary: string = t.summaryNotEvaluated;
+    const patch = device.osFamily === 'android' ? device.androidSecurityPatchLevel : null;
+    const patchTime = patch ? Date.parse(patch) : NaN;
+    if (patch && !Number.isNaN(patchTime)) {
+      // Reines Datum (YYYY-MM-DD) = UTC-Mitternacht → in UTC formatieren, sonst Vortag westlich von UTC
+      facts.push({ label: f.securityPatch, value: formatDate(patch, 'UTC') });
+      summary = t.summaryPatch(formatDate(patch, 'UTC'));
+      const ageDays = Math.floor((now.getTime() - patchTime) / DAY);
+      if (ageDays > THRESHOLDS.androidPatchWarningDays) {
+        severity = 'warning';
+        findings.push({
+          id: 'osVersion-androidPatchOld',
+          severity,
+          title: t.patchOldTitle(ageDays),
+          detail: t.patchOldDetail(patch, THRESHOLDS.androidPatchWarningDays),
+          cause: t.patchOldCause,
+          remediation: [...t.patchOldRemediation],
+          evidence: { androidSecurityPatchLevel: patch, osVersion: device.osVersion },
+          source: device.source,
+          docsUrl: Docs.androidPatchLevel,
+        });
+      }
+    }
     return {
       ...base,
-      severity: 'unknown',
+      severity,
       value: t.valueOther(device.operatingSystem ?? '', device.osVersion ?? ''),
-      summary: t.summaryNotEvaluated,
+      summary,
       findings,
       facts,
     };
