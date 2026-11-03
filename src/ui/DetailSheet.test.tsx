@@ -155,4 +155,62 @@ describe('DetailSheet', () => {
     );
     expect(screen.getByText(de.sheet.hint)).toBeInTheDocument();
   });
+
+  it('nennt den Grund einer nicht verfügbaren Kachel genau einmal (in der Befund-Karte)', () => {
+    const reason = 'Für dieses Gerät ist der Wert über die dokumentierte API nicht verfügbar.';
+    const notices: SectionNotice[] = [
+      {
+        key: 'bitlockerKeys',
+        status: 'unavailable',
+        title: de.states.unavailable,
+        message: reason,
+        sourceLabel: 'GET …',
+      },
+    ];
+    render(
+      <DetailSheet
+        tile={makeTile({
+          severity: 'unknown',
+          value: de.availability.unavailable,
+          summary: reason,
+          availability: 'unavailable',
+          facts: [],
+          findings: [
+            makeFinding({
+              id: 'bitlocker-unavailable',
+              severity: 'unknown',
+              title: de.rules.common.unavailableTitle,
+              detail: reason,
+            }),
+          ],
+        })}
+        origin={null}
+        notices={notices}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText(reason)).toHaveLength(1);
+    expect(document.querySelector('[data-notice]')).toBeNull();
+  });
+
+  it('behält die Hinweis-Box, wenn kein Befund denselben Text enthält', () => {
+    const notices: SectionNotice[] = [
+      {
+        key: 'bitlockerKeys',
+        status: 'unavailable',
+        title: de.states.unavailable,
+        message: 'Eigener Hinweistext',
+        sourceLabel: 'GET …',
+      },
+    ];
+    render(
+      <DetailSheet
+        tile={makeTile({ availability: 'unavailable' })}
+        origin={null}
+        notices={notices}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Eigener Hinweistext')).toBeInTheDocument();
+  });
 });
