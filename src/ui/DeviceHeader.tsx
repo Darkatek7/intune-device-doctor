@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { ExternalLink, Hourglass, Laptop } from 'lucide-react';
+import { ExternalLink, Hourglass } from 'lucide-react';
 import type { ManagedDeviceInfo, Tile } from '../domain/types';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
 import type { TileSummary } from '../rules/evaluate';
 import type { AmbientTone } from './AmbientGlow';
+import { DEVICE_ICON, deviceIconKind } from './deviceIcon';
 import { deviceMeta } from './deviceMeta';
 import { TONE_CLASS } from './tone';
 import { summarySentence } from './summaryText';
@@ -39,6 +40,7 @@ export function DeviceHeader({
 }: Props) {
   const loading = !device || !summary || summary.loading > 0;
   const meta = device ? deviceMeta(device, tiles) : [];
+  const DeviceIcon = DEVICE_ICON[deviceIconKind(device)];
 
   const liveText = !device
     ? de.header.loadingDevice
@@ -53,7 +55,7 @@ export function DeviceHeader({
           aria-hidden="true"
           className={`squircle mt-1 size-14 shadow-[inset_0_1px_0_var(--c-highlight)] transition-colors duration-500 sm:size-16 ${TONE_CLASS[tone]}`}
         >
-          <Laptop size={30} strokeWidth={1.75} />
+          <DeviceIcon size={30} strokeWidth={1.75} />
         </span>
         <div className="min-w-0">
           <h1 className="display-type break-words text-3xl font-semibold text-label sm:text-display">
@@ -64,11 +66,26 @@ export function DeviceHeader({
           </p>
           {badges && <div className="mt-2 flex flex-wrap items-center gap-2">{badges}</div>}
           {device && (
-            <nav aria-label={de.header.portalLinks} className="mt-2 flex flex-wrap gap-2">
+            <nav
+              aria-label={de.header.portalLinks}
+              className="mt-2 flex flex-wrap items-center gap-2"
+            >
+              <span aria-hidden="true" className="text-sm text-secondary-label">
+                {de.links.portalPrefix}
+              </span>
               {[
-                { label: de.links.openDevice, url: IntunePortal.device(device.id) },
-                { label: de.links.openManagedApps, url: IntunePortal.deviceManagedApps(device.id) },
                 {
+                  short: de.links.shortDevice,
+                  label: de.links.openDevice,
+                  url: IntunePortal.device(device.id),
+                },
+                {
+                  short: de.links.shortManagedApps,
+                  label: de.links.openManagedApps,
+                  url: IntunePortal.deviceManagedApps(device.id),
+                },
+                {
+                  short: de.links.shortDeviceInventory,
                   label: de.links.openDeviceInventory,
                   url: IntunePortal.deviceInventory(device.id),
                 },
@@ -76,11 +93,13 @@ export function DeviceHeader({
                 <a
                   key={link.url}
                   href={link.url}
+                  aria-label={link.label}
+                  title={link.label}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-full bg-accent/6 px-3 py-1.5 text-sm font-medium text-accent outline-none transition-transform hover:bg-accent/8 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
                 >
-                  {link.label}
+                  {link.short}
                   <ExternalLink aria-hidden="true" size={14} />
                 </a>
               ))}

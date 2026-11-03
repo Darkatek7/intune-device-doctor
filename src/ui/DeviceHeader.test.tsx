@@ -5,6 +5,7 @@ import type { ManagedDeviceInfo } from '../domain/types';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
 import { DeviceHeader } from './DeviceHeader';
+import { deviceIconKind } from './deviceIcon';
 
 const device: ManagedDeviceInfo = {
   id: 'dev-0001',
@@ -59,6 +60,23 @@ describe('DeviceHeader', () => {
     expect(appsLink).toHaveFocus();
     await user.tab();
     expect(inventoryLink).toHaveFocus();
+  });
+
+  it('zeigt kurze sichtbare Linktexte, der volle Text bleibt A11y-Name und Tooltip', () => {
+    render(<DeviceHeader device={device} summary={null} totalTiles={0} />);
+    const appsLink = screen.getByRole('link', { name: de.links.openManagedApps });
+    expect(appsLink).toHaveTextContent(de.links.shortManagedApps);
+    expect(appsLink).toHaveAttribute('title', de.links.openManagedApps);
+  });
+
+  it.each([
+    ['ios', 'iPhone 15', 'smartphone'],
+    ['ios', 'iPad Air', 'tablet'],
+    ['android', 'Pixel 8', 'smartphone'],
+    ['macos', 'MacBook Pro', 'laptop'],
+    ['windows', 'Surface Laptop 5', 'laptop'],
+  ] as const)('Geräte-Symbol: %s / %s', (osFamily, model, kind) => {
+    expect(deviceIconKind({ ...device, osFamily, model })).toBe(kind);
   });
 
   it('zeigt ohne Gerät keine Portal-Links', () => {

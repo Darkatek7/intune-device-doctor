@@ -145,6 +145,11 @@ export const de = {
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     openDeviceInventory: 'Geräteinventar im Intune Admin Center',
+    /** Kurztexte der Link-Zeile im Geräte-Header (voller Text als A11y-Name/Tooltip) */
+    portalPrefix: 'Intune Admin Center:',
+    shortDevice: 'Gerät',
+    shortManagedApps: 'Managed Apps',
+    shortDeviceInventory: 'Geräteinventar',
     configurationPolicies: 'Konfigurationsprofile im Intune Admin Center',
     appName: 'App-Name',
     publisher: 'Herausgeber',
