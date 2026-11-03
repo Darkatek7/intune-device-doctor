@@ -5,6 +5,7 @@ import type {
   DataSource,
   DeviceSnapshot,
   Finding,
+  PolicyStateInfo,
   SectionResult,
   Severity,
   SnapshotSectionKey,
@@ -197,4 +198,19 @@ export function uniqueSources(sources: Array<DataSource | undefined>): DataSourc
     result.push(source);
   }
   return result;
+}
+
+/**
+ * Compliance-Richtlinie meldet nonCompliant/error/conflict, das Gerät ist laut complianceState
+ * insgesamt aber konform – der Richtlinienstatus widerspricht dem Gesamtstatus.
+ */
+export function isPolicyStateContradicted(
+  snapshot: DeviceSnapshot,
+  policy: Pick<PolicyStateInfo, 'kind' | 'state'>,
+): boolean {
+  return (
+    policy.kind === 'compliance' &&
+    snapshot.device.complianceState === 'compliant' &&
+    (policy.state === 'nonCompliant' || policy.state === 'error' || policy.state === 'conflict')
+  );
 }

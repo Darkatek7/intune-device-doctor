@@ -142,18 +142,26 @@ beforeAll(async () => {
 
 describe('Check-in (checkIn)', () => {
   it.each([
-    [23, 'ok'],
-    [24, 'ok'],
-    [25, 'warning'],
-    [168, 'warning'],
-    [169, 'critical'],
+    [25, 'ok'],
+    [168, 'ok'],
+    [169, 'warning'],
+    [720, 'warning'],
+    [721, 'critical'],
   ] as const)('%s h seit letztem Check-in → %s', (hours, severity) => {
     const tile = evaluateCheckIn(withDevice(base, { lastSyncDateTime: hoursAgo(hours) }), NOW);
     expect(tile.severity).toBe(severity);
   });
 
-  it('7 Tage + 1 h ist critical mit Befund checkIn-stale', () => {
+  it('7 Tage + 1 h ist warning mit Befund checkIn-delayed', () => {
     const tile = evaluateCheckIn(withDevice(base, { lastSyncDateTime: hoursAgo(7 * 24 + 1) }), NOW);
+    expect(findingWithId(tile, 'checkIn-delayed').severity).toBe('warning');
+  });
+
+  it('30 Tage + 1 h ist critical mit Befund checkIn-stale', () => {
+    const tile = evaluateCheckIn(
+      withDevice(base, { lastSyncDateTime: hoursAgo(30 * 24 + 1) }),
+      NOW,
+    );
     expect(findingWithId(tile, 'checkIn-stale').severity).toBe('critical');
   });
 
@@ -556,6 +564,54 @@ describe('Richtlinien (policies)', () => {
     const tile = evaluatePolicies(snapshot, NOW);
     expect(tile.severity).toBe('warning');
     expect(tile.value).toBe(de.rules.policies.valueWarnings(1));
+  });
+
+  const compliancePolicy = (state: PolicyStateInfo['state']): PolicyStateInfo => ({
+    ...configPolicy(state),
+    id: 'test-compliance-1',
+    kind: 'compliance',
+    displayName: 'Contoso – Compliance',
+  });
+
+  it('Compliance-Richtlinie error, Gerät aber konform → nur Hinweis „Status weicht ab“, Kachel ok', () => {
+    const snapshot = withConfiguration(
+      withCompliance(
+        withDevice(base, { complianceState: 'compliant' }),
+        okOf([compliancePolicy('error')]),
+      ),
+      okOf([]),
+    );
+    const tile = evaluatePolicies(snapshot, NOW);
+    expect(tile.severity).toBe('ok');
+    expect(tile.value).toBe(de.rules.policies.valueOk);
+    const finding = findingWithId(tile, 'policies-compliance-test-compliance-1');
+    expect(finding.severity).toBe('unknown');
+    expect(finding.title).toBe(
+      de.rules.policies.staleTitle(de.rules.policies.kindCompliance, 'Contoso – Compliance'),
+    );
+
+    const compliance = evaluateCompliance(snapshot, NOW);
+    expect(compliance.severity).toBe('ok');
+    expect(compliance.summary).toBe(de.rules.compliance.summaryPolicies(1, 1, true));
+    expect(findingWithId(compliance, 'compliance-policy-test-compliance-1').severity).toBe(
+      'unknown',
+    );
+  });
+
+  it('Compliance-Richtlinie error bei nicht konformem Gerät → critical mit Compliance-Texten', () => {
+    const snapshot = withConfiguration(
+      withCompliance(
+        withDevice(base, { complianceState: 'error' }),
+        okOf([compliancePolicy('error')]),
+      ),
+      okOf([]),
+    );
+    const tile = evaluatePolicies(snapshot, NOW);
+    expect(tile.severity).toBe('critical');
+    const finding = findingWithId(tile, 'policies-compliance-test-compliance-1');
+    expect(finding.cause).toBe(de.rules.policies.errorCauseCompliance);
+    expect(finding.remediation[0]).toBe(de.rules.policies.errorRemediationCompliance[0]);
+    expect(finding.docsUrl).toBe(Docs.complianceErrorState);
   });
 
   it('Profil-Abruf mit 429 → availability error, unknown, Drosselungs-Befund', () => {

@@ -15,7 +15,7 @@ export { expect };
 
 /** Texte der Oberfläche (src/i18n/de.ts) */
 export const T = {
-  searchLabel: 'Gerätename',
+  searchLabel: 'Gerätename oder Benutzer',
   notFoundTitle: 'Kein Gerät gefunden',
   pickerTitle: 'Mehrere Geräte gefunden',
   pickerList: 'Gefundene Geräte',
@@ -103,7 +103,7 @@ export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename“) und bestätigt mit Enter. */
+/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename oder Benutzer“) und bestätigt mit Enter. */
 export async function searchDevice(page: Page, query: string): Promise<void> {
   const field = page.getByRole('combobox', { name: T.searchLabel });
   await field.fill(query);

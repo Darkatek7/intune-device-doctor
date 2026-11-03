@@ -69,6 +69,21 @@ export const Endpoints = {
         $top: '25',
       }),
   },
+  /** Geräte eines Benutzers: userPrincipalName unterstützt laut v1.0-Ressource $filter 'eq'/'ne'. */
+  managedDevicesByUser: {
+    id: 'managedDevicesByUser',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0#properties',
+    display: "GET /deviceManagement/managedDevices?$filter=userPrincipalName eq '…'",
+    path: (userPrincipalName: string) =>
+      withQuery('/deviceManagement/managedDevices', {
+        $filter: `userPrincipalName eq ${odataString(userPrincipalName)}`,
+        $select: MANAGED_DEVICE_LIST_SELECT.join(','),
+      }),
+  },
   /**
    * Dokumentierter list-Endpunkt ohne $filter. Nur Fallback für die clientseitige Suche, falls der
    * (laut v1.0-Doku nicht belegte) $filter auf deviceName mit HTTP 400 abgelehnt wird.

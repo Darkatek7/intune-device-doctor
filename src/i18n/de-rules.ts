@@ -157,10 +157,12 @@ export const deRules = {
       configManager: 'Über Configuration Manager',
       unknown: 'Unbekannt',
     } as Record<string, string>,
-    summaryPolicies: (bad: number, total: number) =>
+    summaryPolicies: (bad: number, total: number, stale = false) =>
       bad === 0
         ? `${total} ${total === 1 ? 'Richtlinie' : 'Richtlinien'} · alle konform`
-        : `${bad} von ${total} Richtlinien nicht konform`,
+        : stale
+          ? `${bad} von ${total} Richtlinien mit abweichendem Status`
+          : `${bad} von ${total} Richtlinien nicht konform`,
     summaryGrace: (date: string) => `Schonfrist bis ${date}`,
     summaryNoPolicies: 'Keine Compliance-Richtlinie gemeldet',
     stateTitle: {
@@ -223,8 +225,8 @@ export const deRules = {
     staleDetail: (date: string, days: number) =>
       `lastSyncDateTime: ${date} – seit ${days} ${days === 1 ? 'Tag' : 'Tagen'} keine Verbindung zu Intune.`,
     warnTitle: (relative: string) => `Check-in verzögert (${relative})`,
-    warnDetail: (date: string) =>
-      `lastSyncDateTime: ${date} – länger als 24 Stunden ohne Check-in.`,
+    warnDetail: (date: string, days: number) =>
+      `lastSyncDateTime: ${date} – seit ${days} Tagen kein Check-in (mehr als 7 Tage).`,
     neverTitle: 'Kein Check-in gemeldet',
     neverDetail: 'Für das Gerät ist kein lastSyncDateTime vorhanden.',
     cause:
@@ -501,6 +503,21 @@ export const deRules = {
       settings ? `Zustand ${state}. Betroffen: ${settings}.` : `Zustand ${state}.`,
     settingWithCode: (name: string, code: string) => `${name} (${code})`,
     errorCause: 'Das Gerät konnte mindestens eine Einstellung des Profils nicht anwenden.',
+    errorCauseCompliance:
+      'Mindestens eine Einstellung der Compliance-Richtlinie meldet „Fehler“. Der Status bleibt bis zu sieben Tage unverändert; danach wird das Gerät nicht konform bzw. in die Schonfrist gesetzt.',
+    errorRemediationCompliance: [
+      'Im Intune Admin Center unter Geräte › <Gerät> › Gerätekonformität die Richtlinie öffnen und die Einstellung mit Fehler prüfen.',
+      'Gerät synchronisieren lassen und den Status erneut prüfen.',
+    ],
+    staleTitle: (kind: string, name: string) => `${kind} „${name}“: Status weicht ab`,
+    staleDetail: (state: string) =>
+      `Graph meldet für diese Richtlinie den Zustand ${state}, der Gesamtstatus des Geräts (complianceState) ist aber „konform“.`,
+    staleCause:
+      'Der Richtlinienstatus pro Gerät (deviceCompliancePolicyStates) widerspricht dem Gesamtstatus des Geräts. Einen Grund für die Abweichung nennt die dokumentierte API nicht; das Intune Admin Center zeigt den Stand je Einstellung.',
+    staleRemediation: [
+      'Im Intune Admin Center unter Geräte › <Gerät> › Gerätekonformität die Richtlinie öffnen und den Status je Einstellung prüfen.',
+      'Sind dort alle Einstellungen konform, ist nichts zu tun – das Gerät gilt insgesamt als konform.',
+    ],
     conflictCause:
       'Mehrere Richtlinien setzen dieselbe Einstellung auf unterschiedliche Werte. Intune löst Konflikte zwischen Konfigurationsprofilen nicht automatisch auf; Compliance-Einstellungen haben Vorrang vor Konfigurationsprofilen.',
     conflictSources: (names: string) => `Beteiligte Richtlinien: ${names}.`,

@@ -117,8 +117,13 @@ export class MockProvider implements DeviceDataProvider {
     if (!q) return [];
     const all = this.fixtures();
     const exact = all.filter((f) => f.device.deviceName.toLowerCase() === q);
-    const hits =
-      exact.length > 0 ? exact : all.filter((f) => f.device.deviceName.toLowerCase().includes(q));
+    const byName = all.filter((f) => f.device.deviceName.toLowerCase().includes(q));
+    const byUser = all.filter((f) =>
+      [f.device.userPrincipalName, f.device.userDisplayName].some((v) =>
+        (v ?? '').toLowerCase().includes(q),
+      ),
+    );
+    const hits = exact.length > 0 ? exact : byName.length > 0 ? byName : byUser;
     return hits.map(({ device }) => ({
       id: device.id,
       deviceName: device.deviceName,

@@ -1,9 +1,9 @@
 /** Schwellwerte der Regeln – zentral, damit sie leicht angepasst werden können. */
 export const THRESHOLDS = {
-  /** Check-in gilt bis zu dieser Zeit als aktuell */
-  checkInOkHours: 24,
-  /** Bis zu dieser Zeit nur Warnung, danach kritisch */
+  /** Check-in gilt bis zu dieser Zeit als aktuell, danach Warnung */
   checkInWarningDays: 7,
+  /** Ab hier kritisch (entspricht der Standard-Gültigkeitsdauer des Compliance-Status) */
+  checkInCriticalDays: 30,
   /** Unter diesem Anteil freien Speichers → Warnung */
   lowStorageRatio: 0.1,
   /** Supportende einer Windows-Version innerhalb dieser Tage → Warnung */

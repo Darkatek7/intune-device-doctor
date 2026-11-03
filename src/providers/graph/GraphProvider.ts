@@ -111,29 +111,51 @@ export class GraphProvider implements DeviceDataProvider {
       }
     };
 
+    const listAll = () =>
+      this.client.getAllPages<GraphManagedDevice>(Endpoints.managedDevicesList.path(), {
+        signal,
+        scope,
+        maxPages: MAX_LIST_PAGES,
+      });
+    const needle = name.toLowerCase();
+    const byUser = (d: GraphManagedDevice) =>
+      [d.userPrincipalName, d.userDisplayName].some((v) =>
+        (v ?? '').toLowerCase().includes(needle),
+      );
+    const results = (devices: GraphManagedDevice[]) =>
+      devices.slice(0, MAX_SEARCH_RESULTS).map(mapSearchResult);
+
     try {
+      // UPN (Gerätenamen enthalten kein "@"): dokumentierter eq-Filter auf userPrincipalName
+      if (name.includes('@')) {
+        const byUpn = await search(Endpoints.managedDevicesByUser.path(name));
+        if (Array.isArray(byUpn) && byUpn.length > 0) return results(byUpn);
+        // Kein Treffer oder Filter abgelehnt → Teil-UPN clientseitig über die Geräteliste
+        return results((await listAll()).filter(byUser));
+      }
+
       // 1) exakter Name
       const exact = await search(Endpoints.managedDevicesByName.path(name));
-      if (Array.isArray(exact) && exact.length > 0) return exact.map(mapSearchResult);
+      if (Array.isArray(exact) && exact.length > 0) return results(exact);
 
       // 2) Teilstring
       const contains = await search(Endpoints.managedDevicesByNameContains.path(name));
-      if (contains !== 'badRequest') return contains.map(mapSearchResult);
+      if (Array.isArray(contains) && contains.length > 0) return results(contains);
 
-      // 3) $filter auf deviceName wurde mit 400 abgelehnt → clientseitig über paginierte Liste
-      this.log(
-        'Graph lehnt $filter auf deviceName ab (HTTP 400) – Suche läuft clientseitig über die Geräteliste.',
-      );
-      const all = await this.client.getAllPages<GraphManagedDevice>(
-        Endpoints.managedDevicesList.path(),
-        { signal, scope, maxPages: MAX_LIST_PAGES },
-      );
-      const needle = name.toLowerCase();
-      const hits = all.filter((d) => (d.deviceName ?? '').toLowerCase().includes(needle));
-      const exactHits = hits.filter((d) => (d.deviceName ?? '').toLowerCase() === needle);
-      return (exactHits.length > 0 ? exactHits : hits)
-        .slice(0, MAX_SEARCH_RESULTS)
-        .map(mapSearchResult);
+      // 3) Clientseitig über die paginierte Liste: Gerätename (falls $filter abgelehnt wurde),
+      //    sonst Benutzer – für userDisplayName ist kein $filter dokumentiert.
+      if (contains === 'badRequest') {
+        this.log(
+          'Graph lehnt $filter auf deviceName ab (HTTP 400) – Suche läuft clientseitig über die Geräteliste.',
+        );
+      }
+      const all = await listAll();
+      if (contains === 'badRequest') {
+        const hits = all.filter((d) => (d.deviceName ?? '').toLowerCase().includes(needle));
+        const exactHits = hits.filter((d) => (d.deviceName ?? '').toLowerCase() === needle);
+        if (hits.length > 0) return results(exactHits.length > 0 ? exactHits : hits);
+      }
+      return results(all.filter(byUser));
     } catch (error) {
       if (isAbort(error)) throw error;
       throw new ProviderError(toAppError(error));

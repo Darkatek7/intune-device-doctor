@@ -153,6 +153,14 @@ describe('MockProvider – Suche', () => {
     await expect(provider.searchDevices('CONTOSO-NIX')).resolves.toEqual([]);
   });
 
+  it('findet Geräte auch über UPN oder Anzeigenamen des Benutzers', async () => {
+    const provider = instantProvider();
+    const byName = await provider.searchDevices('Lukas Wagner');
+    expect(byName.map((d) => d.deviceName)).toEqual(['CONTOSO-LT108']);
+    const byUpn = await provider.searchDevices('lukas.wagner@contoso.com');
+    expect(byUpn.map((d) => d.deviceName)).toEqual(['CONTOSO-LT108']);
+  });
+
   it('liefert für leere oder nur aus Leerraum bestehende Suche ein leeres Array', async () => {
     await expect(provider.searchDevices('')).resolves.toEqual([]);
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);

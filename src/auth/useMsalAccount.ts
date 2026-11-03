@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AccountInfo, IPublicClientApplication } from '@azure/msal-browser';
+import { describeAuthError } from './describeAuthError';
 import { currentAccount, initMsal } from './token';
 
 export type AuthState =
@@ -22,7 +23,7 @@ export function useMsalAccount(instance: IPublicClientApplication): AuthState {
 
     initMsal(instance).then(refresh, (error: unknown) => {
       if (cancelled) return;
-      setState({ status: 'error', message: error instanceof Error ? error.message : '' });
+      setState({ status: 'error', message: describeAuthError(error) });
     });
     const callbackId = instance.addEventCallback(() => {
       // Erst nach erfolgreicher Initialisierung Konten lesen.

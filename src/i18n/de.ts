@@ -16,9 +16,9 @@ export const de = {
       'Live-Modus nicht konfiguriert – Client-ID und Tenant-ID in .env.local setzen.',
   },
   search: {
-    placeholder: 'Gerätename eingeben …',
+    placeholder: 'Gerätename oder Benutzer eingeben …',
     button: 'Prüfen',
-    noResults: 'Kein Gerät mit diesem Namen gefunden.',
+    noResults: 'Kein Gerät mit diesem Namen oder Benutzer gefunden.',
     multipleResults: 'Mehrere Geräte gefunden – bitte auswählen.',
   },
   dropZone: {
@@ -156,7 +156,7 @@ export const de = {
     skipToContent: 'Zum Inhalt springen',
   },
   field: {
-    label: 'Gerätename',
+    label: 'Gerätename oder Benutzer',
     shortcut: '⌘K',
     shortcutHint: 'Zum Suchen ⌘K, Strg+K oder / drücken',
     suggestions: 'Vorschläge',
@@ -165,7 +165,7 @@ export const de = {
   },
   hero: {
     title: 'Intune-Geräte in Sekunden diagnostizieren',
-    subtitle: 'Gerätenamen eingeben – oder ein Beispielgerät laden.',
+    subtitle: 'Gerätenamen oder Benutzer eingeben – oder ein Beispielgerät laden.',
   },
   header: {
     loadingDevice: 'Gerät wird geladen …',

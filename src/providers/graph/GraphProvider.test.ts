@@ -104,6 +104,43 @@ describe('GraphProvider – Suche', () => {
     ]);
   });
 
+  it('sucht bei "@" per dokumentiertem eq-Filter auf userPrincipalName', async () => {
+    const { provider, calls } = setup((call) => {
+      const filter = call.parsed.searchParams.get('$filter');
+      if (filter === "userPrincipalName eq 'ada@contoso.com'") {
+        return collection([
+          pc001Device({ userPrincipalName: 'ada@contoso.com' }),
+          pc001Device({
+            id: 'lt',
+            deviceName: 'CONTOSO-LT042',
+            userPrincipalName: 'ada@contoso.com',
+          }),
+        ]);
+      }
+      return collection([]);
+    });
+    const hits = await provider.searchDevices('ada@contoso.com');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC001', 'CONTOSO-LT042']);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('findet Geräte über den Anzeigenamen clientseitig, wenn kein Gerätename passt', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ userDisplayName: 'Ada Admin' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', userDisplayName: 'Bob Builder' }),
+      ]);
+    });
+    const hits = await provider.searchDevices('ada');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC001']);
+    expect(calls.map((c) => c.parsed.searchParams.get('$filter'))).toEqual([
+      "deviceName eq 'ada'",
+      "contains(deviceName,'ada')",
+      null,
+    ]);
+  });
+
   it('liefert für leere Eingabe eine leere Liste ohne Request', async () => {
     const { provider, calls } = setup();
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);
