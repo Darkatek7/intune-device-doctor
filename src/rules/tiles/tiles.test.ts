@@ -14,7 +14,7 @@ import type {
   Tile,
   WindowsProtectionInfo,
 } from '../../domain/types';
-import { hexToSignedDecimal } from '../../domain/format';
+import { formatDate, formatRelativeTime, hexToSignedDecimal } from '../../domain/format';
 import { de } from '../../i18n/de';
 import { MockProvider } from '../../providers/mock/MockProvider';
 import { Docs } from '../knowledge/docs';
@@ -474,6 +474,185 @@ describe('Gerätestatus (deviceStatus)', () => {
       'Anfragen werden gedrosselt',
     );
   });
+
+  describe('MDM-Zertifikat, Beaufsichtigung und Enrollment-Profil', () => {
+    /** Zeitpunkt relativ zu NOW (negativ = Vergangenheit). */
+    const at = (ms: number): string => new Date(NOW.getTime() + ms).toISOString();
+    const inDays = (days: number): string => at(days * DAY_MS);
+    /** Zertifikat weit in der Zukunft – macht die Basis unabhängig vom Mock-Szenario. */
+    const withCert = (s: DeviceSnapshot, expiry: string | null): DeviceSnapshot =>
+      withDevice(s, { managementCertificateExpirationDate: expiry });
+    const certFindings = (tile: Tile): string[] =>
+      tile.findings.map((f) => f.id).filter((id) => id.startsWith('deviceStatus-cert'));
+
+    it('Zertifikat läuft in genau 30 Tagen ab → warning mit deviceStatus-certExpiring', () => {
+      const expiry = inDays(30);
+      const tile = evaluateDeviceStatus(withCert(base, expiry), NOW);
+      expect(tile.severity).toBe('warning');
+      expect(tile.value).toBe(de.rules.deviceStatus.valueCertExpiring);
+      const finding = findingWithId(tile, 'deviceStatus-certExpiring');
+      expect(finding.severity).toBe('warning');
+      expect(finding.title).toBe(
+        de.rules.deviceStatus.certExpiringTitle(formatRelativeTime(expiry, NOW)),
+      );
+      expect(finding.docsUrl).toBe(Docs.mdmCertificateLifetime);
+      expect(finding.evidence).toMatchObject({ managementCertificateExpirationDate: expiry });
+    });
+
+    it('Zertifikat läuft in 30 Tagen und 1 Minute ab → noch kein Befund, nur Fact', () => {
+      const expiry = at(30 * DAY_MS + 60_000);
+      const tile = evaluateDeviceStatus(withCert(base, expiry), NOW);
+      expect(certFindings(tile)).toEqual([]);
+      expect(tile.severity).toBe('ok');
+      expect(tile.facts).toContainEqual({
+        label: de.rules.facts.mdmCertificate,
+        value: formatDate(expiry),
+      });
+    });
+
+    it('Zertifikat läuft in 31 Tagen ab → kein Befund', () => {
+      const tile = evaluateDeviceStatus(withCert(base, inDays(31)), NOW);
+      expect(certFindings(tile)).toEqual([]);
+      expect(tile.severity).toBe('ok');
+    });
+
+    it('Zertifikat läuft in 1 Stunde ab → warning, noch nicht abgelaufen', () => {
+      const tile = evaluateDeviceStatus(withCert(base, at(HOUR_MS)), NOW);
+      expect(tile.severity).toBe('warning');
+      expect(findingWithId(tile, 'deviceStatus-certExpiring').severity).toBe('warning');
+      expect(certFindings(tile)).not.toContain('deviceStatus-certExpired');
+    });
+
+    it('Zertifikat läuft genau jetzt ab (0 Tage) → critical mit deviceStatus-certExpired', () => {
+      const tile = evaluateDeviceStatus(withCert(base, NOW.toISOString()), NOW);
+      expect(tile.severity).toBe('critical');
+      expect(tile.value).toBe(de.rules.deviceStatus.valueCertExpired);
+      const finding = findingWithId(tile, 'deviceStatus-certExpired');
+      expect(finding.severity).toBe('critical');
+      expect(finding.title).toBe(de.rules.deviceStatus.certExpiredTitle);
+      expect(finding.docsUrl).toBe(Docs.mdmCertificateLifetime);
+    });
+
+    it('Zertifikat seit 1 Tag abgelaufen → critical, kein certExpiring-Befund', () => {
+      const tile = evaluateDeviceStatus(withCert(base, inDays(-1)), NOW);
+      expect(tile.severity).toBe('critical');
+      expect(certFindings(tile)).toEqual(['deviceStatus-certExpired']);
+    });
+
+    it('Zertifikat-Datum fehlt (null) → kein Befund und kein Fact', () => {
+      const tile = evaluateDeviceStatus(withCert(base, null), NOW);
+      expect(certFindings(tile)).toEqual([]);
+      expect(tile.facts.some((f) => f.label === de.rules.facts.mdmCertificate)).toBe(false);
+    });
+
+    it('ungültiges Zertifikat-Datum wird wie fehlend behandelt (kein Befund)', () => {
+      const tile = evaluateDeviceStatus(withCert(base, 'kein-datum'), NOW);
+      expect(certFindings(tile)).toEqual([]);
+      expect(tile.severity).toBe('ok');
+    });
+
+    it('iOS nicht beaufsichtigt (isSupervised false) → Hinweis deviceStatus-notSupervised, Kachel bleibt ok', () => {
+      const tile = evaluateDeviceStatus(
+        withCert(
+          withDevice(base, { osFamily: 'ios', operatingSystem: 'iOS', isSupervised: false }),
+          inDays(200),
+        ),
+        NOW,
+      );
+      expect(tile.severity).toBe('ok');
+      const finding = findingWithId(tile, 'deviceStatus-notSupervised');
+      expect(finding.severity).toBe('unknown');
+      expect(finding.docsUrl).toBe(Docs.appleSupervisedMode);
+      expect(finding.evidence).toMatchObject({ isSupervised: false });
+      expect(tile.facts).toContainEqual({
+        label: de.rules.facts.supervised,
+        value: de.rules.facts.no,
+      });
+    });
+
+    it('iOS beaufsichtigt (isSupervised true) → kein Befund, Fact „Ja“', () => {
+      const tile = evaluateDeviceStatus(
+        withCert(
+          withDevice(base, { osFamily: 'ios', operatingSystem: 'iOS', isSupervised: true }),
+          inDays(200),
+        ),
+        NOW,
+      );
+      expect(tile.findings.some((f) => f.id === 'deviceStatus-notSupervised')).toBe(false);
+      expect(tile.facts).toContainEqual({
+        label: de.rules.facts.supervised,
+        value: de.rules.facts.yes,
+      });
+    });
+
+    it('iOS ohne Angabe (isSupervised null) → weder Befund noch Fact', () => {
+      const tile = evaluateDeviceStatus(
+        withCert(
+          withDevice(base, { osFamily: 'ios', operatingSystem: 'iOS', isSupervised: null }),
+          inDays(200),
+        ),
+        NOW,
+      );
+      expect(tile.findings.some((f) => f.id === 'deviceStatus-notSupervised')).toBe(false);
+      expect(tile.facts.some((f) => f.label === de.rules.facts.supervised)).toBe(false);
+    });
+
+    it.each([
+      ['Windows', 'windows', 'Windows'],
+      ['macOS', 'macos', 'macOS'],
+      ['Android', 'android', 'Android'],
+    ] as const)(
+      '%s mit isSupervised false → nie ein Beaufsichtigungs-Befund (nur iOS)',
+      (_label, osFamily, operatingSystem) => {
+        const tile = evaluateDeviceStatus(
+          withCert(
+            withDevice(base, { osFamily, operatingSystem, isSupervised: false }),
+            inDays(200),
+          ),
+          NOW,
+        );
+        expect(tile.findings.some((f) => f.id === 'deviceStatus-notSupervised')).toBe(false);
+        expect(tile.facts.some((f) => f.label === de.rules.facts.supervised)).toBe(false);
+      },
+    );
+
+    it('Befunde sind nach Schwere sortiert: Zertifikatswarnung vor Beaufsichtigungs-Hinweis', () => {
+      const tile = evaluateDeviceStatus(
+        withCert(
+          withDevice(base, { osFamily: 'ios', operatingSystem: 'iOS', isSupervised: false }),
+          inDays(10),
+        ),
+        NOW,
+      );
+      expect(tile.findings.map((f) => f.id)).toEqual([
+        'deviceStatus-certExpiring',
+        'deviceStatus-notSupervised',
+      ]);
+      expect(tile.severity).toBe('warning');
+    });
+
+    it('Enrollment-Profil wird als Fact angezeigt, bei null fehlt der Fact', () => {
+      const withProfile = evaluateDeviceStatus(
+        withCert(
+          withDevice(base, { enrollmentProfileName: 'Contoso Autopilot Standard' }),
+          inDays(200),
+        ),
+        NOW,
+      );
+      expect(withProfile.facts).toContainEqual({
+        label: de.rules.facts.enrollmentProfile,
+        value: 'Contoso Autopilot Standard',
+      });
+
+      const withoutProfile = evaluateDeviceStatus(
+        withCert(withDevice(base, { enrollmentProfileName: null }), inDays(200)),
+        NOW,
+      );
+      expect(withoutProfile.facts.some((f) => f.label === de.rules.facts.enrollmentProfile)).toBe(
+        false,
+      );
+    });
+  });
 });
 
 describe('Richtlinien (policies)', () => {
@@ -758,5 +937,107 @@ describe('Betriebssystem (osVersion)', () => {
     const tile = evaluateOsVersion(withOs('10.0.19045.6456'), NOW);
     expect(tile.severity).toBe('warning');
     expect(tile.value).toBe('Windows 10 22H2');
+  });
+
+  describe('Android-Sicherheitspatch', () => {
+    const MIDNIGHT = new Date('2026-10-15T00:00:00Z');
+    /** Patchdatum (YYYY-MM-DD, UTC) genau `days` Tage vor NOW. */
+    const patchDaysAgo = (days: number): string =>
+      new Date(NOW.getTime() - days * DAY_MS).toISOString().slice(0, 10);
+    const android = (patch: string | null) =>
+      withDevice(base, {
+        osFamily: 'android',
+        operatingSystem: 'Android',
+        osVersion: '14',
+        androidSecurityPatchLevel: patch,
+      });
+
+    it('Patch 89 Tage alt → unknown ohne Befund, Summary nennt das Patchdatum', () => {
+      const patch = patchDaysAgo(89);
+      const tile = evaluateOsVersion(android(patch), NOW);
+      expect(tile.severity).toBe('unknown');
+      expect(tile.findings).toEqual([]);
+      expect(tile.value).toBe('Android 14');
+      expect(tile.summary).toBe(de.rules.osVersion.summaryPatch(formatDate(patch, 'UTC')));
+      expect(tile.facts).toContainEqual({
+        label: de.rules.facts.securityPatch,
+        value: formatDate(patch, 'UTC'),
+      });
+    });
+
+    it('Patch 91 Tage alt → warning mit osVersion-androidPatchOld', () => {
+      const patch = patchDaysAgo(91);
+      const tile = evaluateOsVersion(android(patch), NOW);
+      expect(tile.severity).toBe('warning');
+      const finding = findingWithId(tile, 'osVersion-androidPatchOld');
+      expect(finding.severity).toBe('warning');
+      expect(finding.title).toBe(de.rules.osVersion.patchOldTitle(91));
+      expect(finding.docsUrl).toBe(Docs.androidPatchLevel);
+      expect(finding.evidence).toMatchObject({ androidSecurityPatchLevel: patch });
+    });
+
+    it('Grenze (Mitternacht): genau 90 Tage alt ist noch ok, 91 Tage ist warning', () => {
+      // 2026-07-17 → 2026-10-15 = 90 Tage; "älter als 90 Tage" ist strikt.
+      const at90 = evaluateOsVersion(android('2026-07-17'), MIDNIGHT);
+      expect(at90.severity).toBe('unknown');
+      expect(at90.findings).toEqual([]);
+
+      const at91 = evaluateOsVersion(android('2026-07-16'), MIDNIGHT);
+      expect(at91.severity).toBe('warning');
+      expect(findingWithId(at91, 'osVersion-androidPatchOld').title).toBe(
+        de.rules.osVersion.patchOldTitle(91),
+      );
+    });
+
+    it('Patchdatum in der Zukunft → kein Warnbefund', () => {
+      const tile = evaluateOsVersion(android(patchDaysAgo(-10)), NOW);
+      expect(tile.severity).toBe('unknown');
+      expect(tile.findings).toEqual([]);
+    });
+
+    it.each([
+      ['ungültiger Text', 'kein-datum'],
+      ['leerer String', ''],
+      ['null', null],
+    ] as const)(
+      'Patch %s → kein Befund, kein Patch-Fact, Summary „nur Windows“',
+      (_label, patch) => {
+        const tile = evaluateOsVersion(android(patch), NOW);
+        expect(tile.severity).toBe('unknown');
+        expect(tile.findings).toEqual([]);
+        expect(tile.summary).toBe(de.rules.osVersion.summaryNotEvaluated);
+        expect(tile.facts.some((f) => f.label === de.rules.facts.securityPatch)).toBe(false);
+      },
+    );
+
+    it('iOS mit gesetztem Patchdatum → Patch wird nicht bewertet (nur Android)', () => {
+      const tile = evaluateOsVersion(
+        withDevice(base, {
+          osFamily: 'ios',
+          operatingSystem: 'iOS',
+          osVersion: '18.6',
+          androidSecurityPatchLevel: patchDaysAgo(200),
+        }),
+        NOW,
+      );
+      expect(tile.severity).toBe('unknown');
+      expect(tile.findings).toEqual([]);
+      expect(tile.summary).toBe(de.rules.osVersion.summaryNotEvaluated);
+    });
+
+    it('Patchdatum "2026-07-17" wird zeitzonenunabhängig als 17.07.2026 angezeigt', () => {
+      const tile = evaluateOsVersion(
+        withDevice(base, {
+          osFamily: 'android',
+          operatingSystem: 'Android',
+          osVersion: '15',
+          androidSecurityPatchLevel: '2026-07-17',
+        }),
+        NOW,
+      );
+      expect(tile.facts.find((x) => x.label === de.rules.facts.securityPatch)?.value).toBe(
+        '17.07.2026',
+      );
+    });
   });
 });

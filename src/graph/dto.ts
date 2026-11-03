@@ -105,6 +105,13 @@ export interface GraphManagedDevice {
   partnerReportedThreatState: ManagedDevicePartnerReportedHealthState;
   freeStorageSpaceInBytes: number | null;
   totalStorageSpaceInBytes: number | null;
+  /** Ablauf des MDM-Gerätezertifikats */
+  managementCertificateExpirationDate: string | null;
+  /** iOS/iPadOS: beaufsichtigt (supervised) */
+  isSupervised: boolean | null;
+  /** Android: Sicherheitspatch-Level, z. B. "2026-09-01" */
+  androidSecurityPatchLevel: string | null;
+  enrollmentProfileName: string | null;
 }
 
 /** Felder für die Trefferliste der Suche ($select). */

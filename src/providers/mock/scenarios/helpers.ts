@@ -68,6 +68,10 @@ export function windowsDevice(now: Date, n: number, overrides: Partial<DeviceBas
     partnerReportedThreatState: 'secured',
     freeStorageSpaceInBytes: 182 * GB,
     totalStorageSpaceInBytes: 476 * GB,
+    managementCertificateExpirationDate: inFuture(now, { days: 155 }),
+    isSupervised: null,
+    androidSecurityPatchLevel: null,
+    enrollmentProfileName: null,
     ...overrides,
   };
 }

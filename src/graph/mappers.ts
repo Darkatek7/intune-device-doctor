@@ -70,6 +70,14 @@ const num = (value: unknown): number | null =>
 
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
+/** Datumswerte; Graph meldet "nicht gesetzt" teils als 0001-01-01 → null. */
+function validDate(value: unknown): string | null {
+  const text = str(value);
+  if (!text) return null;
+  const time = Date.parse(text);
+  return Number.isNaN(time) || new Date(time).getUTCFullYear() < 2000 ? null : text;
+}
+
 /** Leere Strings und die Null-GUID (Geräte ohne Benutzer) → null. */
 function usableId(value: unknown): string | null {
   const id = typeof value === 'string' ? value.trim() : '';
@@ -227,6 +235,10 @@ export function mapManagedDevice(dto: GraphManagedDevice): ManagedDeviceInfo {
     partnerReportedThreatState: pick(dto.partnerReportedThreatState, PARTNER_STATES, 'unknown'),
     freeStorageSpaceInBytes: num(dto.freeStorageSpaceInBytes),
     totalStorageSpaceInBytes: num(dto.totalStorageSpaceInBytes),
+    managementCertificateExpirationDate: validDate(dto.managementCertificateExpirationDate),
+    isSupervised: bool(dto.isSupervised),
+    androidSecurityPatchLevel: str(dto.androidSecurityPatchLevel)?.trim() || null,
+    enrollmentProfileName: str(dto.enrollmentProfileName)?.trim() || null,
     source: graphSource('managedDevice'),
   };
 }

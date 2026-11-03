@@ -30,6 +30,8 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
   },
   'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
+  'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
+  'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
   'CONTOSO-PC050': { policies: 'unknown' },
 };
 

@@ -31,6 +31,7 @@ Alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern **Admin-Consent** 
 - `deviceEnrollmentType`: `unknown, userEnrollment, deviceEnrollmentManager, appleBulkWithUser, appleBulkWithoutUser, windowsAzureADJoin, windowsBulkUserless, windowsAutoEnrollment, windowsBulkAzureDomainJoin, windowsCoManagement, windowsAzureADJoinUsingDeviceAuth, appleUserEnrollment, appleUserEnrollmentWithServiceAccount`
 - `partnerReportedThreatState`: `unknown, activated, deactivated, secured, lowSeverity, mediumSeverity, highSeverity, unresponsive, compromised, misconfigured`
 - `userId` (Entra-Objekt-ID des primären Benutzers) – Grundlage für den App-Status.
+- `managementCertificateExpirationDate` (Ablauf MDM-Gerätezertifikat; App-Heuristik: Werte vor 2000, z. B. `0001-01-01`, werden als nicht gesetzt behandelt), `isSupervised` (von der App nur für iOS/iPadOS ausgewertet), `androidSecurityPatchLevel` (`YYYY-MM-DD`), `enrollmentProfileName` – alle v1.0-Ressource [managedDevice](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0).
 - **Beta-only, nicht verwenden:** `managementState`, `deviceType`, `ownerType`, `joinType`, `autopilotEnrolled`, `hardwareInformation`, `windowsActiveMalwareCount`.
 - Nur per GET by id + `$select`: `physicalMemoryInBytes`, `ethernetMacAddress`, `notes`, `udid`, `iccid` (nicht benötigt).
 

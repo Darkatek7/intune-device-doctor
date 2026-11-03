@@ -55,6 +55,14 @@ export const Docs = {
   coManagement: 'https://learn.microsoft.com/intune/configmgr/comanage/overview',
   windowsEnrollmentErrors:
     'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-enrollment-errors',
+  mdmCertificateLifetime:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-management/troubleshoot-device-actions#wipe-and-retire-actions',
+  appleSupervisedMode:
+    'https://learn.microsoft.com/intune/device-enrollment/apple/enable-supervised-mode',
+  androidPatchLevel:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#fully-managed-basic-security-level-1',
+  appleMdmPushCertificate:
+    'https://learn.microsoft.com/intune/device-enrollment/apple/create-mdm-push-certificate#renew-apple-mdm-push-certificate',
   appInstallTroubleshoot:
     'https://learn.microsoft.com/troubleshoot/mem/intune/app-management/troubleshoot-app-install#get-app-troubleshooting-details',
   appIntentAndStatesBeta:

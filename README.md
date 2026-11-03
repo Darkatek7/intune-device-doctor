@@ -34,7 +34,7 @@ Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten
 4. **Beispiel-ZIP (45 s):** Startseite › „Beispiel-ZIP analysieren“ → Entra-Join & PRT rot (Attempt Status `0xc000023c`, HTTP Error `0x80072ee7` mit Microsoft-Learn-Deutung), Win32-App `0x80070642` (= Win32 1602, Installation abgebrochen). „Mit Intune-Daten zusammenführen“ → zwölf Kacheln in einer Ansicht; die Apps-Kachel zeigt denselben VPN-Client auch laut Intune als fehlgeschlagen. Betonen: Datei verlässt den Browser nie.
 5. **Berechtigungsfall (30 s):** `CONTOSO-PC050` → Richtlinien und BitLocker zeigen „Fehlende Berechtigung“ inkl. Scope (`DeviceManagementConfiguration.Read.All`, `BitlockerKey.ReadBasic.All`); der Rest des Dashboards funktioniert.
 
-Weitere Szenarien: `CONTOSO-PC027` (Defender: Signaturen veraltet, Neustart, behandelte Bedrohung), `CONTOSO-PC033` (Check-in vor 41 Tagen), `CONTOSO-LT108` (Windows 10, Entra-Gerät deaktiviert), `CONTOSO-MAC07` (macOS, FileVault, Defender nicht anwendbar). Mehrdeutige Suche: `contoso-pc0`.
+Weitere Szenarien: `CONTOSO-PC027` (Defender: Signaturen veraltet, Neustart, behandelte Bedrohung), `CONTOSO-PC033` (Check-in vor 41 Tagen), `CONTOSO-LT108` (Windows 10, Entra-Gerät deaktiviert), `CONTOSO-MAC07` (macOS, FileVault, Defender nicht anwendbar), `CONTOSO-IP015` (iPhone: MDM-Zertifikat läuft in 12 Tagen ab, nicht beaufsichtigt), `CONTOSO-AND21` (Android: Sicherheitspatch rund 200 Tage alt). Mehrdeutige Suche: `contoso-pc0`.
 
 ## Erscheinungsbild
 

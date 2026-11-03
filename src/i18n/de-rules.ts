@@ -65,6 +65,10 @@ export const deRules = {
     lastReported: 'Zuletzt gemeldet',
     profiles: 'Konfigurationsprofile',
     compliancePolicies: 'Compliance-Richtlinien',
+    mdmCertificate: 'MDM-Zertifikat gültig bis',
+    supervised: 'Beaufsichtigt (supervised)',
+    enrollmentProfile: 'Enrollment-Profil',
+    securityPatch: 'Sicherheitspatch',
     appsAssigned: 'Zugewiesene Apps',
     appsInstalled: 'Installiert',
     appsFailed: 'Fehlgeschlagen',
@@ -139,6 +143,25 @@ export const deRules = {
     jailbrokenRemediation: [
       'Gerät mit dem Nutzer klären und Zugriff auf Unternehmensdaten sperren (Compliance-Einstellung „Gejailbreakte Geräte blockieren“).',
       'Gerät auf Werkszustand zurücksetzen lassen und neu registrieren.',
+    ],
+    valueCertExpired: 'MDM-Zertifikat abgelaufen',
+    valueCertExpiring: 'MDM-Zertifikat läuft ab',
+    certExpiredTitle: 'MDM-Gerätezertifikat abgelaufen',
+    certExpiringTitle: (relative: string) => `MDM-Gerätezertifikat läuft ${relative} ab`,
+    certDetail: (date: string) => `managementCertificateExpirationDate: ${date}.`,
+    certCause:
+      'Das MDM-Zertifikat gilt ein Jahr ab Registrierung und wird jährlich automatisch erneuert. Checkt das Gerät vor Ablauf nicht ein, kann es danach nicht mehr beim Dienst einchecken; 180 Tage nach Ablauf wird es automatisch entfernt.',
+    certRemediation: [
+      'Gerät vor Ablauf einschalten, mit dem Internet verbinden und synchronisieren lassen, damit es eincheckt.',
+      'Ist das Zertifikat bereits abgelaufen, kann das Gerät nicht mehr einchecken – Vorgehen mit dem Gerätenutzer klären.',
+    ],
+    notSupervisedTitle: 'iOS/iPadOS-Gerät ist nicht beaufsichtigt',
+    notSupervisedDetail: 'isSupervised: false.',
+    notSupervisedCause:
+      'Beaufsichtigung (supervised mode) gibt mehr Verwaltungsoptionen; bestimmte Einschränkungen, z. B. für AirDrop, setzen sie voraus. Intune aktiviert sie über die automatische Geräteregistrierung (ADE).',
+    notSupervisedRemediation: [
+      'Prüfen, ob das Gerät firmeneigen ist und über ADE registriert werden sollte.',
+      'Nachträglich lässt sich Beaufsichtigung nur über Apple Configurator aktivieren (setzt das Gerät zurück).',
     ],
     lowStorageTitle: 'Wenig freier Speicherplatz',
     lowStorageDetail: (free: string, total: string, percent: string) =>
@@ -250,6 +273,16 @@ export const deRules = {
     summaryEnded: 'Keine Updates mehr',
     summaryBuild: (build: string) => `Build ${build}`,
     summaryNotEvaluated: 'Supportstatus nur für Windows hinterlegt',
+    summaryPatch: (date: string) => `Sicherheitspatch ${date}`,
+    patchOldTitle: (days: number) => `Android-Sicherheitspatch ist ${days} Tage alt`,
+    patchOldDetail: (level: string, limit: number) =>
+      `androidSecurityPatchLevel: ${level} – älter als ${limit} Tage.`,
+    patchOldCause:
+      'Android-Geräte können monatliche Sicherheitspatches erhalten; die Auslieferung hängt von Hersteller bzw. Mobilfunkanbieter ab. Über die Compliance-Einstellung „Mindest-Sicherheitspatchlevel“ kann Intune Geräte mit älterem Patchstand als nicht konform markieren.',
+    patchOldRemediation: [
+      'Am Gerät nach verfügbaren Systemupdates suchen und sie installieren.',
+      'Prüfen, ob Hersteller bzw. Mobilfunkanbieter für das Modell noch Sicherheitspatches ausliefern.',
+    ],
     win10Title: 'Windows 10 – Support beendet',
     win10Detail: (build: string) =>
       `Das Gerät läuft mit Windows 10 22H2 (Build ${build}). Windows 10 hat am 14.10.2025 das Supportende erreicht.`,

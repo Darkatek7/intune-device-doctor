@@ -279,3 +279,130 @@ describe('BitLocker volumeType', () => {
     expect(JSON.stringify(info)).not.toContain('SECRET');
   });
 });
+
+describe('mapManagedDevice – Zertifikat, Beaufsichtigung, Android-Patch, Enrollment-Profil', () => {
+  /** Graph-DTO ohne das angegebene Feld (Graph lässt Felder je nach $select weg). */
+  const withoutField = (key: keyof GraphManagedDevice): GraphManagedDevice => {
+    const dto: Partial<GraphManagedDevice> = pc001Device();
+    delete dto[key];
+    return dto as GraphManagedDevice;
+  };
+
+  describe('managementCertificateExpirationDate (validDate)', () => {
+    it('gültiges Datum bleibt unverändert erhalten', () => {
+      const value = '2027-01-15T08:00:00Z';
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBe(value);
+    });
+
+    it('Jahr 2000 ist die untere Grenze und bleibt erhalten', () => {
+      const value = '2000-01-01T00:00:00Z';
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBe(value);
+    });
+
+    it.each([
+      ['Graph-Platzhalter „nicht gesetzt“ 0001-01-01', '0001-01-01T00:00:00Z'],
+      ['Jahr 1999 (kurz vor der Grenze)', '1999-12-31T23:59:59Z'],
+      ['ungültiger Text', 'kein-datum'],
+      ['leerer String', ''],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ managementCertificateExpirationDate: value }))
+          .managementCertificateExpirationDate,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('managementCertificateExpirationDate'))
+          .managementCertificateExpirationDate,
+      ).toBeNull();
+    });
+  });
+
+  describe('isSupervised (bool)', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+      ['null', null],
+    ] as const)('%s wird übernommen', (_label, value) => {
+      expect(mapManagedDevice(pc001Device({ isSupervised: value })).isSupervised).toBe(value);
+    });
+
+    it('nur echte Booleans gelten: Text "true" und Zahl 1 werden zu null', () => {
+      expect(
+        mapManagedDevice(pc001Device({ isSupervised: 'true' as never })).isSupervised,
+      ).toBeNull();
+      expect(mapManagedDevice(pc001Device({ isSupervised: 1 as never })).isSupervised).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(mapManagedDevice(withoutField('isSupervised')).isSupervised).toBeNull();
+    });
+  });
+
+  describe('androidSecurityPatchLevel', () => {
+    it('Datum wird übernommen und getrimmt', () => {
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: '2026-09-01' }))
+          .androidSecurityPatchLevel,
+      ).toBe('2026-09-01');
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: '  2026-09-01 ' }))
+          .androidSecurityPatchLevel,
+      ).toBe('2026-09-01');
+    });
+
+    it.each([
+      ['leerer String', ''],
+      ['nur Leerzeichen', '   '],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ androidSecurityPatchLevel: value }))
+          .androidSecurityPatchLevel,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('androidSecurityPatchLevel')).androidSecurityPatchLevel,
+      ).toBeNull();
+    });
+  });
+
+  describe('enrollmentProfileName', () => {
+    it('Name wird übernommen und getrimmt', () => {
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: 'Contoso Autopilot' }))
+          .enrollmentProfileName,
+      ).toBe('Contoso Autopilot');
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: '  Contoso Autopilot  ' }))
+          .enrollmentProfileName,
+      ).toBe('Contoso Autopilot');
+    });
+
+    it.each([
+      ['leerer String', ''],
+      ['nur Leerzeichen', '   '],
+      ['null', null],
+    ])('%s → null', (_label, value) => {
+      expect(
+        mapManagedDevice(pc001Device({ enrollmentProfileName: value })).enrollmentProfileName,
+      ).toBeNull();
+    });
+
+    it('fehlendes Feld (undefined) → null', () => {
+      expect(
+        mapManagedDevice(withoutField('enrollmentProfileName')).enrollmentProfileName,
+      ).toBeNull();
+    });
+  });
+});

@@ -91,6 +91,8 @@ const SCENARIO_NAMES = [
   'CONTOSO-PC042',
   'CONTOSO-LT108',
   'CONTOSO-MAC07',
+  'CONTOSO-IP015',
+  'CONTOSO-AND21',
   'CONTOSO-PC050',
 ];
 
@@ -216,7 +218,7 @@ describe('MockProvider – Suche', () => {
 describe('MockProvider – Geräte und Szenarien', () => {
   const provider = instantProvider();
 
-  it('enthält genau die 8 Szenarien aus der M1-Tabelle', () => {
+  it('enthält genau die 10 Szenarien (M1-Tabelle plus iOS/Android aus M8)', () => {
     expect(scenarios.map((s) => s.deviceName).sort()).toEqual([...SCENARIO_NAMES].sort());
   });
 

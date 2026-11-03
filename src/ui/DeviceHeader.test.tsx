@@ -30,6 +30,10 @@ const device: ManagedDeviceInfo = {
   partnerReportedThreatState: 'unknown',
   freeStorageSpaceInBytes: null,
   totalStorageSpaceInBytes: null,
+  managementCertificateExpirationDate: null,
+  isSupervised: null,
+  androidSecurityPatchLevel: null,
+  enrollmentProfileName: null,
   source: { kind: 'mock', label: 'GET /deviceManagement/managedDevices/{id}' },
 };
 

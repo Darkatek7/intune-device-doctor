@@ -131,6 +131,10 @@ describe.each(factories)('DeviceDataProvider-Vertrag: %s', (_name, create) => {
         'userDisplayName',
         'userId',
         'userPrincipalName',
+        'managementCertificateExpirationDate',
+        'isSupervised',
+        'androidSecurityPatchLevel',
+        'enrollmentProfileName',
       ].sort(),
     );
 

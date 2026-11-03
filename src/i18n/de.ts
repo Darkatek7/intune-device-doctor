@@ -357,6 +357,8 @@ export const de = {
       'CONTOSO-PC042': 'Richtlinienkonflikt',
       'CONTOSO-LT108': 'Windows 10 · Entra deaktiviert',
       'CONTOSO-MAC07': 'macOS-Gerät',
+      'CONTOSO-IP015': 'iPhone · nicht beaufsichtigt',
+      'CONTOSO-AND21': 'Android · alter Patch',
       'CONTOSO-PC050': 'Fehlende Berechtigung',
     },
   },

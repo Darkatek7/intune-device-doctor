@@ -97,6 +97,10 @@ export function pc001Device(overrides: Partial<GraphManagedDevice> = {}): GraphM
     partnerReportedThreatState: 'secured',
     freeStorageSpaceInBytes: 195_421_011_968,
     totalStorageSpaceInBytes: 511_101_108_224,
+    managementCertificateExpirationDate: new Date(Date.now() + 155 * 24 * HOUR).toISOString(),
+    isSupervised: false,
+    androidSecurityPatchLevel: '',
+    enrollmentProfileName: null,
     ...overrides,
   };
 }

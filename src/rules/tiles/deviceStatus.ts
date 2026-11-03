@@ -1,7 +1,8 @@
 /**
- * Gerätestatus: Entra-Objekt (aktiviert/vorhanden), Mobile-Threat-Defense, Jailbreak, Speicher.
+ * Gerätestatus: Entra-Objekt (aktiviert/vorhanden), Mobile-Threat-Defense, Jailbreak, Speicher,
+ * MDM-Gerätezertifikat (Ablauf) und – für iOS/iPadOS – Beaufsichtigung.
  */
-import { formatBytes, formatDate, formatPercent } from '../../domain/format';
+import { formatBytes, formatDate, formatPercent, formatRelativeTime } from '../../domain/format';
 import type { DeviceSnapshot, Finding, Severity, Tile, TileFact } from '../../domain/types';
 import { de } from '../../i18n/de';
 import {
@@ -23,8 +24,9 @@ const f = de.rules.facts;
 const THREAT_CRITICAL = new Set(['highSeverity', 'compromised']);
 const THREAT_WARNING = new Set(['mediumSeverity']);
 
-export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile {
-  void _now;
+const DAY = 86_400_000;
+
+export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile {
   const sections: Tile['sections'] = ['entraDevice'];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('deviceStatus', sections);
   const { device } = snapshot;
@@ -116,6 +118,50 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile
     values.push({ severity: 'critical', value: t.valueJailbroken });
   }
 
+  const certExpiry = device.managementCertificateExpirationDate;
+  if (certExpiry) {
+    facts.push({ label: f.mdmCertificate, value: formatDate(certExpiry) });
+    const daysLeft = (new Date(certExpiry).getTime() - now.getTime()) / DAY;
+    if (daysLeft <= THRESHOLDS.certificateWarningDays) {
+      const expired = daysLeft <= 0;
+      const severity: Severity = expired ? 'critical' : 'warning';
+      findings.push({
+        id: expired ? 'deviceStatus-certExpired' : 'deviceStatus-certExpiring',
+        severity,
+        title: expired
+          ? t.certExpiredTitle
+          : t.certExpiringTitle(formatRelativeTime(certExpiry, now)),
+        detail: t.certDetail(formatDate(certExpiry)),
+        cause: t.certCause,
+        remediation: [...t.certRemediation],
+        evidence: {
+          managementCertificateExpirationDate: certExpiry,
+          lastSyncDateTime: device.lastSyncDateTime,
+        },
+        source: device.source,
+        docsUrl: Docs.mdmCertificateLifetime,
+      });
+      values.push({ severity, value: expired ? t.valueCertExpired : t.valueCertExpiring });
+    }
+  }
+
+  if (device.osFamily === 'ios' && device.isSupervised !== null) {
+    facts.push({ label: f.supervised, value: device.isSupervised ? f.yes : f.no });
+    if (!device.isSupervised) {
+      findings.push({
+        id: 'deviceStatus-notSupervised',
+        severity: 'unknown',
+        title: t.notSupervisedTitle,
+        detail: t.notSupervisedDetail,
+        cause: t.notSupervisedCause,
+        remediation: [...t.notSupervisedRemediation],
+        evidence: { isSupervised: false, deviceEnrollmentType: device.deviceEnrollmentType },
+        source: device.source,
+        docsUrl: Docs.appleSupervisedMode,
+      });
+    }
+  }
+
   const free = device.freeStorageSpaceInBytes;
   const total = device.totalStorageSpaceInBytes;
   if (free != null && total != null && total > 0) {
@@ -144,6 +190,8 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, _now: Date): Tile
   facts.push({ label: f.enrollmentType, value: device.deviceEnrollmentType, mono: true });
   if (device.enrolledDateTime)
     facts.push({ label: f.enrolled, value: formatDate(device.enrolledDateTime) });
+  if (device.enrollmentProfileName)
+    facts.push({ label: f.enrollmentProfile, value: device.enrollmentProfileName });
   if (threat !== 'unknown') facts.push({ label: f.threatState, value: threat, mono: true });
 
   const severity = worstActionable(findings, entra.status === 'ok' ? 'ok' : 'unknown');

@@ -108,6 +108,10 @@ export interface ManagedDeviceInfo {
   partnerReportedThreatState: ManagedDevicePartnerReportedHealthState;
   freeStorageSpaceInBytes: number | null;
   totalStorageSpaceInBytes: number | null;
+  managementCertificateExpirationDate: string | null;
+  isSupervised: boolean | null;
+  androidSecurityPatchLevel: string | null;
+  enrollmentProfileName: string | null;
   source: DataSource;
 }
 
