@@ -140,6 +140,7 @@ export const de = {
   links: {
     openApp: 'App im Intune Admin Center öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
+    openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     configurationPolicies: 'Konfigurationsprofile im Intune Admin Center',
     appName: 'App-Name',
     publisher: 'Herausgeber',
@@ -184,6 +185,7 @@ export const de = {
     allOk: 'Alles in Ordnung',
     enrolled: (date: string) => `Registriert am ${date}`,
     summaryLabel: 'Zusammenfassung',
+    portalLinks: 'Links ins Intune Admin Center',
   },
   grid: {
     label: 'Statuskacheln',

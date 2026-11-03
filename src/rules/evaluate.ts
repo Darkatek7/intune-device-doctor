@@ -58,7 +58,16 @@ function withPortalLinks(tiles: Tile[], snapshot: DeviceSnapshot): Tile[] {
   };
   return tiles.map((tile) => {
     if (tile.id !== 'compliance' && tile.id !== 'policies' && tile.id !== 'apps') return tile;
-    const extra = tile.id === 'policies' ? [deviceLink, policyListLink] : [deviceLink];
+    const managedAppsLink = {
+      label: de.links.openManagedApps,
+      url: IntunePortal.deviceManagedApps(snapshot.device.id),
+    };
+    const extra =
+      tile.id === 'policies'
+        ? [deviceLink, policyListLink]
+        : tile.id === 'apps'
+          ? [managedAppsLink, deviceLink]
+          : [deviceLink];
     return {
       ...tile,
       findings: tile.findings.map((finding) => ({

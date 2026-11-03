@@ -3,7 +3,7 @@
  * Änderungen an genau einem Ort anpassen lassen.
  *
  * - Übersichtsseiten (`allDevices`, `configurationPolicies`) verwendet Microsoft Learn selbst.
- * - Direktlinks auf ein einzelnes Objekt (`app`, `device`) sind NICHT offiziell dokumentiert; es sind
+ * - Direktlinks auf ein einzelnes Objekt (`app`, `device`, `deviceManagedApps`) sind NICHT offiziell dokumentiert; es sind
  *   die Adressen, die das Portal selbst verwendet. Bei Live-Einsatz prüfen (docs/graph-api-reference.md).
  */
 const PORTAL = 'https://intune.microsoft.com';
@@ -18,4 +18,7 @@ export const IntunePortal = {
   /** Übersicht eines verwalteten Geräts inkl. Compliance und Konfiguration (Direktlink, undokumentiert) */
   device: (managedDeviceId: string): string =>
     `${PORTAL}/#view/Microsoft_Intune_Devices/DeviceSettingsMenuBlade/~/overview/mdmDeviceId/${enc(managedDeviceId)}`,
+  /** „Managed Apps“ eines verwalteten Geräts (Direktlink, undokumentiert – aus dem Portal übernommen) */
+  deviceManagedApps: (managedDeviceId: string): string =>
+    `${PORTAL}/#view/Microsoft_Intune_ManagedDevices/ManagedDeviceMenu.MenuView/~/managedApps/managedDeviceId/${enc(managedDeviceId)}`,
 } as const;
