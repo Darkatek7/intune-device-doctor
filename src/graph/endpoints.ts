@@ -5,7 +5,12 @@
  * READ-ONLY: Es gibt ausschließlich GET. Neue Endpunkte nur, wenn sie in
  * docs/graph-api-reference.md mit offiziellem Doku-Link stehen.
  */
-import { ENTRA_DEVICE_SELECT, MANAGED_DEVICE_LIST_SELECT, MOBILE_APP_SELECT } from './dto';
+import {
+  APPLE_PUSH_CERTIFICATE_SELECT,
+  ENTRA_DEVICE_SELECT,
+  MANAGED_DEVICE_LIST_SELECT,
+  MOBILE_APP_SELECT,
+} from './dto';
 import { GraphScope } from './scopes';
 
 export const GRAPH_ORIGIN = 'https://graph.microsoft.com';
@@ -196,6 +201,24 @@ export const Endpoints = {
     path: (azureADDeviceId: string) =>
       withQuery('/informationProtection/bitlocker/recoveryKeys', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
+      }),
+  },
+  /**
+   * Tenant-weites Apple-MDM-Push-Zertifikat (nur Ablauf/Änderung). Bewusst KEIN appleIdentifier
+   * (Apple-ID ist personenbezogen) und kein certificate. Erfordert Admin-Consent für
+   * DeviceManagementServiceConfig.Read.All.
+   */
+  applePushNotificationCertificate: {
+    id: 'applePushNotificationCertificate',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-applepushnotificationcertificate-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/applePushNotificationCertificate',
+    path: () =>
+      withQuery('/deviceManagement/applePushNotificationCertificate', {
+        $select: APPLE_PUSH_CERTIFICATE_SELECT.join(','),
       }),
   },
   /**

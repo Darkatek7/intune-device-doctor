@@ -47,6 +47,7 @@ async function loadSnapshot(deviceName: string): Promise<DeviceSnapshot> {
     configurationPolicies: await provider.getConfigurationPolicyStates(device),
     entraDevice: await provider.getEntraDevice(device),
     bitlockerKeys: await provider.getBitLockerKeys(device),
+    applePushCertificate: await provider.getApplePushCertificate(device),
   };
 }
 
@@ -384,6 +385,85 @@ describe('Defender (defender)', () => {
 });
 
 describe('Gerätestatus (deviceStatus)', () => {
+  describe('Apple-MDM-Push-Zertifikat (Mandant)', () => {
+    const apnsSource: DataSource = {
+      kind: 'graph',
+      label: 'GET /deviceManagement/applePushNotificationCertificate',
+    };
+    const ios = (apns: DeviceSnapshot['applePushCertificate']): DeviceSnapshot => ({
+      ...withDevice(base, { osFamily: 'ios', operatingSystem: 'iOS' }),
+      applePushCertificate: apns,
+    });
+    const okApns = (days: number): DeviceSnapshot['applePushCertificate'] => ({
+      status: 'ok',
+      data: {
+        expirationDateTime: new Date(NOW.getTime() + days * DAY_MS).toISOString(),
+        lastModifiedDateTime: null,
+      },
+      source: apnsSource,
+      fetchedAt: NOW.toISOString(),
+    });
+
+    it('Apple-Gerät wartet auf die Section (lädt), Windows nicht', () => {
+      expect(evaluateDeviceStatus(ios(undefined), NOW).state).toBe('loading');
+      expect(evaluateDeviceStatus({ ...base, applePushCertificate: undefined }, NOW).state).toBe(
+        'ready',
+      );
+    });
+
+    it('läuft in mehr als 30 Tagen ab → nur Fact, kein Befund', () => {
+      const tile = evaluateDeviceStatus(ios(okApns(200)), NOW);
+      expect(tile.findings.some((f) => f.id.startsWith('deviceStatus-apns'))).toBe(false);
+      expect(tile.facts.some((f) => f.label === de.rules.facts.apnsCertificate)).toBe(true);
+    });
+
+    it('läuft in ≤ 30 Tagen ab → warning mit Quelle', () => {
+      const tile = evaluateDeviceStatus(ios(okApns(20)), NOW);
+      const finding = tile.findings.find((f) => f.id === 'deviceStatus-apnsExpiring');
+      expect(finding?.severity).toBe('warning');
+      expect(finding?.docsUrl).toBe(Docs.appleMdmPushCertificate);
+      expect(tile.severity).toBe('warning');
+      expect(tile.value).toBe(de.rules.deviceStatus.valueApnsExpiring);
+      expect(tile.sources).toContainEqual(apnsSource);
+    });
+
+    it('abgelaufen → critical', () => {
+      const tile = evaluateDeviceStatus(ios(okApns(-3)), NOW);
+      expect(tile.findings.find((f) => f.id === 'deviceStatus-apnsExpired')?.severity).toBe(
+        'critical',
+      );
+      expect(tile.severity).toBe('critical');
+    });
+
+    it('403 → Hinweis „Fehlende Berechtigung“ mit Scope, Kachel bleibt ok', () => {
+      const tile = evaluateDeviceStatus(
+        ios({
+          status: 'forbidden',
+          error: {
+            code: 'forbidden',
+            message: 'Forbidden',
+            httpStatus: 403,
+            requiredScope: 'DeviceManagementServiceConfig.Read.All',
+          },
+          source: apnsSource,
+        }),
+        NOW,
+      );
+      const finding = tile.findings.find((f) => f.id === 'deviceStatus-apns-forbidden');
+      expect(finding?.severity).toBe('unknown');
+      expect(finding?.evidence?.requiredScope).toBe('DeviceManagementServiceConfig.Read.All');
+      expect(tile.severity).toBe('ok');
+    });
+
+    it('notApplicable → kein Befund', () => {
+      const tile = evaluateDeviceStatus(
+        ios({ status: 'notApplicable', reason: 'x', source: apnsSource }),
+        NOW,
+      );
+      expect(tile.findings.some((f) => f.id.startsWith('deviceStatus-apns'))).toBe(false);
+    });
+  });
+
   it.each([
     ['highSeverity', 'critical'],
     ['compromised', 'critical'],

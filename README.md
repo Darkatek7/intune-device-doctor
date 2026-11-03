@@ -59,8 +59,9 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
    | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps)                      |
    | `Device.Read.All`                         | Entra-Geräteobjekt                                                       |
    | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst) |
+   | `DeviceManagementServiceConfig.Read.All`  | Ablauf des Apple-MDM-Push-Zertifikats (nur Datum, keine Apple-ID)        |
 
-   Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn).
+   Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn). **Nach einem Update der App, das einen neuen Scope ergänzt** (zuletzt `DeviceManagementServiceConfig.Read.All`), muss der Admin-Consent erneut erteilt werden – bis dahin zeigt die betroffene Prüfung „Fehlende Berechtigung“ mit dem Scope, der Rest funktioniert weiter.
 
 4. **Konfiguration:** `.env.example` nach `.env.local` kopieren und setzen:
 

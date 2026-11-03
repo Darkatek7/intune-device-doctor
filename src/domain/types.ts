@@ -207,6 +207,12 @@ export interface AppInstallStateInfo {
   installState: ResultantAppState;
 }
 
+/** Tenant-weites Apple-MDM-Push-Zertifikat (nur Zeitstempel; keine Apple-ID). */
+export interface ApplePushCertificateInfo {
+  expirationDateTime: string | null;
+  lastModifiedDateTime: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -217,6 +223,8 @@ export interface DeviceSnapshot {
   entraDevice?: SectionResult<EntraDeviceInfo | null>;
   bitlockerKeys?: SectionResult<BitLockerKeyInfo[]>;
   appInstallStates?: SectionResult<AppInstallStateInfo[]>;
+  /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
+  applePushCertificate?: SectionResult<ApplePushCertificateInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -277,7 +285,8 @@ export type SnapshotSectionKey =
   | 'configurationPolicies'
   | 'entraDevice'
   | 'bitlockerKeys'
-  | 'appInstallStates';
+  | 'appInstallStates'
+  | 'applePushCertificate';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

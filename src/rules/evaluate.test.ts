@@ -48,6 +48,7 @@ async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<Device
     entraDevice,
     bitlockerKeys,
     appInstallStates,
+    applePushCertificate,
   ] = await Promise.all([
     provider.getProtectionState(device),
     provider.getCompliancePolicyStates(device),
@@ -55,6 +56,7 @@ async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<Device
     provider.getEntraDevice(device),
     provider.getBitLockerKeys(device),
     provider.getAppInstallStates(device),
+    provider.getApplePushCertificate(device),
   ]);
   return {
     device,
@@ -64,6 +66,7 @@ async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<Device
     entraDevice,
     bitlockerKeys,
     appInstallStates,
+    applePushCertificate,
   };
 }
 
@@ -239,6 +242,17 @@ describe('evaluateTiles – Szenario-Details', () => {
     expect(defender.availability).toBe('notApplicable');
     expect(defender.severity).toBe('unknown');
     expect(tiles.some((t) => t.severity === 'critical' || t.severity === 'warning')).toBe(false);
+  });
+
+  it('CONTOSO-IP015: MDM-Zertifikat und Apple-Push-Zertifikat laufen ab, nicht beaufsichtigt', async () => {
+    const status = tileOf(evaluateTiles(await loadSnapshot('CONTOSO-IP015'), NOW), 'deviceStatus');
+    expect(status.findings.map((f) => f.id)).toEqual(
+      expect.arrayContaining([
+        'deviceStatus-certExpiring',
+        'deviceStatus-apnsExpiring',
+        'deviceStatus-notSupervised',
+      ]),
+    );
   });
 
   it('CONTOSO-PC050: fehlende Berechtigungen zeigen Scope, ohne das Dashboard zu brechen', async () => {

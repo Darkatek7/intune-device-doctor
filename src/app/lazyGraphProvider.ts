@@ -5,6 +5,7 @@
  */
 import type {
   AppInfo,
+  ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
   DataSource,
@@ -98,6 +99,12 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getAppInstallStates(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<AppInstallStateInfo[]>((p) => p.getAppInstallStates(device, options));
+  }
+
+  getApplePushCertificate(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<ApplePushCertificateInfo>((p) =>
+      p.getApplePushCertificate(device, options),
+    );
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

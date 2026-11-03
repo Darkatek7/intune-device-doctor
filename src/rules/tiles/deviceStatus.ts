@@ -1,6 +1,7 @@
 /**
  * Gerätestatus: Entra-Objekt (aktiviert/vorhanden), Mobile-Threat-Defense, Jailbreak, Speicher,
- * MDM-Gerätezertifikat (Ablauf) und – für iOS/iPadOS – Beaufsichtigung.
+ * MDM-Gerätezertifikat (Ablauf), – für iOS/iPadOS – Beaufsichtigung und – für macOS/iOS/iPadOS –
+ * das Apple-MDM-Push-Zertifikat des Mandanten (Ablauf).
  */
 import { formatBytes, formatDate, formatPercent, formatRelativeTime } from '../../domain/format';
 import type { DeviceSnapshot, Finding, Severity, Tile, TileFact } from '../../domain/types';
@@ -26,8 +27,13 @@ const THREAT_WARNING = new Set(['mediumSeverity']);
 
 const DAY = 86_400_000;
 
+const APPLE = new Set(['macos', 'ios']);
+
 export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile {
-  const sections: Tile['sections'] = ['entraDevice'];
+  const apple = APPLE.has(snapshot.device.osFamily);
+  const sections: Tile['sections'] = apple
+    ? ['entraDevice', 'applePushCertificate']
+    : ['entraDevice'];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('deviceStatus', sections);
   const { device } = snapshot;
   const entra = snapshot.entraDevice!;
@@ -162,6 +168,38 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile 
     }
   }
 
+  const apns = apple ? snapshot.applePushCertificate : undefined;
+  if (apns?.status === 'ok') {
+    const expiry = apns.data.expirationDateTime;
+    if (expiry) {
+      facts.push({ label: f.apnsCertificate, value: formatDate(expiry) });
+      const daysLeft = (new Date(expiry).getTime() - now.getTime()) / DAY;
+      if (daysLeft <= THRESHOLDS.certificateWarningDays) {
+        const expired = daysLeft <= 0;
+        const severity: Severity = expired ? 'critical' : 'warning';
+        findings.push({
+          id: expired ? 'deviceStatus-apnsExpired' : 'deviceStatus-apnsExpiring',
+          severity,
+          title: expired
+            ? t.apnsExpiredTitle
+            : t.apnsExpiringTitle(formatRelativeTime(expiry, now)),
+          detail: t.apnsDetail(formatDate(expiry)),
+          cause: t.apnsCause,
+          remediation: [...t.apnsRemediation],
+          evidence: {
+            expirationDateTime: expiry,
+            lastModifiedDateTime: apns.data.lastModifiedDateTime,
+          },
+          source: apns.source,
+          docsUrl: Docs.appleMdmPushCertificate,
+        });
+        values.push({ severity, value: expired ? t.valueApnsExpired : t.valueApnsExpiring });
+      }
+    }
+  } else if (apns && apns.status !== 'notApplicable') {
+    findings.push(sectionIssueFinding('deviceStatus-apns', apns));
+  }
+
   const free = device.freeStorageSpaceInBytes;
   const total = device.totalStorageSpaceInBytes;
   if (free != null && total != null && total > 0) {
@@ -213,7 +251,11 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile 
     value: primary ?? (entra.status === 'ok' ? t.valueActive : de.availability[entra.status]),
     summary: t.summary(summaryParts),
     findings: sortFindings(findings),
-    sources: uniqueSources([device.source, entra.source]),
+    sources: uniqueSources(
+      apns && apns.status !== 'notApplicable'
+        ? [device.source, entra.source, apns.source]
+        : [device.source, entra.source],
+    ),
     facts,
     availability: availabilityOf(entra),
     sections,

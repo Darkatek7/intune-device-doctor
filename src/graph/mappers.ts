@@ -3,6 +3,7 @@
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
 import type {
+  ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
@@ -20,6 +21,7 @@ import type {
   ComplianceState,
   ComplianceStatus,
   DeviceEnrollmentType,
+  GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphDevicePolicyState,
   GraphEntraDevice,
@@ -462,4 +464,27 @@ export function mapAppInstallStates(
     }
   }
   return { apps: [...apps.values()], matched };
+}
+
+// ---------- Apple-MDM-Push-Zertifikat (Tenant) ----------
+
+/**
+ * Akzeptiert das Objekt direkt (echte Graph-Antwort) oder – wie im Doku-Beispiel – unter `value`.
+ * Nur Zeitstempel werden übernommen; ungültige Werte und Jahre < 2000 werden zu null.
+ */
+export function mapApplePushCertificate(
+  dto:
+    | Partial<GraphApplePushNotificationCertificate>
+    | { value?: Partial<GraphApplePushNotificationCertificate> | null }
+    | null
+    | undefined,
+): ApplePushCertificateInfo {
+  const raw = dto && typeof dto === 'object' && 'value' in dto && dto.value ? dto.value : dto;
+  const cert = (
+    raw && typeof raw === 'object' ? raw : {}
+  ) as Partial<GraphApplePushNotificationCertificate>;
+  return {
+    expirationDateTime: validDate(cert.expirationDateTime),
+    lastModifiedDateTime: validDate(cert.lastModifiedDateTime),
+  };
 }

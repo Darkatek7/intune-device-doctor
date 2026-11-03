@@ -112,6 +112,9 @@ export const de = {
       'Für dieses Gerät wurden keine Compliance-Richtlinien-Zustände gemeldet.',
     appsNoPrimaryUser:
       'Das Gerät hat keinen primären Benutzer – Intune meldet den App-Status über die dokumentierte API nur pro Benutzer.',
+    applePushNotApple: 'Das Apple-MDM-Push-Zertifikat betrifft nur macOS-, iOS- und iPadOS-Geräte.',
+    applePushNotReported:
+      'Graph meldet HTTP 404 für das Apple-MDM-Push-Zertifikat – über diese Schnittstelle nicht verfügbar.',
     appsNotReported: 'Für den primären Benutzer wurde kein App-Status gefunden (HTTP 404).',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',

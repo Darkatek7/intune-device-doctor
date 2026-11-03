@@ -1,6 +1,6 @@
 /**
  * CONTOSO-IP015 – iPhone 15 (iOS 18.6.2), Apple User Enrollment, nicht beaufsichtigt.
- * MDM-Zertifikat läuft in 12 Tagen ab. Erwartung: Gerätestatus warning (Zertifikat; der Hinweis
+ * MDM-Zertifikat läuft in 12 Tagen ab, das Apple-MDM-Push-Zertifikat des Mandanten in 20 Tagen. Erwartung: Gerätestatus warning (Zertifikat; der Hinweis
  * „nicht beaufsichtigt“ ist unknown und zieht die Kachel nicht hoch), Defender und Betriebssystem unknown.
  */
 import { de } from '../../../i18n/de';
@@ -58,6 +58,13 @@ export const ip015Ios: MockScenario = {
         ],
       },
       entraDevice: { status: 'ok', data: entraDevice(now, device, { trustType: 'Workplace' }) },
+      applePushCertificate: {
+        status: 'ok',
+        data: {
+          expirationDateTime: inFuture(now, { days: 20 }),
+          lastModifiedDateTime: inFuture(now, { days: -345 }),
+        },
+      },
       bitlockerKeys: { status: 'notApplicable', reason: de.reasons.bitlockerNotWindows },
       appInstallStates: {
         status: 'ok',

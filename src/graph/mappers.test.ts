@@ -10,6 +10,7 @@ import {
 import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
 import {
   graphSource,
+  mapApplePushCertificate,
   mapBitlockerKey,
   mapDetectedMalware,
   mapEntraDevice,
@@ -403,6 +404,50 @@ describe('mapManagedDevice – Zertifikat, Beaufsichtigung, Android-Patch, Enrol
       expect(
         mapManagedDevice(withoutField('enrollmentProfileName')).enrollmentProfileName,
       ).toBeNull();
+    });
+  });
+});
+
+describe('mapApplePushCertificate', () => {
+  const dto = {
+    id: 'c1',
+    expirationDateTime: '2027-05-03T12:00:00Z',
+    lastModifiedDateTime: '2026-05-03T12:00:00Z',
+  };
+  const expected = {
+    expirationDateTime: '2027-05-03T12:00:00Z',
+    lastModifiedDateTime: '2026-05-03T12:00:00Z',
+  };
+
+  it('akzeptiert das Objekt direkt und unter `value`', () => {
+    expect(mapApplePushCertificate(dto)).toEqual(expected);
+    expect(mapApplePushCertificate({ value: dto })).toEqual(expected);
+  });
+
+  it('gibt nur die Zeitstempel zurück (keine Apple-ID, kein Zertifikat)', () => {
+    const mapped = mapApplePushCertificate({
+      ...dto,
+      appleIdentifier: 'admin@contoso.com',
+      certificate: 'AAAA',
+    } as never);
+    expect(Object.keys(mapped).sort()).toEqual(['expirationDateTime', 'lastModifiedDateTime']);
+  });
+
+  it('ungültige Daten und Jahr < 2000 → null', () => {
+    expect(
+      mapApplePushCertificate({
+        id: 'c',
+        expirationDateTime: '0001-01-01T00:00:00Z',
+        lastModifiedDateTime: 'kein-datum',
+      }),
+    ).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
+    expect(mapApplePushCertificate({ value: { expirationDateTime: 42 as never } })).toEqual({
+      expirationDateTime: null,
+      lastModifiedDateTime: null,
+    });
+    expect(mapApplePushCertificate(null)).toEqual({
+      expirationDateTime: null,
+      lastModifiedDateTime: null,
     });
   });
 });

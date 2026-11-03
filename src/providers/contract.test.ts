@@ -33,19 +33,28 @@ const SECTION_KEYS = [
   'entraDevice',
   'bitlockerKeys',
 ] as const;
+/** Zusätzlich beim Formvergleich Mock/Graph (für PC001 notApplicable, für MAC07 ok). */
+const SHAPE_KEYS = [...SECTION_KEYS, 'applePushCertificate'] as const;
 
 async function loadSnapshot(provider: DeviceDataProvider, name: string): Promise<DeviceSnapshot> {
   const [hit] = await provider.searchDevices(name);
   if (!hit) throw new Error(`${name} nicht gefunden`);
   const device = await provider.getDevice(hit.id);
-  const [protection, compliancePolicies, configurationPolicies, entraDevice, bitlockerKeys] =
-    await Promise.all([
-      provider.getProtectionState(device),
-      provider.getCompliancePolicyStates(device),
-      provider.getConfigurationPolicyStates(device),
-      provider.getEntraDevice(device),
-      provider.getBitLockerKeys(device),
-    ]);
+  const [
+    protection,
+    compliancePolicies,
+    configurationPolicies,
+    entraDevice,
+    bitlockerKeys,
+    applePushCertificate,
+  ] = await Promise.all([
+    provider.getProtectionState(device),
+    provider.getCompliancePolicyStates(device),
+    provider.getConfigurationPolicyStates(device),
+    provider.getEntraDevice(device),
+    provider.getBitLockerKeys(device),
+    provider.getApplePushCertificate(device),
+  ]);
   return {
     device,
     protection,
@@ -53,6 +62,7 @@ async function loadSnapshot(provider: DeviceDataProvider, name: string): Promise
     configurationPolicies,
     entraDevice,
     bitlockerKeys,
+    applePushCertificate,
   };
 }
 
@@ -231,6 +241,12 @@ describe.each(factories)('DeviceDataProvider-Vertrag: %s', (_name, create) => {
     expect(snapshot.compliancePolicies?.status).toBe('ok');
     expect(snapshot.configurationPolicies?.status).toBe('ok');
     expect(snapshot.entraDevice?.status).toBe('ok');
+    expect(snapshot.applePushCertificate?.status).toBe('ok');
+  });
+
+  it('markiert das Apple-Push-Zertifikat für Windows (CONTOSO-PC001) als notApplicable', async () => {
+    const snapshot = await loadSnapshot(create(), 'CONTOSO-PC001');
+    expect(snapshot.applePushCertificate?.status).toBe('notApplicable');
   });
 });
 
@@ -241,7 +257,7 @@ describe('Mock und Graph liefern dieselbe Snapshot-Form', () => {
     );
     expect(sortedKeys(graph!)).toEqual(sortedKeys(mock!));
     expect(graph!.device.osFamily).toBe(mock!.device.osFamily);
-    for (const key of SECTION_KEYS) {
+    for (const key of SHAPE_KEYS) {
       expect(graph![key]!.status, key).toBe(mock![key]!.status);
       const g = graph![key]!;
       const m = mock![key]!;

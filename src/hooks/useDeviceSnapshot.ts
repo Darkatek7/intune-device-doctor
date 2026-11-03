@@ -22,6 +22,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'entraDevice',
   'bitlockerKeys',
   'appInstallStates',
+  'applePushCertificate',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -55,6 +56,8 @@ function loadSection(
       return provider.getBitLockerKeys(device, { signal });
     case 'appInstallStates':
       return provider.getAppInstallStates(device, { signal });
+    case 'applePushCertificate':
+      return provider.getApplePushCertificate(device, { signal });
   }
 }
 

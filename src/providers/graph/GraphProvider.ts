@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
@@ -23,6 +24,7 @@ import {
   type GraphClientOptions,
 } from '../../graph/client';
 import type {
+  GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphCollection,
   GraphDevicePolicyState,
@@ -36,6 +38,7 @@ import type {
 import { Endpoints, type EndpointId } from '../../graph/endpoints';
 import {
   graphSource,
+  mapApplePushCertificate,
   mapAppInstallStates,
   mapBitlockerKey,
   mapEntraDevice,
@@ -389,6 +392,27 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(apps, source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.appsNotReported, source }),
+    );
+  }
+
+  /** Tenant-weit; wird nur für Apple-Geräte abgefragt (sonst notApplicable ohne Request). */
+  getApplePushCertificate(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<ApplePushCertificateInfo>> {
+    const endpoint = Endpoints.applePushNotificationCertificate;
+    return this.run<ApplePushCertificateInfo>(
+      'applePushNotificationCertificate',
+      async (source) => {
+        if (device.osFamily !== 'macos' && device.osFamily !== 'ios') {
+          return { status: 'notApplicable', reason: de.reasons.applePushNotApple, source };
+        }
+        const dto = await this.client.get<
+          GraphApplePushNotificationCertificate | { value?: GraphApplePushNotificationCertificate }
+        >(endpoint.path(), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapApplePushCertificate(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.applePushNotReported, source }),
     );
   }
 

@@ -318,6 +318,22 @@ export interface GraphMobileApp {
 
 export const MOBILE_APP_SELECT = ['id', 'displayName', 'publisher'] as const;
 
+// ---------- applePushNotificationCertificate (v1.0, Tenant) ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-applepushnotificationcertificate?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-devices-applepushnotificationcertificate-get?view=graph-rest-1.0
+
+export interface GraphApplePushNotificationCertificate {
+  id: string;
+  expirationDateTime: string | null;
+  lastModifiedDateTime: string | null;
+}
+
+/** Bewusst ohne appleIdentifier (Apple-ID, personenbezogen) und ohne certificate. */
+export const APPLE_PUSH_CERTIFICATE_SELECT = [
+  'expirationDateTime',
+  'lastModifiedDateTime',
+] as const;
+
 // ---------- App-Absicht und Installationsstatus pro Benutzer/Gerät (BETA) ----------
 // https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-mobileappintentandstate-list?view=graph-rest-beta
 // https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-mobileappintentandstatedetail?view=graph-rest-beta

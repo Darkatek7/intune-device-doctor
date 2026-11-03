@@ -562,3 +562,85 @@ describe('GraphProvider – App-Namen', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('GraphProvider – Apple-MDM-Push-Zertifikat', () => {
+  const CERT_URL =
+    'https://graph.microsoft.com/v1.0/deviceManagement/applePushNotificationCertificate';
+
+  it('ruft für macOS per GET mit $select ohne appleIdentifier/certificate ab', async () => {
+    const { provider, calls } = setup();
+    const mac = await provider.getDevice(MAC07_ID);
+    const before = calls.length;
+    const result = expectStatus(await provider.getApplePushCertificate(mac), 'ok');
+    expect(result.data).toEqual({
+      expirationDateTime: '2027-05-03T12:00:00Z',
+      lastModifiedDateTime: '2026-05-03T12:00:00Z',
+    });
+    expect(calls).toHaveLength(before + 1);
+    const call = calls[calls.length - 1]!;
+    expect(call.method ?? 'GET').toBe('GET');
+    expect(call.parsed.origin + call.parsed.pathname).toBe(CERT_URL);
+    expect(call.parsed.searchParams.get('$select')).toBe('expirationDateTime,lastModifiedDateTime');
+    expect(call.url).not.toMatch(/appleIdentifier|certificate(?!.*DateTime)/);
+    expect(result.source.label).toBe(Endpoints.applePushNotificationCertificate.display);
+  });
+
+  it('akzeptiert auch die in `value` verpackte Antwort (Doku-Beispiel)', async () => {
+    const { provider } = setup(() =>
+      jsonResponse({
+        value: {
+          id: 'x',
+          expirationDateTime: '2027-01-02T00:00:00Z',
+          lastModifiedDateTime: '2026-01-02T00:00:00Z',
+        },
+      }),
+    );
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'ios' })),
+      'ok',
+    );
+    expect(result.data.expirationDateTime).toBe('2027-01-02T00:00:00Z');
+  });
+
+  it('Windows/Android: notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    for (const osFamily of ['windows', 'android', 'linux', 'other'] as const) {
+      const result = expectStatus(
+        await provider.getApplePushCertificate(windowsDevice({ osFamily })),
+        'notApplicable',
+      );
+      expect(result.reason).toBe(de.reasons.applePushNotApple);
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit requiredScope DeviceManagementServiceConfig.Read.All', async () => {
+    const { provider } = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'macos' })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe('DeviceManagementServiceConfig.Read.All');
+    expect(result.source.label).toBe(Endpoints.applePushNotificationCertificate.display);
+  });
+
+  it('404 → unavailable (kein Zertifikat hinterlegt)', async () => {
+    const { provider } = setup(() => graphError(404, 'ResourceNotFound'));
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'ios' })),
+      'unavailable',
+    );
+    expect(result.reason).toBe(de.reasons.applePushNotReported);
+  });
+
+  it('Ablaufdatum fehlt/ungültig → ok mit null', async () => {
+    const { provider } = setup(() =>
+      jsonResponse({ id: 'x', expirationDateTime: '0001-01-01T00:00:00Z' }),
+    );
+    const result = expectStatus(
+      await provider.getApplePushCertificate(windowsDevice({ osFamily: 'macos' })),
+      'ok',
+    );
+    expect(result.data).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
+  });
+});

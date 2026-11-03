@@ -66,6 +66,7 @@ export const deRules = {
     profiles: 'Konfigurationsprofile',
     compliancePolicies: 'Compliance-Richtlinien',
     mdmCertificate: 'MDM-Zertifikat gültig bis',
+    apnsCertificate: 'Apple-MDM-Push-Zertifikat gültig bis',
     supervised: 'Beaufsichtigt (supervised)',
     enrollmentProfile: 'Enrollment-Profil',
     securityPatch: 'Sicherheitspatch',
@@ -154,6 +155,18 @@ export const deRules = {
     certRemediation: [
       'Gerät vor Ablauf einschalten, mit dem Internet verbinden und synchronisieren lassen, damit es eincheckt.',
       'Ist das Zertifikat bereits abgelaufen, kann das Gerät nicht mehr einchecken – Vorgehen mit dem Gerätenutzer klären.',
+    ],
+    valueApnsExpired: 'Apple-Push-Zertifikat abgelaufen',
+    valueApnsExpiring: 'Apple-Push-Zertifikat läuft ab',
+    apnsExpiredTitle: 'Apple-MDM-Push-Zertifikat des Mandanten abgelaufen',
+    apnsExpiringTitle: (relative: string) =>
+      `Apple-MDM-Push-Zertifikat des Mandanten läuft ${relative} ab`,
+    apnsDetail: (date: string) => `applePushNotificationCertificate.expirationDateTime: ${date}.`,
+    apnsCause:
+      'Das Apple-MDM-Push-Zertifikat ist 365 Tage gültig und muss jährlich erneuert werden, damit iOS/iPadOS- und macOS-Geräte verwaltet werden können. Nach Ablauf bleibt eine Kulanzfrist von 30 Tagen für die Erneuerung.',
+    apnsRemediation: [
+      'Im Intune Admin Center unter Geräte › Geräteonboarding › Registrierung › Apple › „Apple MDM Push Certificate“ das Zertifikat erneuern.',
+      'Mit derselben Apple-ID erneuern, mit der es erstellt wurde – im Apple Push Certificates Portal beim vorhandenen Zertifikat „Renew“ wählen.',
     ],
     notSupervisedTitle: 'iOS/iPadOS-Gerät ist nicht beaufsichtigt',
     notSupervisedDetail: 'isSupervised: false.',

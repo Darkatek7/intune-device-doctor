@@ -557,3 +557,36 @@ describe('MockProvider – App-Namen', () => {
     expect(result.source.kind).toBe('mock');
   });
 });
+
+describe('MockProvider – Apple-MDM-Push-Zertifikat', () => {
+  const provider = new MockProvider({ latency: false, now: () => NOW });
+
+  it('Apple-Geräte: ok, nur Zeitstempel; MAC07 Ablauf in 200 Tagen, IP015 in 20 Tagen', async () => {
+    for (const [name, days] of [
+      ['CONTOSO-MAC07', 200],
+      ['CONTOSO-IP015', 20],
+    ] as const) {
+      const device = await loadDevice(provider, name);
+      const result = await provider.getApplePushCertificate(device);
+      expect(result.status).toBe('ok');
+      if (result.status !== 'ok') continue;
+      expect(Object.keys(result.data).sort()).toEqual([
+        'expirationDateTime',
+        'lastModifiedDateTime',
+      ]);
+      expect(Date.parse(result.data.expirationDateTime!) - NOW.getTime()).toBe(days * DAY);
+      expect(result.source.label).toBe('GET /deviceManagement/applePushNotificationCertificate');
+    }
+  });
+
+  it('Windows/Android: notApplicable', async () => {
+    for (const name of ['CONTOSO-PC001', 'CONTOSO-AND21']) {
+      const device = await loadDevice(provider, name);
+      const result = await provider.getApplePushCertificate(device);
+      expect(result.status).toBe('notApplicable');
+      if (result.status === 'notApplicable') {
+        expect(result.reason).toBe(de.reasons.applePushNotApple);
+      }
+    }
+  });
+});

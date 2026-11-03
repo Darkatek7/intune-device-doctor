@@ -278,6 +278,13 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
       }
       return collection(id === PC001_ENTRA_ID ? [pc001Entra()] : []);
     }
+    if (path === '/v1.0/deviceManagement/applePushNotificationCertificate') {
+      return jsonResponse({
+        id: '00000000-0000-4000-8000-0000000000a1',
+        expirationDateTime: '2027-05-03T12:00:00Z',
+        lastModifiedDateTime: '2026-05-03T12:00:00Z',
+      });
+    }
     if (path === '/v1.0/informationProtection/bitlocker/recoveryKeys') {
       const id = /^deviceId eq '(.*)'$/.exec(filter)?.[1];
       return collection(id === PC001_ENTRA_ID ? [bitlockerKey('k-1', 1)] : []);

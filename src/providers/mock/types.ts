@@ -4,6 +4,7 @@
  */
 import type {
   AppError,
+  ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
@@ -31,6 +32,8 @@ export interface MockDeviceFixture {
   bitlockerKeys: MockSection<BitLockerKeyInfo[]>;
   /** Optional – ohne Angabe liefert der MockProvider den Standard-App-Satz (alle installiert). */
   appInstallStates?: MockSection<AppInstallStateInfo[]>;
+  /** Optional – ohne Angabe: Apple-Geräte ok (läuft in ~200 Tagen ab), andere notApplicable. */
+  applePushCertificate?: MockSection<ApplePushCertificateInfo>;
 }
 
 export interface MockScenario {
