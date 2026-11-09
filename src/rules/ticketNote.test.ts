@@ -59,6 +59,25 @@ describe('buildTicketNote', () => {
     expect(note).toContain('GET /auditLogs/signIns');
   });
 
+  it('enthält LAPS (PC033) und Integritätsnachweis (PC014) mit Quelle – ohne Kennwort', async () => {
+    const provider = new MockProvider({ latency: false, now: () => NOW });
+    const note = async (name: string) =>
+      buildTicketNote({
+        title: name,
+        details: [],
+        mode: 'demo',
+        tiles: evaluateTiles(await loadFullSnapshot(provider, name), NOW),
+        now: NOW,
+      });
+    const laps = await note('CONTOSO-PC033');
+    expect(laps).toContain('**Lokaler Administrator (LAPS)**');
+    expect(laps).toContain('GET /directory/deviceLocalCredentials/');
+    const attestation = await note('CONTOSO-PC014');
+    expect(attestation).toContain('**Integritätsnachweis**');
+    expect(attestation).toContain('healthStatusMismatchInfo');
+    expect(attestation).toContain('deviceHealthAttestationState');
+  });
+
   it('gesundes Gerät: "Keine Probleme gefunden."', async () => {
     const note = buildTicketNote({
       title: 'CONTOSO-PC001',
