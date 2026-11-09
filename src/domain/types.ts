@@ -259,6 +259,15 @@ export interface SignInsInfo {
   entries: SignInEntry[];
 }
 
+/** Windows LAPS: nur Metadaten des lokalen Administrator-Kennworts – nie das Kennwort selbst. */
+export interface LocalAdminInfo {
+  deviceName: string | null;
+  /** Letzte Sicherung des Kennworts in Entra (lastBackupDateTime) */
+  lastBackupDateTime: string | null;
+  /** Nächste geplante Aktualisierung/Sicherung (refreshDateTime) */
+  refreshDateTime: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -273,6 +282,8 @@ export interface DeviceSnapshot {
   applePushCertificate?: SectionResult<ApplePushCertificateInfo>;
   /** Anmeldungen des primären Benutzers an diesem Gerät (Entra-Anmeldeprotokoll, optionaler Scope) */
   signIns?: SectionResult<SignInsInfo>;
+  /** Nur Windows: Windows-LAPS-Metadaten aus Entra (optionaler Scope DeviceLocalCredential.ReadBasic.All) */
+  localAdmin?: SectionResult<LocalAdminInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -289,6 +300,7 @@ export type TileId =
   | 'policies'
   | 'apps'
   | 'signIns'
+  | 'laps'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -336,7 +348,8 @@ export type SnapshotSectionKey =
   | 'bitlockerKeys'
   | 'appInstallStates'
   | 'applePushCertificate'
-  | 'signIns';
+  | 'signIns'
+  | 'localAdmin';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

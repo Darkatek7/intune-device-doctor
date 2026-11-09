@@ -35,3 +35,30 @@ describe('Endpunkte – Anmeldeprotokoll', () => {
     expect(Endpoints.signIns.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
   });
 });
+
+describe('Endpunkte – Windows LAPS', () => {
+  const id = '00000000-0000-4000-9000-000000000001';
+  const url = new URL(
+    `https://graph.microsoft.com/v1.0${Endpoints.deviceLocalCredentialInfo.path(id)}`,
+  );
+
+  it('fordert nie die Eigenschaft credentials (Kennwort) an', () => {
+    expect(url.pathname).toBe(`/v1.0/directory/deviceLocalCredentials/${id}`);
+    const select = url.searchParams.get('$select') ?? '';
+    expect(select).toBe('id,deviceName,lastBackupDateTime,refreshDateTime');
+    expect(select.split(',')).not.toContain('credentials');
+    expect(url.search.toLowerCase()).not.toContain('credentials');
+  });
+
+  it('braucht den optionalen Scope DeviceLocalCredential.ReadBasic.All (nicht …Read.All)', () => {
+    const scope = Endpoints.deviceLocalCredentialInfo.scope;
+    expect(scope).toBe('DeviceLocalCredential.ReadBasic.All');
+    expect(OPTIONAL_SCOPES).toContain(scope);
+    expect(LOGIN_SCOPES).not.toContain(scope);
+    expect(LOGIN_SCOPES).not.toContain('DeviceLocalCredential.Read.All');
+    expect(Endpoints.deviceLocalCredentialInfo.method).toBe('GET');
+    expect(Endpoints.deviceLocalCredentialInfo.docsUrl).toMatch(
+      /^https:\/\/learn\.microsoft\.com\//,
+    );
+  });
+});

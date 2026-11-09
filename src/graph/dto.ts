@@ -430,3 +430,23 @@ export interface GraphSignIn {
   /** Fehlt komplett (kein Fehler!), wenn dem Konto das Leserecht auf Conditional-Access-Daten fehlt. */
   appliedConditionalAccessPolicies?: GraphAppliedConditionalAccessPolicy[] | null;
 }
+
+// ---------- Windows LAPS (v1.0, directory/deviceLocalCredentials) ----------
+// https://learn.microsoft.com/en-us/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/devicelocalcredentialinfo?view=graph-rest-1.0
+
+/**
+ * Nur Metadaten. Die Eigenschaft `credentials` (Kennwort, nur mit `$select=credentials` und dem
+ * Scope DeviceLocalCredential.Read.All lesbar) steht bewusst NICHT in diesem DTO und wird nie angefordert.
+ */
+export const LAPS_SELECT = ['id', 'deviceName', 'lastBackupDateTime', 'refreshDateTime'] as const;
+
+export interface GraphDeviceLocalCredentialInfo {
+  /** = deviceId des Entra-Geräts (= azureADDeviceId des Intune-Geräts) */
+  id: string | null;
+  deviceName: string | null;
+  /** Zeitpunkt der letzten Sicherung des lokalen Administrator-Kennworts in Entra */
+  lastBackupDateTime: string | null;
+  /** Zeitpunkt der nächsten geplanten Aktualisierung (Rotation) und Sicherung */
+  refreshDateTime: string | null;
+}

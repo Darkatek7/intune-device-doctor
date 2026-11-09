@@ -6,6 +6,7 @@ import type {
   AppliedPolicyInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicySettingInfo,
   PolicyStateInfo,
@@ -292,4 +293,28 @@ export function defaultSignIns(now: Date, _device: Pick<DeviceBase, 'osFamily'>)
   return signInsInfo([signInEntry(now, 1, { hours: 5 }), signInEntry(now, 2, { days: 2 })], {
     totalForUser: 9,
   });
+}
+
+/** Windows-LAPS-Metadaten (fiktiv): Sicherung vor `backupDaysAgo` Tagen, nächste Rotation in `refreshInDays`. */
+export function localAdminInfo(
+  now: Date,
+  deviceName: string,
+  span: { backupDaysAgo: number; refreshInDays: number },
+): LocalAdminInfo {
+  return {
+    deviceName,
+    lastBackupDateTime: ago(now, { days: span.backupDaysAgo }),
+    refreshDateTime:
+      span.refreshInDays >= 0
+        ? inFuture(now, { days: span.refreshInDays })
+        : ago(now, { days: -span.refreshInDays }),
+  };
+}
+
+/** Standard: Kennwort vor wenigen Tagen gesichert, nächste Rotation steht an. */
+export function defaultLocalAdmin(
+  now: Date,
+  device: Pick<DeviceBase, 'deviceName'>,
+): LocalAdminInfo {
+  return localAdminInfo(now, device.deviceName, { backupDaysAgo: 3, refreshInDays: 27 });
 }

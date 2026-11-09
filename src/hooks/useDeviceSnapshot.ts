@@ -24,6 +24,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'appInstallStates',
   'applePushCertificate',
   'signIns',
+  'localAdmin',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -62,6 +63,8 @@ export function loadSection(
       return provider.getApplePushCertificate(device, { signal });
     case 'signIns':
       return provider.getSignIns(device, { signal });
+    case 'localAdmin':
+      return provider.getLocalAdmin(device, { signal });
   }
 }
 

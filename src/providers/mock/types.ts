@@ -8,6 +8,7 @@ import type {
   AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SignInsInfo,
@@ -37,6 +38,8 @@ export interface MockDeviceFixture {
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
   /** Optional – ohne Angabe: Geräte mit Benutzer ok (zwei erfolgreiche Anmeldungen), sonst notApplicable. */
   signIns?: MockSection<SignInsInfo>;
+  /** Optional – ohne Angabe: Windows ok (Sicherung vor wenigen Tagen), sonst notApplicable. */
+  localAdmin?: MockSection<LocalAdminInfo>;
 }
 
 export interface MockScenario {

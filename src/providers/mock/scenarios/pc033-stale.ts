@@ -11,6 +11,7 @@ import {
   policy,
   setting,
   windowsDevice,
+  localAdminInfo,
   signInsInfo,
 } from './helpers';
 
@@ -66,6 +67,11 @@ export const pc033Stale: MockScenario = {
       },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 33)] },
       signIns: { status: 'ok', data: signInsInfo([], { totalForUser: 14 }) },
+      // Kennwortsicherung seit 45 Tagen, geplante Rotation seit 15 Tagen überfällig
+      localAdmin: {
+        status: 'ok',
+        data: localAdminInfo(now, device.deviceName, { backupDaysAgo: 45, refreshInDays: -15 }),
+      },
     };
   },
 };

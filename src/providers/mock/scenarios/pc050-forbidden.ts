@@ -1,4 +1,4 @@
-/** CONTOSO-PC050 – Gesundes Gerät, aber fehlende Berechtigung für Konfigurationsprofile und BitLocker-Schlüssel. Erwartung: Kacheln zeigen Berechtigungszustand (auch Anmeldungen: optionaler Scope AuditLog.Read.All). */
+/** CONTOSO-PC050 – Gesundes Gerät, aber fehlende Berechtigung für Konfigurationsprofile und BitLocker-Schlüssel. Erwartung: Kacheln zeigen Berechtigungszustand (auch die optionalen Scopes: Anmeldungen = AuditLog.Read.All, LAPS = DeviceLocalCredential.ReadBasic.All). */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
@@ -24,6 +24,7 @@ export const pc050Forbidden: MockScenario = {
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'forbidden' },
       signIns: { status: 'forbidden' },
+      localAdmin: { status: 'forbidden' },
     };
   },
 };

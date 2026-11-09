@@ -11,6 +11,11 @@ export const GraphScope = {
   BitlockerKeyReadBasic: 'BitlockerKey.ReadBasic.All',
   /** Anmeldeprotokoll (Kachel „Anmeldungen“) – Entra ID P1/P2 und passende Entra-Rolle nötig. */
   AuditLogRead: 'AuditLog.Read.All',
+  /**
+   * Windows LAPS – nur Metadaten (Zeitpunkte), niemals das Kennwort. Bewusst `…ReadBasic.All`
+   * (least privileged laut Doku), nicht `DeviceLocalCredential.Read.All`.
+   */
+  DeviceLocalCredentialReadBasic: 'DeviceLocalCredential.ReadBasic.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -24,6 +29,7 @@ export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
 export const OPTIONAL_SCOPES: readonly GraphScope[] = [
   GraphScope.ServiceConfigRead,
   GraphScope.AuditLogRead,
+  GraphScope.DeviceLocalCredentialReadBasic,
 ];
 
 /** Scopes, die beim Login angefragt werden. */

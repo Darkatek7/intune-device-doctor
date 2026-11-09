@@ -28,6 +28,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     compliance: 'critical',
     defender: 'warning',
     policies: 'warning',
+    laps: 'warning',
   },
   'CONTOSO-PC042': {
     policies: 'critical',
@@ -40,7 +41,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
-  'CONTOSO-PC050': { policies: 'unknown', signIns: 'unknown' },
+  'CONTOSO-PC050': { policies: 'unknown', signIns: 'unknown', laps: 'unknown' },
 };
 
 /** Lädt ein Mock-Gerät vollständig (alle Sections) – wie der Provider es in der App liefert. */
@@ -94,10 +95,10 @@ describe('evaluateTiles – Mock-Szenarien', () => {
 
   it.each(Object.keys(EXPECTED))('%s: erwartete Severity je Kachel', async (name) => {
     const tiles = evaluateTiles(await loadSnapshot(name), NOW);
-    for (const id of BASE_TILES) {
-      const tile = tileOf(tiles, id);
-      expect(tile.state, `${name}/${id}`).toBe('ready');
-      expect(tile.severity, `${name}/${id}`).toBe(EXPECTED[name]?.[id] ?? 'ok');
+    // Windows-spezifische Kacheln (z. B. LAPS) gibt es nur für Windows-Geräte
+    for (const tile of tiles.filter((t) => BASE_TILES.includes(t.id))) {
+      expect(tile.state, `${name}/${tile.id}`).toBe('ready');
+      expect(tile.severity, `${name}/${tile.id}`).toBe(EXPECTED[name]?.[tile.id] ?? 'ok');
     }
   });
 
@@ -288,7 +289,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
       .map((t) => t.id)
       .sort();
     expect(loading).toEqual(
-      ['bitlocker', 'compliance', 'defender', 'deviceStatus', 'policies', 'signIns'].sort(),
+      ['bitlocker', 'compliance', 'defender', 'deviceStatus', 'laps', 'policies', 'signIns'].sort(),
     );
     expect(tileOf(tiles, 'checkIn').state).toBe('ready');
     expect(tileOf(tiles, 'osVersion').state).toBe('ready');
@@ -326,7 +327,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(6);
+    expect(summary.loading).toBe(7);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

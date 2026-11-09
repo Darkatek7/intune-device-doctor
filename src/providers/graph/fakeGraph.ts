@@ -330,6 +330,18 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         lastModifiedDateTime: '2026-05-03T12:00:00Z',
       });
     }
+    const laps = /^\/v1\.0\/directory\/deviceLocalCredentials\/([^/]+)$/.exec(path);
+    if (laps) {
+      return laps[1] === PC001_ENTRA_ID
+        ? jsonResponse({
+            id: PC001_ENTRA_ID,
+            deviceName: 'CONTOSO-PC001',
+            lastBackupDateTime: '2026-10-12T08:00:00Z',
+            refreshDateTime: '2026-11-11T08:00:00Z',
+            // Eine echte Antwort mit $select=credentials enthielte hier das Kennwort – nie anfordern.
+          })
+        : graphError(404, 'ResourceNotFound');
+    }
     if (path === '/v1.0/auditLogs/signIns') {
       const userId = /^userId eq '([^']*)' and createdDateTime ge /.exec(filter)?.[1];
       return collection(

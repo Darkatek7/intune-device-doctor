@@ -8,6 +8,7 @@
 import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
+  LAPS_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
   MOBILE_APP_SELECT,
 } from './dto';
@@ -258,6 +259,25 @@ export const Endpoints = {
       withQuery('/auditLogs/signIns', {
         $filter: `userId eq ${odataString(userId)} and createdDateTime ge ${sinceIso}`,
         $top: String(SIGN_IN_PAGE_SIZE),
+      }),
+  },
+  /**
+   * Windows LAPS: nur Metadaten des lokalen Administrator-Kennworts. `id` = Entra-`deviceId`.
+   * Das `$select` nennt `credentials` NIE (Kennwort; würde zudem DeviceLocalCredential.Read.All und
+   * einen Audit-Eintrag erfordern). Die Doku verlangt einen `User-Agent`-Header – den setzt der
+   * Browser selbst (live zu verifizieren).
+   */
+  deviceLocalCredentialInfo: {
+    id: 'deviceLocalCredentialInfo',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceLocalCredentialReadBasic,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0',
+    display: 'GET /directory/deviceLocalCredentials/{deviceId}',
+    path: (azureAdDeviceId: string) =>
+      withQuery(`/directory/deviceLocalCredentials/${enc(azureAdDeviceId)}`, {
+        $select: LAPS_SELECT.join(','),
       }),
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;

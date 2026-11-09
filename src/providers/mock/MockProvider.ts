@@ -12,6 +12,7 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
@@ -23,7 +24,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
-import { defaultAppStates, defaultSignIns } from './scenarios/helpers';
+import { defaultAppStates, defaultLocalAdmin, defaultSignIns } from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -45,6 +46,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   appInstallStates: 'mobileAppIntentAndStates',
   applePushCertificate: 'applePushNotificationCertificate',
   signIns: 'signIns',
+  localAdmin: 'deviceLocalCredentialInfo',
 };
 
 export function abortError(): DOMException {
@@ -184,6 +186,12 @@ export class MockProvider implements DeviceDataProvider {
       }
       return { status: 'ok', data: defaultSignIns(this.now(), fixture.device) };
     }
+    if (key === 'localAdmin') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.lapsNotWindows };
+      }
+      return { status: 'ok', data: defaultLocalAdmin(this.now(), fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -258,6 +266,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<SignInsInfo>(device, 'signIns', options);
+  }
+
+  getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<LocalAdminInfo>(device, 'localAdmin', options);
   }
 
   async getMobileApps(

@@ -12,6 +12,7 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
@@ -28,6 +29,7 @@ import type {
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphCollection,
+  GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
@@ -44,6 +46,7 @@ import {
   mapAppInstallStates,
   mapBitlockerKey,
   mapEntraDevice,
+  mapLocalAdmin,
   mapManagedDevice,
   mapMobileApp,
   mapPolicyState,
@@ -450,6 +453,34 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(info, source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.signInsNotReported, source }),
+    );
+  }
+
+  /**
+   * Windows LAPS (nur Windows): Metadaten aus Entra. Nur `$select=id,deviceName,lastBackupDateTime,
+   * refreshDateTime` – nie `credentials`. 404 → unavailable (Bedeutung ist nicht dokumentiert).
+   */
+  getLocalAdmin(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<LocalAdminInfo>> {
+    const endpoint = Endpoints.deviceLocalCredentialInfo;
+    return this.run<LocalAdminInfo>(
+      'deviceLocalCredentialInfo',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.lapsNotWindows, source };
+        }
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const dto = await this.client.get<
+          GraphDeviceLocalCredentialInfo | { value?: GraphDeviceLocalCredentialInfo }
+        >(endpoint.path(azureAdId), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapLocalAdmin(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.lapsNotReported, source }),
     );
   }
 

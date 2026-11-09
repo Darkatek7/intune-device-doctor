@@ -16,6 +16,7 @@ import {
   mapBitlockerKey,
   mapDetectedMalware,
   mapEntraDevice,
+  mapLocalAdmin,
   mapManagedDevice,
   mapPolicyState,
   mapSearchResult,
@@ -562,5 +563,50 @@ describe('mapSignIns', () => {
       enforcedGrantControls: [],
       enforcedSessionControls: [],
     });
+  });
+});
+
+describe('mapLocalAdmin (Windows LAPS)', () => {
+  const info = {
+    id: PC001_ENTRA_ID,
+    deviceName: 'CONTOSO-PC001',
+    lastBackupDateTime: '2026-10-12T08:00:00Z',
+    refreshDateTime: '2026-11-11T08:00:00Z',
+  };
+
+  it('übernimmt nur Gerätename und Zeitpunkte', () => {
+    expect(mapLocalAdmin(info)).toEqual({
+      deviceName: 'CONTOSO-PC001',
+      lastBackupDateTime: '2026-10-12T08:00:00Z',
+      refreshDateTime: '2026-11-11T08:00:00Z',
+    });
+  });
+
+  it('akzeptiert die Form unter "value" (Doku-Beispiel) wie die direkte Form', () => {
+    expect(mapLocalAdmin({ value: info })).toEqual(mapLocalAdmin(info));
+  });
+
+  it('gibt ein Kennwort aus credentials nie weiter', () => {
+    const leaked = {
+      ...info,
+      credentials: [{ accountName: 'Administrator', passwordBase64: 'U2VjcmV0' }],
+    };
+    expect(JSON.stringify(mapLocalAdmin(leaked as never))).not.toMatch(
+      /credentials|U2VjcmV0|Secret/i,
+    );
+    expect(Object.keys(mapLocalAdmin(leaked as never)).sort()).toEqual([
+      'deviceName',
+      'lastBackupDateTime',
+      'refreshDateTime',
+    ]);
+  });
+
+  it('macht aus leeren Antworten, ungültigen Daten und 0001-01-01 null', () => {
+    const empty = { deviceName: null, lastBackupDateTime: null, refreshDateTime: null };
+    expect(mapLocalAdmin(null)).toEqual(empty);
+    expect(mapLocalAdmin(undefined)).toEqual(empty);
+    expect(
+      mapLocalAdmin({ lastBackupDateTime: 'kaputt', refreshDateTime: '0001-01-01T00:00:00Z' }),
+    ).toEqual(empty);
   });
 });

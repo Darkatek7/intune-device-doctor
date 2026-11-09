@@ -4,6 +4,7 @@
  */
 import type {
   AppliedPolicyInfo,
+  LocalAdminInfo,
   ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
@@ -29,6 +30,7 @@ import type {
   GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
+  GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
@@ -570,5 +572,29 @@ export function mapSignIns(
     totalForUser: entries.length,
     moreAvailable: meta.moreAvailable,
     entries: forDevice,
+  };
+}
+
+// ---------- Windows LAPS ----------
+
+/**
+ * Nur Metadaten. Die Antwort kann laut Doku-Beispiel direkt oder unter `value` liegen – beide Formen
+ * werden akzeptiert. Eine Eigenschaft `credentials` wird nie gelesen oder weitergereicht.
+ */
+export function mapLocalAdmin(
+  dto:
+    | Partial<GraphDeviceLocalCredentialInfo>
+    | { value?: Partial<GraphDeviceLocalCredentialInfo> | null }
+    | null
+    | undefined,
+): LocalAdminInfo {
+  const raw = dto && typeof dto === 'object' && 'value' in dto && dto.value ? dto.value : dto;
+  const info = (
+    raw && typeof raw === 'object' ? raw : {}
+  ) as Partial<GraphDeviceLocalCredentialInfo>;
+  return {
+    deviceName: str(info.deviceName),
+    lastBackupDateTime: validDate(info.lastBackupDateTime),
+    refreshDateTime: validDate(info.refreshDateTime),
   };
 }

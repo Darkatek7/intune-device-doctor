@@ -17,6 +17,7 @@ import type {
   DataMode,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
@@ -84,6 +85,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<SignInsInfo>>;
+
+  /**
+   * Windows LAPS (nur Windows): Zeitpunkte der letzten Sicherung und der nächsten Aktualisierung des
+   * lokalen Administrator-Kennworts aus Entra. Das Kennwort selbst wird nie angefordert.
+   */
+  getLocalAdmin(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<LocalAdminInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

@@ -753,3 +753,65 @@ describe('GraphProvider – Anmeldungen (Entra-Anmeldeprotokoll)', () => {
     expect(result.data.entries[0]!.appliedPolicies).toBeNull();
   });
 });
+
+describe('GraphProvider – Windows LAPS', () => {
+  const LAPS_PATH = `/v1.0/directory/deviceLocalCredentials/${PC001_ENTRA_ID}`;
+
+  it('liest per GET nur Metadaten – ohne credentials', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe(LAPS_PATH);
+    expect(call.parsed.searchParams.get('$select')).toBe(
+      'id,deviceName,lastBackupDateTime,refreshDateTime',
+    );
+    // der Pfad heißt …/deviceLocalCredentials – geprüft wird die Abfrage (nie $select=credentials)
+    expect(call.parsed.search.toLowerCase()).not.toContain('credentials');
+    expect(result.source.label).toBe(Endpoints.deviceLocalCredentialInfo.display);
+    expect(result.data).toEqual({
+      deviceName: 'CONTOSO-PC001',
+      lastBackupDateTime: '2026-10-12T08:00:00Z',
+      refreshDateTime: '2026-11-11T08:00:00Z',
+    });
+  });
+
+  it('nicht Windows: notApplicable ohne Request; ohne Entra-Geräte-ID: unavailable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const mac = expectStatus(
+      await provider.getLocalAdmin(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(mac.reason).toBe(de.reasons.lapsNotWindows);
+    const noId = expectStatus(
+      await provider.getLocalAdmin(windowsDevice({ azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(noId.reason).toBe(de.reasons.noAzureAdDeviceId);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit Scope …ReadBasic.All, ohne andere Sections zu beeinflussen', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === LAPS_PATH
+        ? graphError(403, 'Authorization_RequestDenied')
+        : contosoHandler()(call),
+    );
+    const result = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'forbidden');
+    expect(result.error.requiredScope).toBe('DeviceLocalCredential.ReadBasic.All');
+    expectStatus(await provider.getEntraDevice(windowsDevice()), 'ok');
+  });
+
+  it('404 → unavailable mit ehrlichem Text, 500 → error', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === LAPS_PATH
+        ? graphError(404, 'ResourceNotFound')
+        : contosoHandler()(call),
+    );
+    const unavailable = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'unavailable');
+    expect(unavailable.reason).toBe(de.reasons.lapsNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getLocalAdmin(windowsDevice()), 'error');
+  });
+});

@@ -11,6 +11,7 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
@@ -110,6 +111,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getSignIns(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<SignInsInfo>((p) => p.getSignIns(device, options));
+  }
+
+  getLocalAdmin(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<LocalAdminInfo>((p) => p.getLocalAdmin(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

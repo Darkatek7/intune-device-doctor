@@ -37,6 +37,7 @@ export const de = {
     win32Apps: 'Win32-Apps',
     apps: 'Apps',
     signIns: 'Anmeldungen',
+    laps: 'Lokaler Administrator (LAPS)',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -122,6 +123,10 @@ export const de = {
       'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
     signInsNotReported:
       'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
+    // M10: Windows LAPS
+    lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
+    lapsNotReported:
+      'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>

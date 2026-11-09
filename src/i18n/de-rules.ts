@@ -16,6 +16,13 @@ export const deRules = {
       'Prüfen, ob das Konto eine lesende Rolle hat (z. B. Intune „Read Only Operator“ oder Entra „Global Reader“) und das Gerät im zugewiesenen Bereich (Scope-Tag) liegt.',
       'Abmelden und erneut anmelden, damit das Token die neue Berechtigung enthält.',
     ],
+    /** Zusätzlicher Hinweis je Scope: Rollen laut Microsoft Learn (nur dort, wo die Doku sie nennt). */
+    forbiddenRoleHints: {
+      'AuditLog.Read.All':
+        'Das Anmeldeprotokoll erfordert laut Microsoft Entra ID P1/P2 und für das Konto eine Entra-Rolle wie Global Reader, Reports Reader, Security Administrator, Security Operator oder Security Reader.',
+      'DeviceLocalCredential.ReadBasic.All':
+        'Für die LAPS-Metadaten braucht das Konto laut Microsoft eine Entra-Rolle wie Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Administrator, Security Reader oder Global Reader.',
+    } as Record<string, string>,
     notApplicableTitle: 'Für dieses Gerät nicht anwendbar',
     notApplicableCause: 'Die Datenquelle gilt für diese Plattform nicht.',
     notApplicableRemediation:
@@ -647,6 +654,46 @@ export const deRules = {
     mismatchRemediation: [
       'Zeitpunkt der Anmeldung mit dem letzten Check-in und der letzten Compliance-Auswertung vergleichen.',
       'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
+    ],
+  },
+  /** M10: Kachel „Lokaler Administrator (LAPS)“ (Windows LAPS, nur Metadaten) */
+  laps: {
+    valueOk: 'Kennwort gesichert',
+    valueStale: 'Sicherung veraltet',
+    valueNoBackup: 'Keine Sicherung',
+    valueHint: 'Rotation überfällig',
+    summaryOk: (when: string) => `Letzte Sicherung ${when}`,
+    summaryNoBackup: 'Graph meldet keinen Sicherungszeitpunkt',
+    facts: {
+      lastBackup: 'Letzte Kennwortsicherung',
+      nextRefresh: 'Nächste geplante Aktualisierung',
+      deviceName: 'Gerät laut Entra',
+      passwordNote: 'Kennwort',
+      passwordNever: 'wird nie abgerufen oder angezeigt',
+    },
+    staleTitle: 'Kennwortsicherung veraltet',
+    staleDetail: (when: string, days: number, limit: number) =>
+      `Das lokale Administrator-Kennwort wurde zuletzt ${when} in Entra gesichert (vor ${days} Tagen; Richtwert dieser App: ${limit} Tage).`,
+    staleCause:
+      'Windows LAPS rotiert und sichert das Kennwort nach dem Intervall der Richtlinie (PasswordAgeDays, Standard 30 Tage). Eine ältere Sicherung kann bedeuten, dass das Gerät die Richtlinie nicht verarbeitet, die Sicherung scheitert oder das Gerät lange offline war – oder dass die Richtlinie ein längeres Intervall vorgibt (der Richtwert ist keine Microsoft-Vorgabe).',
+    staleRemediation: [
+      'Im Intune Admin Center unter Endpoint Security › Account Protection prüfen, ob dem Gerät eine Richtlinie „Local admin password solution (Windows LAPS)“ zugewiesen ist und ob dort als Sicherungsverzeichnis Microsoft Entra ID gewählt ist.',
+      'Prüfen, ob LAPS in Entra aktiviert ist (Entra ID › Geräte › Geräteeinstellungen › „Enable Local Administrator Password Solution (LAPS)“) und das Gerät in Entra aktiviert ist – für deaktivierte Geräte rotiert und sichert Windows LAPS laut Microsoft nicht.',
+      'Auf dem Gerät in der Ereignisanzeige unter Anwendungs- und Dienstprotokolle › Microsoft › Windows › LAPS › Betriebsbereit nach den Ereignissen 10003 (Start), 10004 (erfolgreich) bzw. 10005 (fehlgeschlagen, mit Fehlercode) suchen; 10022 zeigt die wirksame Richtlinie mit Sicherung in Entra.',
+    ],
+    noBackupTitle: 'Kein Sicherungszeitpunkt gemeldet',
+    noBackupDetail:
+      'Der LAPS-Eintrag des Geräts enthält keinen Zeitpunkt der letzten Kennwortsicherung (lastBackupDateTime).',
+    noBackupCause:
+      'Für das Gerät wurde noch kein Kennwort in Entra gesichert, oder Graph liefert den Wert nicht. Laut Microsoft stehen die Daten im Intune Admin Center erst, nachdem das Gerät eingecheckt und die LAPS-Richtlinie erfolgreich verarbeitet hat.',
+    hintTitle: 'Geplante Kennwortrotation überfällig',
+    hintDetail: (when: string, days: number) =>
+      `Die nächste Aktualisierung war für ${when} geplant (seit ${days} Tagen überschritten; refreshDateTime).`,
+    hintCause:
+      'Laut Feldbeschreibung nennt refreshDateTime den Zeitpunkt, zu dem das Kennwort aktualisiert und in Entra gesichert wird. Liegt er deutlich in der Vergangenheit, hat das Gerät die Rotation nicht ausgeführt oder nicht gemeldet.',
+    hintRemediation: [
+      'Prüfen, wann das Gerät zuletzt eingecheckt hat (Kachel „Letzter Check-in“) und ob es online war.',
+      'Auf dem Gerät die LAPS-Ereignisse 10003 bis 10005 prüfen (siehe Ereignisprotokoll Windows LAPS).',
     ],
   },
   policies: {

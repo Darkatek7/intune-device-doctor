@@ -12,6 +12,7 @@ import { evaluateDefender } from './tiles/defender';
 import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
+import { evaluateLaps } from './tiles/laps';
 import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
 import { de } from '../i18n/de';
@@ -28,6 +29,7 @@ export const TILE_ORDER: TileId[] = [
   'policies',
   'apps',
   'signIns',
+  'laps',
   'entraJoin',
   'win32Apps',
   'enrollment',
@@ -48,6 +50,8 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
   tiles.push(evaluateSignIns(snapshot, now));
+  // Windows-spezifische Live-Kacheln (M10): nur für Windows-Geräte
+  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateLaps(snapshot, now));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }
