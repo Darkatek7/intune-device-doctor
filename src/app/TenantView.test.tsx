@@ -11,7 +11,7 @@ const tenantTiles = () =>
     .filter((b) => b.getAttribute('data-tile-id')?.startsWith('tenant'));
 
 async function openTenant(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: de.toolbar.tenant }));
+  await user.click(screen.getByRole('button', { name: de.toolbar.tenantShort }));
 }
 
 describe('Ansicht „Mandant“', () => {

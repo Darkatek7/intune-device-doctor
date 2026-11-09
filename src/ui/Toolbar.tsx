@@ -65,7 +65,6 @@ export function Toolbar({
               <button
                 type="button"
                 onClick={onOpenTenant}
-                aria-label={de.toolbar.tenant}
                 aria-current={tenantActive ? 'page' : undefined}
                 title={de.toolbar.tenant}
                 className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
@@ -73,7 +72,7 @@ export function Toolbar({
                 }`}
               >
                 <Landmark aria-hidden="true" size={16} />
-                <span className="hidden sm:inline">{de.toolbar.tenantShort}</span>
+                <span className="sr-only sm:not-sr-only">{de.toolbar.tenantShort}</span>
               </button>
             )}
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />

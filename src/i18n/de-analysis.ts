@@ -18,7 +18,8 @@ export const deAnalysis = {
     empty: 'Keine Zeitpunkte in den geladenen Daten.',
     emptyProblems: 'Keine Probleme in der Zeitachse.',
     planned: 'Geplant',
-    open: (title: string, tile: string) => `${title} – Kachel „${tile}“ öffnen`,
+    /** Nur für Screenreader am Ende des Eintrags; der sichtbare Text bleibt Teil des Namens (WCAG 2.5.3). */
+    open: (tile: string) => `– Kachel „${tile}“ öffnen`,
     dayToday: 'Heute',
     count: (shown: number, total: number) =>
       shown === total ? `${total} Ereignisse` : `${shown} von ${total} Ereignissen`,
