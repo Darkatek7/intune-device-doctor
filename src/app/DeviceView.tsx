@@ -11,7 +11,7 @@ import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
-import type { Tile } from '../domain/types';
+import type { DeviceSearchResult, ManagedDeviceInfo, Tile } from '../domain/types';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
@@ -36,6 +36,10 @@ interface Props {
   onRemoveDiagnostics?: () => void;
   /** Gesamtzustand für das Umgebungslicht (accent, solange geladen wird) */
   onToneChange?: (tone: AmbientTone) => void;
+  /** Gerät wurde geladen – für „Zuletzt geöffnet“ (nur id, Name, Plattform) */
+  onDeviceLoaded?: (device: Pick<ManagedDeviceInfo, 'id' | 'deviceName' | 'osFamily'>) => void;
+  /** Öffnet ein anderes Gerät (Zeile „Weitere Geräte“ im Header) */
+  onOpenDevice?: (device: Pick<DeviceSearchResult, 'id' | 'deviceName'>) => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -51,6 +55,8 @@ export function DeviceView({
   diagnostics,
   onRemoveDiagnostics,
   onToneChange,
+  onDeviceLoaded,
+  onOpenDevice,
 }: Props) {
   const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
@@ -103,6 +109,19 @@ export function DeviceView({
 
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
+  // „Zuletzt geöffnet“: erst merken, wenn das Gerät tatsächlich geladen wurde.
+  const loadedDeviceId = snapshot?.device.id;
+  const loadedDeviceName = snapshot?.device.deviceName;
+  const loadedOsFamily = snapshot?.device.osFamily;
+  useEffect(() => {
+    if (!loadedDeviceId || !loadedDeviceName || !loadedOsFamily) return;
+    onDeviceLoaded?.({
+      id: loadedDeviceId,
+      deviceName: loadedDeviceName,
+      osFamily: loadedOsFamily,
+    });
+  }, [loadedDeviceId, loadedDeviceName, loadedOsFamily, onDeviceLoaded]);
+
   // Seitentitel
   const deviceName = snapshot?.device.deviceName;
   useEffect(() => {
@@ -151,6 +170,10 @@ export function DeviceView({
         tiles={tiles}
         tone={tone}
         throttle={throttle}
+        otherDevices={
+          snapshot?.userDevices?.status === 'ok' ? snapshot.userDevices.data : undefined
+        }
+        onOpenDevice={onOpenDevice}
         actions={<TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />}
         badges={
           diagnostics && onRemoveDiagnostics ? (

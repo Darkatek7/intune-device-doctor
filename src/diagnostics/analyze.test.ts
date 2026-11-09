@@ -79,7 +79,7 @@ describe('analyzeDiagnosticsZip (Fixture)', () => {
     expect(report.fileName).toBe(FIXTURE_FILE_NAME);
     expect(report.deviceNameFromFile).toBe('CONTOSO-PC042');
     expect(report.collectedAtUtc).toBe('2026-10-14T12:53:56Z');
-    expect(report.entryCount).toBe(9);
+    expect(report.entryCount).toBe(12);
 
     expect(report.dsregcmd).toMatchObject({
       azureAdPrt: 'NO',
@@ -120,6 +120,41 @@ describe('analyzeDiagnosticsZip (Fixture)', () => {
     expect(report.imeIssues[0]?.file).toBe('IntuneManagementExtension.log');
 
     expect(report.analysisNotes.some((n) => n.includes('.evtx'))).toBe(true);
+
+    // OEM-Codepage (CP850): Umlaute aus certutil/ipconfig sind korrekt dekodiert, nichts Unmaskiertes
+    expect(report.certificates).toHaveLength(3);
+    expect(report.certificates.map((c) => c.issuer)).toEqual([
+      'CN=MS-Organization-Access',
+      'CN=Contoso Geräte-CA, O=Contoso, C=DE',
+      'CN=Contoso Geräte-CA, O=Contoso, C=DE',
+    ]);
+    expect(report.certificates[1]?.notAfter).toBe('2026-10-01T08:00:00Z');
+    expect(report.network?.primaryDnsSuffix).toBe('contoso.com');
+    expect(report.network?.dnsSuffixSearchList).toEqual(['contoso.com', 'corp.contoso.com']);
+    expect(report.network?.adapters.map((a) => a.name)).toEqual([
+      'Ethernet-Adapter Ethernet',
+      'Drahtlos-LAN-Adapter WLAN',
+    ]);
+    expect(report.network?.adapters[0]?.dnsServers).toEqual(['192.0.2.53', '192.0.2.54']);
+    const serialized = JSON.stringify({ c: report.certificates, n: report.network });
+    expect(serialized).not.toContain('Büro-Gerät-042');
+    expect(serialized).not.toContain('0a1b2c3d4e5f60718293a4b5c6d7e8f9');
+    expect(serialized).not.toContain('00-00-5E-00-53-42');
+    expect(report.analysisNotes.some((n) => n.includes('nicht darstellbare'))).toBe(false);
+    // Ereignisprotokoll (gezielt gelesen): Fenster = 14 Tage vor dem ZIP-Zeitstempel
+    expect(report.eventLogs).toHaveLength(1);
+    const admin = report.eventLogs[0]!;
+    expect(admin).toMatchObject({
+      id: 'mdmAdmin',
+      status: 'ok',
+      windowStartUtc: '2026-09-30T12:53:56.000Z',
+      windowEndUtc: '2026-10-14T12:53:56.000Z',
+      scanned: 7,
+      counts: { critical: 0, error: 4, warning: 1 },
+      incomplete: false,
+    });
+    expect(admin.events.map((e) => e.eventId)).toEqual([76, 1819, 76, 208, 1234]);
+    expect(progress.some((p) => p.stage === 'eventLogs')).toBe(true);
 
     expect(progress[0]?.stage).toBe('opening');
     expect(progress.at(-1)).toMatchObject({ stage: 'done' });

@@ -4,6 +4,8 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  DeviceGroupsInfo,
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInfo,
@@ -12,9 +14,12 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  HealthAttestationInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 import { Endpoints, type EndpointId } from '../../graph/endpoints';
@@ -22,7 +27,14 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
-import { defaultAppStates } from './scenarios/helpers';
+import {
+  defaultAppStates,
+  defaultAutopilot,
+  defaultDeviceGroups,
+  defaultHealthAttestation,
+  defaultLocalAdmin,
+  defaultSignIns,
+} from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -43,6 +55,12 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   bitlockerKeys: 'bitlockerRecoveryKeys',
   appInstallStates: 'mobileAppIntentAndStates',
   applePushCertificate: 'applePushNotificationCertificate',
+  signIns: 'signIns',
+  localAdmin: 'deviceLocalCredentialInfo',
+  autopilot: 'windowsAutopilotDeviceIdentities',
+  deviceGroups: 'deviceTransitiveMemberOf',
+  userDevices: 'managedDevicesOfUser',
+  healthAttestation: 'managedDeviceHealthAttestation',
 };
 
 export function abortError(): DOMException {
@@ -84,6 +102,20 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 function sourceFor(endpoint: EndpointId): DataSource {
   const def = Endpoints[endpoint];
   return { kind: 'mock', label: def.display, docsUrl: def.docsUrl };
+}
+
+function toSearchResult(device: MockDeviceFixture['device']): DeviceSearchResult {
+  return {
+    id: device.id,
+    deviceName: device.deviceName,
+    userPrincipalName: device.userPrincipalName,
+    userDisplayName: device.userDisplayName,
+    operatingSystem: device.operatingSystem,
+    osVersion: device.osVersion,
+    model: device.model,
+    complianceState: device.complianceState,
+    lastSyncDateTime: device.lastSyncDateTime,
+  };
 }
 
 export class MockProvider implements DeviceDataProvider {
@@ -129,17 +161,7 @@ export class MockProvider implements DeviceDataProvider {
       ),
     );
     const hits = exact.length > 0 ? exact : byName.length > 0 ? byName : byUser;
-    return hits.map(({ device }) => ({
-      id: device.id,
-      deviceName: device.deviceName,
-      userPrincipalName: device.userPrincipalName,
-      userDisplayName: device.userDisplayName,
-      operatingSystem: device.operatingSystem,
-      osVersion: device.osVersion,
-      model: device.model,
-      complianceState: device.complianceState,
-      lastSyncDateTime: device.lastSyncDateTime,
-    }));
+    return hits.map(({ device }) => toSearchResult(device));
   }
 
   async getDevice(
@@ -175,6 +197,46 @@ export class MockProvider implements DeviceDataProvider {
         lastModifiedDateTime: new Date(now.getTime() - 165 * DAY).toISOString(),
       };
       return { status: 'ok', data };
+    }
+    if (key === 'signIns') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.signInsNoPrimaryUser };
+      }
+      return { status: 'ok', data: defaultSignIns(this.now(), fixture.device) };
+    }
+    if (key === 'localAdmin') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.lapsNotWindows };
+      }
+      return { status: 'ok', data: defaultLocalAdmin(this.now(), fixture.device) };
+    }
+    if (key === 'autopilot') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.autopilotNotWindows };
+      }
+      return { status: 'ok', data: defaultAutopilot(this.now(), fixture.device) };
+    }
+    if (key === 'userDevices') {
+      const upn = fixture.device.userPrincipalName;
+      if (!upn) return { status: 'notApplicable', reason: de.reasons.userDevicesNoUser };
+      const others = this.fixtures()
+        .filter(
+          (f) =>
+            f.device.id !== fixture.device.id &&
+            f.device.userPrincipalName?.toLowerCase() === upn.toLowerCase(),
+        )
+        .map(({ device }) => toSearchResult(device))
+        .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
+      return { status: 'ok', data: others };
+    }
+    if (key === 'healthAttestation') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.attestationNotWindows };
+      }
+      return { status: 'ok', data: defaultHealthAttestation(this.now()) };
+    }
+    if (key === 'deviceGroups') {
+      return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
     }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
@@ -246,6 +308,30 @@ export class MockProvider implements DeviceDataProvider {
 
   getApplePushCertificate(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<ApplePushCertificateInfo>(device, 'applePushCertificate', options);
+  }
+
+  getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<SignInsInfo>(device, 'signIns', options);
+  }
+
+  getUserDevices(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DeviceSearchResult[]>(device, 'userDevices', options);
+  }
+
+  getDeviceGroups(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DeviceGroupsInfo>(device, 'deviceGroups', options);
+  }
+
+  getAutopilot(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AutopilotInfo | null>(device, 'autopilot', options);
+  }
+
+  getHealthAttestation(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<HealthAttestationInfo>(device, 'healthAttestation', options);
+  }
+
+  getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<LocalAdminInfo>(device, 'localAdmin', options);
   }
 
   async getMobileApps(

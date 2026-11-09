@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useId, useState, type KeyboardEvent, type Ref } from 'react';
 import type { DeviceSearchResult } from '../domain/types';
+import { shortcutLabel } from '../hooks/useSearchShortcut';
 import { de } from '../i18n/de';
 
 interface Props {
@@ -134,12 +135,14 @@ export function SearchField({
             <X aria-hidden="true" size={16} />
           </button>
         )}
-        {!value && !large && (
+        {!value && (
           <kbd
             aria-hidden="true"
-            className="hidden shrink-0 rounded-md bg-fill px-1.5 py-0.5 font-sans text-xs text-secondary-label sm:block"
+            className={`hidden shrink-0 rounded-md bg-fill font-sans text-secondary-label sm:block ${
+              large ? 'px-2 py-1 text-sm' : 'px-1.5 py-0.5 text-xs'
+            }`}
           >
-            {de.field.shortcut}
+            {shortcutLabel()}
           </kbd>
         )}
         {large && (

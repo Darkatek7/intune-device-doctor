@@ -5,6 +5,9 @@
  */
 import type {
   AppError,
+  HealthAttestationInfo,
+  DeviceGroupsInfo,
+  AutopilotInfo,
   ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
@@ -12,9 +15,11 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 import {
@@ -27,32 +32,47 @@ import type {
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphCollection,
+  GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
+  GraphDirectoryObject,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
   GraphMobileAppIntentAndState,
+  GraphSignIn,
+  GraphWindowsAutopilotDeviceIdentity,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
-import { Endpoints, type EndpointId } from '../../graph/endpoints';
+import {
+  Endpoints,
+  MAX_LIST_PAGES,
+  SIGN_IN_WINDOW_DAYS,
+  type EndpointId,
+} from '../../graph/endpoints';
 import {
   graphSource,
   mapApplePushCertificate,
   mapAppInstallStates,
+  mapAutopilot,
+  mapDeviceGroups,
+  mapUserDevices,
   mapBitlockerKey,
   mapEntraDevice,
+  mapHealthAttestation,
+  mapLocalAdmin,
   mapManagedDevice,
   mapMobileApp,
   mapPolicyState,
   mapSearchResult,
+  mapSignIns,
   mapWindowsProtection,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 
 const MAX_SEARCH_RESULTS = 25;
-const MAX_LIST_PAGES = 5;
 /** Höchstens so viele App-Namen je Aufruf nachschlagen (nur fehlgeschlagene/auffällige Apps). */
 const MAX_APP_LOOKUPS = 25;
 const APP_LOOKUP_CONCURRENCY = 4;
@@ -413,6 +433,188 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapApplePushCertificate(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.applePushNotReported, source }),
+    );
+  }
+
+  /**
+   * Entra-Anmeldeprotokoll des primären Benutzers (nur die erste Seite, neueste zuerst). Der
+   * dokumentierte $filter deckt Benutzer und Zeitraum ab; auf das Gerät wird clientseitig eingegrenzt.
+   */
+  getSignIns(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<SignInsInfo>> {
+    const endpoint = Endpoints.signIns;
+    return this.run<SignInsInfo>(
+      'signIns',
+      async (source) => {
+        if (!device.userId) {
+          return { status: 'notApplicable', reason: de.reasons.signInsNoPrimaryUser, source };
+        }
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const since = new Date(this.now().getTime() - SIGN_IN_WINDOW_DAYS * 86_400_000);
+        const page = await this.client.get<GraphCollection<GraphSignIn>>(
+          endpoint.path(device.userId, since.toISOString().replace(/\.\d{3}Z$/, 'Z')),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        const info = mapSignIns(page?.value ?? [], azureAdId, {
+          windowDays: SIGN_IN_WINDOW_DAYS,
+          moreAvailable: Boolean(page?.['@odata.nextLink']),
+        });
+        return this.ok(info, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.signInsNotReported, source }),
+    );
+  }
+
+  /**
+   * Windows LAPS (nur Windows): Metadaten aus Entra. Nur `$select=id,deviceName,lastBackupDateTime,
+   * refreshDateTime` – nie `credentials`. 404 → unavailable (Bedeutung ist nicht dokumentiert).
+   */
+  getLocalAdmin(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<LocalAdminInfo>> {
+    const endpoint = Endpoints.deviceLocalCredentialInfo;
+    return this.run<LocalAdminInfo>(
+      'deviceLocalCredentialInfo',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.lapsNotWindows, source };
+        }
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const dto = await this.client.get<
+          GraphDeviceLocalCredentialInfo | { value?: GraphDeviceLocalCredentialInfo }
+        >(endpoint.path(azureAdId), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapLocalAdmin(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.lapsNotReported, source }),
+    );
+  }
+
+  /**
+   * Windows Autopilot (nur Windows): Für die Liste ist kein Filter dokumentiert → seitenweise lesen
+   * (höchstens MAX_LIST_PAGES Seiten, Abbruch beim ersten Treffer). Nicht gefunden und weitere Seiten
+   * vorhanden → unavailable (ehrlich); nicht gefunden und Liste zu Ende → ok mit null.
+   */
+  getAutopilot(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AutopilotInfo | null>> {
+    const endpoint = Endpoints.windowsAutopilotDeviceIdentities;
+    return this.run<AutopilotInfo | null>(
+      'windowsAutopilotDeviceIdentities',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.autopilotNotWindows, source };
+        }
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_LIST_PAGES) {
+          const page: GraphCollection<GraphWindowsAutopilotDeviceIdentity> | undefined =
+            await this.client.get<GraphCollection<GraphWindowsAutopilotDeviceIdentity>>(next, {
+              signal: options.signal,
+              scope: endpoint.scope,
+            });
+          pages += 1;
+          const hit = mapAutopilot(page?.value ?? [], device);
+          if (hit) return this.ok(hit, source);
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        if (next) {
+          return {
+            status: 'unavailable',
+            reason: de.reasons.autopilotNotFoundInLimit(pages),
+            source,
+          };
+        }
+        return this.ok(null, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.autopilotNotReported, source }),
+    );
+  }
+
+  /**
+   * Gruppen des Entra-Geräts (transitiveMemberOf). Ohne Query-Optionen; Paging über @odata.nextLink,
+   * höchstens MAX_LIST_PAGES Seiten (danach `truncated`).
+   */
+  getDeviceGroups(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DeviceGroupsInfo>> {
+    const endpoint = Endpoints.deviceTransitiveMemberOf;
+    return this.run<DeviceGroupsInfo>(
+      'deviceTransitiveMemberOf',
+      async (source) => {
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const objects: GraphDirectoryObject[] = [];
+        let next: string | undefined = endpoint.path(azureAdId);
+        let pages = 0;
+        while (next && pages < MAX_LIST_PAGES) {
+          const page: GraphCollection<GraphDirectoryObject> | undefined = await this.client.get<
+            GraphCollection<GraphDirectoryObject>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          objects.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(mapDeviceGroups(objects, Boolean(next)), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.groupsNotReported, source }),
+    );
+  }
+
+  /** Weitere Geräte des Benutzers (nur die erste Seite), ohne das aktuelle Gerät. */
+  getUserDevices(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DeviceSearchResult[]>> {
+    const endpoint = Endpoints.managedDevicesOfUser;
+    return this.run<DeviceSearchResult[]>(
+      'managedDevicesOfUser',
+      async (source) => {
+        const upn = device.userPrincipalName?.trim();
+        if (!upn) {
+          return { status: 'notApplicable', reason: de.reasons.userDevicesNoUser, source };
+        }
+        const page = await this.client.get<GraphCollection<GraphManagedDevice>>(
+          endpoint.path(upn),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        return this.ok(mapUserDevices(page?.value ?? [], device.id), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.userDevicesNotReported, source }),
+    );
+  }
+
+  /** Integritätsnachweis (nur Windows): eigener Aufruf mit $select=deviceHealthAttestationState. */
+  getHealthAttestation(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<HealthAttestationInfo>> {
+    const endpoint = Endpoints.managedDeviceHealthAttestation;
+    return this.run<HealthAttestationInfo>(
+      'managedDeviceHealthAttestation',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.attestationNotWindows, source };
+        }
+        const dto = await this.client.get<GraphManagedDeviceHealthAttestation>(
+          endpoint.path(device.id),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        return this.ok(mapHealthAttestation(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.attestationNotReported, source }),
     );
   }
 

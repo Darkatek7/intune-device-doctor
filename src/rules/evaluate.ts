@@ -12,6 +12,11 @@ import { evaluateDefender } from './tiles/defender';
 import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
+import { evaluateAttestation } from './tiles/attestation';
+import { evaluateAutopilot } from './tiles/autopilot';
+import { evaluateGroups } from './tiles/groups';
+import { evaluateLaps } from './tiles/laps';
+import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
@@ -26,9 +31,16 @@ export const TILE_ORDER: TileId[] = [
   'defender',
   'policies',
   'apps',
+  'signIns',
+  'laps',
+  'autopilot',
+  'groups',
+  'attestation',
   'entraJoin',
   'win32Apps',
   'enrollment',
+  'certsNetwork',
+  'mdmEvents',
   'diagCollection',
 ];
 
@@ -45,6 +57,13 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   // App-Status (Graph beta) liefert in vielen Tenants keine Daten → Kachel nur, wenn Daten kamen;
   // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
+  tiles.push(evaluateSignIns(snapshot, now));
+  // Windows-spezifische Live-Kacheln (M10): nur für Windows-Geräte
+  if (snapshot.device.osFamily === 'windows') {
+    tiles.push(evaluateLaps(snapshot, now), evaluateAutopilot(snapshot, now));
+  }
+  tiles.push(evaluateGroups(snapshot, now));
+  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateAttestation(snapshot));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }

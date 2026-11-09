@@ -42,8 +42,18 @@ HRESULT-Bedeutung ist **typabhängig** (dezimal, signiert):
 | UTF-16LE mit BOM (`FF FE`)                                                                                                                                                                                                         | alle `.reg`, msinfo32-Ausgabe                          |
 | UTF-8 mit BOM                                                                                                                                                                                                                      | IME-Logs, CBS, setupact, HTML-Reports                  |
 | UTF-8 ohne BOM                                                                                                                                                                                                                     | dsregcmd, MpCmdRun, netsh (lokalisiert)                |
-| OEM-Codepage (CP850)                                                                                                                                                                                                               | ipconfig, certutil, pnputil → **MVP: nicht auswerten** |
+| OEM-Codepage (CP850) | ipconfig, certutil, pnputil → ohne BOM; seit M11/A über eigene Tabelle dekodiert und ausgewertet (certutil, ipconfig) |
 | Encoding über BOM erkennen (`TextDecoder('utf-16le')` bzw. `'utf-8'`). Ausgaben sind teils lokalisiert (z. B. Deutsch: „Domänenprofil“, `EIN`/`AUS`) → für Befunde bevorzugt sprachneutrale Quellen (dsregcmd-Keys sind Englisch). |
+
+## certutil und ipconfig (OEM-Codepage CP850, seit M11/A)
+
+Die Ausgaben von `certutil`, `ipconfig` und `pnputil` schreibt Windows in der OEM-Codepage (auf deutschen Systemen CP850, **ohne BOM**). `TextDecoder` kennt CP850 nicht; `decodeText(bytes, { oem: true })` (`parsers/encoding.ts`) verwendet daher eine eigene Tabelle für 0x80–0xFF. Der Reader setzt `oem` nur für `Command`-Einträge, deren Name `ipconfig`, `certutil` oder `pnputil` enthält. Bytes, die gültiges UTF-8 sind (auch reines ASCII), bleiben UTF-8; BOM-Dateien bleiben unverändert.
+
+**Annahme zu den Eintragsnamen:** Die genauen Namen der beiden Einträge sind in den vorliegenden Archiven nicht dokumentiert. Erkannt werden `Command`-Einträge, deren Name `certutil` bzw. `ipconfig` enthält (z. B. `windir_system32_certutil_exe_-store_My`, `windir_system32_ipconfig_exe_-all`); bei mehreren ipconfig-Einträgen wird der mit „all“ im Namen bevorzugt.
+
+- **certutil `-store`** (`parsers/certutil.ts`): Blöcke unter `================ Certificate N ================` bzw. `Zertifikat N`; ausgewertet werden Seriennummer (`Serial Number`/`Seriennummer`), Aussteller (`Issuer`/`Aussteller`), `NotBefore`/`NotAfter` (bzw. „Gültig ab“/„Gültig bis“/„Ablaufdatum“) und Antragsteller (`Subject`/`Antragsteller`). Datumsformate: `d.M.yyyy HH:mm` (de), `M/d/yyyy h:mm AM|PM` (en-US), ISO. certutil gibt lokale Zeit ohne Zone aus; der Wert wird wie UTC behandelt (Ungenauigkeit höchstens im Stundenbereich). **Maskierung schon im Parser:** Seriennummer (`xxxx…xxxx`), GUIDs/E-Mail-Adressen in Namen, Antragsteller-CN außerhalb von CA-Speichern. Nicht lesbare Daten bleiben als Rohwert erhalten.
+- **ipconfig `/all`** (`parsers/ipconfig.ts`): je Adapter Beschreibung, MAC (nur Herstellerpräfix, Rest `••`), DHCP, IPv4, DNS-Server, verbindungsspezifisches DNS-Suffix, Medienstatus; global primäres DNS-Suffix und Suffix-Suchliste. Host-Name und IPv6-Adressen werden nicht übernommen. Lokalisierte Schlüssel: Deutsch und Englisch.
+- **Anzeige** (Kachel „Zertifikate & Netzwerk“, `rules/tiles/certsNetwork.ts`): reine Rohdaten, Severity „Hinweis“. Verglichen wird nur `NotAfter` mit dem Sammelzeitpunkt aus dem Dateinamen (abgelaufen / läuft innerhalb von 30 Tagen ab) – rechnerisch, ohne Bewertung. Eine Deutung bestimmter Aussteller (z. B. „Microsoft Intune MDM Device CA“) gibt es **nicht**: Microsoft Learn nennt diesen Namen nicht. Belegt ist nur, dass Learn das Computerzertifikat mit Aussteller `MS-Organization-Access` im Zusammenhang mit der Entra-Geräteregistrierung beschreibt (Troubleshoot co-management, Abschnitt „Common issues“); Folgen eines Ablaufs sind dort nicht beschrieben.
 
 ## dsregcmd /status (`Command windir_system32_Dsregcmd_exe_status output.log`)
 
@@ -90,8 +100,40 @@ Format „Windows Registry Editor Version 5.00“, Keys teils kleingeschrieben, 
 - `Command …mpcmdrun_exe_-GetFiles output.log` (UTF-8): Defender-Supportpaket-Erstellung; Zeile `ValidateMapsConnection successfully established a connection to MAPS` = Cloud-Schutz erreichbar.
 - `Command …mdmdiagnosticstool_exe… output.log`: Ergebnis der verschachtelten MDM-Diagnose (`Succeeded to CollectLog at: …mdmlogs-….cab`).
 - Netzwerk: `netsh winhttp show proxy`, `netsh advfirewall show allprofiles` (lokalisiert).
-- **Binär, MVP überspringen:** `.evtx` (bis ~34 MB, evtl. gekappt), `.etl`, `.cab` (`mpsupportfiles.cab`, `mdmlogs-*.cab` – später interessant).
+- **Binär, nicht ausgewertet:** `.etl`, `.cab` (`mpsupportfiles.cab`, `mdmlogs-*.cab` – später interessant) sowie alle `.evtx` bis auf die zwei unten genannten Ereignisprotokolle (Dateien bis ~34 MB, evtl. gekappt).
+
+## Ereignisprotokolle (.evtx)
+
+Einträge `(N) Events <Protokollname> Events.evtx`; der Protokollname ist flach (`/` → `_`) und kann abgeschnitten sein, deshalb wird tolerant verglichen (Groß-/Kleinschreibung und Sonderzeichen egal). Gelesen werden **gezielt nur**:
+
+- `…DeviceManagement-Enterprise-Diagnostics-Provider…Admin` (Kanal `Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin`; laut [Collect MDM logs](https://learn.microsoft.com/windows/client-management/mdm-collect-logs) das wichtigste Ereignisprotokoll für MDM) und
+- falls vorhanden `…AAD…Operational` (Microsoft Entra, Kanal `Microsoft-Windows-AAD/Operational`).
+
+Alle übrigen `.evtx` bleiben unausgewertet (Hinweis in den Analyse-Notizen). Der Eintrag wird erst nach der Größenprüfung entpackt (Limit 48 MiB entpackt, darüber „zu groß“ mit Grund in der Kachel); das Parsen läuft im Analyse-Worker, nichts wird hochgeladen.
+
+### Aufbau (`src/diagnostics/parsers/evtx.ts`, ohne Abhängigkeit)
+
+- **Dateikopf** (4096 Byte), Signatur `ElfFile\0`; Chunk-Anzahl im Kopf wird nur zur Erkennung gekappter Dateien genutzt.
+- **Chunks** à 65 536 Byte ab Offset 4096, Signatur `ElfChnk\0`, Kopf 512 Byte (Offset 32: letzte RecordID, Offset 48: Beginn des freien Bereichs). Namen und Template-Definitionen werden per Offset relativ zum Chunk-Anfang referenziert und je Chunk gecacht.
+- **Datensätze** ab Offset 512: `2A 2A 00 00`, Größe, RecordID, Schreibzeit (FILETIME), Binary XML, Größe (Kopie am Ende). Die Schreibzeit dient zum schnellen Überspringen von Datensätzen außerhalb des Zeitfensters, ohne das Binary XML zu lesen.
+- **Binary XML**: Tokens und Werttypen nach [MS-EVEN6 2.2.12 BinXml](https://learn.microsoft.com/openspecs/windows_protocols/ms-even6/c73573ae-1c90-43a2-a65f-ad7501155956): Element/Attribut, Wert-/Zeichen-/Entity-Referenzen, `TemplateInstance` (Definition beim ersten Mal inline, danach per Offset), normale/optionale Substitution, verschachteltes BinXml (Werttyp `0x21`, typisch für `EventData` klassischer Ereignisse). Werttypen: String, AnsiString, Int8–UInt64, Float, Bool, Binary, GUID, SizeT, FILETIME, SYSTEMTIME, SID, HexInt32/64 sowie Arrays dieser Typen; unbekannte Typen ergeben einen leeren Wert.
+- Ergebnis je Ereignis: `EventID`, `Level`, `TimeCreated` (UTC), Provider, Kanal, Computer, `EventData`/`UserData` als Name → Wert (unbenannte Felder: `Data1`, `Data2` …). Der Dateikopf-Aufbau (Datei/Chunk/Datensatz) ist von Microsoft nicht dokumentiert und folgt [libevtx „Windows XML Event Log (EVTX) format“](https://github.com/libyal/libevtx/tree/main/documentation).
+
+### Auswertung
+
+- Zeitfenster: **14 Tage vor dem ZIP-Zeitstempel** aus dem Dateinamen (fehlt er: vor dem jüngsten Ereignis). Übernommen werden nur **Kritisch (1), Fehler (2), Warnung (3)**; Information/Ausführlich zählen nur in „geprüfte Ereignisse“.
+- Gruppierung nach Ereignis-ID: Anzahl, letzter Zeitpunkt, Beispieldaten des jüngsten Ereignisses. HRESULTs in den Daten (`0x…` bzw. Zahlen in Feldern wie `Result`) werden über die vorhandene Wissensbasis gedeutet, sonst „Unbekannter Code“ mit Hex/Dezimal.
+- **Event-IDs werden nur mit Microsoft-Learn-Beleg gedeutet** (`src/rules/knowledge/events.ts`: MDM-Admin 76, 1819; AAD-Operational 1081, 1088). Alle anderen zeigen nur ID und Rohdaten. Die Meldungstexte der Provider stehen nicht in der `.evtx`, sondern in den Ressourcen des Providers auf dem Gerät.
+- Severity: Fehlerereignisse im Fenster → _warning_ (eigener Richtwert `THRESHOLDS.eventLogErrorWarningCount`, keine Microsoft-Vorgabe); keine → _ok_; Hauptprotokoll fehlt/ist nicht lesbar → _unavailable_ mit Grund.
+- Privatsphäre: UPN, GUIDs/Tenant-IDs, SIDs, Seriennummern, `ChannelURI` und URL-Queries werden bereits im Worker maskiert bzw. verworfen; Werte werden auf 300 Zeichen und 12 Felder je Ereignis gekürzt.
+
+### Grenzen
+
+- Prüfsummen (Datei-, Chunk-, Datensatz-CRC) und Hash-Tabellen werden **nicht** ausgewertet; defekte Chunks/Datensätze werden übersprungen und als „unvollständig“ ausgewiesen (gekappte Dateien liefern alle vollständigen Datensätze).
+- Mengen-/Zeitbegrenzung: höchstens 20 000 dekodierte Datensätze und 5000 behaltene Ereignisse je Protokoll (jüngste Chunks zuerst) sowie 20 s Rechenzeit; wird sie erreicht, weist die Kachel „begrenzt“ aus und ältere Ereignisse im Fenster fehlen. Datensätze vor dem Fenster werden nicht dekodiert, Ereignisse außerhalb der Stufen 1–3 nicht behalten.
+- Messung (`scripts/measure-evtx.ts`, synthetisch, 30 MB / 44 587 Ereignisse): alle Datensätze dekodieren ≈ 0,2 s; App-Einstellung ≈ 50 ms; in einem Prozess mit 256 MB Heap bleibt der Heap unter 40 MB.
+- Gelesen wird nur der beschriebene Bereich eines Chunks (bis zum „freien Bereich“ im Chunk-Kopf); Reste dahinter werden ignoriert.
 
 ## Fixture für Tests
 
-`scripts/make-fixture-zip.ts` baut ein kleines synthetisches Archiv mit exakt diesen Namens-/Encoding-Konventionen: results.xml, dsregcmd (Problemgerät mit PRT-Fehler), 1 IME-Log mit Typ-1/2/3-Einträgen inkl. mehrzeiligem Eintrag, Enrollments-.reg (UTF-16LE) mit 2 Enrollments, IME-.reg mit je einer Installed/Failed/NotApplicable-App, 2 `No Results`-Einträge, 1 Dummy-`.evtx`. Fiktive Daten (`CONTOSO-PC042`, `user@contoso.com`, Null-GUIDs).
+`scripts/make-fixture-zip.ts` baut ein kleines synthetisches Archiv mit exakt diesen Namens-/Encoding-Konventionen: results.xml, dsregcmd (Problemgerät mit PRT-Fehler), 1 IME-Log mit Typ-1/2/3-Einträgen inkl. mehrzeiligem Eintrag, Enrollments-.reg (UTF-16LE) mit 2 Enrollments, IME-.reg mit je einer Installed/Failed/NotApplicable-App, 2 `No Results`-Einträge, 1 Dummy-`.evtx` (`System`), ein kleines gültiges MDM-Admin-`.evtx` mit fiktiven Ereignissen (Stile Template, klassisches BinXml und UserData; erzeugt von `src/diagnostics/evtxFixture.ts`, Fenster-Test mit einem Ereignis vor den 14 Tagen) sowie je eine deutsche CP850-Ausgabe von `certutil -store My` (3 Zertifikate, Umlaute) und `ipconfig /all` (Ethernet + getrenntes WLAN). Fiktive Daten (`CONTOSO-PC042`, `user@contoso.com`, Null-GUIDs).

@@ -128,6 +128,15 @@ export const MANAGED_DEVICE_LIST_SELECT = [
   'lastSyncDateTime',
 ] as const;
 
+/** Weitere Geräte desselben Benutzers (Geräte-Header): nur das Nötigste. */
+export const USER_DEVICES_SELECT = [
+  'id',
+  'deviceName',
+  'operatingSystem',
+  'complianceState',
+  'lastSyncDateTime',
+] as const;
+
 // ---------- windowsProtectionState (v1.0) ----------
 // https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-windowsprotectionstate?view=graph-rest-1.0
 
@@ -370,4 +379,140 @@ export interface GraphMobileAppIntentAndState {
   managedDeviceIdentifier: string | null;
   userId: string | null;
   mobileAppList: GraphMobileAppIntentAndStateDetail[] | null;
+}
+
+// ---------- Anmeldeprotokoll (v1.0, auditLogs/signIns) ----------
+// https://learn.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/signin?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/devicedetail?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/appliedconditionalaccesspolicy?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/signinstatus?view=graph-rest-1.0
+// Die Antwort enthält weitere Felder (ipAddress, location, Risiko-Felder, userPrincipalName …). Sie
+// stehen bewusst NICHT in diesem DTO und werden nie in das Domain-Modell übernommen (Datensparsamkeit).
+
+/** conditionalAccessStatus */
+export type ConditionalAccessStatus = 'success' | 'failure' | 'notApplied' | 'unknownFutureValue';
+
+/**
+ * appliedConditionalAccessPolicyResult. Die reportOnly*-Werte liefert Graph nur mit dem Header
+ * `Prefer: include-unknown-enum-members` – die App fordert ihn nicht an.
+ */
+export type AppliedConditionalAccessPolicyResult =
+  'success' | 'failure' | 'notApplied' | 'notEnabled' | 'unknown' | 'unknownFutureValue';
+
+export interface GraphAppliedConditionalAccessPolicy {
+  id: string | null;
+  displayName: string | null;
+  enforcedGrantControls: string[] | null;
+  enforcedSessionControls: string[] | null;
+  result: AppliedConditionalAccessPolicyResult | null;
+}
+
+export interface GraphSignInStatus {
+  /** 5–6-stelliger Entra-Fehlercode (Int32), 0 = Erfolg */
+  errorCode: number | null;
+  failureReason: string | null;
+  additionalDetails: string | null;
+}
+
+export interface GraphSignInDeviceDetail {
+  /** Nur für in Entra registrierte Geräte gefüllt */
+  deviceId: string | null;
+  isCompliant: boolean | null;
+  isManaged: boolean | null;
+  trustType: string | null;
+  operatingSystem: string | null;
+}
+
+export interface GraphSignIn {
+  id: string;
+  createdDateTime: string | null;
+  appDisplayName: string | null;
+  resourceDisplayName: string | null;
+  clientAppUsed: string | null;
+  isInteractive: boolean | null;
+  /** Anfrage-ID des Clients – nur zum Wiederfinden des Eintrags im Entra Admin Center */
+  correlationId: string | null;
+  conditionalAccessStatus: ConditionalAccessStatus | null;
+  status: GraphSignInStatus | null;
+  deviceDetail: GraphSignInDeviceDetail | null;
+  /** Fehlt komplett (kein Fehler!), wenn dem Konto das Leserecht auf Conditional-Access-Daten fehlt. */
+  appliedConditionalAccessPolicies?: GraphAppliedConditionalAccessPolicy[] | null;
+}
+
+// ---------- Windows LAPS (v1.0, directory/deviceLocalCredentials) ----------
+// https://learn.microsoft.com/en-us/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/devicelocalcredentialinfo?view=graph-rest-1.0
+
+/**
+ * Nur Metadaten. Die Eigenschaft `credentials` (Kennwort, nur mit `$select=credentials` und dem
+ * Scope DeviceLocalCredential.Read.All lesbar) steht bewusst NICHT in diesem DTO und wird nie angefordert.
+ */
+export const LAPS_SELECT = ['id', 'deviceName', 'lastBackupDateTime', 'refreshDateTime'] as const;
+
+export interface GraphDeviceLocalCredentialInfo {
+  /** = deviceId des Entra-Geräts (= azureADDeviceId des Intune-Geräts) */
+  id: string | null;
+  deviceName: string | null;
+  /** Zeitpunkt der letzten Sicherung des lokalen Administrator-Kennworts in Entra */
+  lastBackupDateTime: string | null;
+  /** Zeitpunkt der nächsten geplanten Aktualisierung (Rotation) und Sicherung */
+  refreshDateTime: string | null;
+}
+
+// ---------- Windows Autopilot (v1.0, deviceManagement/windowsAutopilotDeviceIdentities) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity?view=graph-rest-1.0
+// Bewusst NICHT im DTO: productKey, userPrincipalName/addressableUserName, azureActiveDirectoryDeviceId
+// („to be deprecated“) sowie alle Felder, die es nur in beta gibt (z. B. deploymentProfileAssignmentStatus).
+
+/** enrollmentState (v1.0) */
+export type AutopilotEnrollmentState =
+  'unknown' | 'enrolled' | 'pendingReset' | 'failed' | 'notContacted';
+
+export interface GraphWindowsAutopilotDeviceIdentity {
+  id: string;
+  groupTag: string | null;
+  serialNumber: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  enrollmentState: AutopilotEnrollmentState | null;
+  lastContactedDateTime: string | null;
+  managedDeviceId: string | null;
+}
+
+// ---------- Gruppen des Geräts (v1.0, devices(deviceId='…')/transitiveMemberOf) ----------
+// https://learn.microsoft.com/en-us/graph/api/device-list-transitivememberof?view=graph-rest-1.0
+// Ohne Leserecht auf einen Objekttyp kommen Mitglieder laut Doku nur mit @odata.type und id zurück.
+
+export interface GraphDirectoryObject {
+  '@odata.type'?: string;
+  id?: string | null;
+  displayName?: string | null;
+}
+
+// ---------- Integritätsnachweis (v1.0, managedDevice.deviceHealthAttestationState) ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0
+// Fast alle Felder sind String ohne dokumentierte Werte → nur Rohwerte. `virtualSecureMode` wird nicht
+// verwendet (Support in v1.0 beendet; ersetzt durch virtualizationBasedSecurity).
+
+export interface GraphDeviceHealthAttestationState {
+  /** String (kein DateTimeOffset!) laut Doku */
+  lastUpdateDateTime: string | null;
+  issuedDateTime: string | null;
+  secureBoot: string | null;
+  bitLockerStatus: string | null;
+  codeIntegrity: string | null;
+  earlyLaunchAntiMalwareDriverProtection: string | null;
+  bootDebugging: string | null;
+  testSigning: string | null;
+  tpmVersion: string | null;
+  /** „Erscheint, wenn der DHA-Dienst ein Integritätsproblem erkennt“ (Ressourcenbeschreibung) */
+  healthStatusMismatchInfo: string | null;
+  healthAttestationSupportedStatus: string | null;
+}
+
+export interface GraphManagedDeviceHealthAttestation {
+  id?: string;
+  deviceHealthAttestationState?: Partial<GraphDeviceHealthAttestationState> | null;
 }

@@ -11,6 +11,8 @@ import {
   policy,
   setting,
   windowsDevice,
+  localAdminInfo,
+  signInsInfo,
 } from './helpers';
 
 export const pc033Stale: MockScenario = {
@@ -64,6 +66,14 @@ export const pc033Stale: MockScenario = {
         }),
       },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 33)] },
+      signIns: { status: 'ok', data: signInsInfo([], { totalForUser: 14 }) },
+      // nicht in der Autopilot-Geräteliste (Liste vollständig gelesen)
+      autopilot: { status: 'ok', data: null },
+      // Kennwortsicherung seit 45 Tagen, geplante Rotation seit 15 Tagen überfällig
+      localAdmin: {
+        status: 'ok',
+        data: localAdminInfo(now, device.deviceName, { backupDaysAgo: 45, refreshInDays: -15 }),
+      },
     };
   },
 };

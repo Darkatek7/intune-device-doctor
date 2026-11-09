@@ -35,6 +35,12 @@ export function liveMockProvider(overrides: Partial<DeviceDataProvider> = {}): D
     getBitLockerKeys: (device, options) => inner.getBitLockerKeys(device, options),
     getAppInstallStates: (device, options) => inner.getAppInstallStates(device, options),
     getApplePushCertificate: (device, options) => inner.getApplePushCertificate(device, options),
+    getSignIns: (device, options) => inner.getSignIns(device, options),
+    getLocalAdmin: (device, options) => inner.getLocalAdmin(device, options),
+    getAutopilot: (device, options) => inner.getAutopilot(device, options),
+    getDeviceGroups: (device, options) => inner.getDeviceGroups(device, options),
+    getUserDevices: (device, options) => inner.getUserDevices(device, options),
+    getHealthAttestation: (device, options) => inner.getHealthAttestation(device, options),
     getMobileApps: (appIds, options) => inner.getMobileApps(appIds, options),
     ...overrides,
   };

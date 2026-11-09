@@ -95,7 +95,12 @@ export function sectionIssueFinding(
         title: de.rules.common.forbiddenTitle,
         detail: de.rules.common.forbiddenDetail(section.source.label),
         cause: de.rules.common.forbiddenCause(scope),
-        remediation: de.rules.common.forbiddenRemediation(scope),
+        remediation: [
+          ...de.rules.common.forbiddenRemediation(scope),
+          ...(de.rules.common.forbiddenRoleHints[scope]
+            ? [de.rules.common.forbiddenRoleHints[scope]]
+            : []),
+        ],
         evidence: {
           requiredScope: scope,
           httpStatus: section.error.httpStatus ?? null,

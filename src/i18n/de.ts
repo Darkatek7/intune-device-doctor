@@ -36,8 +36,15 @@ export const de = {
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
     apps: 'Apps',
+    signIns: 'Anmeldungen',
+    laps: 'Lokaler Administrator (LAPS)',
+    autopilot: 'Autopilot',
+    groups: 'Gruppen',
+    attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
+    certsNetwork: 'Zertifikate & Netzwerk',
     diagCollection: 'Diagnosedaten',
+    mdmEvents: 'MDM-Ereignisse',
   },
   severity: {
     ok: 'In Ordnung',
@@ -116,6 +123,32 @@ export const de = {
     applePushNotReported:
       'Graph meldet HTTP 404 für das Apple-MDM-Push-Zertifikat – über diese Schnittstelle nicht verfügbar.',
     appsNotReported: 'Für den primären Benutzer wurde kein App-Status gefunden (HTTP 404).',
+    // M10: Anmeldungen (Entra-Anmeldeprotokoll)
+    signInsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
+    signInsNotReported:
+      'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
+    // M10: weitere Geräte des Benutzers (Geräte-Header)
+    userDevicesNoUser: 'Das Gerät hat keinen primären Benutzer.',
+    userDevicesNotReported: 'Graph liefert keine weiteren Geräte des Benutzers (HTTP 404).',
+    // M10: Integritätsnachweis
+    attestationNotWindows:
+      'Der Integritätsnachweis (Device Health Attestation) gilt nur für Windows.',
+    attestationNotReported:
+      'Graph meldet HTTP 404 für den Integritätsnachweis – über diese Schnittstelle nicht verfügbar.',
+    // M10: Gruppen des Geräts
+    groupsNotReported:
+      'Graph meldet HTTP 404 für das Entra-Gerät – die Gruppen sind über diese Schnittstelle nicht verfügbar.',
+    // M10: Windows Autopilot
+    autopilotNotWindows: 'Windows Autopilot gibt es nur unter Windows.',
+    autopilotNotReported:
+      'Graph meldet HTTP 404 für die Autopilot-Geräteliste – über diese Schnittstelle nicht verfügbar.',
+    autopilotNotFoundInLimit: (pages: number) =>
+      `Das Gerät wurde in den ersten ${pages} Seiten der Autopilot-Geräteliste nicht gefunden; weitere Seiten wurden nicht gelesen (für die Liste ist kein Filter dokumentiert). Das Gerät kann trotzdem registriert sein.`,
+    // M10: Windows LAPS
+    lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
+    lapsNotReported:
+      'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>
@@ -175,7 +208,6 @@ export const de = {
   },
   field: {
     label: 'Gerätename oder Benutzer',
-    shortcut: '⌘K',
     shortcutHint: 'Zum Suchen ⌘K, Strg+K oder / drücken',
     suggestions: 'Vorschläge',
     clear: 'Eingabe löschen',
@@ -195,6 +227,9 @@ export const de = {
     enrolled: (date: string) => `Registriert am ${date}`,
     summaryLabel: 'Zusammenfassung',
     portalLinks: 'Links ins Intune Admin Center',
+    otherDevices: (user: string) => `Weitere Geräte von ${user}`,
+    otherDevicesLabel: 'Weitere Geräte des Benutzers',
+    openOtherDevice: (name: string, compliance: string) => `${name} öffnen (${compliance})`,
   },
   grid: {
     label: 'Statuskacheln',
@@ -284,6 +319,7 @@ export const de = {
       registry: 'Registry-Exporte werden ausgewertet …',
       imeLogs: (done: number, total: number) =>
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
+      eventLogs: 'Ereignisprotokolle werden ausgewertet …',
       done: 'Analyse abgeschlossen',
     },
     aborted: 'Analyse abgebrochen.',
@@ -370,5 +406,20 @@ export const de = {
       'CONTOSO-AND21': 'Android · alter Patch',
       'CONTOSO-PC050': 'Fehlende Berechtigung',
     },
+  },
+  /** M9/B: Bedienkomfort – zuletzt geöffnete Geräte, Tastaturkürzel, Drucken */
+  comfort: {
+    recentTitle: 'Zuletzt geöffnet',
+    recentList: 'Zuletzt geöffnete Geräte',
+    recentOpen: (deviceName: string) => `${deviceName} erneut öffnen`,
+    recentClear: 'Verlauf löschen',
+    recentLocalOnly: 'Nur in diesem Browser gespeichert',
+    shortcutApple: '⌘K',
+    shortcutOther: 'Strg K',
+    printButton: 'Drucken / PDF',
+    printHint: 'Notiz drucken oder über den Druckdialog als PDF speichern.',
+    printDialogBody:
+      'Die Notiz wird beim Drucken ohne den Rest der Seite ausgegeben. Zum Speichern als PDF im Druckdialog „Als PDF speichern“ wählen.',
+    printDocumentLabel: 'Druckansicht der Ticket-Notiz',
   },
 } as const;

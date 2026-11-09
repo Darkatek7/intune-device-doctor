@@ -8,6 +8,8 @@
 import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
+  LAPS_SELECT,
+  USER_DEVICES_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
   MOBILE_APP_SELECT,
 } from './dto';
@@ -43,6 +45,13 @@ function withQuery(path: string, params: Record<string, string>): string {
 }
 
 const enc = encodeURIComponent;
+
+/** Zeitfenster der Anmeldungs-Abfrage (Tage) – Anzeige und `createdDateTime ge …` leiten sich hieraus ab. */
+export const SIGN_IN_WINDOW_DAYS = 7;
+/** Seitengröße der Abfrage: höchstens 1000 laut Doku; nur die erste Seite (neueste zuerst) wird gelesen. */
+export const SIGN_IN_PAGE_SIZE = 200;
+/** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
+export const MAX_LIST_PAGES = 5;
 
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
@@ -235,6 +244,111 @@ export const Endpoints = {
     display: 'GET /beta/users/{userId}/mobileAppIntentAndStates',
     path: (userId: string) => `${GRAPH_BETA_URL}/users/${enc(userId)}/mobileAppIntentAndStates`,
   },
-} satisfies Record<string, GraphEndpointDef<[string]>>;
+  /**
+   * Anmeldeprotokoll des primären Benutzers der letzten Tage (neueste zuerst, nur erste Seite).
+   * `$filter` auf userId (eq) und createdDateTime (ge) ist laut Ressourcenseite dokumentiert; für
+   * deviceDetail/deviceId ist KEIN Filter dokumentiert → die Eingrenzung auf das Gerät erfolgt
+   * clientseitig. Bewusst ohne $select (nicht dokumentiert). Benötigt Entra ID P1/P2 und eine
+   * Entra-Rolle wie Reports Reader, Global Reader oder Security Reader.
+   */
+  signIns: {
+    id: 'signIns',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.AuditLogRead,
+    docsUrl: 'https://learn.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0',
+    display: "GET /auditLogs/signIns?$filter=userId eq '…' and createdDateTime ge …",
+    path: (userId: string, sinceIso: string) =>
+      withQuery('/auditLogs/signIns', {
+        $filter: `userId eq ${odataString(userId)} and createdDateTime ge ${sinceIso}`,
+        $top: String(SIGN_IN_PAGE_SIZE),
+      }),
+  },
+  /**
+   * Windows LAPS: nur Metadaten des lokalen Administrator-Kennworts. `id` = Entra-`deviceId`.
+   * Das `$select` nennt `credentials` NIE (Kennwort; würde laut Doku zudem
+   * DeviceLocalCredential.Read.All erfordern). Die Doku verlangt einen `User-Agent`-Header – den setzt der
+   * Browser selbst (live zu verifizieren).
+   */
+  deviceLocalCredentialInfo: {
+    id: 'deviceLocalCredentialInfo',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceLocalCredentialReadBasic,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0',
+    display: 'GET /directory/deviceLocalCredentials/{deviceId}',
+    path: (azureAdDeviceId: string) =>
+      withQuery(`/directory/deviceLocalCredentials/${enc(azureAdDeviceId)}`, {
+        $select: LAPS_SELECT.join(','),
+      }),
+  },
+  /**
+   * Autopilot-Geräteliste (v1.0). Für die Liste sind keine Query-Optionen dokumentiert (auch kein
+   * $filter auf serialNumber) → bewusst ohne Query; der Provider liest höchstens 5 Seiten und sucht
+   * clientseitig über managedDeviceId bzw. serialNumber.
+   */
+  windowsAutopilotDeviceIdentities: {
+    id: 'windowsAutopilotDeviceIdentities',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/windowsAutopilotDeviceIdentities',
+    path: () => '/deviceManagement/windowsAutopilotDeviceIdentities',
+  },
+  /**
+   * Gruppen (und Verwaltungseinheiten), in denen das Entra-Gerät direkt oder verschachtelt Mitglied
+   * ist. Bewusst ohne Query-Optionen: `$filter`/`$count`/`$search` gibt es dafür nur als Advanced
+   * Query mit `ConsistencyLevel: eventual`. Paging über @odata.nextLink.
+   */
+  deviceTransitiveMemberOf: {
+    id: 'deviceTransitiveMemberOf',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/device-list-transitivememberof?view=graph-rest-1.0',
+    display: "GET /devices(deviceId='{deviceId}')/transitiveMemberOf",
+    path: (azureAdDeviceId: string) =>
+      `/devices(deviceId=${odataString(azureAdDeviceId)})/transitiveMemberOf`,
+  },
+  /**
+   * Weitere Geräte des primären Benutzers (Geräte-Header): dokumentierter eq-Filter auf
+   * userPrincipalName. `GET /users/{id}/managedDevices` ist nicht als Methode dokumentiert → nicht verwendet.
+   */
+  managedDevicesOfUser: {
+    id: 'managedDevicesOfUser',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0#properties',
+    display: "GET /deviceManagement/managedDevices?$filter=userPrincipalName eq '…'",
+    path: (userPrincipalName: string) =>
+      withQuery('/deviceManagement/managedDevices', {
+        $filter: `userPrincipalName eq ${odataString(userPrincipalName)}`,
+        $select: USER_DEVICES_SELECT.join(','),
+      }),
+  },
+  /**
+   * Integritätsnachweis (Device Health Attestation) des Windows-Geräts: eigener Aufruf mit
+   * `$select=deviceHealthAttestationState`. Die Felder sind fast alle String ohne dokumentierte Werte.
+   */
+  managedDeviceHealthAttestation: {
+    id: 'managedDeviceHealthAttestation',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDevices/{id}?$select=deviceHealthAttestationState',
+    path: (managedDeviceId: string) =>
+      withQuery(`/deviceManagement/managedDevices/${enc(managedDeviceId)}`, {
+        $select: 'deviceHealthAttestationState',
+      }),
+  },
+} satisfies Record<string, GraphEndpointDef<string[]>>;
 
 export type EndpointId = keyof typeof Endpoints;

@@ -4,22 +4,27 @@ import { defineConfig, devices } from '@playwright/test';
  * E2E-Abnahme (M7): Demo-Modus gegen den Produktions-Build (vite preview).
  * Nur Chromium; vier Projekte für Light/Dark/Mobil/Reduced-Motion.
  */
+/** Port des Preview-Servers; per E2E_PORT änderbar (parallele Läufe in mehreren Worktrees). */
+const port = Number(process.env.E2E_PORT ?? 4173);
+
 export default defineConfig({
   testDir: 'e2e',
   outputDir: 'test-results',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  // Ein Worker in CI: unter Last laufen Kachel-Ladevorgänge sonst gelegentlich in Timeouts.
+  workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: `http://localhost:${port}`,
     trace: 'retain-on-failure',
     locale: 'de-DE',
     timezoneId: 'Europe/Berlin',
   },
   webServer: {
-    command: 'npm run build && npx vite preview --port 4173 --strictPort',
-    url: 'http://localhost:4173',
+    command: `npm run build && npx vite preview --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: true,
     timeout: 120_000,
     env: { VITE_APP_MODE: 'demo' },

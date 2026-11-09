@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { ExternalLink, Hourglass } from 'lucide-react';
-import type { ManagedDeviceInfo, Tile } from '../domain/types';
+import type { DeviceSearchResult, ManagedDeviceInfo, Tile } from '../domain/types';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
 import type { TileSummary } from '../rules/evaluate';
 import type { AmbientTone } from './AmbientGlow';
-import { DEVICE_ICON, deviceIconKind } from './deviceIcon';
+import { DEVICE_ICON, deviceIconKind, searchResultIconKind } from './deviceIcon';
 import { deviceMeta } from './deviceMeta';
 import { TONE_CLASS } from './tone';
 import { summarySentence } from './summaryText';
@@ -25,7 +25,22 @@ interface Props {
   throttle?: { retryAfterSeconds?: number } | null;
   /** Gesamtzustand – färbt das Geräte-Icon */
   tone?: AmbientTone;
+  /** Weitere Geräte des primären Benutzers (ohne das aktuelle); leer/fehlend → keine Zeile */
+  otherDevices?: readonly DeviceSearchResult[];
+  /** Öffnet ein anderes Gerät – derselbe Weg wie ein Suchtreffer */
+  onOpenDevice?: (device: Pick<DeviceSearchResult, 'id' | 'deviceName'>) => void;
 }
+
+const MAX_OTHER_DEVICES = 5;
+
+/** Compliance-Punkt: Farbe nach complianceState (zusätzlich als Text im Label). */
+const COMPLIANCE_DOT: Record<string, string> = {
+  compliant: 'bg-ok',
+  noncompliant: 'bg-critical',
+  conflict: 'bg-critical',
+  error: 'bg-critical',
+  inGracePeriod: 'bg-warning',
+};
 
 /** Geräte-Header: Name groß, Metazeile, rechts die Zusammenfassung mit Severity-Icons. */
 export function DeviceHeader({
@@ -37,6 +52,8 @@ export function DeviceHeader({
   actions,
   throttle,
   tone = 'accent',
+  otherDevices,
+  onOpenDevice,
 }: Props) {
   const loading = !device || !summary || summary.loading > 0;
   const meta = device ? deviceMeta(device, tiles) : [];
@@ -103,6 +120,38 @@ export function DeviceHeader({
                   <ExternalLink aria-hidden="true" size={14} />
                 </a>
               ))}
+            </nav>
+          )}
+          {device && onOpenDevice && otherDevices && otherDevices.length > 0 && (
+            <nav
+              aria-label={de.header.otherDevicesLabel}
+              data-testid="other-devices"
+              className="mt-2 flex flex-wrap items-center gap-2"
+            >
+              <span className="text-sm text-secondary-label">
+                {de.header.otherDevices(device.userDisplayName ?? device.userPrincipalName ?? '–')}
+              </span>
+              {otherDevices.slice(0, MAX_OTHER_DEVICES).map((other) => {
+                const Icon = DEVICE_ICON[searchResultIconKind(other)];
+                const compliance =
+                  (de.picker.compliance as Record<string, string>)[other.complianceState] ?? '';
+                return (
+                  <button
+                    key={other.id}
+                    type="button"
+                    onClick={() => onOpenDevice(other)}
+                    aria-label={de.header.openOtherDevice(other.deviceName, compliance)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-label/6 px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform hover:bg-label/10 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+                  >
+                    <Icon aria-hidden="true" size={14} />
+                    {other.deviceName}
+                    <span
+                      aria-hidden="true"
+                      className={`size-2 rounded-full ${COMPLIANCE_DOT[other.complianceState] ?? 'bg-unknown'}`}
+                    />
+                  </button>
+                );
+              })}
             </nav>
           )}
           {throttle && (

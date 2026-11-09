@@ -79,10 +79,59 @@ export const Docs = {
     'https://learn.microsoft.com/entra/identity/devices/troubleshoot-device-dsregcmd#sso-state',
   prtTroubleshoot:
     'https://learn.microsoft.com/entra/identity/devices/troubleshoot-primary-refresh-token',
+  // Ereignisprotokolle (DiagLogs-ZIP): Event-IDs mit Microsoft-Learn-Beleg, abgerufen 2026-11-09
+  mdmCollectLogs: 'https://learn.microsoft.com/windows/client-management/mdm-collect-logs',
+  /** Abschnitt „Review the MDM logs“: Ereignis 75 (Succeeded) und 76 (Failed) im Admin-Protokoll */
+  autoEnrollmentMdmLogs:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-auto-enrollment#review-the-mdm-logs',
+  defenderOnboardingMdmEvents:
+    'https://learn.microsoft.com/defender-endpoint/troubleshoot-onboarding#mobile-device-management-mdm-event-logs',
+  hybridJoinPostJoinAuth:
+    'https://learn.microsoft.com/entra/identity/devices/troubleshoot-hybrid-join-windows-current#troubleshoot-post-join-authentication-issues',
   windows10EndOfSupport: 'https://learn.microsoft.com/windows/release-health/release-information',
   windows11Releases:
     'https://learn.microsoft.com/windows/release-health/windows11-release-information',
+  // M10: Anmeldungen / Conditional Access
+  signInResource: 'https://learn.microsoft.com/graph/api/resources/signin?view=graph-rest-1.0',
+  signInDeviceDetail:
+    'https://learn.microsoft.com/graph/api/resources/devicedetail?view=graph-rest-1.0',
+  signInList: 'https://learn.microsoft.com/graph/api/signin-list?view=graph-rest-1.0',
+  conditionalAccessTroubleshoot:
+    'https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#microsoft-entra-sign-in-events',
+  entraErrorCodes:
+    'https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes',
+  // M10: Windows LAPS
+  lapsGet:
+    'https://learn.microsoft.com/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0',
+  lapsResource:
+    'https://learn.microsoft.com/graph/api/resources/devicelocalcredentialinfo?view=graph-rest-1.0',
+  lapsIntuneOverview: 'https://learn.microsoft.com/intune/device-security/laps/overview',
+  lapsIntuneDeploy: 'https://learn.microsoft.com/intune/device-security/laps/deploy-policy',
+  lapsEntraEnable:
+    'https://learn.microsoft.com/entra/identity/devices/howto-manage-local-admin-passwords',
+  lapsPolicySettings:
+    'https://learn.microsoft.com/windows-server/identity/laps/laps-management-policy-settings',
+  lapsEventLog:
+    'https://learn.microsoft.com/windows-server/identity/laps/laps-management-event-log',
+  // M10: Windows Autopilot
+  autopilotList:
+    'https://learn.microsoft.com/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0',
+  /** Autopilot-Registrierung: Hardware-Hash, Geräteliste im Intune Admin Center (Geräte › Registrierung › Windows › Windows Autopilot › Geräte) */
+  autopilotRegistration: 'https://learn.microsoft.com/autopilot/registration-overview',
+  autopilotResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity?view=graph-rest-1.0',
+  // M10: Gruppen des Geräts
+  deviceTransitiveMemberOf:
+    'https://learn.microsoft.com/graph/api/device-list-transitivememberof?view=graph-rest-1.0',
+  // M10: Integritätsnachweis
+  healthAttestationResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',
+  certutilStore:
+    'https://learn.microsoft.com/windows-server/administration/windows-commands/certutil#-store',
+  ipconfig: 'https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig',
+  entraDeviceRegistrationCert:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/comanage-configmgr/troubleshoot-co-management-auto-enrolling#common-issues',
 } as const;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hexToSignedDecimal, hresultToHex } from '../../domain/format';
 import { de } from '../../i18n/de';
 import { Docs } from './docs';
+import { ENTRA_SIGN_IN_ERRORS, findEntraSignInError } from './entraSignInErrors';
 import {
   INSTALLER_EXIT_CODES,
   INTUNE_ERROR_CODES,
@@ -291,6 +292,44 @@ describe('Defender-productStatus (Texte)', () => {
   it('jeder Eintrag hat einen nicht leeren deutschen Text', () => {
     for (const key of keys) {
       expect(de.rules.defender.productStatus[key], key).not.toBe('');
+    }
+  });
+});
+
+describe('Quellenpflicht: Entra-Anmeldefehlercodes', () => {
+  it.each(ENTRA_SIGN_IN_ERRORS.map((entry) => [entry.code, entry] as const))(
+    '%s hat Name, Text, Schritte und eine Microsoft-Learn-URL',
+    (_code, entry) => {
+      expect(entry.docsUrl).toMatch(LEARN_URL);
+      // jeder Code ist auf der Referenzseite der Entra-Fehlercodes belegt
+      expect(entry.docsUrl).toBe(Docs.entraErrorCodes);
+      expect(entry.name.length).toBeGreaterThan(0);
+      expect(entry.cause.length).toBeGreaterThan(20);
+      expect(entry.remediation.length).toBeGreaterThan(0);
+    },
+  );
+
+  it('Codes sind eindeutig, unbekannte Codes werden nicht gedeutet', () => {
+    const codes = ENTRA_SIGN_IN_ERRORS.map((entry) => entry.code);
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(findEntraSignInError(53000)?.name).toBe('DeviceNotCompliant');
+    expect(findEntraSignInError(53003)?.name).toBe('BlockedByConditionalAccess');
+    expect(findEntraSignInError(50126)).toBeNull();
+    // nur auf der Conditional-Access-Seite genannt, nicht auf der Referenzseite → nicht gedeutet
+    expect(findEntraSignInError(53009)).toBeNull();
+    expect(findEntraSignInError(0)).toBeNull();
+    expect(findEntraSignInError(null)).toBeNull();
+  });
+
+  it('die neuen Docs-Links zeigen auf Microsoft Learn', () => {
+    for (const url of [
+      Docs.signInList,
+      Docs.signInResource,
+      Docs.signInDeviceDetail,
+      Docs.conditionalAccessTroubleshoot,
+      Docs.entraErrorCodes,
+    ]) {
+      expect(url).toMatch(LEARN_URL);
     }
   });
 });

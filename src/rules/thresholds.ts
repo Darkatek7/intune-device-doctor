@@ -12,6 +12,16 @@ export const THRESHOLDS = {
   lowStorageRatio: 0.1,
   /** Supportende einer Windows-Version innerhalb dieser Tage → Warnung */
   osEndOfUpdatesWarningDays: 60,
+  /** Windows LAPS: Kennwortsicherung älter als so viele Tage → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
+  lapsBackupWarningDays: 30,
+  /** Windows LAPS: geplante Aktualisierung (refreshDateTime) länger als so viele Tage her → Hinweis (eigener Richtwert, keine Microsoft-Vorgabe) */
+  lapsRefreshOverdueDays: 7,
   /** Ab hier wird die Entra-Anmeldung als alt hervorgehoben (nur Hinweis, keine Severity) */
   entraSignInStaleDays: 30,
+  /** Ereignisprotokolle (DiagLogs-ZIP): Auswertungsfenster in Tagen vor dem ZIP-Zeitstempel – eigener Richtwert, keine Microsoft-Vorgabe */
+  eventLogWindowDays: 14,
+  /** Ab so vielen Fehlerereignissen (Kritisch/Fehler) im Fenster → Warnung – eigener Richtwert, keine Microsoft-Vorgabe */
+  eventLogErrorWarningCount: 1,
+  /** Höchstzahl der Ereignisgruppen, die als einzelne Befunde erscheinen */
+  eventLogMaxFindings: 8,
 } as const;

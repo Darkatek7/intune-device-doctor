@@ -1,6 +1,8 @@
 import { unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { parseEvtx } from './parsers/evtx';
 import {
+  FIXTURE_ADMIN_LOG_EVENTS,
   FIXTURE_FILE_NAME,
   buildFixtureEntries,
   buildFixtureZip,
@@ -18,6 +20,9 @@ const EXPECTED_NAMES = [
   '(5) No Results - Error [0x80070001] RegistryKey HKLM_SYSTEM_Setup_SetupDiag_Results',
   '(6) No Results - Error [0x80070003] FoldersFiles ProgramData_Microsoft_EPMAgent_Logs',
   '(7) Events System Events.evtx',
+  '(20) Command windir_system32_certutil_exe_-store_My output.log',
+  '(21) Command windir_system32_ipconfig_exe_-all output.log',
+  '(8) Events Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider_Admin Events.evtx',
 ].sort();
 
 const REG_ENROLLMENTS = '(1) RegistryKey HKLM_Software_Microsoft_Enrollments export.reg';
@@ -30,6 +35,8 @@ const NO_RESULTS_SETUPDIAG =
 const NO_RESULTS_EPM =
   '(6) No Results - Error [0x80070003] FoldersFiles ProgramData_Microsoft_EPMAgent_Logs';
 const EVTX = '(7) Events System Events.evtx';
+const EVTX_ADMIN =
+  '(8) Events Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider_Admin Events.evtx';
 
 const CMTRACE_RE =
   /<!\[LOG\[([\s\S]*?)\]LOG\]!><time="([^"]+)" date="([^"]+)" component="([^"]*)" context="([^"]*)" type="(\d)" thread="(\d+)" file="([^"]*)">/g;
@@ -110,6 +117,16 @@ describe('fixture ZIP', () => {
       ...Array.from('ElfFile', (c) => c.charCodeAt(0)),
       0,
     ]);
+  });
+
+  it('Admin-Ereignisprotokoll ist eine gültige, kleine .evtx-Datei mit allen Fixture-Ereignissen', () => {
+    const bytes = unzipFixture()[EVTX_ADMIN];
+    expect(bytes).toBeDefined();
+    expect(bytes!.length).toBeLessThan(256 * 1024);
+    const { events, stats } = parseEvtx(bytes!);
+    expect(events).toHaveLength(FIXTURE_ADMIN_LOG_EVENTS.length);
+    expect(stats.recordsFailed).toBe(0);
+    expect(events.map((e) => e.eventId)).toEqual(FIXTURE_ADMIN_LOG_EVENTS.map((e) => e.eventId));
   });
 
   it('der Failed-App-Code 0x80070642 entspricht dem signierten Wert in der .reg-Datei', () => {

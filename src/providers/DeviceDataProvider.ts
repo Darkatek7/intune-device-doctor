@@ -9,6 +9,9 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  HealthAttestationInfo,
+  DeviceGroupsInfo,
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInfo,
@@ -17,9 +20,11 @@ import type {
   DataMode,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 
@@ -74,6 +79,60 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<ApplePushCertificateInfo>>;
+
+  /**
+   * Anmeldungen des primären Benutzers der letzten Tage, eingegrenzt auf dieses Gerät (Entra-
+   * Anmeldeprotokoll). Ohne primären Benutzer oder Entra-Geräte-ID nicht anwendbar bzw. nicht verfügbar.
+   */
+  getSignIns(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<SignInsInfo>>;
+
+  /**
+   * Windows LAPS (nur Windows): Zeitpunkte der letzten Sicherung und der nächsten Aktualisierung des
+   * lokalen Administrator-Kennworts aus Entra. Das Kennwort selbst wird nie angefordert.
+   */
+  getLocalAdmin(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<LocalAdminInfo>>;
+
+  /**
+   * Windows Autopilot (nur Windows): Eintrag des Geräts in der Autopilot-Geräteliste. data null =
+   * Liste vollständig gelesen, Gerät nicht darin; innerhalb der Seitengrenze nicht gefunden → unavailable.
+   */
+  getAutopilot(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AutopilotInfo | null>>;
+
+  /**
+   * Gruppen des Geräts in Entra (transitiveMemberOf, höchstens 5 Seiten). Gruppen des Benutzers sind
+   * nicht enthalten (dafür wäre ein weiterer Scope nötig).
+   */
+  getDeviceGroups(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DeviceGroupsInfo>>;
+
+  /**
+   * Weitere Geräte des primären Benutzers (nur Name, Plattform, Compliance), ohne das aktuelle Gerät.
+   * Ohne Benutzer-UPN nicht anwendbar.
+   */
+  getUserDevices(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DeviceSearchResult[]>>;
+
+  /**
+   * Device Health Attestation (nur Windows): Rohwerte aus managedDevice.deviceHealthAttestationState
+   * (eigener Aufruf mit $select).
+   */
+  getHealthAttestation(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<HealthAttestationInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

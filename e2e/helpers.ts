@@ -38,7 +38,7 @@ export const T = {
   notApplicable: 'Nicht anwendbar',
 } as const;
 
-/** Die acht Standard-Kacheln eines Windows-Geräts (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
+/** Die Standard-Kacheln eines Windows-Geräts im Demo-Modus (Reihenfolge = TILE_ORDER, ohne ZIP-Kacheln) */
 export const BASE_TILE_TITLES = [
   'Gerätestatus',
   'Compliance',
@@ -48,6 +48,11 @@ export const BASE_TILE_TITLES = [
   'Defender',
   'Richtlinien',
   'Apps',
+  'Anmeldungen',
+  'Lokaler Administrator (LAPS)',
+  'Autopilot',
+  'Gruppen',
+  'Integritätsnachweis',
 ] as const;
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);

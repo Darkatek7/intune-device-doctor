@@ -4,6 +4,9 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  HealthAttestationInfo,
+  DeviceGroupsInfo,
+  AutopilotInfo,
   AppInfo,
   ApplePushCertificateInfo,
   AppInstallStateInfo,
@@ -11,9 +14,11 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { de } from '../i18n/de';
@@ -105,6 +110,30 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<ApplePushCertificateInfo>((p) =>
       p.getApplePushCertificate(device, options),
     );
+  }
+
+  getSignIns(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<SignInsInfo>((p) => p.getSignIns(device, options));
+  }
+
+  getLocalAdmin(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<LocalAdminInfo>((p) => p.getLocalAdmin(device, options));
+  }
+
+  getAutopilot(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<AutopilotInfo | null>((p) => p.getAutopilot(device, options));
+  }
+
+  getDeviceGroups(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<DeviceGroupsInfo>((p) => p.getDeviceGroups(device, options));
+  }
+
+  getUserDevices(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<DeviceSearchResult[]>((p) => p.getUserDevices(device, options));
+  }
+
+  getHealthAttestation(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<HealthAttestationInfo>((p) => p.getHealthAttestation(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

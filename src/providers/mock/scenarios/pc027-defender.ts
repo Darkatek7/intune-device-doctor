@@ -9,6 +9,8 @@ import {
   healthyProtection,
   osVolumeKey,
   windowsDevice,
+  signInEntry,
+  signInsInfo,
 } from './helpers';
 
 export const pc027Defender: MockScenario = {
@@ -50,6 +52,16 @@ export const pc027Defender: MockScenario = {
       configurationPolicies: { status: 'ok', data: healthyConfigurationPolicies() },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 27)] },
+      signIns: {
+        status: 'ok',
+        data: signInsInfo(
+          [
+            signInEntry(now, 27, { hours: 4 }),
+            signInEntry(now, 28, { days: 1, hours: 3 }, { deviceIsCompliant: false }),
+          ],
+          { totalForUser: 8 },
+        ),
+      },
     };
   },
 };

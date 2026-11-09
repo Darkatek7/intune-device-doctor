@@ -3,7 +3,7 @@
  * bei Bedarf entpackt (mit Größenlimit), Binärdateien nie. Alles lokal – kein Netzwerkzugriff.
  */
 import type { Entry } from '@zip.js/zip.js';
-import { decodeText, type DetectedEncoding } from '../parsers/encoding';
+import { decodeText, isOemCommandName, type DetectedEncoding } from '../parsers/encoding';
 import { parseEntryName } from '../parsers/entryName';
 import type { DiagEntry } from '../types';
 
@@ -26,12 +26,21 @@ export type ReadTextResult =
   | { ok: true; text: string; encoding: DetectedEncoding }
   | { ok: false; reason: 'binary' | 'tooLarge' | 'directory' | 'empty' | 'error' };
 
+export type ReadBytesResult =
+  | { ok: true; bytes: Uint8Array }
+  | { ok: false; reason: 'directory' | 'tooLarge' | 'empty' | 'error' };
+
 export interface OpenedZip {
   /** Alle Einträge, deren Name dem bekannten Schema entspricht */
   entries: DiagEntry[];
   /** Pfade von Einträgen mit unbekanntem Namensschema */
   unrecognizedPaths: string[];
   readText(entry: DiagEntry, maxBytes?: number): Promise<ReadTextResult>;
+  /**
+   * Rohbytes eines Eintrags, auch für Binärdateien – nur für gezielt ausgewählte Einträge gedacht
+   * (z. B. Ereignisprotokolle). Das Größenlimit wird vor dem Entpacken geprüft.
+   */
+  readBytes(entry: DiagEntry, maxBytes: number): Promise<ReadBytesResult>;
   close(): Promise<void>;
 }
 
@@ -76,8 +85,23 @@ export async function openZip(source: Blob | Uint8Array): Promise<OpenedZip> {
         const bytes = await raw.getData(new zip.Uint8ArrayWriter(), {
           checkLocalDirectory: false,
         });
-        const decoded = decodeText(bytes);
+        const decoded = decodeText(bytes, {
+          oem: entry.kind === 'Command' && isOemCommandName(entry.name),
+        });
         return { ok: true, text: decoded.text, encoding: decoded.encoding };
+      } catch {
+        return { ok: false, reason: 'error' };
+      }
+    },
+    async readBytes(entry, maxBytes) {
+      if (entry.isDirectory) return { ok: false, reason: 'directory' };
+      if (entry.uncompressedSize === 0) return { ok: false, reason: 'empty' };
+      if (entry.uncompressedSize > maxBytes) return { ok: false, reason: 'tooLarge' };
+      const raw = byPath.get(entry.path);
+      if (!raw || raw.directory) return { ok: false, reason: 'error' };
+      try {
+        const bytes = await raw.getData(new zip.Uint8ArrayWriter(), { checkLocalDirectory: false });
+        return { ok: true, bytes };
       } catch {
         return { ok: false, reason: 'error' };
       }

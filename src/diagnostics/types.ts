@@ -83,6 +83,77 @@ export interface Win32AppState {
   errorCodeDecimal: number | null;
 }
 
+/** Zertifikat aus `certutil -store` (Antragsteller/Seriennummer bereits maskiert). */
+export interface CertificateInfo {
+  /** Kopfzeile der Ausgabe, z. B. `My "Personal"` (lokalisiert) */
+  store: string | null;
+  /** Aussteller (GUIDs/E-Mail-Adressen maskiert) */
+  issuer: string | null;
+  subjectMasked: string | null;
+  serialMasked: string | null;
+  /** ISO-Zeitstempel; certutil gibt lokale Zeit ohne Zone aus, sie wird hier wie UTC behandelt */
+  notBefore: string | null;
+  notAfter: string | null;
+  /** Ablaufdatum unverändert aus der Ausgabe (falls nicht lesbar: nur dieser Wert) */
+  notAfterRaw: string | null;
+}
+
+/** Adapter aus `ipconfig /all` – reine Rohdaten, MAC-Adresse maskiert. */
+export interface NetworkAdapterInfo {
+  /** Kopfzeile ohne Doppelpunkt, z. B. "Ethernet-Adapter Ethernet" */
+  name: string;
+  description: string | null;
+  macMasked: string | null;
+  dhcpEnabled: boolean | null;
+  mediaDisconnected: boolean;
+  ipv4: string[];
+  dnsServers: string[];
+  dnsSuffix: string | null;
+}
+
+export interface NetworkInfo {
+  primaryDnsSuffix: string | null;
+  dnsSuffixSearchList: string[];
+  adapters: NetworkAdapterInfo[];
+}
+
+/** Ausgewertete Ereignisprotokolle (.evtx). */
+export type DiagEventLogId = 'mdmAdmin' | 'aadOperational';
+
+export interface DiagEvent {
+  recordId: number;
+  eventId: number;
+  /** 1 = Kritisch, 2 = Fehler, 3 = Warnung (Information/Ausführlich werden nicht übernommen) */
+  level: 1 | 2 | 3;
+  timeUtc: string | null;
+  provider: string | null;
+  /** EventData bzw. UserData (Name → Wert); Werte sind maskiert (UPN, GUID, Seriennummer …) und gekürzt */
+  data: Record<string, string>;
+}
+
+export interface DiagEventLog {
+  id: DiagEventLogId;
+  /** Eintragsname im ZIP (ohne Präfix/Suffix) */
+  entryName: string;
+  entryPath: string;
+  sizeBytes: number;
+  /** ok = ausgewertet; sonst Grund: zu groß, nicht lesbar oder keine gültige EVTX-Datei */
+  status: 'ok' | 'tooLarge' | 'unreadable' | 'invalid';
+  /** Zeitfenster der Auswertung (ISO, UTC) – Ende = ZIP-Zeitstempel bzw. jüngstes Ereignis */
+  windowStartUtc: string | null;
+  windowEndUtc: string | null;
+  /** Im Fenster dekodierte Ereignisse aller Stufen */
+  scanned: number;
+  counts: { critical: number; error: number; warning: number };
+  /** Kritisch/Fehler/Warnung im Fenster, aufsteigend nach RecordID (begrenzt) */
+  events: DiagEvent[];
+  /** Datei gekappt bzw. Chunks/Datensätze nicht lesbar */
+  incomplete: boolean;
+  skippedRecords: number;
+  /** Mengen- oder Zeitbegrenzung erreicht – ältere Ereignisse im Fenster fehlen */
+  capped: boolean;
+}
+
 export interface DiagnosticsReport {
   fileName: string;
   /** Aus dem Dateinamen DiagLogs-<NAME>-<Zeitstempel>.zip */
@@ -97,6 +168,12 @@ export interface DiagnosticsReport {
   win32Apps: Win32AppState[];
   /** Ausgewählte Fehler-/Warnzeilen aus IME-Logs (begrenzt) */
   imeIssues: CmTraceEntry[];
+  /** Zertifikate aus certutil-Ausgaben (OEM-Codepage); leer, wenn keine Ausgabe im Archiv */
+  certificates: CertificateInfo[];
+  /** Ausgabe von `ipconfig /all` (OEM-Codepage); null, wenn nicht im Archiv */
+  network: NetworkInfo | null;
+  /** Gezielt ausgewertete Ereignisprotokolle (MDM-Admin, optional Entra/AAD Operational) */
+  eventLogs: DiagEventLog[];
   /**
    * App-Namen zu Win32-App-IDs (Schlüssel: ID in Kleinschreibung). Stammt nicht aus dem ZIP, sondern
    * wird nach der Analyse über den aktiven Provider (Graph bzw. Mock-Katalog) nachgeladen.

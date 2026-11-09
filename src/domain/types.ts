@@ -3,8 +3,11 @@
  * Enum-Werte werden 1:1 aus den Graph-DTOs übernommen (offizielles Microsoft-Datenmodell).
  */
 import type {
+  AppliedConditionalAccessPolicyResult,
+  AutopilotEnrollmentState,
   ComplianceState,
   ComplianceStatus,
+  ConditionalAccessStatus,
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
@@ -213,6 +216,103 @@ export interface ApplePushCertificateInfo {
   lastModifiedDateTime: string | null;
 }
 
+/** Eine von Conditional Access ausgewertete Richtlinie eines Anmeldeeintrags. */
+export interface AppliedPolicyInfo {
+  id: string | null;
+  displayName: string | null;
+  result: AppliedConditionalAccessPolicyResult | null;
+  enforcedGrantControls: string[];
+  enforcedSessionControls: string[];
+}
+
+/**
+ * Ein Eintrag des Entra-Anmeldeprotokolls für dieses Gerät. Bewusst ohne IP-Adresse, Standort,
+ * Risikoangaben und UPN (Datensparsamkeit).
+ */
+export interface SignInEntry {
+  id: string;
+  createdDateTime: string | null;
+  appDisplayName: string | null;
+  resourceDisplayName: string | null;
+  clientAppUsed: string | null;
+  isInteractive: boolean | null;
+  correlationId: string | null;
+  conditionalAccessStatus: ConditionalAccessStatus | null;
+  /** status.errorCode (0 = Erfolg) */
+  errorCode: number | null;
+  failureReason: string | null;
+  additionalDetails: string | null;
+  /** deviceDetail.isCompliant zum Zeitpunkt der Anmeldung */
+  deviceIsCompliant: boolean | null;
+  deviceIsManaged: boolean | null;
+  /** null = Feld fehlt in der Antwort (Konto darf Conditional-Access-Daten nicht lesen) */
+  appliedPolicies: AppliedPolicyInfo[] | null;
+}
+
+/** Anmeldungen des primären Benutzers im Zeitfenster, eingegrenzt auf dieses Gerät. */
+export interface SignInsInfo {
+  windowDays: number;
+  /** Anzahl der ausgewerteten Anmeldungen des Benutzers (alle Geräte, erste Seite) */
+  totalForUser: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden (nur die neuesten Einträge geprüft) */
+  moreAvailable: boolean;
+  /** Anmeldungen genau dieses Geräts (deviceDetail.deviceId == azureADDeviceId), neueste zuerst */
+  entries: SignInEntry[];
+}
+
+/** Windows LAPS: nur Metadaten des lokalen Administrator-Kennworts – nie das Kennwort selbst. */
+export interface LocalAdminInfo {
+  deviceName: string | null;
+  /** Letzte Sicherung des Kennworts in Entra (lastBackupDateTime) */
+  lastBackupDateTime: string | null;
+  /** Nächste geplante Aktualisierung/Sicherung (refreshDateTime) */
+  refreshDateTime: string | null;
+}
+
+/** Windows-Autopilot-Eintrag des Geräts (v1.0). Ohne Seriennummer, Benutzer und Produktschlüssel. */
+export interface AutopilotInfo {
+  groupTag: string | null;
+  enrollmentState: AutopilotEnrollmentState | null;
+  lastContactedDateTime: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  /** Wie der Eintrag zugeordnet wurde */
+  matchedBy: 'managedDeviceId' | 'serialNumber';
+}
+
+/** Gruppe, in der das Entra-Gerät Mitglied ist (nur Name und ID). */
+export interface DeviceGroupInfo {
+  id: string;
+  displayName: string;
+}
+
+/** Gruppenmitgliedschaften des Entra-Geräts (direkt und verschachtelt). Gruppen des Benutzers sind nicht enthalten. */
+export interface DeviceGroupsInfo {
+  groups: DeviceGroupInfo[];
+  /** Gruppen, deren Name ohne Leserecht nicht geliefert wurde */
+  hiddenCount: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden */
+  truncated: boolean;
+}
+
+/**
+ * Device Health Attestation (nur Windows): Rohwerte laut Graph. Microsoft dokumentiert für die meisten
+ * Felder keine Werte – sie werden unverändert angezeigt, nicht gedeutet.
+ */
+export interface HealthAttestationInfo {
+  lastUpdateDateTime: string | null;
+  issuedDateTime: string | null;
+  secureBoot: string | null;
+  bitLockerStatus: string | null;
+  codeIntegrity: string | null;
+  earlyLaunchAntiMalwareDriverProtection: string | null;
+  bootDebugging: string | null;
+  testSigning: string | null;
+  tpmVersion: string | null;
+  healthStatusMismatchInfo: string | null;
+  healthAttestationSupportedStatus: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -225,6 +325,24 @@ export interface DeviceSnapshot {
   appInstallStates?: SectionResult<AppInstallStateInfo[]>;
   /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
   applePushCertificate?: SectionResult<ApplePushCertificateInfo>;
+  /** Anmeldungen des primären Benutzers an diesem Gerät (Entra-Anmeldeprotokoll, optionaler Scope) */
+  signIns?: SectionResult<SignInsInfo>;
+  /** Nur Windows: Windows-LAPS-Metadaten aus Entra (optionaler Scope DeviceLocalCredential.ReadBasic.All) */
+  localAdmin?: SectionResult<LocalAdminInfo>;
+  /**
+   * Nur Windows: Eintrag in der Autopilot-Geräteliste. data null = Liste vollständig gelesen, das
+   * Gerät steht nicht darin (kein Fehler). Optionaler Scope DeviceManagementServiceConfig.Read.All.
+   */
+  autopilot?: SectionResult<AutopilotInfo | null>;
+  /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
+  deviceGroups?: SectionResult<DeviceGroupsInfo>;
+  /**
+   * Weitere Geräte des primären Benutzers (Geräte-Header, keine Kachel). Ohne Treffer, ohne Berechtigung
+   * oder bei Fehlern entfällt die Zeile still. Enthält das aktuelle Gerät nicht.
+   */
+  userDevices?: SectionResult<DeviceSearchResult[]>;
+  /** Nur Windows: Device Health Attestation (Integritätsnachweis, Rohwerte) */
+  healthAttestation?: SectionResult<HealthAttestationInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -240,10 +358,17 @@ export type TileId =
   | 'defender'
   | 'policies'
   | 'apps'
+  | 'signIns'
+  | 'laps'
+  | 'autopilot'
+  | 'groups'
+  | 'attestation'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
   | 'enrollment'
+  | 'certsNetwork'
+  | 'mdmEvents'
   | 'diagCollection';
 
 /** Name einer Intune-App, aufgelöst über GET /deviceAppManagement/mobileApps/{id} (bzw. Mock-Katalog). */
@@ -286,7 +411,13 @@ export type SnapshotSectionKey =
   | 'entraDevice'
   | 'bitlockerKeys'
   | 'appInstallStates'
-  | 'applePushCertificate';
+  | 'applePushCertificate'
+  | 'signIns'
+  | 'localAdmin'
+  | 'autopilot'
+  | 'deviceGroups'
+  | 'userDevices'
+  | 'healthAttestation';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

@@ -19,6 +19,11 @@ const SEVERITY_CASES = [
   { device: 'CONTOSO-PC042', title: 'Richtlinien', badge: T.critical },
   { device: 'CONTOSO-PC042', title: 'Compliance', badge: T.warning },
   { device: 'CONTOSO-LT108', title: 'Gerätestatus', badge: T.critical },
+  { device: 'CONTOSO-PC014', title: 'Anmeldungen', badge: T.warning },
+  { device: 'CONTOSO-PC014', title: 'Integritätsnachweis', badge: T.warning },
+  { device: 'CONTOSO-PC033', title: 'Lokaler Administrator (LAPS)', badge: T.warning },
+  { device: 'CONTOSO-LT108', title: 'Autopilot', badge: T.warning },
+  { device: 'CONTOSO-PC042', title: 'Gruppen', badge: T.ok },
   { device: 'CONTOSO-MAC07', title: 'FileVault', badge: T.ok },
   { device: 'CONTOSO-MAC07', title: 'Defender', badge: T.notApplicable },
 ] as const;
@@ -30,6 +35,42 @@ test.describe('Kacheln je Szenario', () => {
       await expect(statusBadge(tile(page, title), badge)).toBeVisible();
     });
   }
+});
+
+test.describe('Windows-spezifische Kacheln (M10)', () => {
+  test('macOS-Gerät zeigt weder LAPS, Autopilot noch Integritätsnachweis', async ({ page }) => {
+    await openDevice(page, 'CONTOSO-MAC07');
+    for (const title of ['Lokaler Administrator (LAPS)', 'Autopilot', 'Integritätsnachweis']) {
+      await expect(tile(page, title)).toHaveCount(0);
+    }
+    // Anmeldungen und Gruppen gelten für alle Plattformen
+    await expect(tile(page, 'Gruppen')).toBeVisible();
+  });
+
+  test('LAPS (PC033): Sheet zeigt Befund, Ursache, Lösung und Quelle – ohne Kennwort', async ({
+    page,
+  }) => {
+    await openDevice(page, 'CONTOSO-PC033');
+    const dialog = await openTile(page, 'Lokaler Administrator (LAPS)');
+    await settleSheet(page);
+
+    await expect(dialog.getByRole('heading', { name: T.finding }).first()).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: T.cause }).first()).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: T.remediation }).first()).toBeVisible();
+    await expect(dialog.getByText(`${T.source}:`, { exact: true }).first()).toBeVisible();
+  });
+
+  test('Integritätsnachweis (PC014): Rohwerte werden unverändert angezeigt, mit Hinweis', async ({
+    page,
+  }) => {
+    await openDevice(page, 'CONTOSO-PC014');
+    const dialog = await openTile(page, 'Integritätsnachweis');
+    await settleSheet(page);
+
+    await expect(dialog.getByRole('heading', { name: T.finding }).first()).toBeVisible();
+    await expect(dialog).toContainText('healthStatusMismatchInfo');
+    await expect(dialog).toContainText('Microsoft dokumentiert dafür keine Bedeutung');
+  });
 });
 
 test.describe('Detail-Sheet', () => {
