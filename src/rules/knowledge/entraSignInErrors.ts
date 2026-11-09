@@ -2,13 +2,13 @@
  * Entra-Fehlercodes (status.errorCode des Anmeldeprotokolls, im Portal mit Präfix AADSTS). Nur Codes,
  * die auf Microsoft Learn mit Bedeutung stehen – jeder Eintrag trägt seine Quelle (Test erzwingt das).
  *
- * - https://learn.microsoft.com/entra/identity-platform/reference-error-codes#aadsts-error-codes
- * - https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#common-conditional-access-error-codes
+ * Quelle jedes Eintrags (Tabelle „AADSTS error codes“, am 2026-11-09 abgeglichen):
+ * https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes
+ * Codes, die dort nicht stehen (z. B. 53009, nur auf der Conditional-Access-Seite genannt), sind
+ * bewusst nicht aufgenommen – sie erscheinen in der Anzeige als „Unbekannter Code“.
  */
 const ERROR_CODES_URL =
-  'https://learn.microsoft.com/entra/identity-platform/reference-error-codes#aadsts-error-codes';
-const CA_COMMON_CODES_URL =
-  'https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#common-conditional-access-error-codes';
+  'https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes';
 
 export interface EntraSignInError {
   code: number;
@@ -74,20 +74,14 @@ export const ENTRA_SIGN_IN_ERRORS: EntraSignInError[] = [
   {
     code: 53004,
     name: 'ProofUpBlockedDueToRisk',
-    title: 'MFA-Registrierung durch Risiko blockiert (AADSTS53004)',
+    title: 'MFA-Registrierung erforderlich (AADSTS53004)',
     cause:
       'Der Benutzer muss die Registrierung der Multifaktor-Authentifizierung abschließen, bevor er auf den Inhalt zugreifen kann.',
-    remediation: POLICY_REMEDIATION,
+    remediation: [
+      'Den Benutzer die Registrierung für die Multifaktor-Authentifizierung abschließen lassen – laut Microsoft ist das die Voraussetzung für den Zugriff.',
+      ...POLICY_REMEDIATION,
+    ],
     docsUrl: ERROR_CODES_URL,
-  },
-  {
-    code: 53009,
-    name: 'Application needs to enforce Intune protection policies',
-    title: 'App muss Intune-Schutzrichtlinien erzwingen (AADSTS53009)',
-    cause:
-      'Laut Microsoft muss die App Intune-App-Schutzrichtlinien erzwingen, damit der Zugriff möglich ist.',
-    remediation: POLICY_REMEDIATION,
-    docsUrl: CA_COMMON_CODES_URL,
   },
   {
     code: 530035,

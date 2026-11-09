@@ -87,7 +87,7 @@ Bei Live-Einsatz einmal prüfen; ändern sich die Portal-Adressen, nur diese Dat
 
 - `conditionalAccessStatus`: `success, failure, notApplied, unknownFutureValue`
 - `appliedConditionalAccessPolicies[].result`: `success, failure, notApplied, notEnabled, unknown, unknownFutureValue` (`reportOnly*` nur mit `Prefer: include-unknown-enum-members`)
-- `status.errorCode` (Int32, 5–6-stellig): Deutung nur für Codes mit Beleg in `src/rules/knowledge/entraSignInErrors.ts` (53000–53004, 53009, 530035; Quellen [reference-error-codes](https://learn.microsoft.com/entra/identity-platform/reference-error-codes#aadsts-error-codes) und [troubleshoot-conditional-access](https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#common-conditional-access-error-codes)), sonst „Unbekannter Code“.
+- `status.errorCode` (Int32, 5–6-stellig): Deutung nur für Codes mit Beleg in `src/rules/knowledge/entraSignInErrors.ts` – 53000, 53001, 53002, 53003, 53004 und 530035, jeweils in der Tabelle „AADSTS error codes“ der [Referenzseite der Entra-Fehlercodes](https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes). Alle anderen Codes (auch 53009, der nur auf der Conditional-Access-Seite genannt wird) erscheinen als „Unbekannter Code“.
 - `deviceDetail.deviceId`/`displayName`/`browser` sind laut Doku nur für in Microsoft Entra registrierte Geräte gefüllt; die Angaben im Eintrag wurden laut [Troubleshooting-Seite](https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#microsoft-entra-sign-in-events) bei der Anmeldung erhoben.
 - Die Liste enthält laut Doku nur interaktive Anmeldungen und erfolgreiche föderierte Anmeldungen.
 

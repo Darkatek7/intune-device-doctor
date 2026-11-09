@@ -89,8 +89,7 @@ export const Docs = {
   signInList: 'https://learn.microsoft.com/graph/api/signin-list?view=graph-rest-1.0',
   conditionalAccessTroubleshoot:
     'https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#microsoft-entra-sign-in-events',
-  entraErrorCodes:
-    'https://learn.microsoft.com/entra/identity-platform/reference-error-codes#aadsts-error-codes',
+  entraErrorCodes: 'https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

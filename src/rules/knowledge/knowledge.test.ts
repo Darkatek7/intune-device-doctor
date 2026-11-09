@@ -301,6 +301,8 @@ describe('Quellenpflicht: Entra-Anmeldefehlercodes', () => {
     '%s hat Name, Text, Schritte und eine Microsoft-Learn-URL',
     (_code, entry) => {
       expect(entry.docsUrl).toMatch(LEARN_URL);
+      // jeder Code ist auf der Referenzseite der Entra-Fehlercodes belegt
+      expect(entry.docsUrl).toBe(Docs.entraErrorCodes);
       expect(entry.name.length).toBeGreaterThan(0);
       expect(entry.cause.length).toBeGreaterThan(20);
       expect(entry.remediation.length).toBeGreaterThan(0);
@@ -313,6 +315,8 @@ describe('Quellenpflicht: Entra-Anmeldefehlercodes', () => {
     expect(findEntraSignInError(53000)?.name).toBe('DeviceNotCompliant');
     expect(findEntraSignInError(53003)?.name).toBe('BlockedByConditionalAccess');
     expect(findEntraSignInError(50126)).toBeNull();
+    // nur auf der Conditional-Access-Seite genannt, nicht auf der Referenzseite → nicht gedeutet
+    expect(findEntraSignInError(53009)).toBeNull();
     expect(findEntraSignInError(0)).toBeNull();
     expect(findEntraSignInError(null)).toBeNull();
   });
