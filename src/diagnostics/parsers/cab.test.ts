@@ -365,7 +365,7 @@ describe('Beispiel-Cabinet aus der Microsoft-Spezifikation', () => {
 
   it('ein verändertes Datenbyte verletzt die Prüfsumme', () => {
     const raw = specSample();
-    raw[0x70] ^= 0x01;
+    raw[0x70] = raw[0x70]! ^ 0x01;
     const cab = openCab(raw);
     expect(() => cab.extract(cab.files[0]!)).toThrowError(
       expect.objectContaining({ code: 'checksum' }),

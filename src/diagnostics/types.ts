@@ -154,6 +154,68 @@ export interface DiagEventLog {
   capped: boolean;
 }
 
+/** Abschnitt in MDMDiagReport.xml: gleichnamige direkte Kindelemente der Wurzel (Rohdaten, Aufbau nicht dokumentiert). */
+export interface MdmDiagSection {
+  name: string;
+  /** Anzahl gleichnamiger direkter Kindelemente des Wurzelelements */
+  count: number;
+  /** Namen der Kindelemente (ohne Duplikate, begrenzt) */
+  childNames: string[];
+}
+
+/**
+ * Auswertung von MDMDiagReport.xml. Belegt (Microsoft Learn) ist nur der Knoten `Multivariant` mit
+ * `Condition`; der übrige Aufbau wird als Rohdaten (Elementnamen, Anzahl) wiedergegeben – ohne Werte.
+ */
+export interface MdmDiagReportSummary {
+  rootElement: string;
+  elementCount: number;
+  /** Elementgrenze erreicht – der Rest des Dokuments wurde nicht gelesen */
+  truncated: boolean;
+  sections: MdmDiagSection[];
+  sectionsTruncated: boolean;
+  /** `Condition`-Werte aller `//Multivariant`-Knoten (roh, maskiert, begrenzt) */
+  multivariant: string[];
+  multivariantTotal: number;
+}
+
+/** Zustand eines Pakets im MDM-Diagnosepaket (`mdmlogs-*.cab`). */
+export type MdmDiagMemberStatus =
+  'ok' | 'missing' | 'tooLarge' | 'unreadable' | 'unsupported' | 'invalid';
+
+export interface MdmDiagMember {
+  /** Dateiname im Cabinet (maskiert, gekürzt) */
+  name: string;
+  sizeBytes: number;
+}
+
+export type MdmDiagUnsupportedReason = 'lzx' | 'quantum' | 'unknown' | 'multiVolume';
+
+/** Ausgewertetes MDM-Diagnosepaket `mdmlogs-*.cab` aus dem ZIP (Cabinet-Format, siehe docs/diaglogs-format.md). */
+export interface MdmDiagPackage {
+  entryPath: string;
+  entryName: string;
+  sizeBytes: number;
+  /** ok = Cabinet gelesen; sonst Grund: zu groß, nicht lesbar oder kein gültiges Cabinet */
+  status: 'ok' | 'tooLarge' | 'unreadable' | 'invalid';
+  /** Cabinet kürzer als im Kopf angegeben bzw. Dateiliste unvollständig */
+  truncated: boolean;
+  /** Verfahren, das nicht entpackt werden kann (LZX, Quantum, mehrteilig …); sonst null */
+  unsupportedReason: MdmDiagUnsupportedReason | null;
+  /** Anzahl Dateien laut Dateiliste */
+  fileCount: number;
+  /** Dateiliste (begrenzt) */
+  files: MdmDiagMember[];
+  /** Status von MDMDiagReport.xml und Auswertung */
+  reportStatus: MdmDiagMemberStatus;
+  report: MdmDiagReportSummary | null;
+  /** MdmDiagLogMetadata.json (laut Learn: Kommandozeilenargumente des Tools) als Schlüssel/Wert-Rohdaten, maskiert */
+  metadataStatus: MdmDiagMemberStatus;
+  metadata: Array<{ key: string; value: string }>;
+  /** Das MDM-Admin-Ereignisprotokoll in `eventLogs` stammt aus diesem Paket (nicht direkt aus dem ZIP) */
+  adminLogFromPackage: boolean;
+}
+
 export interface DiagnosticsReport {
   fileName: string;
   /** Aus dem Dateinamen DiagLogs-<NAME>-<Zeitstempel>.zip */
@@ -174,6 +236,8 @@ export interface DiagnosticsReport {
   network: NetworkInfo | null;
   /** Gezielt ausgewertete Ereignisprotokolle (MDM-Admin, optional Entra/AAD Operational) */
   eventLogs: DiagEventLog[];
+  /** MDM-Diagnosepaket `mdmlogs-*.cab` (MDMDiagReport.xml u. a.); fehlt, wenn das ZIP keines enthält */
+  mdmDiag?: MdmDiagPackage;
   /**
    * App-Namen zu Win32-App-IDs (Schlüssel: ID in Kleinschreibung). Stammt nicht aus dem ZIP, sondern
    * wird nach der Analyse über den aktiven Provider (Graph bzw. Mock-Katalog) nachgeladen.

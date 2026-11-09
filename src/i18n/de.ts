@@ -320,6 +320,7 @@ export const de = {
       imeLogs: (done: number, total: number) =>
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
       eventLogs: 'Ereignisprotokolle werden ausgewertet …',
+      mdmCab: 'MDM-Diagnosepaket wird ausgewertet …',
       done: 'Analyse abgeschlossen',
     },
     aborted: 'Analyse abgebrochen.',

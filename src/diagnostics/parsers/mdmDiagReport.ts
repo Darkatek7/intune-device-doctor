@@ -10,32 +10,13 @@
  * Deshalb wertet dieser Parser **nur** die `Multivariant`-Bedingungen aus und gibt sonst lediglich
  * den Aufbau als Rohdaten wieder (Abschnittsnamen und Anzahl) – keine Werte, keine Deutung.
  */
+import type { MdmDiagReportSummary } from '../types';
 import { findXmlDescendants, parseXmlLite, xmlLocalName, type XmlElement } from './xmlLite';
 
 export const MAX_MDMDIAG_SECTIONS = 40;
 export const MAX_MDMDIAG_CHILD_NAMES = 8;
 export const MAX_MDMDIAG_CONDITIONS = 50;
 const MAX_NAME_LENGTH = 60;
-
-export interface MdmDiagSection {
-  name: string;
-  /** Anzahl gleichnamiger direkter Kindelemente des Wurzelelements */
-  count: number;
-  /** Namen der Kindelemente (ohne Duplikate, begrenzt) */
-  childNames: string[];
-}
-
-export interface MdmDiagReportSummary {
-  rootElement: string;
-  elementCount: number;
-  /** Elementgrenze erreicht – der Rest des Dokuments wurde nicht gelesen */
-  truncated: boolean;
-  sections: MdmDiagSection[];
-  sectionsTruncated: boolean;
-  /** `Condition`-Werte aller `//Multivariant`-Knoten (roh, maskiert, begrenzt) */
-  multivariant: string[];
-  multivariantTotal: number;
-}
 
 export interface SummarizeOptions {
   /** Maskierung für alle übernommenen Texte (UPN, GUID, Seriennummer …); Standard: unverändert */
