@@ -11,6 +11,7 @@ import {
   policy,
   setting,
   windowsDevice,
+  signInsInfo,
 } from './helpers';
 
 export const pc033Stale: MockScenario = {
@@ -64,6 +65,7 @@ export const pc033Stale: MockScenario = {
         }),
       },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 33)] },
+      signIns: { status: 'ok', data: signInsInfo([], { totalForUser: 14 }) },
     };
   },
 };

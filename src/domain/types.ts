@@ -3,8 +3,10 @@
  * Enum-Werte werden 1:1 aus den Graph-DTOs übernommen (offizielles Microsoft-Datenmodell).
  */
 import type {
+  AppliedConditionalAccessPolicyResult,
   ComplianceState,
   ComplianceStatus,
+  ConditionalAccessStatus,
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
@@ -213,6 +215,50 @@ export interface ApplePushCertificateInfo {
   lastModifiedDateTime: string | null;
 }
 
+/** Eine von Conditional Access ausgewertete Richtlinie eines Anmeldeeintrags. */
+export interface AppliedPolicyInfo {
+  id: string | null;
+  displayName: string | null;
+  result: AppliedConditionalAccessPolicyResult | null;
+  enforcedGrantControls: string[];
+  enforcedSessionControls: string[];
+}
+
+/**
+ * Ein Eintrag des Entra-Anmeldeprotokolls für dieses Gerät. Bewusst ohne IP-Adresse, Standort,
+ * Risikoangaben und UPN (Datensparsamkeit).
+ */
+export interface SignInEntry {
+  id: string;
+  createdDateTime: string | null;
+  appDisplayName: string | null;
+  resourceDisplayName: string | null;
+  clientAppUsed: string | null;
+  isInteractive: boolean | null;
+  correlationId: string | null;
+  conditionalAccessStatus: ConditionalAccessStatus | null;
+  /** status.errorCode (0 = Erfolg) */
+  errorCode: number | null;
+  failureReason: string | null;
+  additionalDetails: string | null;
+  /** deviceDetail.isCompliant zum Zeitpunkt der Anmeldung */
+  deviceIsCompliant: boolean | null;
+  deviceIsManaged: boolean | null;
+  /** null = Feld fehlt in der Antwort (Konto darf Conditional-Access-Daten nicht lesen) */
+  appliedPolicies: AppliedPolicyInfo[] | null;
+}
+
+/** Anmeldungen des primären Benutzers im Zeitfenster, eingegrenzt auf dieses Gerät. */
+export interface SignInsInfo {
+  windowDays: number;
+  /** Anzahl der ausgewerteten Anmeldungen des Benutzers (alle Geräte, erste Seite) */
+  totalForUser: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden (nur die neuesten Einträge geprüft) */
+  moreAvailable: boolean;
+  /** Anmeldungen genau dieses Geräts (deviceDetail.deviceId == azureADDeviceId), neueste zuerst */
+  entries: SignInEntry[];
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -225,6 +271,8 @@ export interface DeviceSnapshot {
   appInstallStates?: SectionResult<AppInstallStateInfo[]>;
   /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
   applePushCertificate?: SectionResult<ApplePushCertificateInfo>;
+  /** Anmeldungen des primären Benutzers an diesem Gerät (Entra-Anmeldeprotokoll, optionaler Scope) */
+  signIns?: SectionResult<SignInsInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -240,6 +288,7 @@ export type TileId =
   | 'defender'
   | 'policies'
   | 'apps'
+  | 'signIns'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -286,7 +335,8 @@ export type SnapshotSectionKey =
   | 'entraDevice'
   | 'bitlockerKeys'
   | 'appInstallStates'
-  | 'applePushCertificate';
+  | 'applePushCertificate'
+  | 'signIns';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

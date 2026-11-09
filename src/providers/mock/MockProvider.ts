@@ -15,6 +15,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 import { Endpoints, type EndpointId } from '../../graph/endpoints';
@@ -22,7 +23,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
-import { defaultAppStates } from './scenarios/helpers';
+import { defaultAppStates, defaultSignIns } from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -43,6 +44,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   bitlockerKeys: 'bitlockerRecoveryKeys',
   appInstallStates: 'mobileAppIntentAndStates',
   applePushCertificate: 'applePushNotificationCertificate',
+  signIns: 'signIns',
 };
 
 export function abortError(): DOMException {
@@ -176,6 +178,12 @@ export class MockProvider implements DeviceDataProvider {
       };
       return { status: 'ok', data };
     }
+    if (key === 'signIns') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.signInsNoPrimaryUser };
+      }
+      return { status: 'ok', data: defaultSignIns(this.now(), fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -246,6 +254,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getApplePushCertificate(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<ApplePushCertificateInfo>(device, 'applePushCertificate', options);
+  }
+
+  getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<SignInsInfo>(device, 'signIns', options);
   }
 
   async getMobileApps(

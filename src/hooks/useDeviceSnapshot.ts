@@ -23,6 +23,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'bitlockerKeys',
   'appInstallStates',
   'applePushCertificate',
+  'signIns',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -37,7 +38,8 @@ interface InternalState {
   now: Date;
 }
 
-function loadSection(
+/** Ruft die Provider-Methode zu einer Section auf (auch von Tests genutzt). */
+export function loadSection(
   provider: DeviceDataProvider,
   key: SnapshotSectionKey,
   device: ManagedDeviceInfo,
@@ -58,6 +60,8 @@ function loadSection(
       return provider.getAppInstallStates(device, { signal });
     case 'applePushCertificate':
       return provider.getApplePushCertificate(device, { signal });
+    case 'signIns':
+      return provider.getSignIns(device, { signal });
   }
 }
 

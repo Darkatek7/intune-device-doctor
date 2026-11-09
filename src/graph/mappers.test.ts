@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PC001_ENTRA_ID,
   bitlockerKey,
   malware,
   pc001Device,
   pc001Entra,
   pc001Protection,
   policyState,
+  signInDto,
 } from '../providers/graph/fakeGraph';
 import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
 import {
@@ -17,6 +19,7 @@ import {
   mapManagedDevice,
   mapPolicyState,
   mapSearchResult,
+  mapSignIns,
   mapVolumeType,
   mapWindowsProtection,
   splitProductStatus,
@@ -448,6 +451,116 @@ describe('mapApplePushCertificate', () => {
     expect(mapApplePushCertificate(null)).toEqual({
       expirationDateTime: null,
       lastModifiedDateTime: null,
+    });
+  });
+});
+
+describe('mapSignIns', () => {
+  const OTHER_DEVICE = '00000000-0000-4000-9000-0000000000ff';
+  const meta = { windowDays: 7, moreAvailable: false };
+
+  it('grenzt clientseitig auf die Geräte-ID ein (Groß-/Kleinschreibung egal), neueste zuerst', () => {
+    const info = mapSignIns(
+      [
+        signInDto('alt', 30),
+        signInDto('fremd', 1, {}, OTHER_DEVICE),
+        signInDto('neu', 2, {}, PC001_ENTRA_ID.toUpperCase()),
+        signInDto('ohne', 3, { deviceDetail: null }),
+      ],
+      PC001_ENTRA_ID,
+      meta,
+    );
+    expect(info.entries.map((e) => e.id)).toEqual(['neu', 'alt']);
+    expect(info.totalForUser).toBe(4);
+    expect(info.windowDays).toBe(7);
+    expect(info.moreAvailable).toBe(false);
+    expect(mapSignIns([], PC001_ENTRA_ID, { windowDays: 7, moreAvailable: true })).toMatchObject({
+      entries: [],
+      totalForUser: 0,
+      moreAvailable: true,
+    });
+  });
+
+  it('übernimmt weder IP-Adresse noch Standort, Risikoangaben oder UPN', () => {
+    const info = mapSignIns([signInDto('a', 1)], PC001_ENTRA_ID, meta);
+    const json = JSON.stringify(info);
+    for (const forbidden of [
+      '203.0.113.7',
+      'ipAddress',
+      'location',
+      'Contoso City',
+      'riskLevel',
+      'userPrincipalName',
+      'anna.schmidt',
+    ]) {
+      expect(json, forbidden).not.toContain(forbidden);
+    }
+    expect(Object.keys(info.entries[0]!).sort()).toEqual(
+      [
+        'additionalDetails',
+        'appDisplayName',
+        'appliedPolicies',
+        'clientAppUsed',
+        'conditionalAccessStatus',
+        'correlationId',
+        'createdDateTime',
+        'deviceIsCompliant',
+        'deviceIsManaged',
+        'errorCode',
+        'failureReason',
+        'id',
+        'isInteractive',
+        'resourceDisplayName',
+      ].sort(),
+    );
+  });
+
+  it('Fehlt appliedConditionalAccessPolicies (kein Leserecht), ist appliedPolicies null – sonst gemappt', () => {
+    const hidden = signInDto('h', 1);
+    delete hidden.appliedConditionalAccessPolicies;
+    const [entryHidden] = mapSignIns([hidden], PC001_ENTRA_ID, meta).entries;
+    expect(entryHidden!.appliedPolicies).toBeNull();
+
+    const [visible] = mapSignIns([signInDto('v', 1)], PC001_ENTRA_ID, meta).entries;
+    expect(visible!.appliedPolicies).toEqual([
+      {
+        id: 'pol-1',
+        displayName: 'Contoso – Kompatibles Gerät erforderlich',
+        result: 'success',
+        enforcedGrantControls: ['Require device to be marked as compliant'],
+        enforcedSessionControls: [],
+      },
+    ]);
+  });
+
+  it('ist null-sicher und verwirft unbekannte Enum-Werte', () => {
+    const odd = signInDto('o', 1, {
+      conditionalAccessStatus: 'reportOnlyFailure' as never,
+      status: null,
+      createdDateTime: 'kein-datum',
+      appliedConditionalAccessPolicies: [
+        {
+          id: null,
+          displayName: null,
+          enforcedGrantControls: null,
+          enforcedSessionControls: null,
+          result: 'reportOnlySuccess' as never,
+        },
+      ],
+    });
+    const [entry] = mapSignIns([odd], PC001_ENTRA_ID, meta).entries;
+    expect(entry).toMatchObject({
+      conditionalAccessStatus: null,
+      errorCode: null,
+      failureReason: null,
+      createdDateTime: null,
+    });
+    expect(entry!.appliedPolicies![0]).toEqual({
+      id: null,
+      displayName: null,
+      result: null,
+      enforcedGrantControls: [],
+      enforcedSessionControls: [],
     });
   });
 });

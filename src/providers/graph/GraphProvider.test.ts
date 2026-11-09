@@ -16,7 +16,9 @@ import {
   malware,
   PC001_ENTRA_ID,
   PC001_ID,
+  PC001_USER_ID,
   pc001Device,
+  signInDto,
   type FakeHandler,
 } from './fakeGraph';
 
@@ -642,5 +644,112 @@ describe('GraphProvider – Apple-MDM-Push-Zertifikat', () => {
       'ok',
     );
     expect(result.data).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
+  });
+});
+
+describe('GraphProvider – Anmeldungen (Entra-Anmeldeprotokoll)', () => {
+  const SIGN_INS_PATH = '/v1.0/auditLogs/signIns';
+
+  it('fragt per GET mit userId- und Zeitfilter ab (ohne $select), nur die erste Seite', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method ?? 'GET').toBe('GET');
+    expect(call.parsed.pathname).toBe(SIGN_INS_PATH);
+    expect(call.parsed.searchParams.get('$filter')).toBe(
+      `userId eq '${PC001_USER_ID}' and createdDateTime ge 2026-10-08T12:00:00Z`,
+    );
+    expect(call.parsed.searchParams.get('$top')).toBe('200');
+    expect(call.parsed.searchParams.has('$select')).toBe(false);
+    expect(result.source.label).toBe(Endpoints.signIns.display);
+    expect(result.data.windowDays).toBe(7);
+  });
+
+  it('grenzt clientseitig auf das Gerät ein (2 von 3 Einträgen gehören zu PC001)', async () => {
+    const { provider } = setup();
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.totalForUser).toBe(3);
+    expect(result.data.entries.map((e) => e.id)).toEqual(['s-1', 's-3']);
+    expect(result.data.entries[1]).toMatchObject({
+      conditionalAccessStatus: 'failure',
+      errorCode: 53000,
+    });
+    expect(JSON.stringify(result.data)).not.toMatch(/203\.0\.113\.7|ipAddress|location/);
+  });
+
+  it('folgt @odata.nextLink nicht, merkt sich aber, dass es weitere Seiten gibt', async () => {
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [signInDto('s-1', 1)],
+        '@odata.nextLink': 'https://graph.microsoft.com/v1.0/auditLogs/signIns?$skiptoken=abc',
+      }),
+    );
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.moreAvailable).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('ohne primären Benutzer: notApplicable ohne Request; ohne Entra-Geräte-ID: unavailable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const none = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(none.reason).toBe(de.reasons.signInsNoPrimaryUser);
+    const noId = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID, azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(noId.reason).toBe(de.reasons.noAzureAdDeviceId);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit requiredScope AuditLog.Read.All, ohne andere Sections zu beeinflussen', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === SIGN_INS_PATH
+        ? graphError(403, 'Authorization_RequestDenied')
+        : contosoHandler()(call),
+    );
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe('AuditLog.Read.All');
+    expectStatus(await provider.getEntraDevice(windowsDevice()), 'ok');
+  });
+
+  it('404 → unavailable, 500 → error', async () => {
+    const notFound = setup(() => graphError(404, 'ResourceNotFound'));
+    const unavailable = expectStatus(
+      await notFound.provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'unavailable',
+    );
+    expect(unavailable.reason).toBe(de.reasons.signInsNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(
+      await broken.provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'error',
+    );
+  });
+
+  it('Fehlt appliedConditionalAccessPolicies in der Antwort, liefert der Provider appliedPolicies null (kein Fehler)', async () => {
+    const entry = signInDto('s-1', 1);
+    delete entry.appliedConditionalAccessPolicies;
+    const { provider } = setup(() => collection([entry]));
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.entries[0]!.appliedPolicies).toBeNull();
   });
 });

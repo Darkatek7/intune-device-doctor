@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { de } from '../i18n/de';
+import { WINDOWS_TILE_COUNT } from '../test/fixtures';
 import { renderApp } from '../test/renderApp';
 
 async function search(user: ReturnType<typeof userEvent.setup>, query: string) {
@@ -14,12 +15,12 @@ const tileButtons = () =>
   screen.queryAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'dialog');
 
 describe('AppShell', () => {
-  it('zeigt nach der Suche 8 Kacheln und schreibt den URL-State', async () => {
+  it('zeigt nach der Suche alle Kacheln und schreibt den URL-State', async () => {
     const user = userEvent.setup();
     renderApp();
     await search(user, 'CONTOSO-PC001');
 
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     expect(screen.getByRole('heading', { level: 1, name: 'CONTOSO-PC001' })).toBeInTheDocument();
     expect(window.location.search).toMatch(/device=.+&mode=demo/);
   });
@@ -28,7 +29,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole('button', { name: /CONTOSO-PC014/ }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     expect(screen.getByRole('heading', { level: 1, name: 'CONTOSO-PC014' })).toBeInTheDocument();
   });
 
@@ -60,7 +61,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderApp();
     await search(user, 'CONTOSO-PC014');
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
 
     const tile = document.querySelector<HTMLButtonElement>('[data-tile-id="bitlocker"]')!;
     tile.focus();
@@ -81,7 +82,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderApp();
     await search(user, 'CONTOSO-PC001');
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
 
     await user.click(document.querySelector<HTMLButtonElement>('[data-tile-id="compliance"]')!);
     await screen.findByRole('dialog');
@@ -91,7 +92,7 @@ describe('AppShell', () => {
       await new Promise((r) => setTimeout(r, 30));
     });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(tileButtons()).toHaveLength(8);
+    expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT);
 
     await act(async () => {
       window.history.back();
@@ -125,7 +126,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     const first = renderApp();
     await search(user, 'CONTOSO-PC001');
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     await user.click(document.querySelector<HTMLButtonElement>('[data-tile-id="checkIn"]')!);
     await screen.findByRole('dialog');
     first.unmount();
@@ -141,7 +142,7 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     renderApp();
     await search(user, 'CONTOSO-PC001');
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     await user.keyboard('{Control>}k{/Control}');
     expect(screen.getByRole('combobox', { name: de.field.label })).toHaveFocus();
   });

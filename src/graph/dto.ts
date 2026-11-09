@@ -371,3 +371,62 @@ export interface GraphMobileAppIntentAndState {
   userId: string | null;
   mobileAppList: GraphMobileAppIntentAndStateDetail[] | null;
 }
+
+// ---------- Anmeldeprotokoll (v1.0, auditLogs/signIns) ----------
+// https://learn.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/signin?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/devicedetail?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/appliedconditionalaccesspolicy?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/signinstatus?view=graph-rest-1.0
+// Die Antwort enthält weitere Felder (ipAddress, location, Risiko-Felder, userPrincipalName …). Sie
+// stehen bewusst NICHT in diesem DTO und werden nie in das Domain-Modell übernommen (Datensparsamkeit).
+
+/** conditionalAccessStatus */
+export type ConditionalAccessStatus = 'success' | 'failure' | 'notApplied' | 'unknownFutureValue';
+
+/**
+ * appliedConditionalAccessPolicyResult. Die reportOnly*-Werte liefert Graph nur mit dem Header
+ * `Prefer: include-unknown-enum-members` – die App fordert ihn nicht an.
+ */
+export type AppliedConditionalAccessPolicyResult =
+  'success' | 'failure' | 'notApplied' | 'notEnabled' | 'unknown' | 'unknownFutureValue';
+
+export interface GraphAppliedConditionalAccessPolicy {
+  id: string | null;
+  displayName: string | null;
+  enforcedGrantControls: string[] | null;
+  enforcedSessionControls: string[] | null;
+  result: AppliedConditionalAccessPolicyResult | null;
+}
+
+export interface GraphSignInStatus {
+  /** 5–6-stelliger Entra-Fehlercode (Int32), 0 = Erfolg */
+  errorCode: number | null;
+  failureReason: string | null;
+  additionalDetails: string | null;
+}
+
+export interface GraphSignInDeviceDetail {
+  /** Nur für in Entra registrierte Geräte gefüllt */
+  deviceId: string | null;
+  isCompliant: boolean | null;
+  isManaged: boolean | null;
+  trustType: string | null;
+  operatingSystem: string | null;
+}
+
+export interface GraphSignIn {
+  id: string;
+  createdDateTime: string | null;
+  appDisplayName: string | null;
+  resourceDisplayName: string | null;
+  clientAppUsed: string | null;
+  isInteractive: boolean | null;
+  /** Anfrage-ID des Clients – nur zum Wiederfinden des Eintrags im Entra Admin Center */
+  correlationId: string | null;
+  conditionalAccessStatus: ConditionalAccessStatus | null;
+  status: GraphSignInStatus | null;
+  deviceDetail: GraphSignInDeviceDetail | null;
+  /** Fehlt komplett (kein Fehler!), wenn dem Konto das Leserecht auf Conditional-Access-Daten fehlt. */
+  appliedConditionalAccessPolicies?: GraphAppliedConditionalAccessPolicy[] | null;
+}

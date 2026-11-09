@@ -12,6 +12,7 @@ import { evaluateDefender } from './tiles/defender';
 import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
+import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
@@ -26,6 +27,7 @@ export const TILE_ORDER: TileId[] = [
   'defender',
   'policies',
   'apps',
+  'signIns',
   'entraJoin',
   'win32Apps',
   'enrollment',
@@ -45,6 +47,7 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   // App-Status (Graph beta) liefert in vielen Tenants keine Daten → Kachel nur, wenn Daten kamen;
   // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
+  tiles.push(evaluateSignIns(snapshot, now));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }

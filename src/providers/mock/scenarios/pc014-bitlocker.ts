@@ -8,6 +8,8 @@ import {
   policy,
   setting,
   windowsDevice,
+  signInEntry,
+  signInsInfo,
 } from './helpers';
 
 export const pc014Bitlocker: MockScenario = {
@@ -54,6 +56,30 @@ export const pc014Bitlocker: MockScenario = {
       configurationPolicies: { status: 'ok', data: healthyConfigurationPolicies() },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [] },
+      signIns: {
+        status: 'ok',
+        data: signInsInfo(
+          [
+            signInEntry(
+              now,
+              14,
+              { hours: 26 },
+              {
+                appDisplayName: 'Microsoft Teams',
+                resourceDisplayName: 'Microsoft Teams Services',
+                clientAppUsed: 'Mobile Apps and Desktop clients',
+                conditionalAccessStatus: 'failure',
+                errorCode: 53000,
+                failureReason: 'Access has been blocked due to conditional access policies.',
+                deviceIsCompliant: false,
+                appliedPolicies: null,
+              },
+            ),
+            signInEntry(now, 15, { days: 3 }, { deviceIsCompliant: false, appliedPolicies: null }),
+          ],
+          { totalForUser: 11 },
+        ),
+      },
     };
   },
 };

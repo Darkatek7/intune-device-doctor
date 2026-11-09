@@ -36,6 +36,7 @@ export const de = {
     entraJoin: 'Entra-Join & PRT',
     win32Apps: 'Win32-Apps',
     apps: 'Apps',
+    signIns: 'Anmeldungen',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -116,6 +117,11 @@ export const de = {
     applePushNotReported:
       'Graph meldet HTTP 404 für das Apple-MDM-Push-Zertifikat – über diese Schnittstelle nicht verfügbar.',
     appsNotReported: 'Für den primären Benutzer wurde kein App-Status gefunden (HTTP 404).',
+    // M10: Anmeldungen (Entra-Anmeldeprotokoll)
+    signInsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
+    signInsNotReported:
+      'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>

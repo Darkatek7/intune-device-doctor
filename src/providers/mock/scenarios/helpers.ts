@@ -3,13 +3,17 @@
  */
 import type {
   AppInstallStateInfo,
+  AppliedPolicyInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicySettingInfo,
   PolicyStateInfo,
+  SignInEntry,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../../domain/types';
+import { SIGN_IN_WINDOW_DAYS } from '../../../graph/endpoints';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -221,4 +225,71 @@ export function defaultAppStates(device: Pick<DeviceBase, 'osFamily'>): AppInsta
       installState: 'notInstalled',
     }),
   ];
+}
+
+/** Ein Eintrag des Anmeldeprotokolls (erfolgreich, ohne Conditional-Access-Eingriff). */
+export function signInEntry(
+  now: Date,
+  n: number,
+  ago_: { days?: number; hours?: number },
+  overrides: Partial<SignInEntry> = {},
+): SignInEntry {
+  return {
+    id: `00000000-0000-4000-e000-${n.toString(16).padStart(12, '0')}`,
+    createdDateTime: ago(now, ago_),
+    appDisplayName: 'Microsoft Office 365 Portal',
+    resourceDisplayName: 'Microsoft 365',
+    clientAppUsed: 'Browser',
+    isInteractive: true,
+    correlationId: `00000000-0000-4000-f000-${n.toString(16).padStart(12, '0')}`,
+    conditionalAccessStatus: 'success',
+    errorCode: 0,
+    failureReason: null,
+    additionalDetails: null,
+    deviceIsCompliant: true,
+    deviceIsManaged: true,
+    appliedPolicies: [
+      caPolicy('Contoso – Kompatibles Gerät erforderlich', 'success', [
+        'Require device to be marked as compliant',
+      ]),
+    ],
+    ...overrides,
+  };
+}
+
+/** Von Conditional Access ausgewertete Richtlinie (fiktiv). */
+export function caPolicy(
+  displayName: string,
+  result: AppliedPolicyInfo['result'],
+  grantControls: string[] = [],
+): AppliedPolicyInfo {
+  return {
+    id: `00000000-0000-4000-b100-${(displayName.length * 7919).toString(16).padStart(12, '0')}`,
+    displayName,
+    result,
+    enforcedGrantControls: grantControls,
+    enforcedSessionControls: [],
+  };
+}
+
+/** Anmeldungen eines Geräts; `totalForUser` zählt auch Anmeldungen an anderen Geräten. */
+export function signInsInfo(
+  entries: SignInEntry[],
+  overrides: Partial<SignInsInfo> = {},
+): SignInsInfo {
+  return {
+    windowDays: SIGN_IN_WINDOW_DAYS,
+    totalForUser: entries.length,
+    moreAvailable: false,
+    entries,
+    ...overrides,
+  };
+}
+
+/** Standard: zwei erfolgreiche Anmeldungen der letzten Tage, ohne Befund. */
+export function defaultSignIns(now: Date, _device: Pick<DeviceBase, 'osFamily'>): SignInsInfo {
+  void _device;
+  return signInsInfo([signInEntry(now, 1, { hours: 5 }), signInEntry(now, 2, { days: 2 })], {
+    totalForUser: 9,
+  });
 }

@@ -20,6 +20,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 
@@ -74,6 +75,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<ApplePushCertificateInfo>>;
+
+  /**
+   * Anmeldungen des primären Benutzers der letzten Tage, eingegrenzt auf dieses Gerät (Entra-
+   * Anmeldeprotokoll). Ohne primären Benutzer oder Entra-Geräte-ID nicht anwendbar bzw. nicht verfügbar.
+   */
+  getSignIns(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<SignInsInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

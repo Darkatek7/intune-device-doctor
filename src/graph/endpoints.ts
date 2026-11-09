@@ -44,6 +44,11 @@ function withQuery(path: string, params: Record<string, string>): string {
 
 const enc = encodeURIComponent;
 
+/** Zeitfenster der Anmeldungs-Abfrage (Tage) – Anzeige und `createdDateTime ge …` leiten sich hieraus ab. */
+export const SIGN_IN_WINDOW_DAYS = 7;
+/** Seitengröße der Abfrage: höchstens 1000 laut Doku; nur die erste Seite (neueste zuerst) wird gelesen. */
+export const SIGN_IN_PAGE_SIZE = 200;
+
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
   managedDevicesByName: {
@@ -235,6 +240,26 @@ export const Endpoints = {
     display: 'GET /beta/users/{userId}/mobileAppIntentAndStates',
     path: (userId: string) => `${GRAPH_BETA_URL}/users/${enc(userId)}/mobileAppIntentAndStates`,
   },
-} satisfies Record<string, GraphEndpointDef<[string]>>;
+  /**
+   * Anmeldeprotokoll des primären Benutzers der letzten Tage (neueste zuerst, nur erste Seite).
+   * `$filter` auf userId (eq) und createdDateTime (ge) ist laut Ressourcenseite dokumentiert; für
+   * deviceDetail/deviceId ist KEIN Filter dokumentiert → die Eingrenzung auf das Gerät erfolgt
+   * clientseitig. Bewusst ohne $select (nicht dokumentiert). Benötigt Entra ID P1/P2 und eine
+   * Entra-Rolle wie Reports Reader, Global Reader oder Security Reader.
+   */
+  signIns: {
+    id: 'signIns',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.AuditLogRead,
+    docsUrl: 'https://learn.microsoft.com/en-us/graph/api/signin-list?view=graph-rest-1.0',
+    display: "GET /auditLogs/signIns?$filter=userId eq '…' and createdDateTime ge …",
+    path: (userId: string, sinceIso: string) =>
+      withQuery('/auditLogs/signIns', {
+        $filter: `userId eq ${odataString(userId)} and createdDateTime ge ${sinceIso}`,
+        $top: String(SIGN_IN_PAGE_SIZE),
+      }),
+  },
+} satisfies Record<string, GraphEndpointDef<string[]>>;
 
 export type EndpointId = keyof typeof Endpoints;

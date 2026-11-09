@@ -82,6 +82,15 @@ export const Docs = {
   windows10EndOfSupport: 'https://learn.microsoft.com/windows/release-health/release-information',
   windows11Releases:
     'https://learn.microsoft.com/windows/release-health/windows11-release-information',
+  // M10: Anmeldungen / Conditional Access
+  signInResource: 'https://learn.microsoft.com/graph/api/resources/signin?view=graph-rest-1.0',
+  signInDeviceDetail:
+    'https://learn.microsoft.com/graph/api/resources/devicedetail?view=graph-rest-1.0',
+  signInList: 'https://learn.microsoft.com/graph/api/signin-list?view=graph-rest-1.0',
+  conditionalAccessTroubleshoot:
+    'https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#microsoft-entra-sign-in-events',
+  entraErrorCodes:
+    'https://learn.microsoft.com/entra/identity-platform/reference-error-codes#aadsts-error-codes',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

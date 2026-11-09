@@ -4,10 +4,11 @@
  * dieselbe Snapshot-Form liefern: gleiche Sections, gleiche status-Werte, gleiche Schlüssel.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { DeviceSnapshot, ManagedDeviceInfo } from '../domain/types';
+import type { ManagedDeviceInfo } from '../domain/types';
 import { ProviderError, type DeviceDataProvider } from './DeviceDataProvider';
 import { createFakeFetch, contosoHandler } from './graph/fakeGraph';
 import { createGraphProvider } from './graph/GraphProvider';
+import { loadFullSnapshot } from '../test/snapshot';
 import { MockProvider } from './mock/MockProvider';
 
 const NOW = new Date('2026-10-15T12:00:00Z');
@@ -34,37 +35,9 @@ const SECTION_KEYS = [
   'bitlockerKeys',
 ] as const;
 /** Zusätzlich beim Formvergleich Mock/Graph (für PC001 notApplicable, für MAC07 ok). */
-const SHAPE_KEYS = [...SECTION_KEYS, 'applePushCertificate'] as const;
+const SHAPE_KEYS = [...SECTION_KEYS, 'applePushCertificate', 'signIns'] as const;
 
-async function loadSnapshot(provider: DeviceDataProvider, name: string): Promise<DeviceSnapshot> {
-  const [hit] = await provider.searchDevices(name);
-  if (!hit) throw new Error(`${name} nicht gefunden`);
-  const device = await provider.getDevice(hit.id);
-  const [
-    protection,
-    compliancePolicies,
-    configurationPolicies,
-    entraDevice,
-    bitlockerKeys,
-    applePushCertificate,
-  ] = await Promise.all([
-    provider.getProtectionState(device),
-    provider.getCompliancePolicyStates(device),
-    provider.getConfigurationPolicyStates(device),
-    provider.getEntraDevice(device),
-    provider.getBitLockerKeys(device),
-    provider.getApplePushCertificate(device),
-  ]);
-  return {
-    device,
-    protection,
-    compliancePolicies,
-    configurationPolicies,
-    entraDevice,
-    bitlockerKeys,
-    applePushCertificate,
-  };
-}
+const loadSnapshot = loadFullSnapshot;
 
 const sortedKeys = (value: object) => Object.keys(value).sort();
 

@@ -12,6 +12,9 @@ import {
   policy,
   setting,
   windowsDevice,
+  caPolicy,
+  signInEntry,
+  signInsInfo,
 } from './helpers';
 
 export const pc042PolicyConflict: MockScenario = {
@@ -81,6 +84,56 @@ export const pc042PolicyConflict: MockScenario = {
       },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 42)] },
+      signIns: {
+        status: 'ok',
+        data: signInsInfo(
+          [
+            signInEntry(
+              now,
+              42,
+              { hours: 3 },
+              {
+                appDisplayName: 'Microsoft Teams',
+                resourceDisplayName: 'Microsoft Teams Services',
+                clientAppUsed: 'Mobile Apps and Desktop clients',
+                conditionalAccessStatus: 'failure',
+                errorCode: 53000,
+                failureReason: 'Device is not compliant.',
+                deviceIsCompliant: false,
+                appliedPolicies: [
+                  caPolicy('Contoso – Kompatibles Gerät erforderlich', 'failure', [
+                    'Require device to be marked as compliant',
+                  ]),
+                  caPolicy('Contoso – MFA für alle Benutzer', 'success', [
+                    'Require multifactor authentication',
+                  ]),
+                ],
+              },
+            ),
+            signInEntry(
+              now,
+              43,
+              { hours: 20 },
+              {
+                appDisplayName: 'Microsoft Teams',
+                resourceDisplayName: 'Microsoft Teams Services',
+                clientAppUsed: 'Mobile Apps and Desktop clients',
+                conditionalAccessStatus: 'failure',
+                errorCode: 53000,
+                failureReason: 'Device is not compliant.',
+                deviceIsCompliant: false,
+                appliedPolicies: [
+                  caPolicy('Contoso – Kompatibles Gerät erforderlich', 'failure', [
+                    'Require device to be marked as compliant',
+                  ]),
+                ],
+              },
+            ),
+            signInEntry(now, 44, { days: 2 }, { deviceIsCompliant: false }),
+          ],
+          { totalForUser: 17 },
+        ),
+      },
       // Passend zum Beispiel-ZIP: VPN-Client fehlgeschlagen, Zeiterfassung installiert
       appInstallStates: {
         status: 'ok',

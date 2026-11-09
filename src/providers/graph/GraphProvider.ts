@@ -15,6 +15,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 import {
@@ -32,10 +33,11 @@ import type {
   GraphManagedDevice,
   GraphMobileApp,
   GraphMobileAppIntentAndState,
+  GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
-import { Endpoints, type EndpointId } from '../../graph/endpoints';
+import { Endpoints, SIGN_IN_WINDOW_DAYS, type EndpointId } from '../../graph/endpoints';
 import {
   graphSource,
   mapApplePushCertificate,
@@ -46,6 +48,7 @@ import {
   mapMobileApp,
   mapPolicyState,
   mapSearchResult,
+  mapSignIns,
   mapWindowsProtection,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
@@ -413,6 +416,40 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapApplePushCertificate(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.applePushNotReported, source }),
+    );
+  }
+
+  /**
+   * Entra-Anmeldeprotokoll des primären Benutzers (nur die erste Seite, neueste zuerst). Der
+   * dokumentierte $filter deckt Benutzer und Zeitraum ab; auf das Gerät wird clientseitig eingegrenzt.
+   */
+  getSignIns(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<SignInsInfo>> {
+    const endpoint = Endpoints.signIns;
+    return this.run<SignInsInfo>(
+      'signIns',
+      async (source) => {
+        if (!device.userId) {
+          return { status: 'notApplicable', reason: de.reasons.signInsNoPrimaryUser, source };
+        }
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const since = new Date(this.now().getTime() - SIGN_IN_WINDOW_DAYS * 86_400_000);
+        const page = await this.client.get<GraphCollection<GraphSignIn>>(
+          endpoint.path(device.userId, since.toISOString().replace(/\.\d{3}Z$/, 'Z')),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        const info = mapSignIns(page?.value ?? [], azureAdId, {
+          windowDays: SIGN_IN_WINDOW_DAYS,
+          moreAvailable: Boolean(page?.['@odata.nextLink']),
+        });
+        return this.ok(info, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.signInsNotReported, source }),
     );
   }
 

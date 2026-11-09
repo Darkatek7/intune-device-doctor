@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MockProvider } from '../providers/mock/MockProvider';
+import { loadFullSnapshot } from '../test/snapshot';
 import { evaluateTiles } from './evaluate';
 import { buildTicketNote } from './ticketNote';
 
@@ -41,6 +42,21 @@ describe('buildTicketNote', () => {
     expect(note).not.toContain('Settings-Catalog-Profile nicht enthalten');
     // Problem-Kachel steht vor OK-Kacheln
     expect(note.indexOf('**Richtlinien**')).toBeLessThan(note.indexOf('**BitLocker**'));
+  });
+
+  it('enthält die Kachel „Anmeldungen“ samt Conditional-Access-Befund', async () => {
+    const provider = new MockProvider({ latency: false, now: () => NOW });
+    const snapshot = await loadFullSnapshot(provider, 'CONTOSO-PC042');
+    const note = buildTicketNote({
+      title: 'CONTOSO-PC042',
+      details: [],
+      mode: 'demo',
+      tiles: evaluateTiles(snapshot, NOW),
+      now: NOW,
+    });
+    expect(note).toContain('**Anmeldungen**');
+    expect(note).toContain('Anmeldungen: 2× Conditional-Access-Fehler bei „Microsoft Teams“');
+    expect(note).toContain('GET /auditLogs/signIns');
   });
 
   it('gesundes Gerät: "Keine Probleme gefunden."', async () => {

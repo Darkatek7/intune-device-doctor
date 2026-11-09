@@ -3,6 +3,7 @@
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
 import type {
+  AppliedPolicyInfo,
   ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
@@ -14,13 +15,18 @@ import type {
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SignInEntry,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
+  AppliedConditionalAccessPolicyResult,
   ComplianceState,
   ComplianceStatus,
+  ConditionalAccessStatus,
   DeviceEnrollmentType,
+  GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
   GraphDevicePolicyState,
@@ -31,6 +37,7 @@ import type {
   MobileAppIntent,
   ResultantAppState,
   GraphPolicySettingState,
+  GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
   ManagedDevicePartnerReportedHealthState,
@@ -486,5 +493,82 @@ export function mapApplePushCertificate(
   return {
     expirationDateTime: validDate(cert.expirationDateTime),
     lastModifiedDateTime: validDate(cert.lastModifiedDateTime),
+  };
+}
+
+// ---------- Anmeldeprotokoll ----------
+
+const CA_STATUSES: readonly ConditionalAccessStatus[] = [
+  'success',
+  'failure',
+  'notApplied',
+  'unknownFutureValue',
+];
+
+const CA_POLICY_RESULTS: readonly AppliedConditionalAccessPolicyResult[] = [
+  'success',
+  'failure',
+  'notApplied',
+  'notEnabled',
+  'unknown',
+  'unknownFutureValue',
+];
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+
+function mapAppliedPolicy(dto: GraphAppliedConditionalAccessPolicy): AppliedPolicyInfo {
+  return {
+    id: str(dto?.id),
+    displayName: str(dto?.displayName),
+    result: pickOrNull(dto?.result, CA_POLICY_RESULTS),
+    enforcedGrantControls: strings(dto?.enforcedGrantControls),
+    enforcedSessionControls: strings(dto?.enforcedSessionControls),
+  };
+}
+
+function mapSignInEntry(dto: GraphSignIn): SignInEntry {
+  return {
+    id: dto.id,
+    createdDateTime: validDate(dto.createdDateTime),
+    appDisplayName: str(dto.appDisplayName),
+    resourceDisplayName: str(dto.resourceDisplayName),
+    clientAppUsed: str(dto.clientAppUsed),
+    isInteractive: bool(dto.isInteractive),
+    correlationId: str(dto.correlationId),
+    conditionalAccessStatus: pickOrNull(dto.conditionalAccessStatus, CA_STATUSES),
+    errorCode: num(dto.status?.errorCode),
+    failureReason: str(dto.status?.failureReason),
+    additionalDetails: str(dto.status?.additionalDetails),
+    deviceIsCompliant: bool(dto.deviceDetail?.isCompliant),
+    deviceIsManaged: bool(dto.deviceDetail?.isManaged),
+    // Fehlt das Feld, darf das Konto Conditional-Access-Daten nicht lesen (kein 403!).
+    appliedPolicies: Array.isArray(dto.appliedConditionalAccessPolicies)
+      ? dto.appliedConditionalAccessPolicies.map(mapAppliedPolicy)
+      : null,
+  };
+}
+
+/**
+ * Die Abfrage filtert nur auf Benutzer und Zeitraum (deviceDetail/deviceId ist laut Doku nicht
+ * filterbar) – hier wird clientseitig auf die Entra-Geräte-ID des Geräts eingegrenzt (ohne
+ * Beachtung der Groß-/Kleinschreibung), neueste zuerst. IP-Adresse, Standort und Risikoangaben
+ * der Antwort werden nie übernommen.
+ */
+export function mapSignIns(
+  entries: GraphSignIn[],
+  azureAdDeviceId: string,
+  meta: { windowDays: number; moreAvailable: boolean },
+): SignInsInfo {
+  const wanted = azureAdDeviceId.trim().toLowerCase();
+  const forDevice = entries
+    .filter((entry) => str(entry?.deviceDetail?.deviceId)?.trim().toLowerCase() === wanted)
+    .map(mapSignInEntry)
+    .sort((a, b) => Date.parse(b.createdDateTime ?? '') - Date.parse(a.createdDateTime ?? '') || 0);
+  return {
+    windowDays: meta.windowDays,
+    totalForUser: entries.length,
+    moreAvailable: meta.moreAvailable,
+    entries: forDevice,
   };
 }

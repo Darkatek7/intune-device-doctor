@@ -581,6 +581,74 @@ export const deRules = {
     } as Record<string, string>,
     unknownIntent: 'unbekannt',
   },
+  /** M10: Kachel „Anmeldungen“ (Entra-Anmeldeprotokoll, Conditional Access) */
+  signIns: {
+    valueFailures: (n: number) => (n === 1 ? '1 CA-Fehler' : `${n} CA-Fehler`),
+    valueOk: 'Keine CA-Fehler',
+    valueNone: 'Keine Anmeldungen',
+    summary: (count: number, days: number) =>
+      `${count === 1 ? '1 Anmeldung' : `${count} Anmeldungen`} dieses Geräts in ${days} Tagen`,
+    summaryNone: (days: number) =>
+      `Keine Anmeldung dieses Geräts in den letzten ${days} Tagen gefunden`,
+    facts: {
+      deviceCount: (days: number) => `Anmeldungen dieses Geräts (${days} Tage)`,
+      failures: 'Mit Conditional-Access-Fehler',
+      last: 'Letzte Anmeldung',
+      userCount: 'Ausgewertete Anmeldungen des Benutzers',
+      userCountMore: (n: number) => `${n} (nur die neuesten)`,
+      policyDetails: 'Richtliniendetails',
+      policyVisible: 'sichtbar',
+      policyHidden: 'nicht sichtbar (Rolle)',
+    },
+    failureTitle: (app: string, count: number) =>
+      count === 1
+        ? `Conditional-Access-Fehler bei „${app}“`
+        : `${count}× Conditional-Access-Fehler bei „${app}“`,
+    failureDetail: (p: {
+      when: string;
+      resource: string | null;
+      app: string;
+      client: string | null;
+    }) =>
+      `Zuletzt ${p.when}: Anmeldung mit „${p.app}“${p.resource ? ` an „${p.resource}“` : ''}${p.client ? ` (Client: ${p.client})` : ''} – conditionalAccessStatus: failure.`,
+    failedPolicies: (names: string) => `Fehlgeschlagene Richtlinie(n): ${names}.`,
+    failedPoliciesNone:
+      'Graph nennt zu diesem Eintrag keine als „failure“ ausgewertete Richtlinie.',
+    policiesHiddenShort: 'Richtliniendetails nicht sichtbar (Rolle).',
+    errorLine: (code: number, name: string | null, reason: string | null) =>
+      `Fehlercode ${code}${name ? ` (${name})` : ''}${reason ? `: ${reason}` : ''}.`,
+    unknownCode: (code: number) =>
+      `Unbekannter Code ${code} (AADSTS${code}) – keine Deutung belegt.`,
+    failureCause:
+      'Eine Conditional-Access-Richtlinie hat diese Anmeldung nicht zugelassen bzw. ihre Zugriffssteuerung als nicht erfüllt ausgewertet (conditionalAccessStatus: failure).',
+    hiddenTitle: 'Richtliniendetails nicht sichtbar (Rolle)',
+    hiddenDetail:
+      'Die Anmeldeeinträge enthalten kein Feld appliedConditionalAccessPolicies. Graph lässt es ohne Leserecht auf Conditional-Access-Daten weg – ohne Fehlermeldung.',
+    hiddenCause:
+      'Das angemeldete Konto darf Anmeldeprotokolle lesen, aber keine Conditional-Access-Daten. Welche Richtlinie die Anmeldung abgewiesen hat, lässt sich deshalb hier nicht anzeigen.',
+    hiddenRemediation: [
+      'Mit einem Konto mit einer der Rollen Global Reader, Security Reader, Security Administrator oder Conditional Access Administrator erneut prüfen – nur diese gewähren laut Microsoft Zugriff auf Conditional-Access-Daten im Anmeldeprotokoll.',
+      'Alternativ den Eintrag im Entra Admin Center unter Entra ID › Überwachung & Integrität › Anmeldeprotokolle über die Korrelations-ID öffnen.',
+    ],
+    noneTitle: 'Keine Anmeldungen dieses Geräts gefunden',
+    noneDetail: (days: number, total: number, more: boolean) =>
+      `Unter ${more ? 'den neuesten ' : ''}${total} Anmeldungen des primären Benutzers der letzten ${days} Tage gehört keine zu diesem Gerät${more ? ' (weitere Seiten wurden nicht gelesen)' : ''}.`,
+    noneCause:
+      'Das Anmeldeprotokoll enthält laut Microsoft nur interaktive und erfolgreiche föderierte Anmeldungen; die Geräte-ID ist nur für in Microsoft Entra registrierte Geräte gefüllt. Meldet sich niemand am Gerät an, ist das kein Fehler.',
+    noneRemediation: [
+      'Bei Verdacht auf Anmeldeprobleme im Entra Admin Center unter Anmeldeprotokolle nach Benutzer und Gerät filtern.',
+      'Zeitraum und Anmeldetyp (interaktiv/nicht interaktiv) im Portal ausweiten – diese App liest nur die neuesten interaktiven Einträge.',
+    ],
+    mismatchTitle: 'Anmeldung als „nicht konform“ erfasst, Intune meldet „konform“',
+    mismatchDetail: (when: string) =>
+      `Im Anmeldeeintrag vom ${when} steht deviceDetail.isCompliant = false, Intune meldet das Gerät aktuell als konform.`,
+    mismatchCause:
+      'Der Anmeldeeintrag hält die Geräteangaben fest, die bei dieser Anmeldung erhoben wurden. Der Compliance-Status des Geräts kann sich seitdem geändert haben.',
+    mismatchRemediation: [
+      'Zeitpunkt der Anmeldung mit dem letzten Check-in und der letzten Compliance-Auswertung vergleichen.',
+      'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
+    ],
+  },
   policies: {
     valueOk: 'Alle angewendet',
     valueProblems: (n: number) => `${n} ${n === 1 ? 'Problem' : 'Probleme'}`,

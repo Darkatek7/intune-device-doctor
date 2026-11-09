@@ -6,6 +6,7 @@ import type {
   WindowsMalwareSeverity,
 } from '../../graph/dto';
 import type { DeviceSearchResult, ManagedDeviceInfo, SectionResult } from '../../domain/types';
+import { Endpoints } from '../../graph/endpoints';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider } from '../DeviceDataProvider';
 import { MockProvider } from './MockProvider';
@@ -588,5 +589,67 @@ describe('MockProvider – Apple-MDM-Push-Zertifikat', () => {
         expect(result.reason).toBe(de.reasons.applePushNotApple);
       }
     }
+  });
+});
+
+describe('MockProvider – Anmeldungen', () => {
+  const provider = new MockProvider({ latency: false, now: () => NOW });
+
+  async function signIns(name: string) {
+    const device = await loadDevice(provider, name);
+    return provider.getSignIns(device);
+  }
+
+  it('Standard: Gerät mit Benutzer → ok mit erfolgreichen Anmeldungen und Quelle', async () => {
+    const result = await signIns('CONTOSO-PC001');
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+    expect(result.data.windowDays).toBe(7);
+    expect(result.data.entries.length).toBeGreaterThan(0);
+    expect(result.data.entries.every((e) => e.conditionalAccessStatus === 'success')).toBe(true);
+    expect(result.source.label).toBe(Endpoints.signIns.display);
+    expect(result.source.kind).toBe('mock');
+  });
+
+  it('Problemfälle: PC042 zwei CA-Fehler mit sichtbaren Richtlinien, PC014 mit nicht sichtbaren, PC033 keine Anmeldungen', async () => {
+    const pc042 = await signIns('CONTOSO-PC042');
+    const pc014 = await signIns('CONTOSO-PC014');
+    const pc033 = await signIns('CONTOSO-PC033');
+    if (pc042.status !== 'ok' || pc014.status !== 'ok' || pc033.status !== 'ok') {
+      throw new Error('ok erwartet');
+    }
+    const failures = (data: typeof pc042.data) =>
+      data.entries.filter((e) => e.conditionalAccessStatus === 'failure');
+    expect(failures(pc042.data)).toHaveLength(2);
+    expect(failures(pc042.data)[0]!.appliedPolicies).not.toBeNull();
+    expect(failures(pc014.data)[0]!.appliedPolicies).toBeNull();
+    expect(pc033.data.entries).toEqual([]);
+    expect(pc033.data.totalForUser).toBeGreaterThan(0);
+  });
+
+  it('PC050: forbidden mit Scope AuditLog.Read.All', async () => {
+    const result = await signIns('CONTOSO-PC050');
+    expect(result.status).toBe('forbidden');
+    if (result.status === 'forbidden') {
+      expect(result.error.requiredScope).toBe('AuditLog.Read.All');
+    }
+  });
+
+  it('Gerät ohne primären Benutzer → notApplicable', async () => {
+    const userless: MockScenario = {
+      deviceName: 'CONTOSO-KIOSK1',
+      label: 'x',
+      build: (now) => {
+        const base = scenarios[0]!.build(now);
+        return {
+          ...base,
+          device: { ...base.device, id: 'k1', deviceName: 'CONTOSO-KIOSK1', userId: null },
+        };
+      },
+    };
+    const custom = new MockProvider({ scenarios: [userless], latency: false, now: () => NOW });
+    const device = await custom.getDevice('k1');
+    const result = await custom.getSignIns(device);
+    expect(result.status).toBe('notApplicable');
   });
 });

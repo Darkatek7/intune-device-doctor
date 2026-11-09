@@ -7,6 +7,7 @@ import type {
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
@@ -197,6 +198,50 @@ export function bitlockerKey(
   return { id, createdDateTime: iso(24 * 200), deviceId: PC001_ENTRA_ID, volumeType };
 }
 
+/** Anmeldeeintrag; enthält wie die echte Antwort auch IP-Adresse und Standort (dürfen nie ankommen). */
+export function signInDto(
+  id: string,
+  hoursAgo: number,
+  overrides: Partial<GraphSignIn> = {},
+  deviceId: string = PC001_ENTRA_ID,
+): GraphSignIn {
+  return {
+    id,
+    createdDateTime: iso(hoursAgo),
+    appDisplayName: 'Microsoft Teams',
+    resourceDisplayName: 'Microsoft Teams Services',
+    clientAppUsed: 'Mobile Apps and Desktop clients',
+    isInteractive: true,
+    correlationId: `corr-${id}`,
+    conditionalAccessStatus: 'success',
+    status: { errorCode: 0, failureReason: null, additionalDetails: null },
+    deviceDetail: {
+      deviceId,
+      isCompliant: true,
+      isManaged: true,
+      trustType: 'Azure AD joined',
+      operatingSystem: 'Windows 11',
+    },
+    appliedConditionalAccessPolicies: [
+      {
+        id: 'pol-1',
+        displayName: 'Contoso – Kompatibles Gerät erforderlich',
+        enforcedGrantControls: ['Require device to be marked as compliant'],
+        enforcedSessionControls: [],
+        result: 'success',
+      },
+    ],
+    // nur in der echten Antwort vorhanden, nicht im DTO:
+    ...({
+      ipAddress: '203.0.113.7',
+      location: { city: 'Contoso City', countryOrRegion: 'DE' },
+      riskLevelAggregated: 'none',
+      userPrincipalName: 'anna.schmidt@contoso.com',
+    } as object),
+    ...overrides,
+  };
+}
+
 export function malware(): GraphWindowsDeviceMalwareState {
   return {
     id: 'm-1',
@@ -284,6 +329,25 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         expirationDateTime: '2027-05-03T12:00:00Z',
         lastModifiedDateTime: '2026-05-03T12:00:00Z',
       });
+    }
+    if (path === '/v1.0/auditLogs/signIns') {
+      const userId = /^userId eq '([^']*)' and createdDateTime ge /.exec(filter)?.[1];
+      return collection(
+        userId === PC001_USER_ID
+          ? [
+              signInDto('s-1', 2),
+              signInDto('s-2', 5, {}, '00000000-0000-4000-9000-0000000000ff'),
+              signInDto('s-3', 30, {
+                conditionalAccessStatus: 'failure',
+                status: {
+                  errorCode: 53000,
+                  failureReason: 'Device is not compliant.',
+                  additionalDetails: null,
+                },
+              }),
+            ]
+          : [],
+      );
     }
     if (path === '/v1.0/informationProtection/bitlocker/recoveryKeys') {
       const id = /^deviceId eq '(.*)'$/.exec(filter)?.[1];

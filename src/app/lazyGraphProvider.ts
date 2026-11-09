@@ -14,6 +14,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { de } from '../i18n/de';
@@ -105,6 +106,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<ApplePushCertificateInfo>((p) =>
       p.getApplePushCertificate(device, options),
     );
+  }
+
+  getSignIns(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<SignInsInfo>((p) => p.getSignIns(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

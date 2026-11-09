@@ -10,6 +10,7 @@ import type {
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 
@@ -34,6 +35,8 @@ export interface MockDeviceFixture {
   appInstallStates?: MockSection<AppInstallStateInfo[]>;
   /** Optional – ohne Angabe: Apple-Geräte ok (läuft in ~200 Tagen ab), andere notApplicable. */
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
+  /** Optional – ohne Angabe: Geräte mit Benutzer ok (zwei erfolgreiche Anmeldungen), sonst notApplicable. */
+  signIns?: MockSection<SignInsInfo>;
 }
 
 export interface MockScenario {
