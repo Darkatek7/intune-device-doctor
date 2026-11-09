@@ -15,6 +15,7 @@ import {
 const SEVERITY_CASES = [
   { device: 'CONTOSO-PC014', title: 'BitLocker', badge: T.critical },
   { device: 'CONTOSO-PC027', title: 'Defender', badge: T.warning },
+  { device: 'CONTOSO-PC027', title: 'Sicherheitswarnungen', badge: T.critical },
   { device: 'CONTOSO-PC033', title: 'Letzter Check-in', badge: T.critical },
   { device: 'CONTOSO-PC042', title: 'Richtlinien', badge: T.critical },
   { device: 'CONTOSO-PC042', title: 'Compliance', badge: T.warning },

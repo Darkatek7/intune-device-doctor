@@ -39,10 +39,18 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** Kleine Textabelle (z. B. gleichnamige Entra-Objekte); horizontal scrollbar, Markierung für die Hervorhebung. */
-function FindingTableView({ table }: { table: FindingTable }) {
+/**
+ * Kleine Textabelle (z. B. gleichnamige Entra-Objekte); horizontal scrollbar, Markierung für die Hervorhebung.
+ * Der scrollbare Bereich ist per Tastatur fokussierbar und benannt (WCAG 2.1.1, axe „scrollable-region-focusable“).
+ */
+function FindingTableView({ table, label }: { table: FindingTable; label: string }) {
   return (
-    <div className="hc-edge overflow-x-auto rounded-xl bg-canvas">
+    <div
+      role="region"
+      aria-label={label}
+      tabIndex={0}
+      className="hc-edge overflow-x-auto rounded-xl bg-canvas outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
       <table className="w-full min-w-max border-collapse text-left text-sm">
         <thead>
           <tr className="text-xs text-secondary-label">
@@ -117,7 +125,9 @@ export function FindingCard({ finding }: { finding: Finding }) {
           </ol>
         </Section>
       )}
-      {finding.table && <FindingTableView table={finding.table} />}
+      {finding.table && (
+        <FindingTableView table={finding.table} label={de.detail.table(finding.title)} />
+      )}
       {finding.links && finding.links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {finding.links.map((link) => (

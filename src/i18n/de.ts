@@ -67,6 +67,8 @@ export const de = {
     source: 'Quelle',
     docs: 'Microsoft-Dokumentation',
     close: 'Schließen',
+    /** Zugänglicher Name der scrollbaren Befund-Tabelle (per Tastatur erreichbar) */
+    table: (title: string) => `Tabelle: ${title}`,
   },
   states: {
     loading: 'Wird geladen …',

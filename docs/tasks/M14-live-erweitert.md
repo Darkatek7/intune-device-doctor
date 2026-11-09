@@ -51,8 +51,8 @@ Recherche gegen Microsoft Learn am 2026-11-09 (Fakten unten mit URL). Vor der Um
 
 ## Akzeptanz
 
-- [ ] Referenz, README, Live-Prüfliste ergänzt; jede Deutung mit Learn-URL
-- [ ] Read-only-Test grün; Tests: VPP-`token`/`appleId` nie im Ergebnis; Defender-Evidenz ohne Personendaten; LAPS unverändert
-- [ ] Jede neue Section unabhängig (403/404/Fehler)
-- [ ] Demo zeigt jede neue Kachel/Ansicht mindestens einmal mit Befund
-- [ ] `npm run check` und E2E grün
+- [x] Referenz, README, Live-Prüfliste ergänzt; jede Deutung mit Learn-URL
+- [x] Read-only-Test grün; Tests: VPP-`token`/`appleId` nie im Ergebnis; Defender-Evidenz ohne Personendaten; LAPS unverändert
+- [x] Jede neue Section unabhängig (403/404/Fehler)
+- [x] Demo zeigt jede neue Kachel/Ansicht mindestens einmal mit Befund (Ausnahme: der Verbindungstest ist per Vorgabe nur Live; im Demo-Modus fehlt sein Einstieg, E2E prüft das)
+- [x] `npm run check` und E2E grün
