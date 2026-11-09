@@ -145,4 +145,26 @@ describe('AppShell', () => {
     await user.keyboard('{Control>}k{/Control}');
     expect(screen.getByRole('combobox', { name: de.field.label })).toHaveFocus();
   });
+
+  it('merkt geöffnete Geräte und zeigt sie auf der Startseite unter „Zuletzt geöffnet“', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    expect(screen.queryByRole('list', { name: de.comfort.recentList })).not.toBeInTheDocument();
+
+    await search(user, 'CONTOSO-PC014');
+    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await user.click(screen.getByRole('button', { name: de.toolbar.home }));
+
+    const list = await screen.findByRole('list', { name: de.comfort.recentList });
+    await user.click(
+      within(list).getByRole('button', { name: de.comfort.recentOpen('CONTOSO-PC014') }),
+    );
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC014' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: de.toolbar.home }));
+    await user.click(await screen.findByRole('button', { name: de.comfort.recentClear }));
+    expect(screen.queryByRole('list', { name: de.comfort.recentList })).not.toBeInTheDocument();
+  });
 });

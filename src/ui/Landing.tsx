@@ -1,9 +1,12 @@
 import { ChevronRight, Laptop, Stethoscope } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { de } from '../i18n/de';
+import type { DataMode } from '../domain/types';
+import type { RecentDevice } from '../hooks/useRecentDevices';
 import type { ExampleDevice } from '../hooks/useExampleDevices';
 import { EXAMPLE_CHIP_CLASS } from './chipStyles';
 import { DropZone } from './DropZone';
+import { RecentDevices } from './RecentDevices';
 
 interface Props {
   /** Großes Suchfeld */
@@ -14,10 +17,25 @@ interface Props {
   /** Platz für weitere Chips, z. B. "Beispiel-ZIP analysieren" (M5) */
   extraChips?: ReactNode;
   onFile?: (file: File) => void;
+  /** Zuletzt geöffnete Geräte dieses Modus (leer = Bereich entfällt) */
+  recent?: RecentDevice[];
+  mode?: DataMode;
+  onOpenRecent?: (device: RecentDevice) => void;
+  onClearRecent?: () => void;
 }
 
 /** Leerer Zustand: großes Suchfeld, Beispiel-Chips, Drop-Zone. */
-export function Landing({ search, examples, onPickExample, extraChips, onFile }: Props) {
+export function Landing({
+  search,
+  examples,
+  onPickExample,
+  extraChips,
+  onFile,
+  recent = [],
+  mode = 'demo',
+  onOpenRecent,
+  onClearRecent,
+}: Props) {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center gap-9 py-8 sm:py-16">
       <div className="flex flex-col items-center text-center">
@@ -32,6 +50,9 @@ export function Landing({ search, examples, onPickExample, extraChips, onFile }:
         </p>
       </div>
       <div className="w-full max-w-2xl">{search}</div>
+      {onOpenRecent && onClearRecent && (
+        <RecentDevices devices={recent} mode={mode} onOpen={onOpenRecent} onClear={onClearRecent} />
+      )}
       {(examples.length > 0 || extraChips) && (
         <div className="w-full">
           <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-[0.06em] text-secondary-label">

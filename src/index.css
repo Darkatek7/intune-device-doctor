@@ -339,3 +339,57 @@ body {
   line-height: 1.06;
   text-wrap: balance;
 }
+
+/*
+ * Drucken / PDF (Ticket-Notiz): Nur der Notiz-Container (`data-print-note`, per Portal direkt unter
+ * <body>) wird ausgegeben – schwarz auf weiß, Systemschrift, Seitenränder. Alles andere entfällt.
+ */
+@media print {
+  @page {
+    margin: 18mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  body > :not([data-print-note]) {
+    display: none !important;
+  }
+
+  [data-print-note] {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  [data-print-note] > :not(.print-panel) {
+    display: none !important;
+  }
+
+  .print-panel {
+    display: block !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  [data-print-text] {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 11pt;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #000;
+  }
+}

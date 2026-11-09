@@ -11,6 +11,8 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useExampleDevices } from '../hooks/useExampleDevices';
 import { usePageFileDrop } from '../hooks/usePageFileDrop';
 import { closeTileInHistory, navigateTo, parseUrl, useUrlState } from '../hooks/useUrlState';
+import { useRecentDevices } from '../hooks/useRecentDevices';
+import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
 import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
@@ -42,11 +44,6 @@ interface ZipHistoryState {
 
 const isZipHistoryEntry = () => Boolean((window.history.state as ZipHistoryState | null)?.zipView);
 
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-}
-
 export function AppShell(props: Props) {
   const { mode, setMode } = useProviderContext();
   const url = useUrlState();
@@ -64,6 +61,7 @@ function Shell({ account, extraChips }: Props) {
   const { mode, setMode, provider, liveAvailable } = useProviderContext();
   const url = useUrlState();
   const examples = useExampleDevices(mode);
+  const recentDevices = useRecentDevices(mode);
   const online = useOnlineStatus();
   const { state, suggestions, search, suggest, clearSuggestions, reset } =
     useDeviceSearch(provider);
@@ -171,21 +169,7 @@ function Shell({ account, extraChips }: Props) {
     navigateTo({ device: null, tile: null, mode: next });
   };
 
-  // Tastaturkürzel: ⌘K / Strg+K und "/" fokussieren die Suche.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const isK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
-      const isSlash = event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey;
-      if (!isK && !(isSlash && !isEditable(event.target))) return;
-      const input = inputRef.current;
-      if (!input || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
-      event.preventDefault();
-      input.focus();
-      input.select();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  useSearchShortcut(inputRef);
 
   const field = (size: 'large' | 'compact') => (
     <SearchField
@@ -252,6 +236,7 @@ function Shell({ account, extraChips }: Props) {
         }}
         onRetryDevice={() => setRetryKey((k) => k + 1)}
         onToneChange={setDeviceTone}
+        onDeviceLoaded={recentDevices.remember}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
@@ -337,6 +322,10 @@ function Shell({ account, extraChips }: Props) {
           </>
         }
         onFile={startAnalysis}
+        recent={recentDevices.recent}
+        mode={mode}
+        onOpenRecent={openDevice}
+        onClearRecent={recentDevices.clear}
       />
     );
   }

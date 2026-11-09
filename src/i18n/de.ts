@@ -175,7 +175,6 @@ export const de = {
   },
   field: {
     label: 'Gerätename oder Benutzer',
-    shortcut: '⌘K',
     shortcutHint: 'Zum Suchen ⌘K, Strg+K oder / drücken',
     suggestions: 'Vorschläge',
     clear: 'Eingabe löschen',
@@ -370,5 +369,20 @@ export const de = {
       'CONTOSO-AND21': 'Android · alter Patch',
       'CONTOSO-PC050': 'Fehlende Berechtigung',
     },
+  },
+  /** M9/B: Bedienkomfort – zuletzt geöffnete Geräte, Tastaturkürzel, Drucken */
+  comfort: {
+    recentTitle: 'Zuletzt geöffnet',
+    recentList: 'Zuletzt geöffnete Geräte',
+    recentOpen: (deviceName: string) => `${deviceName} erneut öffnen`,
+    recentClear: 'Verlauf löschen',
+    recentLocalOnly: 'Nur in diesem Browser gespeichert',
+    shortcutApple: '⌘K',
+    shortcutOther: 'Strg K',
+    printButton: 'Drucken / PDF',
+    printHint: 'Notiz drucken oder über den Druckdialog als PDF speichern.',
+    printDialogBody:
+      'Die Notiz wird beim Drucken ohne den Rest der Seite ausgegeben. Zum Speichern als PDF im Druckdialog „Als PDF speichern“ wählen.',
+    printDocumentLabel: 'Druckansicht der Ticket-Notiz',
   },
 } as const;

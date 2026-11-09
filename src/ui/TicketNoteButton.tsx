@@ -1,4 +1,4 @@
-import { Check, ClipboardCopy } from 'lucide-react';
+import { Check, ClipboardCopy, Printer } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { de } from '../i18n/de';
@@ -20,9 +20,12 @@ const FEEDBACK_MS = 2000;
  */
 export function TicketNoteButton({ getNote, disabled = false }: Props) {
   const [copied, setCopied] = useState(false);
-  const [fallback, setFallback] = useState<string | null>(null);
+  const [fallback, setFallback] = useState<{ text: string; reason: 'clipboard' | 'print' } | null>(
+    null,
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const printRef = useRef<HTMLButtonElement>(null);
 
   useEffect(
     () => () => {
@@ -41,13 +44,14 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
       timer.current = setTimeout(() => setCopied(false), FEEDBACK_MS);
     } catch {
       setCopied(false);
-      setFallback(text);
+      setFallback({ text, reason: 'clipboard' });
     }
   };
 
   const closeFallback = () => {
+    const reason = fallback?.reason;
     setFallback(null);
-    buttonRef.current?.focus();
+    (reason === 'print' ? printRef : buttonRef).current?.focus();
   };
 
   return (
@@ -75,9 +79,25 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
         <ClipboardCopy aria-hidden="true" size={16} />
         {de.ticket.button}
       </button>
+      <button
+        ref={printRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => setFallback({ text: getNote(), reason: 'print' })}
+        title={de.comfort.printHint}
+        className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <Printer aria-hidden="true" size={16} />
+        {de.comfort.printButton}
+      </button>
       <AnimatePresence>
         {fallback !== null && (
-          <TicketNoteDialog key="ticket-dialog" text={fallback} onClose={closeFallback} />
+          <TicketNoteDialog
+            key="ticket-dialog"
+            text={fallback.text}
+            reason={fallback.reason}
+            onClose={closeFallback}
+          />
         )}
       </AnimatePresence>
     </div>
