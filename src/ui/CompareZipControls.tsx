@@ -19,7 +19,7 @@ interface Props {
 }
 
 const BUTTON_CLASS =
-  'inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
 
 const toSnapshot = (report: DiagnosticsReport, tiles: readonly Tile[], now: Date): SnapshotFile =>
   buildSnapshotFile({
@@ -112,7 +112,7 @@ export function CompareZipControls({ report, tiles }: Props) {
       <p role="status" aria-live="polite" className="text-sm text-secondary-label">
         {running ? de.compare.zipAnalyzing(state.fileName ?? '') : ''}
       </p>
-      <p role="alert" className="text-sm text-critical">
+      <p role="alert" className="text-sm text-critical empty:hidden">
         {errorText}
       </p>
       <AnimatePresence>

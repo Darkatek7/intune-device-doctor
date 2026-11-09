@@ -52,16 +52,15 @@ export function ZipHeader({ report, summary, onBack, actions }: Props) {
             <p className="break-all text-xs text-secondary-label">{report.fileName}</p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:items-end sm:pb-1">
-          <div
-            aria-label={de.header.summaryLabel}
-            className="flex flex-wrap items-center gap-2 text-sm font-medium text-label"
-          >
-            <SummaryPills summary={summary} />
-          </div>
-          {actions}
+        <div
+          aria-label={de.header.summaryLabel}
+          className="flex shrink-0 flex-wrap items-center gap-2 text-sm font-medium text-label sm:justify-end sm:pb-1"
+        >
+          <SummaryPills summary={summary} />
         </div>
       </div>
+      {/* Aktionen in eigener Zeile: viele Schaltflächen sollen den Titel nicht zusammendrücken. */}
+      {actions && <div className="flex sm:justify-end">{actions}</div>}
       <p className="sr-only" aria-live="polite" role="status">
         {de.zipView.a11y.done(title, summarySentence(summary))}
       </p>

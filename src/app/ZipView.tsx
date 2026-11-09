@@ -103,7 +103,7 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
         summary={summary}
         onBack={onBack}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-start gap-2 sm:justify-end">
             <TimelineButton
               events={timeline}
               openableTiles={openableTiles}
