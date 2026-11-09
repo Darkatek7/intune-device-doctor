@@ -32,8 +32,8 @@ Zwei unabhängige Stränge, parallel in getrennten Worktrees (Delegation: `zip-p
 
 ## Akzeptanz (beide Stränge)
 
-- [ ] Parser als reine Funktionen mit Unit-Tests (inkl. gekappter/defekter Dateien)
-- [ ] Kein `fetch`/Upload im Analysepfad; Analyse bleibt im Worker
-- [ ] Alle Texte in `de.ts`, jede Deutung mit Quelle
-- [ ] E2E `zip.spec.ts` mit dem neuen Fixture grün
-- [ ] `npm run check` grün
+- [x] Parser als reine Funktionen mit Unit-Tests (inkl. gekappter/defekter Dateien)
+- [x] Kein `fetch`/Upload im Analysepfad; Analyse bleibt im Worker
+- [x] Alle Texte in `de.ts`, jede Deutung mit Quelle
+- [x] E2E `zip.spec.ts` mit dem neuen Fixture grün
+- [x] `npm run check` grün

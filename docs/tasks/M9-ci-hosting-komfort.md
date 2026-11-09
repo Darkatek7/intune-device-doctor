@@ -42,7 +42,7 @@ Nach M8 (11/2026). Arbeitszweig `feat/m9-m11`. Zwei unabhängige Stränge (A: In
 
 ### Akzeptanz
 
-- [ ] Alle Texte in `src/i18n/de.ts`; A11y (Rollen, Labels, Fokus) gemäß `docs/ui-guidelines.md`
-- [ ] Unit-Tests: Hook (inkl. kaputtem/fehlendem localStorage, Limit 8, Moduswechsel), Tastaturkürzel, Druck-Button
-- [ ] E2E: Gerät öffnen → zurück → erscheint unter „Zuletzt geöffnet“; `Strg+K` fokussiert Suche
-- [ ] `npm run check` und `npm run test:e2e` grün
+- [x] Alle Texte in `src/i18n/de.ts`; A11y (Rollen, Labels, Fokus) gemäß `docs/ui-guidelines.md`
+- [x] Unit-Tests: Hook (inkl. kaputtem/fehlendem localStorage, Limit 8, Moduswechsel), Tastaturkürzel, Druck-Button
+- [x] E2E: Gerät öffnen → zurück → erscheint unter „Zuletzt geöffnet“; `Strg+K` fokussiert Suche
+- [x] `npm run check` und `npm run test:e2e` grün
