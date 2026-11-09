@@ -36,6 +36,12 @@ Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten
 
 Weitere Szenarien: `CONTOSO-PC027` (Defender: Signaturen veraltet, Neustart, behandelte Bedrohung), `CONTOSO-PC033` (Check-in vor 41 Tagen), `CONTOSO-LT108` (Windows 10, Entra-Gerät deaktiviert), `CONTOSO-MAC07` (macOS, FileVault, Defender nicht anwendbar), `CONTOSO-IP015` (iPhone: MDM-Zertifikat läuft in 12 Tagen ab, nicht beaufsichtigt), `CONTOSO-AND21` (Android: Sicherheitspatch rund 200 Tage alt). Mehrdeutige Suche: `contoso-pc0`.
 
+## Demo online
+
+Die Demo (nur Mock-Daten, Live-Modus deaktiviert) läuft unter **https://darkatek7.github.io/intune-device-doctor/**. Sie wird bei jedem Push auf `main` per GitHub Actions (`.github/workflows/pages.yml`) gebaut und veröffentlicht. Einmalig in den Repo-Einstellungen _Settings › Pages › Source: **GitHub Actions**_ setzen.
+
+Für einen **gehosteten Live-Modus** (eigener Build mit `VITE_APP_MODE=live`, `VITE_MSAL_CLIENT_ID`/`VITE_MSAL_TENANT_ID`) muss die Hosting-URL zusätzlich als SPA-Redirect-URI in der Entra-App-Registrierung eingetragen werden (bei Unterpfad-Hosting inkl. Pfad, z. B. `https://darkatek7.github.io/intune-device-doctor/`) und per `VITE_MSAL_REDIRECT_URI` exakt so gesetzt sein; Standard ist nur der Origin ohne Pfad. Der Produktions-Build setzt eine Content-Security-Policy (`vite.config.ts`), die Graph und `login.microsoftonline.com` erlaubt.
+
 ## Erscheinungsbild
 
 Standard ist der dunkle Modus; der Schalter oben rechts (Sonne/Mond) wechselt zu Hell. Die Wahl bleibt im Browser gespeichert.
@@ -111,6 +117,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 
 - `docs/PLAN.md` – Gesamtplan
 - `docs/graph-api-reference.md` – verifizierte Graph-Endpunkte, Felder, Scopes
+- `docs/live-verification.md` – Prüfliste für den Live-Modus gegen einen echten Tenant
 - `docs/diaglogs-format.md` – Aufbau der DiagLogs-ZIPs
 - `docs/ui-guidelines.md` – Designregeln
 - `CLAUDE.md` – Arbeitsregeln für Claude Code
