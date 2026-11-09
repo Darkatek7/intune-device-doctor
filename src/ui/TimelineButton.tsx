@@ -33,7 +33,7 @@ export function TimelineButton({ events, openableTiles, onOpenTile, disabled = f
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
         title={de.analysis.timeline.buttonHint}
-        className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <History aria-hidden="true" size={16} />
         {de.analysis.timeline.button}

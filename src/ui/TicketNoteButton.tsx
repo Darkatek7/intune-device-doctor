@@ -55,26 +55,14 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <span
-        role="status"
-        aria-live="polite"
-        className="inline-flex items-center gap-1 text-sm font-medium text-label"
-      >
-        {copied && (
-          <>
-            <Check aria-hidden="true" size={16} className="text-ok" strokeWidth={2.5} />
-            {de.ticket.copied}
-          </>
-        )}
-      </span>
+    <div className="flex flex-wrap items-center gap-2">
       <button
         ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => void onClick()}
         title={de.ticket.buttonHint}
-        className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <ClipboardCopy aria-hidden="true" size={16} />
         {de.ticket.button}
@@ -85,11 +73,23 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
         disabled={disabled}
         onClick={() => setFallback({ text: getNote(), reason: 'print' })}
         title={de.comfort.printHint}
-        className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Printer aria-hidden="true" size={16} />
         {de.comfort.printButton}
       </button>
+      <span
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center gap-1 text-sm font-medium text-label empty:-ml-2"
+      >
+        {copied && (
+          <>
+            <Check aria-hidden="true" size={16} className="text-ok" strokeWidth={2.5} />
+            {de.ticket.copied}
+          </>
+        )}
+      </span>
       <AnimatePresence>
         {fallback !== null && (
           <TicketNoteDialog

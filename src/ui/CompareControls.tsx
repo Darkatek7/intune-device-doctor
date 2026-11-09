@@ -20,7 +20,7 @@ interface Props {
 }
 
 const BUTTON_CLASS =
-  'inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
 
 /**
  * „Stand exportieren“ und „Mit Stand vergleichen“ (M12/B1). Der Export ist ein reiner Download,
@@ -115,7 +115,7 @@ export function CompareControls({ getCurrent, disabled = false, currentLabel }: 
           }}
         />
       </div>
-      <p role="alert" className="text-sm text-critical">
+      <p role="alert" className="text-sm text-critical empty:hidden">
         {error}
       </p>
       <AnimatePresence>
