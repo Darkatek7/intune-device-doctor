@@ -11,7 +11,7 @@ const fixtureFile = (): File =>
 
 const tile = (id: string) => document.querySelector<HTMLButtonElement>(`[data-tile-id="${id}"]`);
 const tileButtons = () =>
-  screen.queryAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'dialog');
+  screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-tile-id'));
 
 async function openExampleZip(user: ReturnType<typeof userEvent.setup>) {
   renderApp();

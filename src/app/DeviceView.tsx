@@ -11,13 +11,17 @@ import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
-import type { DeviceSearchResult, ManagedDeviceInfo, Tile } from '../domain/types';
+import { correlate } from '../rules/correlate';
+import { buildTimeline } from '../rules/timeline';
+import type { DeviceSearchResult, ManagedDeviceInfo, Tile, TileId } from '../domain/types';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
 import { deviceMeta } from '../ui/deviceMeta';
 import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
+import { InsightCard } from '../ui/InsightCard';
+import { TimelineButton } from '../ui/TimelineButton';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
 import { TicketNoteButton } from '../ui/TicketNoteButton';
@@ -96,6 +100,22 @@ export function DeviceView({
     return waits.length > 0 ? { retryAfterSeconds: Math.max(...waits) } : {};
   }, [snapshot]);
 
+  // M12/A: Zeitachse und „Wahrscheinlichste Ursache“ – erst, wenn alle Kacheln fertig sind
+  const timeline = useMemo(
+    () => (snapshot && now && !stillLoading ? buildTimeline({ snapshot, now }) : []),
+    [snapshot, now, stillLoading],
+  );
+  const insights = useMemo(() => (stillLoading ? [] : correlate(tiles)), [tiles, stillLoading]);
+  const openableTiles = useMemo(() => new Set<TileId>(tiles.map((tile) => tile.id)), [tiles]);
+  const openTileById = useCallback(
+    (tileId: TileId) => {
+      const element = document.querySelector<HTMLElement>(`[data-tile-id="${tileId}"]`);
+      setOrigin(element?.getBoundingClientRect() ?? null);
+      onOpenTile(tileId);
+    },
+    [onOpenTile],
+  );
+
   const getTicketNote = useCallback(() => {
     if (!snapshot) return '';
     return buildTicketNote({
@@ -104,8 +124,10 @@ export function DeviceView({
       mode: provider.mode,
       tiles,
       now: new Date(),
+      insights,
+      timeline,
     });
-  }, [snapshot, tiles, provider.mode]);
+  }, [snapshot, tiles, provider.mode, insights, timeline]);
 
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
@@ -174,13 +196,26 @@ export function DeviceView({
           snapshot?.userDevices?.status === 'ok' ? snapshot.userDevices.data : undefined
         }
         onOpenDevice={onOpenDevice}
-        actions={<TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <TimelineButton
+              events={timeline}
+              openableTiles={openableTiles}
+              onOpenTile={openTileById}
+              disabled={!snapshot || stillLoading}
+            />
+            <TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />
+          </div>
+        }
         badges={
           diagnostics && onRemoveDiagnostics ? (
             <DiagnosticsChip fileName={diagnostics.fileName} onRemove={onRemoveDiagnostics} />
           ) : undefined
         }
       />
+      {insights.length > 0 && (
+        <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
+      )}
       {snapshot ? (
         <TileGrid tiles={ordered} onOpen={handleOpen} />
       ) : (

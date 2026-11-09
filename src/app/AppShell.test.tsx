@@ -12,7 +12,7 @@ async function search(user: ReturnType<typeof userEvent.setup>, query: string) {
 }
 
 const tileButtons = () =>
-  screen.queryAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'dialog');
+  screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-tile-id'));
 
 describe('AppShell', () => {
   it('zeigt nach der Suche alle Kacheln und schreibt den URL-State', async () => {

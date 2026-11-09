@@ -89,4 +89,49 @@ describe('buildTicketNote', () => {
     expect(note).toContain('Keine Probleme gefunden.');
     expect(note).toContain('Microsoft Graph (live, read-only)');
   });
+
+  it('hängt „Wahrscheinlichste Ursache“ oben und die letzten Problem-Ereignisse unten an (max. 10)', async () => {
+    const note = buildTicketNote({
+      title: 'CONTOSO-PC014',
+      details: [],
+      mode: 'demo',
+      tiles: await tilesFor('CONTOSO-PC014'),
+      now: NOW,
+      insights: [
+        {
+          id: 'x',
+          title: 'Zuerst die Compliance herstellen',
+          explanation: 'Erklärung.',
+          steps: ['Schritt eins'],
+          relatedTiles: ['compliance'],
+          why: 'weil',
+          docsUrl: 'https://learn.microsoft.com/intune/',
+        },
+      ],
+      timeline: Array.from({ length: 12 }, (_, i) => ({
+        id: `e${i}`,
+        time: new Date(NOW.getTime() - i * 3_600_000).toISOString(),
+        kind: 'signIn' as const,
+        severity: 'warning' as const,
+        title: `Ereignis ${i}`,
+        detail: null,
+        tileId: 'signIns' as const,
+        source: 'entra' as const,
+        planned: false,
+      })),
+    });
+    expect(note).toContain('### Wahrscheinlichste Ursache');
+    expect(note.indexOf('Wahrscheinlichste Ursache')).toBeLessThan(note.indexOf('### Status'));
+    expect(note).toContain('Zuerst die Compliance herstellen');
+    expect(note).toContain('### Zeitachse (letzte Probleme)');
+    expect(note).toContain('Ereignis 9');
+    expect(note).not.toContain('Ereignis 10');
+  });
+
+  it('ohne Insights und Zeitachse bleibt die Notiz unverändert', async () => {
+    const tiles = await tilesFor('CONTOSO-PC001');
+    const base = { title: 'X', details: [], mode: 'demo' as const, tiles, now: NOW };
+    expect(buildTicketNote({ ...base, insights: [], timeline: [] })).toBe(buildTicketNote(base));
+    expect(buildTicketNote(base)).not.toContain('Wahrscheinlichste Ursache');
+  });
 });
