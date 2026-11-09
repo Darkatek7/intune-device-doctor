@@ -2,6 +2,7 @@
  * Alle UI-Texte zentral (Deutsch). Komponenten verwenden ausschließlich diese Konstanten,
  * damit eine spätere Übersetzung nur diese Datei betrifft. Wird in M1–M6 erweitert.
  */
+import { deAnalysis } from './de-analysis';
 import { deRules } from './de-rules';
 
 export const de = {
@@ -102,6 +103,7 @@ export const de = {
   },
   /** Texte der Regel-Engine – siehe ./de-rules.ts */
   rules: deRules,
+  analysis: deAnalysis,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
   reasons: {
     defenderNotWindows:
