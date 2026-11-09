@@ -132,7 +132,8 @@ export const de = {
     userDevicesNoUser: 'Das Gerät hat keinen primären Benutzer.',
     userDevicesNotReported: 'Graph liefert keine weiteren Geräte des Benutzers (HTTP 404).',
     // M10: Integritätsnachweis
-    attestationNotWindows: 'Der Integritätsnachweis (Device Health Attestation) gilt nur für Windows.',
+    attestationNotWindows:
+      'Der Integritätsnachweis (Device Health Attestation) gilt nur für Windows.',
     attestationNotReported:
       'Graph meldet HTTP 404 für den Integritätsnachweis – über diese Schnittstelle nicht verfügbar.',
     // M10: Gruppen des Geräts

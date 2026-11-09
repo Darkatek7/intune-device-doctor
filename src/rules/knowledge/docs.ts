@@ -116,6 +116,8 @@ export const Docs = {
   // M10: Windows Autopilot
   autopilotList:
     'https://learn.microsoft.com/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0',
+  /** Autopilot-Registrierung: Hardware-Hash, Geräteliste im Intune Admin Center (Geräte › Registrierung › Windows › Windows Autopilot › Geräte) */
+  autopilotRegistration: 'https://learn.microsoft.com/autopilot/registration-overview',
   autopilotResource:
     'https://learn.microsoft.com/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity?view=graph-rest-1.0',
   // M10: Gruppen des Geräts

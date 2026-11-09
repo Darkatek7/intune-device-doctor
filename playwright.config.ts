@@ -13,6 +13,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  // Ein Worker in CI: unter Last laufen Kachel-Ladevorgänge sonst gelegentlich in Timeouts.
+  workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://localhost:${port}`,

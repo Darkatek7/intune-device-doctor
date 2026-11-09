@@ -14,7 +14,7 @@ export const THRESHOLDS = {
   osEndOfUpdatesWarningDays: 60,
   /** Windows LAPS: Kennwortsicherung älter als so viele Tage → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
   lapsBackupWarningDays: 30,
-  /** Windows LAPS: geplante Aktualisierung (refreshDateTime) länger als so viele Tage her → Hinweis */
+  /** Windows LAPS: geplante Aktualisierung (refreshDateTime) länger als so viele Tage her → Hinweis (eigener Richtwert, keine Microsoft-Vorgabe) */
   lapsRefreshOverdueDays: 7,
   /** Ab hier wird die Entra-Anmeldung als alt hervorgehoben (nur Hinweis, keine Severity) */
   entraSignInStaleDays: 30,

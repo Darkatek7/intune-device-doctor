@@ -634,7 +634,7 @@ export const deRules = {
     hiddenCause:
       'Das angemeldete Konto darf Anmeldeprotokolle lesen, aber keine Conditional-Access-Daten. Welche Richtlinie die Anmeldung abgewiesen hat, lässt sich deshalb hier nicht anzeigen.',
     hiddenRemediation: [
-      'Mit einem Konto mit einer der Rollen Global Reader, Security Reader, Security Administrator oder Conditional Access Administrator erneut prüfen – nur diese gewähren laut Microsoft Zugriff auf Conditional-Access-Daten im Anmeldeprotokoll.',
+      'Mit einem Konto mit einer der Rollen Global Reader, Security Reader, Security Administrator oder Conditional Access Administrator erneut prüfen – Microsoft nennt sie als Rollen mit Zugriff auf die Conditional-Access-Daten im Anmeldeprotokoll.',
       'Alternativ den Eintrag im Entra Admin Center unter Entra ID › Überwachung & Integrität › Anmeldeprotokolle über die Korrelations-ID öffnen.',
     ],
     noneTitle: 'Keine Anmeldungen dieses Geräts gefunden',
@@ -753,7 +753,7 @@ export const deRules = {
     failedCause:
       'Autopilot meldet für dieses Gerät eine fehlgeschlagene Registrierung. Die Dokumentation beschreibt die Ursache nicht näher; der Wert sagt nur, dass sie nicht abgeschlossen wurde.',
     failedRemediation: [
-      'Den Eintrag des Geräts in der Autopilot-Geräteliste im Intune Admin Center öffnen und den Status prüfen (Zuordnung des Bereitstellungsprofils, Group Tag).',
+      'Den Eintrag des Geräts in der Autopilot-Geräteliste im Intune Admin Center öffnen (laut Microsoft unter Geräte › Registrierung › Windows › Windows Autopilot › Geräte) und dort den Status prüfen.',
       'Letzten Check-in und Compliance des Geräts in den Kacheln „Letzter Check-in“ und „Compliance“ ansehen.',
       'Den Bereitstellungsstatus nicht aus dieser Kachel ableiten: Das Bereitstellungsprofil ist über die dokumentierte v1.0-API nicht lesbar.',
     ],
@@ -761,9 +761,9 @@ export const deRules = {
     notRegisteredDetail:
       'Die Autopilot-Geräteliste wurde vollständig gelesen; weder die Intune-Geräte-ID noch die Seriennummer des Geräts kommen darin vor.',
     notRegisteredCause:
-      'Nicht jedes Windows-Gerät wird über Autopilot bereitgestellt (z. B. manuell oder per Imaging registriert) – das ist kein Fehler.',
+      'Ein Gerät erscheint in der Autopilot-Liste erst, nachdem sein Hardware-Hash beim Autopilot-Dienst registriert wurde (laut Microsoft durch Hersteller, Partner oder manuellen Import). Geräte, die nicht über Autopilot bereitgestellt werden, stehen dort nicht – das ist kein Fehler.',
     notRegisteredRemediation: [
-      'Nur falls das Gerät über Autopilot bereitgestellt werden sollte: Seriennummer und Hardware-Hash im Intune Admin Center in der Autopilot-Geräteliste prüfen.',
+      'Nur falls das Gerät über Autopilot bereitgestellt werden sollte: Im Intune Admin Center unter Geräte › Registrierung › Windows › Windows Autopilot › Geräte nach der Seriennummer suchen; fehlt das Gerät, die Registrierung (Hardware-Hash) nach der verlinkten Microsoft-Seite nachholen.',
     ],
   },
   /** M10: Kachel „Lokaler Administrator (LAPS)“ (Windows LAPS, nur Metadaten) */
@@ -789,7 +789,7 @@ export const deRules = {
     staleRemediation: [
       'Im Intune Admin Center unter Endpoint Security › Account Protection prüfen, ob dem Gerät eine Richtlinie „Local admin password solution (Windows LAPS)“ zugewiesen ist und ob dort als Sicherungsverzeichnis Microsoft Entra ID gewählt ist.',
       'Prüfen, ob LAPS in Entra aktiviert ist (Entra ID › Geräte › Geräteeinstellungen › „Enable Local Administrator Password Solution (LAPS)“) und das Gerät in Entra aktiviert ist – für deaktivierte Geräte rotiert und sichert Windows LAPS laut Microsoft nicht.',
-      'Auf dem Gerät in der Ereignisanzeige unter Anwendungs- und Dienstprotokolle › Microsoft › Windows › LAPS › Betriebsbereit nach den Ereignissen 10003 (Start), 10004 (erfolgreich) bzw. 10005 (fehlgeschlagen, mit Fehlercode) suchen; 10022 zeigt die wirksame Richtlinie mit Sicherung in Entra.',
+      'Auf dem Gerät in der Ereignisanzeige unter Anwendungs- und Dienstprotokolle › Microsoft › Windows › LAPS › Betriebsbereit nach den Ereignissen 10003 (Start), 10004 (erfolgreich) bzw. 10005 (fehlgeschlagen, mit Fehlercode) suchen (Ereignis-IDs laut Microsoft-Dokumentation zu Windows LAPS).',
     ],
     noBackupTitle: 'Kein Sicherungszeitpunkt gemeldet',
     noBackupDetail:
@@ -797,8 +797,8 @@ export const deRules = {
     noBackupCause:
       'Für das Gerät wurde noch kein Kennwort in Entra gesichert, oder Graph liefert den Wert nicht. Laut Microsoft stehen die Daten im Intune Admin Center erst, nachdem das Gerät eingecheckt und die LAPS-Richtlinie erfolgreich verarbeitet hat.',
     hintTitle: 'Geplante Kennwortrotation überfällig',
-    hintDetail: (when: string, days: number) =>
-      `Die nächste Aktualisierung war für ${when} geplant (seit ${days} Tagen überschritten; refreshDateTime).`,
+    hintDetail: (when: string, days: number, limit: number) =>
+      `Die nächste Aktualisierung war für ${when} geplant (seit ${days} Tagen überschritten; refreshDateTime). Hinweis ab ${limit} Tagen – Richtwert dieser App, keine Microsoft-Vorgabe.`,
     hintCause:
       'Laut Feldbeschreibung nennt refreshDateTime den Zeitpunkt, zu dem das Kennwort aktualisiert und in Entra gesichert wird. Liegt er deutlich in der Vergangenheit, hat das Gerät die Rotation nicht ausgeführt oder nicht gemeldet.',
     hintRemediation: [

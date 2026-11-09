@@ -90,7 +90,7 @@ export const ENTRA_SIGN_IN_ERRORS: EntraSignInError[] = [
     cause:
       'Der Zugriff wurde durch die Sicherheitsstandards blockiert, weil die Anfrage veraltete Authentifizierung verwendet oder von den Sicherheitsstandards als unsicher eingestuft wurde.',
     remediation: [
-      'Prüfen, ob der Client veraltete Authentifizierung (Legacy Auth) verwendet, und auf moderne Authentifizierung umstellen.',
+      'Prüfen, ob der Client veraltete Authentifizierung (Legacy Auth) verwendet.',
       'Im Anmeldeprotokoll den Eintrag (Korrelations-ID) öffnen und die Details der Anmeldung prüfen.',
     ],
     docsUrl: ERROR_CODES_URL,

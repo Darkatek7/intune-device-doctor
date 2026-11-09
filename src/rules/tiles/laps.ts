@@ -77,7 +77,11 @@ export function evaluateLaps(snapshot: DeviceSnapshot, now: Date): Tile {
       id: 'laps-refreshOverdue',
       severity: 'unknown',
       title: t.hintTitle,
-      detail: t.hintDetail(formatDateTime(data.refreshDateTime), refreshOverdue),
+      detail: t.hintDetail(
+        formatDateTime(data.refreshDateTime),
+        refreshOverdue,
+        THRESHOLDS.lapsRefreshOverdueDays,
+      ),
       cause: t.hintCause,
       remediation: [...t.hintRemediation],
       evidence: {

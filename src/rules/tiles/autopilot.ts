@@ -28,7 +28,7 @@ export function evaluateAutopilot(snapshot: DeviceSnapshot, now: Date): Tile {
   if (section.status !== 'ok') return unavailableTile('autopilot', sections, section);
 
   const { data } = section;
-  const base = { source: section.source, docsUrl: Docs.autopilotResource };
+  const base = { source: section.source, docsUrl: Docs.autopilotRegistration };
   const findings: Finding[] = [];
   const facts: TileFact[] = [];
 
@@ -41,7 +41,7 @@ export function evaluateAutopilot(snapshot: DeviceSnapshot, now: Date): Tile {
       detail: t.notRegisteredDetail,
       cause: t.notRegisteredCause,
       remediation: [...t.notRegisteredRemediation],
-      docsUrl: Docs.autopilotList,
+      docsUrl: Docs.autopilotRegistration,
     });
   } else {
     if (data.enrollmentState === 'failed') {

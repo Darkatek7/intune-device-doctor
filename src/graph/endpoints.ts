@@ -266,8 +266,8 @@ export const Endpoints = {
   },
   /**
    * Windows LAPS: nur Metadaten des lokalen Administrator-Kennworts. `id` = Entra-`deviceId`.
-   * Das `$select` nennt `credentials` NIE (Kennwort; würde zudem DeviceLocalCredential.Read.All und
-   * einen Audit-Eintrag erfordern). Die Doku verlangt einen `User-Agent`-Header – den setzt der
+   * Das `$select` nennt `credentials` NIE (Kennwort; würde laut Doku zudem
+   * DeviceLocalCredential.Read.All erfordern). Die Doku verlangt einen `User-Agent`-Header – den setzt der
    * Browser selbst (live zu verifizieren).
    */
   deviceLocalCredentialInfo: {
