@@ -26,6 +26,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'signIns',
   'localAdmin',
   'autopilot',
+  'deviceGroups',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -68,6 +69,8 @@ export function loadSection(
       return provider.getLocalAdmin(device, { signal });
     case 'autopilot':
       return provider.getAutopilot(device, { signal });
+    case 'deviceGroups':
+      return provider.getDeviceGroups(device, { signal });
   }
 }
 

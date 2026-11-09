@@ -5,6 +5,7 @@
 import type {
   AppliedPolicyInfo,
   AutopilotInfo,
+  DeviceGroupsInfo,
   LocalAdminInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -31,6 +32,7 @@ import type {
   DeviceEnrollmentType,
   GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
+  GraphDirectoryObject,
   GraphWindowsAutopilotDeviceIdentity,
   GraphBitlockerRecoveryKey,
   GraphDeviceLocalCredentialInfo,
@@ -638,4 +640,28 @@ export function mapAutopilot(
     model: str(hit.model),
     matchedBy: byManaged ? 'managedDeviceId' : 'serialNumber',
   };
+}
+
+// ---------- Gruppen des Geräts ----------
+
+/**
+ * Nur `#microsoft.graph.group` wird angezeigt (Name + ID). Gruppen ohne Namen – so kommen Objekte ohne
+ * Leserecht laut Doku zurück – zählen als „ausgeblendet“. Andere Typen (z. B. Verwaltungseinheiten)
+ * werden ignoriert. Sortiert nach Name.
+ */
+export function mapDeviceGroups(
+  objects: GraphDirectoryObject[],
+  truncated: boolean,
+): DeviceGroupsInfo {
+  const groups: DeviceGroupsInfo['groups'] = [];
+  let hiddenCount = 0;
+  for (const object of objects) {
+    if (object?.['@odata.type'] !== '#microsoft.graph.group') continue;
+    const id = str(object.id)?.trim();
+    const name = str(object.displayName)?.trim();
+    if (id && name) groups.push({ id, displayName: name });
+    else hiddenCount += 1;
+  }
+  groups.sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
+  return { groups, hiddenCount, truncated };
 }

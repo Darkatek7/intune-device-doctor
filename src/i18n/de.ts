@@ -39,6 +39,7 @@ export const de = {
     signIns: 'Anmeldungen',
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
+    groups: 'Gruppen',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -124,6 +125,9 @@ export const de = {
       'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
     signInsNotReported:
       'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
+    // M10: Gruppen des Geräts
+    groupsNotReported:
+      'Graph meldet HTTP 404 für das Entra-Gerät – die Gruppen sind über diese Schnittstelle nicht verfügbar.',
     // M10: Windows Autopilot
     autopilotNotWindows: 'Windows Autopilot gibt es nur unter Windows.',
     autopilotNotReported:

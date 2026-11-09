@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  DeviceGroupsInfo,
   AutopilotInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -32,6 +33,7 @@ import type {
   GraphCollection,
   GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
+  GraphDirectoryObject,
   GraphEntraDevice,
   GraphManagedDevice,
   GraphMobileApp,
@@ -52,6 +54,7 @@ import {
   mapApplePushCertificate,
   mapAppInstallStates,
   mapAutopilot,
+  mapDeviceGroups,
   mapBitlockerKey,
   mapEntraDevice,
   mapLocalAdmin,
@@ -530,6 +533,39 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(null, source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.autopilotNotReported, source }),
+    );
+  }
+
+  /**
+   * Gruppen des Entra-Geräts (transitiveMemberOf). Ohne Query-Optionen; Paging über @odata.nextLink,
+   * höchstens MAX_LIST_PAGES Seiten (danach `truncated`).
+   */
+  getDeviceGroups(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DeviceGroupsInfo>> {
+    const endpoint = Endpoints.deviceTransitiveMemberOf;
+    return this.run<DeviceGroupsInfo>(
+      'deviceTransitiveMemberOf',
+      async (source) => {
+        const azureAdId = usableAzureAdId(device);
+        if (!azureAdId) {
+          return { status: 'unavailable', reason: de.reasons.noAzureAdDeviceId, source };
+        }
+        const objects: GraphDirectoryObject[] = [];
+        let next: string | undefined = endpoint.path(azureAdId);
+        let pages = 0;
+        while (next && pages < MAX_LIST_PAGES) {
+          const page: GraphCollection<GraphDirectoryObject> | undefined = await this.client.get<
+            GraphCollection<GraphDirectoryObject>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          objects.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(mapDeviceGroups(objects, Boolean(next)), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.groupsNotReported, source }),
     );
   }
 

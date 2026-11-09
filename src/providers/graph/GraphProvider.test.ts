@@ -887,3 +887,54 @@ describe('GraphProvider – Windows Autopilot', () => {
     );
   });
 });
+
+describe('GraphProvider – Gruppen des Geräts', () => {
+  const PATH = `/v1.0/devices(deviceId='${PC001_ENTRA_ID}')/transitiveMemberOf`;
+
+  it('liest transitiveMemberOf per GET ohne Query-Optionen und mappt Gruppen', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getDeviceGroups(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(decodeURIComponent(calls[0]!.parsed.pathname)).toBe(PATH);
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data.groups.map((g) => g.displayName)).toEqual([
+      'Contoso – Alle Geräte',
+      'Contoso – Pilot',
+    ]);
+    expect(result.data.hiddenCount).toBe(1);
+    expect(result.data.truncated).toBe(false);
+  });
+
+  it('folgt @odata.nextLink höchstens 5 Seiten und meldet truncated', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [{ '@odata.type': '#microsoft.graph.group', id: `g${++n}`, displayName: `G${n}` }],
+        '@odata.nextLink': `https://graph.microsoft.com${PATH}?$skiptoken=${n}`,
+      }),
+    );
+    const result = expectStatus(await provider.getDeviceGroups(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(5);
+    expect(result.data.truncated).toBe(true);
+    expect(result.data.groups).toHaveLength(5);
+  });
+
+  it('ohne Entra-Geräte-ID: unavailable ohne Request; 403 → forbidden (Device.Read.All); 404 → unavailable', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getDeviceGroups(windowsDevice({ azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const b = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await b.provider.getDeviceGroups(windowsDevice()), 'forbidden').error
+        .requiredScope,
+    ).toBe('Device.Read.All');
+    const c = setup(() => graphError(404, 'ResourceNotFound'));
+    expect(
+      expectStatus(await c.provider.getDeviceGroups(windowsDevice()), 'unavailable').reason,
+    ).toBe(de.reasons.groupsNotReported);
+  });
+});

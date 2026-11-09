@@ -348,6 +348,25 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         },
       ]);
     }
+    const groups = /^\/v1\.0\/devices\(deviceId='([^']+)'\)\/transitiveMemberOf$/.exec(path);
+    if (groups) {
+      return groups[1] === PC001_ENTRA_ID
+        ? collection([
+            { '@odata.type': '#microsoft.graph.group', id: 'g-2', displayName: 'Contoso – Pilot' },
+            {
+              '@odata.type': '#microsoft.graph.group',
+              id: 'g-1',
+              displayName: 'Contoso – Alle Geräte',
+            },
+            { '@odata.type': '#microsoft.graph.group', id: 'g-3' },
+            {
+              '@odata.type': '#microsoft.graph.administrativeUnit',
+              id: 'au-1',
+              displayName: 'Contoso – Berlin',
+            },
+          ])
+        : graphError(404, 'ResourceNotFound');
+    }
     const laps = /^\/v1\.0\/directory\/deviceLocalCredentials\/([^/]+)$/.exec(path);
     if (laps) {
       return laps[1] === PC001_ENTRA_ID

@@ -9,6 +9,7 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  DeviceGroupsInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
@@ -104,6 +105,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<AutopilotInfo | null>>;
+
+  /**
+   * Gruppen des Geräts in Entra (transitiveMemberOf, höchstens 5 Seiten). Gruppen des Benutzers sind
+   * nicht enthalten (dafür wäre ein weiterer Scope nötig).
+   */
+  getDeviceGroups(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DeviceGroupsInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

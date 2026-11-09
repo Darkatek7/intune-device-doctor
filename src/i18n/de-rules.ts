@@ -656,6 +656,30 @@ export const deRules = {
       'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
     ],
   },
+  /** M10: Kachel „Gruppen“ (Entra-Gruppen des Geräts, informativ) */
+  groups: {
+    value: (n: number) => (n === 1 ? '1 Gruppe' : `${n} Gruppen`),
+    valueNone: 'Keine Gruppen',
+    summary: 'Mitgliedschaften des Geräts in Entra (direkt und verschachtelt)',
+    facts: {
+      count: 'Gruppen des Geräts',
+      hidden: 'Ausgeblendet (keine Berechtigung)',
+      more: 'Weitere Gruppen',
+      moreValue: 'nicht gelesen (nur die ersten Seiten)',
+      scope: 'Nicht enthalten',
+      scopeValue: 'Gruppen des Benutzers (anderer Scope nötig)',
+    },
+    maxListed: 30,
+    moreListed: (n: number) => `${n} weitere`,
+    hiddenTitle: 'Einige Gruppennamen sind ausgeblendet',
+    hiddenDetail: (n: number) =>
+      `${n === 1 ? 'Bei 1 Gruppe' : `Bei ${n} Gruppen`} liefert Graph nur Typ und ID, keinen Namen.`,
+    hiddenCause:
+      'Hat die App keine Leseberechtigung auf einen Objekttyp, liefert Graph Mitglieder laut Microsoft nur mit @odata.type und id zurück.',
+    hiddenRemediation: [
+      'Das ist nur ein Hinweis, kein Fehler – die Anzahl der Gruppen stimmt, nur die Namen fehlen.',
+    ],
+  },
   /** M10: Kachel „Autopilot“ (Windows Autopilot, v1.0) */
   autopilot: {
     valueRegistered: 'Registriert',

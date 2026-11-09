@@ -300,6 +300,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
         'compliance',
         'defender',
         'deviceStatus',
+        'groups',
         'laps',
         'policies',
         'signIns',
@@ -341,7 +342,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(8);
+    expect(summary.loading).toBe(9);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

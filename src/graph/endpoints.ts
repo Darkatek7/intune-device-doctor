@@ -297,6 +297,22 @@ export const Endpoints = {
     display: 'GET /deviceManagement/windowsAutopilotDeviceIdentities',
     path: () => '/deviceManagement/windowsAutopilotDeviceIdentities',
   },
+  /**
+   * Gruppen (und Verwaltungseinheiten), in denen das Entra-Gerät direkt oder verschachtelt Mitglied
+   * ist. Bewusst ohne Query-Optionen: `$filter`/`$count`/`$search` gibt es dafür nur als Advanced
+   * Query mit `ConsistencyLevel: eventual`. Paging über @odata.nextLink.
+   */
+  deviceTransitiveMemberOf: {
+    id: 'deviceTransitiveMemberOf',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/device-list-transitivememberof?view=graph-rest-1.0',
+    display: "GET /devices(deviceId='{deviceId}')/transitiveMemberOf",
+    path: (azureAdDeviceId: string) =>
+      `/devices(deviceId=${odataString(azureAdDeviceId)})/transitiveMemberOf`,
+  },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 
 export type EndpointId = keyof typeof Endpoints;

@@ -38,6 +38,7 @@ export function liveMockProvider(overrides: Partial<DeviceDataProvider> = {}): D
     getSignIns: (device, options) => inner.getSignIns(device, options),
     getLocalAdmin: (device, options) => inner.getLocalAdmin(device, options),
     getAutopilot: (device, options) => inner.getAutopilot(device, options),
+    getDeviceGroups: (device, options) => inner.getDeviceGroups(device, options),
     getMobileApps: (appIds, options) => inner.getMobileApps(appIds, options),
     ...overrides,
   };

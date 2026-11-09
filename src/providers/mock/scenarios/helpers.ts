@@ -2,6 +2,7 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  DeviceGroupsInfo,
   AutopilotInfo,
   AppInstallStateInfo,
   AppliedPolicyInfo,
@@ -339,4 +340,31 @@ export function defaultAutopilot(
   device: Pick<DeviceBase, 'manufacturer' | 'model'>,
 ): AutopilotInfo {
   return autopilotInfo(now, { manufacturer: device.manufacturer, model: device.model });
+}
+
+/** Gruppen des Geräts (fiktiv). */
+export function deviceGroupsInfo(
+  names: string[],
+  overrides: Partial<DeviceGroupsInfo> = {},
+): DeviceGroupsInfo {
+  return {
+    groups: names.map((displayName, i) => ({
+      id: demoGuid('object', 200 + i),
+      displayName,
+    })),
+    hiddenCount: 0,
+    truncated: false,
+    ...overrides,
+  };
+}
+
+/** Standard: drei Gruppen je nach Plattform. */
+export function defaultDeviceGroups(device: Pick<DeviceBase, 'osFamily'>): DeviceGroupsInfo {
+  const platform =
+    device.osFamily === 'windows'
+      ? 'Contoso – Windows-Geräte'
+      : device.osFamily === 'macos'
+        ? 'Contoso – macOS-Geräte'
+        : 'Contoso – Mobilgeräte';
+  return deviceGroupsInfo(['Contoso – Alle Geräte', platform, 'Contoso – Pilot']);
 }

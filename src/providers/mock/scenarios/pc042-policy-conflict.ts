@@ -15,6 +15,7 @@ import {
   caPolicy,
   signInEntry,
   signInsInfo,
+  deviceGroupsInfo,
 } from './helpers';
 
 export const pc042PolicyConflict: MockScenario = {
@@ -84,6 +85,16 @@ export const pc042PolicyConflict: MockScenario = {
       },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 42)] },
+      // zwei Gruppen ohne Namen (Objekte ohne Leserecht liefern nur Typ + ID)
+      deviceGroups: {
+        status: 'ok',
+        data: deviceGroupsInfo(
+          ['Contoso – Alle Geräte', 'Contoso – Windows-Geräte', 'Contoso – Pilot'],
+          {
+            hiddenCount: 2,
+          },
+        ),
+      },
       signIns: {
         status: 'ok',
         data: signInsInfo(

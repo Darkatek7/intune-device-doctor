@@ -16,6 +16,7 @@ import {
   mapBitlockerKey,
   mapDetectedMalware,
   mapAutopilot,
+  mapDeviceGroups,
   mapEntraDevice,
   mapLocalAdmin,
   mapManagedDevice,
@@ -662,5 +663,40 @@ describe('mapAutopilot', () => {
     const info = mapAutopilot([entry({ enrollmentState: 'blocked' })], device)!;
     expect(info.enrollmentState).toBeNull();
     expect(JSON.stringify(info)).not.toMatch(/AAAAA|anna\.schmidt|SN-123|productKey|serialNumber/i);
+  });
+});
+
+describe('mapDeviceGroups', () => {
+  const group = (id: string, displayName?: string | null) => ({
+    '@odata.type': '#microsoft.graph.group',
+    id,
+    displayName,
+  });
+
+  it('zeigt nur Gruppen mit Namen (sortiert), zählt Gruppen ohne Namen als ausgeblendet', () => {
+    const info = mapDeviceGroups(
+      [group('2', 'Zebra'), group('1', 'Alpha'), group('3'), group('4', null)],
+      false,
+    );
+    expect(info.groups).toEqual([
+      { id: '1', displayName: 'Alpha' },
+      { id: '2', displayName: 'Zebra' },
+    ]);
+    expect(info.hiddenCount).toBe(2);
+    expect(info.truncated).toBe(false);
+  });
+
+  it('ignoriert andere Objekttypen (z. B. Verwaltungseinheiten) und Einträge ohne Typ', () => {
+    const info = mapDeviceGroups(
+      [
+        { '@odata.type': '#microsoft.graph.administrativeUnit', id: 'au', displayName: 'Berlin' },
+        { id: 'x', displayName: 'ohne Typ' },
+        group('1', 'Alpha'),
+      ],
+      true,
+    );
+    expect(info.groups.map((g) => g.displayName)).toEqual(['Alpha']);
+    expect(info.hiddenCount).toBe(0);
+    expect(info.truncated).toBe(true);
   });
 });

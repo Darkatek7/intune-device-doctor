@@ -471,3 +471,13 @@ export interface GraphWindowsAutopilotDeviceIdentity {
   lastContactedDateTime: string | null;
   managedDeviceId: string | null;
 }
+
+// ---------- Gruppen des Geräts (v1.0, devices(deviceId='…')/transitiveMemberOf) ----------
+// https://learn.microsoft.com/en-us/graph/api/device-list-transitivememberof?view=graph-rest-1.0
+// Ohne Leserecht auf einen Objekttyp kommen Mitglieder laut Doku nur mit @odata.type und id zurück.
+
+export interface GraphDirectoryObject {
+  '@odata.type'?: string;
+  id?: string | null;
+  displayName?: string | null;
+}

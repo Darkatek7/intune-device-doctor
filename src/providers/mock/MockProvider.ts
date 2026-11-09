@@ -4,6 +4,7 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  DeviceGroupsInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
@@ -28,6 +29,7 @@ import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
   defaultAutopilot,
+  defaultDeviceGroups,
   defaultLocalAdmin,
   defaultSignIns,
 } from './scenarios/helpers';
@@ -54,6 +56,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   signIns: 'signIns',
   localAdmin: 'deviceLocalCredentialInfo',
   autopilot: 'windowsAutopilotDeviceIdentities',
+  deviceGroups: 'deviceTransitiveMemberOf',
 };
 
 export function abortError(): DOMException {
@@ -205,6 +208,9 @@ export class MockProvider implements DeviceDataProvider {
       }
       return { status: 'ok', data: defaultAutopilot(this.now(), fixture.device) };
     }
+    if (key === 'deviceGroups') {
+      return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -279,6 +285,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<SignInsInfo>(device, 'signIns', options);
+  }
+
+  getDeviceGroups(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DeviceGroupsInfo>(device, 'deviceGroups', options);
   }
 
   getAutopilot(device: ManagedDeviceInfo, options: RequestOptions = {}) {

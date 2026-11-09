@@ -280,6 +280,21 @@ export interface AutopilotInfo {
   matchedBy: 'managedDeviceId' | 'serialNumber';
 }
 
+/** Gruppe, in der das Entra-Gerät Mitglied ist (nur Name und ID). */
+export interface DeviceGroupInfo {
+  id: string;
+  displayName: string;
+}
+
+/** Gruppenmitgliedschaften des Entra-Geräts (direkt und verschachtelt). Gruppen des Benutzers sind nicht enthalten. */
+export interface DeviceGroupsInfo {
+  groups: DeviceGroupInfo[];
+  /** Gruppen, deren Name ohne Leserecht nicht geliefert wurde */
+  hiddenCount: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden */
+  truncated: boolean;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -301,6 +316,8 @@ export interface DeviceSnapshot {
    * Gerät steht nicht darin (kein Fehler). Optionaler Scope DeviceManagementServiceConfig.Read.All.
    */
   autopilot?: SectionResult<AutopilotInfo | null>;
+  /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
+  deviceGroups?: SectionResult<DeviceGroupsInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -319,6 +336,7 @@ export type TileId =
   | 'signIns'
   | 'laps'
   | 'autopilot'
+  | 'groups'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -368,7 +386,8 @@ export type SnapshotSectionKey =
   | 'applePushCertificate'
   | 'signIns'
   | 'localAdmin'
-  | 'autopilot';
+  | 'autopilot'
+  | 'deviceGroups';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {
