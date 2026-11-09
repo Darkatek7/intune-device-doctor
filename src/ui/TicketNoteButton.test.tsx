@@ -31,7 +31,9 @@ describe('TicketNoteButton', () => {
   });
 
   it('blendet die Bestätigung nach etwa 2 Sekunden wieder aus', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Nur Timeouts fälschen: requestAnimationFrame/performance bleiben echt, sonst hängt Motions
+    // Frame-Schleife in den folgenden Tests (Exit-Animationen der Dialoge enden nie).
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout'] });
     try {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
