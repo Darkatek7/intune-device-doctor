@@ -30,7 +30,7 @@ jobs:
         env:
           VITE_APP_MODE: demo
           VITE_BASE: /intune-device-doctor/
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
