@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { de } from '../i18n/de';
@@ -93,5 +93,38 @@ describe('TicketNoteButton', () => {
 
     await user.click(screen.getByRole('button', { name: de.detail.close }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('„Drucken / PDF“ öffnet die Notiz und löst im Dialog window.print aus', async () => {
+    const user = userEvent.setup();
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<TicketNoteButton getNote={() => NOTE} />);
+
+    await user.click(screen.getByRole('button', { name: de.comfort.printButton }));
+    const dialog = await screen.findByRole('dialog', { name: de.ticket.dialogTitle });
+    expect(within(dialog).getByText(de.comfort.printDialogBody)).toBeInTheDocument();
+    expect(print).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: de.comfort.printButton }));
+    expect(print).toHaveBeenCalledTimes(1);
+    // Druckansicht enthält den Notiztext (ohne Textfeld-Abschneiden)
+    expect(dialog.querySelector('[data-print-text]')?.textContent).toBe(NOTE);
+    expect(dialog.closest('[data-print-note]') ?? dialog.parentElement).toBeTruthy();
+  });
+
+  it('der Druck-Button ist deaktiviert, solange Kacheln laden', () => {
+    render(<TicketNoteButton getNote={() => NOTE} disabled />);
+    expect(screen.getByRole('button', { name: de.comfort.printButton })).toBeDisabled();
+  });
+
+  it('der Druck-Dialog zeigt auch bei verfügbarer Zwischenablage den Druck-Hinweis; Fokus kehrt zurück', async () => {
+    const user = userEvent.setup();
+    render(<TicketNoteButton getNote={() => NOTE} />);
+    const print = screen.getByRole('button', { name: de.comfort.printButton });
+    await user.click(print);
+    await screen.findByRole('dialog');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(print).toHaveFocus();
   });
 });

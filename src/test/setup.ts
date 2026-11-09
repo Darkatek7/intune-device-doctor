@@ -35,5 +35,10 @@ if (typeof window !== 'undefined') {
 afterEach(() => {
   cleanup();
   window.history.replaceState({}, '', '/');
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Speicher in dieser Testumgebung nicht verfügbar – nichts zu räumen.
+  }
   document.documentElement.style.overflow = '';
 });

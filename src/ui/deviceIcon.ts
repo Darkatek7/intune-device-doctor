@@ -1,5 +1,5 @@
 import { Laptop, Smartphone, Tablet, type LucideIcon } from 'lucide-react';
-import type { ManagedDeviceInfo } from '../domain/types';
+import type { ManagedDeviceInfo, OsFamily } from '../domain/types';
 
 export type DeviceIconKind = 'laptop' | 'smartphone' | 'tablet';
 
@@ -15,4 +15,9 @@ export function deviceIconKind(device: ManagedDeviceInfo | null): DeviceIconKind
   if (device.osFamily === 'ios' && /^ipad/i.test(device.model ?? '')) return 'tablet';
   if (device.osFamily === 'ios' || device.osFamily === 'android') return 'smartphone';
   return 'laptop';
+}
+
+/** Symbol nur nach Betriebssystem-Familie (ohne Modell, z. B. für „Zuletzt geöffnet“). */
+export function osIconKind(osFamily: OsFamily): DeviceIconKind {
+  return osFamily === 'ios' || osFamily === 'android' ? 'smartphone' : 'laptop';
 }
