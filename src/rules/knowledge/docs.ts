@@ -81,8 +81,9 @@ export const Docs = {
     'https://learn.microsoft.com/entra/identity/devices/troubleshoot-primary-refresh-token',
   // Ereignisprotokolle (DiagLogs-ZIP): Event-IDs mit Microsoft-Learn-Beleg, abgerufen 2026-11-09
   mdmCollectLogs: 'https://learn.microsoft.com/windows/client-management/mdm-collect-logs',
-  autoMdmEnrollFailed:
-    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-enrollment-errors#auto-mdm-enroll-failed',
+  /** Abschnitt „Review the MDM logs“: Ereignis 75 (Succeeded) und 76 (Failed) im Admin-Protokoll */
+  autoEnrollmentMdmLogs:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-auto-enrollment#review-the-mdm-logs',
   defenderOnboardingMdmEvents:
     'https://learn.microsoft.com/defender-endpoint/troubleshoot-onboarding#mobile-device-management-mdm-event-logs',
   hybridJoinPostJoinAuth:

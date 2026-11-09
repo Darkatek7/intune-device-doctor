@@ -93,6 +93,13 @@ describe('maskEventValue', () => {
     expect(text).toContain('us…@contoso.com');
   });
 
+  it('maskiert MAC-Adressen (Herstellerpräfix bleibt)', () => {
+    const text = maskEventValue('Message', 'Adapter 00-00-5E-00-53-42 und 00:00:5e:00:53:43');
+    expect(text).not.toContain('53-42');
+    expect(text).not.toContain('53:43');
+    expect(text).toContain('00-00-5E-••-••-••');
+  });
+
   it('verwirft Felder namens ChannelURI/Serial vollständig bzw. kürzt sie', () => {
     expect(maskEventValue('ChannelURI', 'https://x.invalid/abc')).toBe('…');
     expect(maskEventValue('SerialNumber', 'CONTOSO-SN-0001')).toBe('CONT…0001');

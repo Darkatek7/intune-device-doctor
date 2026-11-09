@@ -27,19 +27,19 @@ export const EVENT_KNOWLEDGE: EventKnowledge[] = [
     eventId: 76,
     title: 'Automatische MDM-Registrierung fehlgeschlagen',
     cause:
-      'Laut Microsoft kennzeichnet Ereignis 76 („Auto MDM Enroll: Failed“, Stufe Fehler) eine fehlgeschlagene automatische Registrierung; der Fehlercode steht im Ereignis. Eine erfolgreiche Registrierung wird dagegen als Ereignis 75 („Auto MDM Enroll: Succeeded“) protokolliert.',
+      'Laut Microsoft kennzeichnet Ereignis 76 („Auto MDM Enroll: Failed“) eine fehlgeschlagene automatische Registrierung; der Fehlercode steht im Ereignis. Eine erfolgreiche automatische Registrierung wird als Ereignis 75 („Auto MDM Enroll: Succeeded“) protokolliert.',
     remediation: [
-      'Den Fehlercode aus den Rohdaten mit der Microsoft-Seite zur Fehlerbehebung bei der Windows-Registrierung abgleichen („Troubleshooting Windows device enrollment errors in Intune“).',
-      'Nach Ereignis 75 („Auto MDM Enroll: Succeeded“) suchen: Laut Microsoft wird es bei erfolgreicher automatischer Registrierung protokolliert.',
+      'Den Fehlercode aus den Rohdaten mit der Microsoft-Seite „Troubleshooting Windows device enrollment errors in Intune“ abgleichen.',
+      'Im selben Protokoll nach einem späteren Ereignis 75 („Auto MDM Enroll: Succeeded“) suchen – es zeigt laut Microsoft eine erfolgreiche automatische Registrierung an.',
     ],
-    docsUrl: Docs.autoMdmEnrollFailed,
+    docsUrl: Docs.autoEnrollmentMdmLogs,
   },
   {
     log: 'mdmAdmin',
     eventId: 1819,
     title: 'Microsoft-Defender-for-Endpoint-CSP: Wert konnte nicht gesetzt werden',
     cause:
-      'Laut Microsoft meldet Ereignis 1819 (Stufe Fehler, „Microsoft Defender for Endpoint CSP: Failed to Set Node’s Value“) mit NodeId, TokenName und Result, dass das CSP einen Knotenwert nicht setzen konnte – im Zusammenhang mit dem Onboarding von Microsoft Defender for Endpoint über Intune.',
+      'Laut Microsoft meldet Ereignis 1819 (Stufe Fehler, „Microsoft Defender for Endpoint CSP: Failed to Set Node’s Value“) mit NodeId, TokenName und Result, dass das CSP einen Knotenwert nicht setzen konnte – aufgeführt bei den MDM-Ereignissen zur Fehlerbehebung beim Onboarding von Microsoft Defender for Endpoint.',
     remediation: [
       'NodeId, TokenName und Result aus den Rohdaten prüfen.',
       'Die Onboarding-Konfiguration (Intune-Richtlinie für Microsoft Defender for Endpoint) und die Hinweise der Microsoft-Seite zur Fehlerbehebung beim Onboarding prüfen.',
@@ -64,7 +64,7 @@ export const EVENT_KNOWLEDGE: EventKnowledge[] = [
     cause:
       'Laut Microsoft enthält Ereignis 1088 im Operational-Protokoll von Microsoft Entra die Fehlerbeschreibung bei Fehlern, die vom WS-Trust-Endpunkt stammen (relevant bei föderierter Authentifizierung).',
     remediation: [
-      'Die Fehlerbeschreibung aus den Rohdaten prüfen und die Erreichbarkeit des WS-Trust-Endpunkts (Proxy, Föderationsdienst) sicherstellen – siehe Microsoft-Seite zur Fehlerbehebung bei Microsoft Entra hybrid joined Geräten.',
+      'Die Fehlerbeschreibung aus den Rohdaten prüfen und mit den Hinweisen der Microsoft-Seite zur Fehlerbehebung bei Microsoft Entra hybrid joined Geräten abgleichen (u. a. Föderationskonfiguration, Proxy).',
     ],
     docsUrl: Docs.hybridJoinPostJoinAuth,
   },

@@ -10,6 +10,7 @@
 import { maskId, maskUpn, maskUserPaths } from '../domain/format';
 import { DEFAULT_MAX_EVTX_BYTES } from './limits';
 import { EvtxFormatError, parseEvtx } from './parsers/evtx';
+import { maskMac } from './parsers/ipconfig';
 import type { DiagEntry, DiagEvent, DiagEventLog, DiagEventLogId } from './types';
 import type { OpenedZip } from './zip/reader';
 
@@ -67,6 +68,7 @@ const SID_RE = /\bS-1-\d+(?:-\d+){3,}\b/g;
 const URL_QUERY_RE = /(https?:\/\/[^\s"'<>?]+)\?[^\s"'<>]*/gi;
 const SERIAL_INLINE_RE = /(serial(?:\s*number)?\s*[:=]\s*)([A-Za-z0-9-]{4,})/gi;
 const CHANNEL_INLINE_RE = /(channeluri\s*[:=]\s*)\S+/gi;
+const MAC_RE = /\b[0-9A-F]{2}(?:[-:][0-9A-F]{2}){5}\b/gi;
 // eslint-disable-next-line no-control-regex
 const CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
 
@@ -81,7 +83,8 @@ export function maskEventValue(key: string, raw: string): string {
     .replace(SID_RE, 'S-1-…')
     .replace(URL_QUERY_RE, '$1?…')
     .replace(SERIAL_INLINE_RE, (_m, lead: string, id: string) => `${lead}${maskId(id) ?? '…'}`)
-    .replace(CHANNEL_INLINE_RE, '$1…');
+    .replace(CHANNEL_INLINE_RE, '$1…')
+    .replace(MAC_RE, (match) => maskMac(match));
   value = maskUserPaths(value);
   return value.length > MAX_VALUE_LENGTH ? `${value.slice(0, MAX_VALUE_LENGTH)}…` : value;
 }
