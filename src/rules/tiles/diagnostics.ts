@@ -18,6 +18,7 @@ import { Docs } from '../knowledge/docs';
 import { INSTALLER_EXIT_CODES } from '../knowledge/errorCodes';
 import { findPrtError } from '../knowledge/prtErrors';
 import { explainCode } from '../knowledge/win32';
+import { certsNetworkTile } from './certsNetwork';
 
 const z = de.rules.zip;
 const f = de.rules.facts;
@@ -30,12 +31,13 @@ const HARMLESS_COLLECTION_PATTERNS = [
   /ccmsetup/i,
 ];
 
-export function evaluateDiagnosticsTiles(report: DiagnosticsReport, _now: Date): Tile[] {
-  void _now;
+export function evaluateDiagnosticsTiles(report: DiagnosticsReport, now: Date): Tile[] {
+  const certsNetwork = certsNetworkTile(report, now);
   return [
     entraJoinTile(report),
     win32AppsTile(report),
     enrollmentTile(report),
+    ...(certsNetwork ? [certsNetwork] : []),
     collectionTile(report),
   ];
 }

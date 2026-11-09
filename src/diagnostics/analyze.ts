@@ -6,19 +6,23 @@
 import { maskUserPaths } from '../domain/format';
 import { de } from '../i18n/de';
 import { parseCmTrace } from './parsers/cmtrace';
+import { parseCertutilStore } from './parsers/certutil';
 import { parseDsregcmd } from './parsers/dsregcmd';
 import { extractEnrollments, isEnrollmentRootKey } from './parsers/enrollments';
 import { splitFoldersFilesName } from './parsers/entryName';
+import { parseIpconfigAll } from './parsers/ipconfig';
 import { parseRegExport, type RegKey } from './parsers/regExport';
 import { interpretHresult, parseResultsXml, type CollectionKind } from './parsers/resultsXml';
 import { extractWin32Apps, isWin32AppsKey } from './parsers/win32Apps';
 import type {
+  CertificateInfo,
   CmTraceEntry,
   CollectionFailure,
   DiagEntry,
   DiagnosticsReport,
   DsregStatus,
   EnrollmentInfo,
+  NetworkInfo,
   Win32AppState,
 } from './types';
 import { DEFAULT_MAX_TEXT_BYTES, extensionOf, isBinaryEntry, openZip } from './zip/reader';
@@ -252,6 +256,24 @@ export async function analyzeDiagnosticsZip(
     if (!dsregcmd) notes.push(t.notes.noDsregcmd);
     completed = 3;
 
+    // --- certutil / ipconfig (OEM-Codepage, nur Rohdaten) -----------------------------------
+    const certificates: CertificateInfo[] = [];
+    for (const entry of entries) {
+      if (entry.kind !== 'Command' || entry.failedHresult || !/certutil/i.test(entry.name))
+        continue;
+      const text = await readText(entry, maxTextBytes);
+      if (text) certificates.push(...safe(entry.name, [], () => parseCertutilStore(text)));
+    }
+    let network: NetworkInfo | null = null;
+    const ipconfigEntries = entries.filter(
+      (e) => e.kind === 'Command' && !e.failedHresult && /ipconfig/i.test(e.name),
+    );
+    const ipconfigEntry = ipconfigEntries.find((e) => /all/i.test(e.name)) ?? ipconfigEntries[0];
+    if (ipconfigEntry) {
+      const text = await readText(ipconfigEntry, maxTextBytes);
+      if (text) network = safe(ipconfigEntry.name, null, () => parseIpconfigAll(text));
+    }
+
     // --- Registry-Exporte -------------------------------------------------------------------
     report('registry', t.progress.registry);
     const enrollmentKeys: RegKey[] = [];
@@ -345,6 +367,8 @@ export async function analyzeDiagnosticsZip(
       enrollments,
       win32Apps,
       imeIssues,
+      certificates,
+      network,
       analysisNotes: notes,
     };
   } finally {

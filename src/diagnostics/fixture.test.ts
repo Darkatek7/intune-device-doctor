@@ -18,6 +18,8 @@ const EXPECTED_NAMES = [
   '(5) No Results - Error [0x80070001] RegistryKey HKLM_SYSTEM_Setup_SetupDiag_Results',
   '(6) No Results - Error [0x80070003] FoldersFiles ProgramData_Microsoft_EPMAgent_Logs',
   '(7) Events System Events.evtx',
+  '(20) Command windir_system32_certutil_exe_-store_My output.log',
+  '(21) Command windir_system32_ipconfig_exe_-all output.log',
 ].sort();
 
 const REG_ENROLLMENTS = '(1) RegistryKey HKLM_Software_Microsoft_Enrollments export.reg';

@@ -3,7 +3,7 @@
  * bei Bedarf entpackt (mit Größenlimit), Binärdateien nie. Alles lokal – kein Netzwerkzugriff.
  */
 import type { Entry } from '@zip.js/zip.js';
-import { decodeText, type DetectedEncoding } from '../parsers/encoding';
+import { decodeText, isOemCommandName, type DetectedEncoding } from '../parsers/encoding';
 import { parseEntryName } from '../parsers/entryName';
 import type { DiagEntry } from '../types';
 
@@ -76,7 +76,9 @@ export async function openZip(source: Blob | Uint8Array): Promise<OpenedZip> {
         const bytes = await raw.getData(new zip.Uint8ArrayWriter(), {
           checkLocalDirectory: false,
         });
-        const decoded = decodeText(bytes);
+        const decoded = decodeText(bytes, {
+          oem: entry.kind === 'Command' && isOemCommandName(entry.name),
+        });
         return { ok: true, text: decoded.text, encoding: decoded.encoding };
       } catch {
         return { ok: false, reason: 'error' };

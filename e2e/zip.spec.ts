@@ -12,7 +12,7 @@ import {
 } from './helpers';
 
 test.describe('DiagLogs-ZIP', () => {
-  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt zwölf Kacheln', async ({ page }) => {
+  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt dreizehn Kacheln', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: new RegExp(T.zipChip) }).click();
     await waitForTilesReady(page);
@@ -28,7 +28,7 @@ test.describe('DiagLogs-ZIP', () => {
 
     await page.getByRole('button', { name: T.zipMerge }).click();
     await waitForTilesReady(page);
-    await expect(tileButtons(page)).toHaveCount(12);
+    await expect(tileButtons(page)).toHaveCount(13);
   });
 
   test('Upload per Datei-Eingabe: ZIP-Ansicht erscheint, kein Request sendet die Datei', async ({
