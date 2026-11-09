@@ -5,7 +5,7 @@
  */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
-import { appState, entraDevice, inFuture, policy, windowsDevice } from './helpers';
+import { appState, entraDevice, inFuture, policy, userLicenseInfo, windowsDevice } from './helpers';
 
 const GB = 1024 ** 3;
 
@@ -34,6 +34,17 @@ export const ip015Ios: MockScenario = {
     });
     return {
       device,
+      // M14/S3: nur „Mobile Device Management for Office 365“, noch nicht aktiviert → keine Intune-Lizenz
+      userLicense: {
+        status: 'ok',
+        data: userLicenseInfo([
+          {
+            plan: 'INTUNE_O365',
+            skuPartNumber: 'O365_BUSINESS_PREMIUM',
+            provisioningStatus: 'PendingActivation',
+          },
+        ]),
+      },
       protection: { status: 'notApplicable', reason: de.reasons.defenderNotWindows },
       compliancePolicies: {
         status: 'ok',

@@ -11,6 +11,8 @@
 import type {
   AssignmentLookup,
   AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -145,6 +147,24 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<HealthAttestationInfo>>;
+
+  /**
+   * Lizenz des primären Benutzers (M14/S3): nur die Intune-Serviceplans aus `licenseDetails`. Ohne
+   * primären Benutzer notApplicable; optionaler Scope LicenseAssignment.Read.All (403 → forbidden).
+   */
+  getUserLicense(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<UserLicenseInfo>>;
+
+  /**
+   * Gerätelimit-Konfigurationen des Mandanten mit ihren Zielen (M14/S3). Ohne primären Benutzer
+   * notApplicable; optionaler Scope DeviceManagementServiceConfig.Read.All.
+   */
+  getEnrollmentLimits(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<EnrollmentLimitsInfo>>;
 
   /**
    * Zuweisungen der Richtlinien/Apps, die in den Gerätezuständen erscheinen (M14/S2): je Objekt ein GET

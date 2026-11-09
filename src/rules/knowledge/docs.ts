@@ -137,6 +137,27 @@ export const Docs = {
   /** Dual State vermeiden/bereinigen; Hinweis: Entfernen des registrierten Zustands kann Intune-Registrierung beenden */
   hybridJoinReviewThingsToKnow:
     'https://learn.microsoft.com/entra/identity/devices/hybrid-join-plan#review-things-you-should-know',
+  // M14/S3: Registrierung – Lizenz und Gerätelimit (abgerufen 2026-11-09)
+  licenseDetailsList:
+    'https://learn.microsoft.com/graph/api/user-list-licensedetails?view=graph-rest-1.0',
+  servicePlanInfo:
+    'https://learn.microsoft.com/graph/api/resources/serviceplaninfo?view=graph-rest-1.0',
+  licensingServicePlanReference:
+    'https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference',
+  /** Ursache/Lösung „IT admin needs to assign license for access“ */
+  enrollmentLicenseMissing:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#it-admin-needs-to-assign-license-for-access',
+  /** Ursache/Lösung „Device cap reached“ (DeviceCapReached) */
+  enrollmentDeviceCapReached:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#device-cap-reached',
+  intuneLicensesAssign: 'https://learn.microsoft.com/mem/intune/fundamentals/licenses-assign',
+  /** Intune- und Entra-Gerätelimit: für welche Registrierungsarten das Intune-Limit nicht gilt */
+  deviceLimitsIntuneEntra:
+    'https://learn.microsoft.com/intune/device-enrollment/limits-intune-entra',
+  enrollmentLimitResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0',
+  enrollmentConfigurationsList:
+    'https://learn.microsoft.com/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
   // M14/S2: Zuweisungen (abgerufen 2026-11-09)
   configurationAssignmentsList:
     'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',

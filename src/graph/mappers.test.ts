@@ -22,6 +22,8 @@ import {
   mapAutopilot,
   mapDeviceGroups,
   mapDuplicateDevices,
+  mapEnrollmentLimits,
+  mapUserLicense,
   mapEntraDevice,
   mapHealthAttestation,
   mapLocalAdmin,
@@ -889,5 +891,141 @@ describe('Zuweisungen (M14/S2)', () => {
     ).toBe(false);
     expect(isGuid('c-1')).toBe(false);
     expect(isGuid('')).toBe(false);
+  });
+});
+
+describe('Lizenz des Benutzers (M14/S3)', () => {
+  const plan = (servicePlanId: string, provisioningStatus: string, servicePlanName = 'X') => ({
+    servicePlanId,
+    servicePlanName,
+    provisioningStatus: provisioningStatus as 'Success',
+    appliesTo: 'User',
+  });
+
+  it('übernimmt nur die Intune-Serviceplans (INTUNE_A, INTUNE_A_VL, INTUNE_EDU, INTUNE_O365) – Match über die Plan-ID', () => {
+    const info = mapUserLicense([
+      {
+        skuId: 'sku-1',
+        skuPartNumber: 'SPE_E3',
+        servicePlans: [
+          plan('C1EC4A95-1F05-45B3-A911-AA3FA01094F5', 'Success', 'INTUNE_A'),
+          plan('8e0c0a52-6a6c-4d40-8370-dd62790dcd70', 'Success', 'THREAT_INTELLIGENCE'),
+          plan('882e1d05-acd1-4ccb-8708-6ee03664b117', 'PendingActivation'),
+        ],
+      },
+      {
+        skuId: 'sku-2',
+        skuPartNumber: 'EDU',
+        servicePlans: [
+          plan('3e170737-c728-4eae-bbb9-3f3360f7184c', 'Disabled'),
+          plan('da24caf9-af8e-485c-b7c8-e73336da2693', 'Error'),
+        ],
+      },
+    ]);
+    expect(info.licenseCount).toBe(2);
+    expect(info.plans).toEqual([
+      { plan: 'INTUNE_A', skuPartNumber: 'SPE_E3', provisioningStatus: 'Success' },
+      { plan: 'INTUNE_O365', skuPartNumber: 'SPE_E3', provisioningStatus: 'PendingActivation' },
+      { plan: 'INTUNE_A_VL', skuPartNumber: 'EDU', provisioningStatus: 'Disabled' },
+      { plan: 'INTUNE_EDU', skuPartNumber: 'EDU', provisioningStatus: 'Error' },
+    ]);
+  });
+
+  it('ein Plan mit passendem Namen, aber fremder ID zählt nicht; Müll und leere Listen sind sicher', () => {
+    expect(
+      mapUserLicense([
+        {
+          skuId: 's',
+          skuPartNumber: 'X',
+          servicePlans: [plan('not-a-known-id', 'Success', 'INTUNE_A')],
+        },
+      ]).plans,
+    ).toEqual([]);
+    expect(mapUserLicense(null)).toEqual({ plans: [], licenseCount: 0 });
+    expect(mapUserLicense([{ skuId: null, skuPartNumber: null, servicePlans: null }])).toEqual({
+      plans: [],
+      licenseCount: 1,
+    });
+    expect(
+      mapUserLicense([
+        {
+          skuId: 's',
+          skuPartNumber: 'X',
+          servicePlans: [plan('c1ec4a95-1f05-45b3-a911-aa3fa01094f5', 'Bogus')],
+        },
+      ]).plans[0]!.provisioningStatus,
+    ).toBeNull();
+  });
+
+  it('das Ergebnis enthält keine Benutzer- oder Lizenz-IDs (Datensparsamkeit)', () => {
+    const json = JSON.stringify(
+      mapUserLicense([
+        {
+          id: 'detail-id-123',
+          skuId: 'sku-id-456',
+          skuPartNumber: 'SPE_E3',
+          servicePlans: [plan('c1ec4a95-1f05-45b3-a911-aa3fa01094f5', 'Success')],
+        },
+      ]),
+    );
+    expect(json).not.toContain('detail-id-123');
+    expect(json).not.toContain('sku-id-456');
+  });
+});
+
+describe('Gerätelimit (M14/S3)', () => {
+  const group = (groupId: string) => ({
+    target: { '@odata.type': '#microsoft.graph.groupAssignmentTarget', groupId },
+  });
+
+  it('erkennt Limit-Konfigurationen am @odata.type (mit/ohne #), sortiert nach Priorität und mappt die Ziele', () => {
+    const result = mapEnrollmentLimits(
+      [
+        {
+          '@odata.type': '#microsoft.graph.deviceEnrollmentLimitConfiguration',
+          id: 'b',
+          displayName: 'Standard',
+          priority: 2,
+          limit: 5,
+        },
+        {
+          '@odata.type': '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration',
+          id: 'x',
+          displayName: 'Plattformen',
+          priority: 1,
+        },
+        {
+          '@odata.type': 'microsoft.graph.deviceEnrollmentLimitConfiguration',
+          id: 'a',
+          displayName: 'Pilot',
+          priority: 1,
+          limit: 15,
+        },
+      ],
+      new Map([['a', [group('g-1')]]]),
+    );
+    expect(result.map((c) => [c.id, c.priority, c.limit])).toEqual([
+      ['a', 1, 15],
+      ['b', 2, 5],
+    ]);
+    expect(result[0]!.targets).toEqual([{ kind: 'group', groupId: 'g-1' }]);
+    // keine Zuweisungsantwort → Ziele unbekannt (null), nicht „keine“
+    expect(result[1]!.targets).toBeNull();
+  });
+
+  it('fehlendes limit/priority → null; leere Namen fallen auf die ID zurück; Müll ist sicher', () => {
+    const [config] = mapEnrollmentLimits(
+      [
+        {
+          '@odata.type': '#microsoft.graph.deviceEnrollmentLimitConfiguration',
+          id: 'c',
+          displayName: ' ',
+          priority: null,
+        },
+      ],
+      new Map(),
+    );
+    expect(config).toMatchObject({ id: 'c', displayName: 'c', priority: null, limit: null });
+    expect(mapEnrollmentLimits(null, new Map())).toEqual([]);
   });
 });

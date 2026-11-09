@@ -41,13 +41,19 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
   },
   'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning', autopilot: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
-  'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
+  'CONTOSO-IP015': {
+    deviceStatus: 'warning',
+    defender: 'unknown',
+    osVersion: 'unknown',
+    registration: 'warning', // M14/S3: nur MDM for Office 365, keine Intune-Lizenz
+  },
   'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
   'CONTOSO-PC050': {
     policies: 'unknown',
     signIns: 'unknown',
     laps: 'unknown',
     autopilot: 'unknown',
+    registration: 'unknown', // M14/S3: Lizenz und Gerätelimit ohne Berechtigung
   },
 };
 
@@ -306,6 +312,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
         'groups',
         'laps',
         'policies',
+        'registration',
         'signIns',
       ].sort(),
     );
@@ -345,7 +352,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(10);
+    expect(summary.loading).toBe(11);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

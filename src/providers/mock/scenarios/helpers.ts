@@ -3,6 +3,10 @@
  */
 import type {
   AssignmentEntry,
+  EnrollmentLimitInfo,
+  EnrollmentLimitsInfo,
+  IntuneLicensePlanInfo,
+  UserLicenseInfo,
   AssignmentLookup,
   AssignmentsInfo,
   DeviceGroupsInfo,
@@ -477,5 +481,45 @@ export function defaultAssignments(
       status: 'ok' as const,
       assignments: overrides[lookup.id] ?? defaultAssignmentEntries(lookup.kind),
     })),
+  };
+}
+
+/** Lizenz des Benutzers (fiktiv): Standard = Intune-Plan INTUNE_A aktiv (SKU „SPE_E3“). */
+export function userLicenseInfo(
+  plans: IntuneLicensePlanInfo[] = [
+    { plan: 'INTUNE_A', skuPartNumber: 'SPE_E3', provisioningStatus: 'Success' },
+  ],
+  licenseCount = Math.max(1, new Set(plans.map((p) => p.skuPartNumber)).size),
+): UserLicenseInfo {
+  return { plans, licenseCount };
+}
+
+/** Eine Gerätelimit-Konfiguration (fiktiv). */
+export function enrollmentLimit(
+  n: number,
+  displayName: string,
+  overrides: Partial<EnrollmentLimitInfo> = {},
+): EnrollmentLimitInfo {
+  return {
+    id: demoGuid('policy', 700 + n),
+    displayName,
+    priority: n,
+    limit: 5,
+    targets: [{ kind: 'allUsers' }],
+    ...overrides,
+  };
+}
+
+/** Standard: Gruppe „Außendienst“ (Priorität 1, Limit 15) vor der Standardkonfiguration (Priorität 2, Limit 5). */
+export function defaultEnrollmentLimits(): EnrollmentLimitsInfo {
+  return {
+    omitted: 0,
+    limits: [
+      enrollmentLimit(1, 'Contoso – Außendienst', {
+        limit: 15,
+        targets: [{ kind: 'group', groupId: demoGuid('object', 310) }],
+      }),
+      enrollmentLimit(2, 'Contoso – Standard', { limit: 5 }),
+    ],
   };
 }

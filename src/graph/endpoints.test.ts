@@ -157,3 +157,43 @@ describe('Endpoints – Zuweisungen (M14/S2)', () => {
     );
   });
 });
+
+describe('Endpunkte – Registrierung: Lizenz und Gerätelimit (M14/S3)', () => {
+  it('licenseDetails: v1.0-GET /users/{id}/licenseDetails mit minimalem $select, optionaler Scope LicenseAssignment.Read.All', () => {
+    const def = Endpoints.userLicenseDetails;
+    const url = new URL(`https://graph.microsoft.com/v1.0${def.path('user-1')}`);
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    expect(url.pathname).toBe('/v1.0/users/user-1/licenseDetails');
+    expect(url.searchParams.get('$select')).toBe('id,skuId,skuPartNumber,servicePlans');
+    expect([...url.searchParams.keys()]).toEqual(['$select']);
+    expect(def.scope).toBe('LicenseAssignment.Read.All');
+    expect(OPTIONAL_SCOPES).toContain(def.scope);
+    expect(LOGIN_SCOPES).not.toContain(def.scope);
+    expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+
+  it('Registrierungskonfigurationen und deren Zuweisungen: ohne Query (kein $filter/$expand), Scope ServiceConfig.Read (optional)', () => {
+    const list = Endpoints.deviceEnrollmentConfigurations;
+    const assignments = Endpoints.deviceEnrollmentConfigurationAssignments;
+    expect(list.path()).toBe('/deviceManagement/deviceEnrollmentConfigurations');
+    expect(assignments.path('cfg-1')).toBe(
+      '/deviceManagement/deviceEnrollmentConfigurations/cfg-1/assignments',
+    );
+    for (const def of [list, assignments]) {
+      expect(def.method).toBe('GET');
+      expect(def.version).toBe('v1.0');
+      expect(def.path('x')).not.toContain('?');
+      expect(def.scope).toBe('DeviceManagementServiceConfig.Read.All');
+      expect(OPTIONAL_SCOPES).toContain(def.scope);
+      expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+    }
+  });
+
+  it('beide neuen Scopes sind optional und nicht im Login enthalten', () => {
+    for (const scope of ['LicenseAssignment.Read.All', 'SecurityAlert.Read.All'] as const) {
+      expect(OPTIONAL_SCOPES).toContain(scope);
+      expect(LOGIN_SCOPES).not.toContain(scope);
+    }
+  });
+});

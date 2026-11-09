@@ -20,6 +20,8 @@ export const deRules = {
     forbiddenRoleHints: {
       'AuditLog.Read.All':
         'Das Anmeldeprotokoll erfordert laut Microsoft Entra ID P1/P2 und für das Konto eine Entra-Rolle wie Global Reader, Reports Reader, Security Administrator, Security Operator oder Security Reader.',
+      'LicenseAssignment.Read.All':
+        'Die Lizenzdetails eines Benutzers darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Directory Readers, License Administrator oder User Administrator hat (oder eine benutzerdefinierte Rolle mit microsoft.directory/users/licenseDetails/read).',
       'DeviceLocalCredential.ReadBasic.All':
         'Für die LAPS-Metadaten braucht das Konto laut Microsoft eine Entra-Rolle wie Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Administrator, Security Reader oder Global Reader.',
     } as Record<string, string>,
@@ -107,6 +109,91 @@ export const deRules = {
     unknown: 'Unbekannt',
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
+  },
+  /** M14/S3: Kachel „Registrierung (Benutzer)“ – Lizenz und Gerätelimit des primären Benutzers */
+  registration: {
+    valueLicenseOk: 'Lizenz vorhanden',
+    valueNoLicense: 'Keine Intune-Lizenz',
+    valueLimit: 'Gerätelimit prüfen',
+    summary: (license: string, devices: string | null) =>
+      devices ? `${license} · ${devices}` : license,
+    summaryLicenseOk: 'Intune-Lizenz aktiv',
+    summaryLicenseMissing: 'Kein aktiver Intune-Lizenzplan',
+    summaryLicenseUnknown: 'Lizenz nicht auswertbar',
+    summaryDevices: (n: number) =>
+      n === 1 ? '1 Gerät des Benutzers' : `${n} Geräte des Benutzers`,
+    facts: {
+      licenses: 'Lizenzen des Benutzers',
+      plans: 'Intune-Serviceplan',
+      noPlan: 'keiner',
+      devices: 'Geräte des Benutzers in Intune',
+      devicesNote: 'erste Seite der Abfrage, inkl. dieses Geräts',
+      limitConfigs: 'Gerätelimit-Konfigurationen',
+      smallestLimit: 'Kleinstes Limit',
+    },
+    planStatus: {
+      Success: 'aktiv',
+      Disabled: 'deaktiviert',
+      Error: 'Fehler',
+      PendingInput: 'wartet auf Bestätigung des Dienstes',
+      PendingActivation: 'Aktivierung durch einen Administrator ausstehend',
+      PendingProvisioning: 'Bereitstellung ausstehend',
+    } as Record<string, string>,
+    planStatusUnknown: 'Status unbekannt',
+    mdmO365Name: 'Mobile Device Management for Office 365',
+    noLicenseTitle: 'Kein aktiver Intune-Lizenzplan',
+    noLicenseDetailNone: (count: number) =>
+      count === 0
+        ? 'Dem primären Benutzer ist keine Lizenz zugewiesen.'
+        : `Dem primären Benutzer sind ${count === 1 ? '1 Lizenz' : `${count} Lizenzen`} zugewiesen, aber keine enthält einen Intune-Serviceplan (INTUNE_A, INTUNE_A_VL oder INTUNE_EDU).`,
+    noLicenseDetailInactive: (plans: string) =>
+      `Der Benutzer hat Intune-Serviceplans, aber keiner ist aktiv: ${plans}.`,
+    noLicenseCause:
+      'Laut Microsoft kann ein Gerät nicht registriert werden, wenn dem Benutzer die nötige Lizenz fehlt oder er einen falschen Lizenztyp für die MDM-Instanz hat. Das Gerät erscheint hier zwar verwaltet – für neue Registrierungen und die weitere Verwaltung braucht der Benutzer jedoch eine Lizenz.',
+    noLicenseRemediation: [
+      'Im Microsoft 365 Admin Center oder Entra Admin Center prüfen, ob dem Benutzer eine Lizenz mit Intune-Plan zugewiesen ist (direkt oder über eine Lizenzgruppe).',
+      'Bei gruppenbasierter Lizenzierung den Lizenzstatus der Gruppe auf Fehler prüfen.',
+      'Nach der Zuweisung kann es etwas dauern, bis der Plan den Status „aktiv“ meldet; danach „Erneut laden“.',
+    ],
+    mdmO365Title: 'Nur „Mobile Device Management for Office 365“ zugewiesen',
+    mdmO365Detail: (status: string) =>
+      `Der Serviceplan INTUNE_O365 („Mobile Device Management for Office 365“) ist zugewiesen, Status: ${status}. Er wird hier nicht als Intune-Plan gewertet.`,
+    mdmO365Cause:
+      'Laut Microsoft erfordert dieser Plan eine ausdrückliche Aktivierung durch einen Administrator („Aktivierung ausstehend“), bevor er bereitgestellt ist.',
+    mdmO365Remediation: [
+      'Prüfen, ob für den Mandanten Intune oder die MDM-Funktion von Microsoft 365 als Verwaltung vorgesehen ist, und dem Benutzer entsprechend die passende Lizenz zuweisen.',
+    ],
+    limitsTitle: 'Gerätelimit-Konfigurationen',
+    limitsDetail: (count: number) =>
+      count === 0
+        ? 'Im Mandanten ist keine Gerätelimit-Konfiguration lesbar.'
+        : `Der Mandant hat ${count === 1 ? '1 Gerätelimit-Konfiguration' : `${count} Gerätelimit-Konfigurationen`}. Welche für diesen Benutzer gilt, ist nicht sicher bestimmbar: Benutzergruppen werden nicht gelesen. Laut Microsoft unterliegt ein Benutzer nur der Konfiguration mit dem niedrigsten Prioritätswert, der er zugewiesen ist.`,
+    limitsOmitted: (n: number) =>
+      `${n === 1 ? '1 weitere Konfiguration wurde' : `${n} weitere Konfigurationen wurden`} nicht gelesen (höchstens 10).`,
+    limitsCause:
+      'Das Intune-Gerätelimit begrenzt, wie viele Geräte ein Benutzer registrieren darf. Es gilt laut Microsoft nicht für Co-Management, Registrierung per Gruppenrichtlinie, Microsoft-Entra-Join (auch Massenregistrierung), Windows Autopilot und Geräteregistrierungs-Manager; dafür lässt sich in Microsoft Entra ID ein hartes Limit setzen (Geräteeinstellungen).',
+    limitsRemediation: [
+      'Im Intune Admin Center unter „Geräte › Registrierungseinschränkungen › Gerätelimit-Einschränkungen“ prüfen, welche Konfiguration dem Benutzer zugewiesen ist.',
+      'Unter „Benutzer › Alle Benutzer › Benutzer › Geräte“ die Zahl der registrierten Geräte des Benutzers ansehen.',
+    ],
+    columns: { name: 'Name', priority: 'Priorität', limit: 'Limit', targets: 'Ziele' },
+    unknownValue: '–',
+    targetAllUsers: 'Alle Benutzer',
+    targetAllDevices: 'Alle Geräte',
+    targetGroup: (id: string) => `Gruppe ${id}`,
+    targetExcluded: (id: string) => `ausgenommen: Gruppe ${id}`,
+    targetUnknown: 'unbekannter Zieltyp',
+    targetsUnreadable: 'Ziele nicht lesbar',
+    targetsNone: 'keine Zuweisung',
+    limitReachedTitle: 'Geräteanzahl erreicht das kleinste konfigurierte Limit',
+    limitReachedDetail: (devices: number, limit: number) =>
+      `Der Benutzer hat ${devices === 1 ? '1 Gerät' : `${devices} Geräte`} in Intune (erste Seite der Abfrage, inkl. dieses Geräts); das kleinste konfigurierte Gerätelimit beträgt ${limit}.`,
+    limitReachedCause:
+      'Laut Microsoft zeigt der Fehler „DeviceCapReached“ an, dass ein Benutzer mehr Geräte registrieren will, als das Gerätelimit erlaubt; entspricht die Zahl der registrierten Geräte dem Limit, sind keine weiteren Registrierungen möglich. Ob dieses Limit für den Benutzer gilt, hängt von seiner Zuweisung ab (siehe Tabelle) und davon, ob die Registrierungsart vom Limit ausgenommen ist.',
+    limitReachedRemediation: [
+      'Prüfen, welche Limit-Konfiguration dem Benutzer zugewiesen ist (Priorität beachten) und wie viele Geräte der Benutzer unter „Benutzer › Geräte“ hat.',
+      'Veraltete Geräteeinträge des Benutzers bereinigen oder das Limit unter „Registrierungseinschränkungen“ anpassen – MDM Doctor ändert nichts.',
+    ],
   },
   /** M14/S2: Zuweisungen – „Warum gilt diese Richtlinie / diese App?“ (Richtlinien- und Apps-Kachel) */
   assignments: {

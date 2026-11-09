@@ -15,6 +15,7 @@ import type {
   MobileAppIntent,
   PolicyPlatformType,
   ResultantAppState,
+  ServicePlanProvisioningStatus,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
   WindowsMalwareState,
@@ -384,6 +385,43 @@ export interface AssignmentsInfo {
   skipped: number;
 }
 
+// ---------- Registrierung des Benutzers: Lizenz und Gerätelimit (M14/S3) ----------
+
+/** Intune-relevante Serviceplan-Namen laut Lizenz-Referenz (Match über die servicePlanId). */
+export type IntunePlanName = 'INTUNE_A' | 'INTUNE_A_VL' | 'INTUNE_EDU' | 'INTUNE_O365';
+
+export interface IntuneLicensePlanInfo {
+  plan: IntunePlanName;
+  /** SKU der Lizenz, in der der Plan enthalten ist (z. B. "SPE_E3") */
+  skuPartNumber: string | null;
+  provisioningStatus: ServicePlanProvisioningStatus | null;
+}
+
+/** Lizenzen des primären Benutzers, reduziert auf die Intune-Serviceplans. Ohne Benutzerangaben. */
+export interface UserLicenseInfo {
+  /** Gefundene Intune-Pläne (INTUNE_A, INTUNE_A_VL, INTUNE_EDU, INTUNE_O365) aller Lizenzen */
+  plans: IntuneLicensePlanInfo[];
+  /** Anzahl der dem Benutzer zugewiesenen Lizenzen (SKUs) */
+  licenseCount: number;
+}
+
+/** Eine Gerätelimit-Konfiguration (deviceEnrollmentLimitConfiguration) mit ihren Zielen. */
+export interface EnrollmentLimitInfo {
+  id: string;
+  displayName: string;
+  /** Benutzer unterliegen nur der Konfiguration mit dem niedrigsten Wert */
+  priority: number | null;
+  limit: number | null;
+  /** null = Zuweisungen konnten nicht gelesen werden */
+  targets: AssignmentTarget[] | null;
+}
+
+export interface EnrollmentLimitsInfo {
+  limits: EnrollmentLimitInfo[];
+  /** Limit-Konfigurationen, die wegen der Obergrenze nicht gelesen wurden */
+  omitted: number;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -407,6 +445,10 @@ export interface DeviceSnapshot {
    * Gerät steht nicht darin (kein Fehler). Optionaler Scope DeviceManagementServiceConfig.Read.All.
    */
   autopilot?: SectionResult<AutopilotInfo | null>;
+  /** Lizenz des primären Benutzers (M14/S3, optionaler Scope LicenseAssignment.Read.All) */
+  userLicense?: SectionResult<UserLicenseInfo>;
+  /** Gerätelimit-Konfigurationen des Mandanten (M14/S3, optionaler Scope DeviceManagementServiceConfig.Read.All) */
+  enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
   deviceGroups?: SectionResult<DeviceGroupsInfo>;
   /**
@@ -441,6 +483,7 @@ export type TileId =
   | 'autopilot'
   | 'groups'
   | 'attestation'
+  | 'registration'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -505,6 +548,8 @@ export type SnapshotSectionKey =
   | 'deviceGroups'
   | 'userDevices'
   | 'healthAttestation'
+  | 'userLicense'
+  | 'enrollmentLimits'
   | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */

@@ -4,6 +4,10 @@
  */
 import type {
   AppliedPolicyInfo,
+  EnrollmentLimitInfo,
+  IntuneLicensePlanInfo,
+  IntunePlanName,
+  UserLicenseInfo,
   AssignmentEntry,
   AssignmentTarget,
   AutopilotInfo,
@@ -36,6 +40,9 @@ import type {
   DeviceEnrollmentType,
   GraphAppliedConditionalAccessPolicy,
   GraphAssignment,
+  GraphDeviceEnrollmentConfiguration,
+  GraphLicenseDetails,
+  ServicePlanProvisioningStatus,
   GraphApplePushNotificationCertificate,
   GraphDirectoryObject,
   GraphManagedDeviceHealthAttestation,
@@ -804,4 +811,89 @@ export function mapAssignments(entries: GraphAssignment[] | null | undefined): A
       target: mapAssignmentTarget(entry.target),
       intent: pickOrNull(entry.intent, ASSIGNMENT_INTENTS),
     }));
+}
+
+// ---------- Lizenz des Benutzers (M14/S3) ----------
+
+/**
+ * Intune-Serviceplans nach servicePlanId (Quelle: Licensing service plan reference,
+ * https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference). INTUNE_O365 ist
+ * „Mobile Device Management for Office 365“ – kein Intune-Plan im engeren Sinn.
+ */
+export const INTUNE_PLAN_IDS: Record<string, IntunePlanName> = {
+  'c1ec4a95-1f05-45b3-a911-aa3fa01094f5': 'INTUNE_A',
+  '3e170737-c728-4eae-bbb9-3f3360f7184c': 'INTUNE_A_VL',
+  'da24caf9-af8e-485c-b7c8-e73336da2693': 'INTUNE_EDU',
+  '882e1d05-acd1-4ccb-8708-6ee03664b117': 'INTUNE_O365',
+};
+
+const PLAN_STATUSES: readonly ServicePlanProvisioningStatus[] = [
+  'Success',
+  'Disabled',
+  'Error',
+  'PendingInput',
+  'PendingActivation',
+  'PendingProvisioning',
+];
+
+/** Reduziert die Lizenzdetails auf die Intune-Serviceplans; alles andere wird verworfen. */
+export function mapUserLicense(entries: GraphLicenseDetails[] | null | undefined): UserLicenseInfo {
+  const licenses = (Array.isArray(entries) ? entries : []).filter(
+    (entry) => entry && typeof entry === 'object',
+  );
+  const plans: IntuneLicensePlanInfo[] = [];
+  for (const license of licenses) {
+    for (const servicePlan of Array.isArray(license.servicePlans) ? license.servicePlans : []) {
+      const plan = INTUNE_PLAN_IDS[(str(servicePlan?.servicePlanId) ?? '').toLowerCase()];
+      if (!plan) continue;
+      plans.push({
+        plan,
+        skuPartNumber: str(license.skuPartNumber),
+        provisioningStatus: pickOrNull(servicePlan.provisioningStatus, PLAN_STATUSES),
+      });
+    }
+  }
+  return { plans, licenseCount: licenses.length };
+}
+
+// ---------- Gerätelimit (M14/S3) ----------
+
+/**
+ * Gerätelimit-Konfigurationen aus der gemischten Liste der Registrierungskonfigurationen (Erkennung am
+ * `@odata.type`, mit oder ohne `#`). `assignments` je Konfigurations-ID; fehlt ein Eintrag, sind die
+ * Ziele nicht lesbar (null). Sortiert nach Priorität (niedrigster Wert zuerst).
+ */
+export function mapEnrollmentLimits(
+  configs: GraphDeviceEnrollmentConfiguration[] | null | undefined,
+  assignments: ReadonlyMap<string, GraphAssignment[]>,
+): EnrollmentLimitInfo[] {
+  return (Array.isArray(configs) ? configs : [])
+    .filter(
+      (config) =>
+        config &&
+        typeof config.id === 'string' &&
+        str(config['@odata.type'])?.replace(/^#/, '') ===
+          'microsoft.graph.deviceEnrollmentLimitConfiguration',
+    )
+    .map((config) => {
+      const entries = assignments.get(config.id);
+      return {
+        id: config.id,
+        displayName: str(config.displayName)?.trim() || config.id,
+        priority: num(config.priority),
+        limit: num(config.limit),
+        targets: entries ? mapAssignments(entries).map((entry) => entry.target) : null,
+      };
+    })
+    .sort(
+      (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
+    );
+}
+
+/** Ob eine Konfiguration ein Gerätelimit ist (für den Provider: nur dafür Zuweisungen lesen). */
+export function isEnrollmentLimitConfig(config: GraphDeviceEnrollmentConfiguration): boolean {
+  return (
+    str(config?.['@odata.type'])?.replace(/^#/, '') ===
+    'microsoft.graph.deviceEnrollmentLimitConfiguration'
+  );
 }

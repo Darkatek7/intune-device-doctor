@@ -40,6 +40,7 @@ export const de = {
     signIns: 'Anmeldungen',
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
+    registration: 'Registrierung (Benutzer)',
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -151,6 +152,15 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S3: Registrierung des Benutzers
+    licenseNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – es gibt keine Lizenz zu prüfen.',
+    licenseNotReported:
+      'Graph meldet HTTP 404 für die Lizenzdetails des Benutzers – über diese Schnittstelle nicht verfügbar.',
+    enrollmentLimitsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – das Gerätelimit gilt je Benutzer.',
+    enrollmentLimitsNotReported:
+      'Graph meldet HTTP 404 für die Registrierungskonfigurationen – über diese Schnittstelle nicht verfügbar.',
     // M14/S2: Zuweisungen
     assignmentsNothingToCheck:
       'Keine Richtlinien oder Apps aus den Gerätezuständen vorhanden – es gibt nichts abzugleichen.',
@@ -187,6 +197,7 @@ export const de = {
   /** Links ins Intune Admin Center (src/links/intunePortal.ts) */
   links: {
     openApp: 'App im Intune Admin Center öffnen',
+    assignIntuneLicense: 'Intune-Lizenzen zuweisen (Microsoft Learn)',
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     openDeviceInventory: 'Geräteinventar im Intune Admin Center',

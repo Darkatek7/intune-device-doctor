@@ -6,6 +6,8 @@
 import type {
   AssignmentLookup,
   AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -145,6 +147,14 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
+  }
+
+  getUserLicense(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<UserLicenseInfo>((p) => p.getUserLicense(device, options));
+  }
+
+  getEnrollmentLimits(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<EnrollmentLimitsInfo>((p) => p.getEnrollmentLimits(device, options));
   }
 
   getAssignments(device: ManagedDeviceInfo, lookups: AssignmentLookup[], options?: RequestOptions) {

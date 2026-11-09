@@ -55,6 +55,8 @@ Die offenen Fragen je Endpunkt stehen als Checkliste in `docs/graph-api-referenc
 Die offenen Fragen stehen als Checkliste in `docs/graph-api-reference.md` › „Live zu verifizieren (M14)“. Der Verbindungstest der App (Ansicht „Verbindungstest“, nur Live) ruft jeden Endpunkt einmal auf und zeigt nur Status, Dauer, Anzahl und Feldnamen – daraus lässt sich der Bericht für diese Liste kopieren.
 
 - **Zuweisungen** (Scope `DeviceManagementConfiguration.Read.All`, bereits beim Login): Gerät mit Richtlinien öffnen → `GET …/deviceConfigurations/{id}/assignments`, `…/deviceCompliancePolicies/{id}/assignments`, `…/deviceAppManagement/mobileApps/{id}/assignments`. Prüfen: (a) 200 oder 404 – und ob die `id` aus dem Gerätezustand die Richtlinien-ID ist (bei 404 / nicht-GUID zeigt die App „nicht auswertbar“); (b) Schreibweise von `target/@odata.type` (mit/ohne `#`); (c) `groupId`-Feld bei Gruppenzielen.
+- **Lizenz** (Scope `LicenseAssignment.Read.All` per Admin-Consent; Konto mit z. B. Directory Readers / License Administrator): Gerät mit primärem Benutzer öffnen → `GET …/users/{id}/licenseDetails?$select=…`. Erwartet 200 mit `servicePlans[]`; notieren, ob `$select` akzeptiert wird (sonst 400 → `$select` in `src/graph/endpoints.ts` entfernen). Plan-IDs der Intune-Pläne gegen die Lizenz-Referenz prüfen.
+- **Gerätelimit** (Scope `DeviceManagementServiceConfig.Read.All`): `GET …/deviceManagement/deviceEnrollmentConfigurations` und je Limit-Konfiguration `…/{id}/assignments`. Prüfen: `@odata.type` der Limit-Einträge, Feld `limit`, Form der Ziele und wie die Standardkonfiguration geliefert wird.
 
 ## Abschluss
 

@@ -8,6 +8,8 @@ import type {
   AssignmentLookup,
   AssignmentObjectInfo,
   AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -37,10 +39,12 @@ import type {
   GraphBitlockerRecoveryKey,
   GraphAssignment,
   GraphCollection,
+  GraphDeviceEnrollmentConfiguration,
   GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
   GraphDirectoryObject,
   GraphEntraDevice,
+  GraphLicenseDetails,
   GraphManagedDevice,
   GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
@@ -55,12 +59,14 @@ import {
   ASSIGNMENT_LOOKUP_CONCURRENCY,
   Endpoints,
   MAX_ASSIGNMENT_LOOKUPS,
+  MAX_ENROLLMENT_LIMIT_CONFIGS,
   MAX_LIST_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
 import {
   graphSource,
+  isEnrollmentLimitConfig,
   isGuid,
   mapApplePushCertificate,
   mapAssignments,
@@ -70,6 +76,7 @@ import {
   mapDuplicateDevices,
   mapUserDevices,
   mapBitlockerKey,
+  mapEnrollmentLimits,
   mapEntraDevice,
   mapHealthAttestation,
   mapLocalAdmin,
@@ -78,6 +85,7 @@ import {
   mapPolicyState,
   mapSearchResult,
   mapSignIns,
+  mapUserLicense,
   mapWindowsProtection,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
@@ -655,6 +663,94 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapHealthAttestation(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.attestationNotReported, source }),
+    );
+  }
+
+  /**
+   * Lizenz des primären Benutzers (M14/S3): `GET /users/{id}/licenseDetails`, reduziert auf die
+   * Intune-Serviceplans. Optionaler Scope LicenseAssignment.Read.All.
+   */
+  getUserLicense(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<UserLicenseInfo>> {
+    const endpoint = Endpoints.userLicenseDetails;
+    return this.run<UserLicenseInfo>(
+      'userLicenseDetails',
+      async (source) => {
+        if (!device.userId) {
+          return { status: 'notApplicable', reason: de.reasons.licenseNoPrimaryUser, source };
+        }
+        const entries = await this.client.getAllPages<GraphLicenseDetails>(
+          endpoint.path(device.userId),
+          { signal: options.signal, scope: endpoint.scope, maxPages: MAX_LIST_PAGES },
+        );
+        return this.ok(mapUserLicense(entries), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.licenseNotReported, source }),
+    );
+  }
+
+  /**
+   * Gerätelimit-Konfigurationen (M14/S3): Liste der Registrierungskonfigurationen (Limits am
+   * `@odata.type` erkannt) und je Limit-Konfiguration ein GET auf die Zuweisungen (höchstens
+   * MAX_ENROLLMENT_LIMIT_CONFIGS, 4 parallel). Nicht lesbare Zuweisungen → Ziele null.
+   */
+  getEnrollmentLimits(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<EnrollmentLimitsInfo>> {
+    const endpoint = Endpoints.deviceEnrollmentConfigurations;
+    const assignmentsEndpoint = Endpoints.deviceEnrollmentConfigurationAssignments;
+    return this.run<EnrollmentLimitsInfo>(
+      'deviceEnrollmentConfigurations',
+      async (source) => {
+        if (!device.userId) {
+          return {
+            status: 'notApplicable',
+            reason: de.reasons.enrollmentLimitsNoPrimaryUser,
+            source,
+          };
+        }
+        const configs = await this.client.getAllPages<GraphDeviceEnrollmentConfiguration>(
+          endpoint.path(),
+          { signal: options.signal, scope: endpoint.scope, maxPages: MAX_LIST_PAGES },
+        );
+        const limitConfigs = configs.filter(isEnrollmentLimitConfig);
+        const read = limitConfigs.slice(0, MAX_ENROLLMENT_LIMIT_CONFIGS);
+        const assignments = new Map<string, GraphAssignment[]>();
+        for (let i = 0; i < read.length; i += ASSIGNMENT_LOOKUP_CONCURRENCY) {
+          const batch = read.slice(i, i + ASSIGNMENT_LOOKUP_CONCURRENCY);
+          const results = await Promise.allSettled(
+            batch.map((config) =>
+              this.client.get<GraphCollection<GraphAssignment>>(
+                assignmentsEndpoint.path(config.id),
+                { signal: options.signal, scope: assignmentsEndpoint.scope },
+              ),
+            ),
+          );
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              assignments.set(batch[index]!.id, result.value?.value ?? []);
+            } else if (isAbort(result.reason)) {
+              throw result.reason;
+            }
+            // andere Fehler: Ziele dieser Konfiguration bleiben unbekannt (null)
+          });
+        }
+        return this.ok(
+          {
+            limits: mapEnrollmentLimits(read, assignments),
+            omitted: limitConfigs.length - read.length,
+          },
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.reasons.enrollmentLimitsNotReported,
+        source,
+      }),
     );
   }
 

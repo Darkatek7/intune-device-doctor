@@ -13,12 +13,14 @@ import type {
   ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
+  EnrollmentLimitsInfo,
   EntraDeviceInfo,
   HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SignInsInfo,
+  UserLicenseInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 
@@ -57,6 +59,10 @@ export interface MockDeviceFixture {
   userDevices?: MockSection<DeviceSearchResult[]>;
   /** Optional – ohne Angabe: Windows ok (unauffällige Rohwerte), sonst notApplicable. */
   healthAttestation?: MockSection<HealthAttestationInfo>;
+  /** Optional (M14/S3) – ohne Angabe: Benutzer hat INTUNE_A (Success); ohne primären Benutzer notApplicable. */
+  userLicense?: MockSection<UserLicenseInfo>;
+  /** Optional (M14/S3) – ohne Angabe: zwei Gerätelimit-Konfigurationen (5 und 15 Geräte); ohne Benutzer notApplicable. */
+  enrollmentLimits?: MockSection<EnrollmentLimitsInfo>;
   /**
    * Optional (M14/S2) – ohne Angabe: jedes nachgeschlagene Objekt ist der Gruppe „Contoso – Alle Geräte“
    * zugewiesen. Ein `ok`-Wert ersetzt die abgeleitete Antwort vollständig; die anderen Status simulieren

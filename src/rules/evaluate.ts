@@ -16,6 +16,7 @@ import { evaluateAttestation } from './tiles/attestation';
 import { evaluateAutopilot } from './tiles/autopilot';
 import { evaluateGroups } from './tiles/groups';
 import { evaluateLaps } from './tiles/laps';
+import { evaluateRegistration } from './tiles/registration';
 import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
 import { de } from '../i18n/de';
@@ -32,6 +33,7 @@ export const TILE_ORDER: TileId[] = [
   'policies',
   'apps',
   'signIns',
+  'registration',
   'laps',
   'autopilot',
   'groups',
@@ -58,6 +60,8 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
   tiles.push(evaluateSignIns(snapshot, now));
+  // M14/S3: Lizenz und Gerätelimit gelten je Benutzer → Kachel nur mit primärem Benutzer
+  if (snapshot.device.userId) tiles.push(evaluateRegistration(snapshot, now));
   // Windows-spezifische Live-Kacheln (M10): nur für Windows-Geräte
   if (snapshot.device.osFamily === 'windows') {
     tiles.push(evaluateLaps(snapshot, now), evaluateAutopilot(snapshot, now));

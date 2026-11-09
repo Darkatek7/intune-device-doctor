@@ -4,6 +4,8 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  EnrollmentLimitsInfo,
+  UserLicenseInfo,
   AssignmentLookup,
   AssignmentsInfo,
   DeviceGroupsInfo,
@@ -38,6 +40,8 @@ import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
   defaultAssignments,
+  defaultEnrollmentLimits,
+  userLicenseInfo,
   defaultAutopilot,
   defaultDeviceGroups,
   defaultDuplicateDevices,
@@ -72,6 +76,8 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   deviceGroups: 'deviceTransitiveMemberOf',
   userDevices: 'managedDevicesOfUser',
   healthAttestation: 'managedDeviceHealthAttestation',
+  userLicense: 'userLicenseDetails',
+  enrollmentLimits: 'deviceEnrollmentConfigurations',
 };
 
 export function abortError(): DOMException {
@@ -249,6 +255,18 @@ export class MockProvider implements DeviceDataProvider {
     if (key === 'deviceGroups') {
       return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
     }
+    if (key === 'userLicense') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.licenseNoPrimaryUser };
+      }
+      return { status: 'ok', data: userLicenseInfo() };
+    }
+    if (key === 'enrollmentLimits') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.enrollmentLimitsNoPrimaryUser };
+      }
+      return { status: 'ok', data: defaultEnrollmentLimits() };
+    }
     if (key === 'duplicateDevices') {
       const entra = fixture.entraDevice;
       if (entra.status !== 'ok') {
@@ -363,6 +381,14 @@ export class MockProvider implements DeviceDataProvider {
 
   getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<LocalAdminInfo>(device, 'localAdmin', options);
+  }
+
+  getUserLicense(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<UserLicenseInfo>(device, 'userLicense', options);
+  }
+
+  getEnrollmentLimits(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<EnrollmentLimitsInfo>(device, 'enrollmentLimits', options);
   }
 
   /** Zuweisungen: Standard oder Szenario-Vorgabe (siehe MockDeviceFixture.assignments/assignmentTargets). */

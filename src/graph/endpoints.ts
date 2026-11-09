@@ -9,6 +9,7 @@ import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
   ENTRA_SAME_NAME_SELECT,
+  LICENSE_DETAILS_SELECT,
   LAPS_SELECT,
   USER_DEVICES_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
@@ -56,6 +57,8 @@ export const MAX_LIST_PAGES = 5;
 /** Zuweisungen (M14/S2): höchstens so viele Objekte je Gerät nachschlagen, höchstens so viele parallel. */
 export const MAX_ASSIGNMENT_LOOKUPS = 30;
 export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
+/** Gerätelimit (M14/S3): höchstens so viele Limit-Konfigurationen mit Zuweisungen lesen. */
+export const MAX_ENROLLMENT_LIMIT_CONFIGS = 10;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments (Profile, Richtlinien, Apps)';
 
@@ -371,6 +374,51 @@ export const Endpoints = {
       withQuery(`/deviceManagement/managedDevices/${enc(managedDeviceId)}`, {
         $select: 'deviceHealthAttestationState',
       }),
+  },
+  /**
+   * Lizenzdetails des primären Benutzers (M14/S3, Kachel „Registrierung (Benutzer)“): direkt und über
+   * Gruppen zugewiesene Lizenzen mit Serviceplänen. Optionaler Scope LicenseAssignment.Read.All; das
+   * angemeldete Konto braucht laut Doku eine Rolle wie Directory Readers, License Administrator oder
+   * User Administrator.
+   */
+  userLicenseDetails: {
+    id: 'userLicenseDetails',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.LicenseAssignmentRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails?view=graph-rest-1.0',
+    display: 'GET /users/{userId}/licenseDetails',
+    path: (userId: string) =>
+      withQuery(`/users/${enc(userId)}/licenseDetails`, {
+        $select: LICENSE_DETAILS_SELECT.join(','),
+      }),
+  },
+  /**
+   * Registrierungskonfigurationen (M14/S3). Die Liste enthält mehrere Typen; Gerätelimits werden
+   * clientseitig am `@odata.type` erkannt (kein `$filter` dokumentiert).
+   */
+  deviceEnrollmentConfigurations: {
+    id: 'deviceEnrollmentConfigurations',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceEnrollmentConfigurations',
+    path: () => '/deviceManagement/deviceEnrollmentConfigurations',
+  },
+  /** Zuweisungen einer Registrierungskonfiguration (M14/S3). */
+  deviceEnrollmentConfigurationAssignments: {
+    id: 'deviceEnrollmentConfigurationAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-enrollmentconfigurationassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceEnrollmentConfigurations/{id}/assignments',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceEnrollmentConfigurations/${enc(configurationId)}/assignments`,
   },
   /**
    * Zuweisungen eines Konfigurationsprofils (M14/S2). Kein `$expand=assignments` (nicht dokumentiert).

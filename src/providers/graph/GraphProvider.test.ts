@@ -1242,3 +1242,145 @@ describe('GraphProvider – Zuweisungen (M14/S2)', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+describe('GraphProvider – Registrierung: Lizenz und Gerätelimit (M14/S3)', () => {
+  const planId = 'c1ec4a95-1f05-45b3-a911-aa3fa01094f5';
+  const withUser = () => windowsDevice({ userId: PC001_USER_ID });
+  const limitConfig = (id: string, extra: object = {}) => ({
+    '@odata.type': '#microsoft.graph.deviceEnrollmentLimitConfiguration',
+    id,
+    displayName: `Limit ${id}`,
+    priority: 1,
+    limit: 5,
+    ...extra,
+  });
+
+  it('getUserLicense: GET /users/{id}/licenseDetails mit $select, reduziert auf Intune-Pläne', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname.endsWith('/licenseDetails')
+        ? collection([
+            {
+              id: 'ld-1',
+              skuId: 'sku-1',
+              skuPartNumber: 'SPE_E3',
+              servicePlans: [
+                {
+                  servicePlanId: planId,
+                  servicePlanName: 'INTUNE_A',
+                  provisioningStatus: 'Success',
+                  appliesTo: 'User',
+                },
+                {
+                  servicePlanId: 'other',
+                  servicePlanName: 'X',
+                  provisioningStatus: 'Success',
+                  appliesTo: 'User',
+                },
+              ],
+            },
+          ])
+        : graphError(404, 'NotFound'),
+    );
+    const result = expectStatus(await provider.getUserLicense(withUser()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.pathname).toBe(`/v1.0/users/${PC001_USER_ID}/licenseDetails`);
+    expect(calls[0]!.parsed.searchParams.get('$select')).toBe(
+      'id,skuId,skuPartNumber,servicePlans',
+    );
+    expect(result.data).toEqual({
+      licenseCount: 1,
+      plans: [{ plan: 'INTUNE_A', skuPartNumber: 'SPE_E3', provisioningStatus: 'Success' }],
+    });
+    expect(result.source.label).toBe(Endpoints.userLicenseDetails.display);
+  });
+
+  it('getUserLicense: ohne Benutzer notApplicable ohne Request; 403 → forbidden mit Scope; 404 → unavailable; 500 → error', async () => {
+    const none = setup();
+    expectStatus(
+      await none.provider.getUserLicense(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(none.calls).toHaveLength(0);
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getUserLicense(withUser()), 'forbidden').error
+        .requiredScope,
+    ).toBe('LicenseAssignment.Read.All');
+    expectStatus(
+      await setup(() => graphError(404, 'NotFound')).provider.getUserLicense(withUser()),
+      'unavailable',
+    );
+    expectStatus(
+      await setup(() => graphError(500, 'InternalServerError')).provider.getUserLicense(withUser()),
+      'error',
+    );
+  });
+
+  it('getEnrollmentLimits: liest die Liste, Zuweisungen nur für Limit-Konfigurationen; nicht lesbare Zuweisungen → Ziele null', async () => {
+    const { provider, calls } = setup((call) => {
+      const path = call.parsed.pathname;
+      if (path === '/v1.0/deviceManagement/deviceEnrollmentConfigurations') {
+        return collection([
+          limitConfig('cfg-a'),
+          limitConfig('cfg-b', { priority: 2, limit: 3 }),
+          {
+            '@odata.type': '#microsoft.graph.deviceEnrollmentPlatformRestrictionsConfiguration',
+            id: 'cfg-x',
+            priority: 3,
+          },
+        ]);
+      }
+      if (path.endsWith('/cfg-a/assignments')) {
+        return collection([
+          { target: { '@odata.type': '#microsoft.graph.allLicensedUsersAssignmentTarget' } },
+        ]);
+      }
+      return graphError(500, 'InternalServerError');
+    });
+    const result = expectStatus(await provider.getEnrollmentLimits(withUser()), 'ok');
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET', 'GET']);
+    expect(calls.map((c) => c.parsed.pathname).sort()).toEqual([
+      '/v1.0/deviceManagement/deviceEnrollmentConfigurations',
+      '/v1.0/deviceManagement/deviceEnrollmentConfigurations/cfg-a/assignments',
+      '/v1.0/deviceManagement/deviceEnrollmentConfigurations/cfg-b/assignments',
+    ]);
+    expect(result.data.omitted).toBe(0);
+    expect(result.data.limits.map((c) => [c.id, c.limit, c.targets])).toEqual([
+      ['cfg-a', 5, [{ kind: 'allUsers' }]],
+      ['cfg-b', 3, null],
+    ]);
+  });
+
+  it('getEnrollmentLimits: höchstens 10 Limit-Konfigurationen, der Rest wird als „omitted“ ausgewiesen', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname.endsWith('/assignments')
+        ? collection([])
+        : collection(
+            Array.from({ length: 12 }, (_, i) => limitConfig(`cfg-${i}`, { priority: i })),
+          ),
+    );
+    const result = expectStatus(await provider.getEnrollmentLimits(withUser()), 'ok');
+    expect(calls).toHaveLength(1 + 10);
+    expect(result.data.limits).toHaveLength(10);
+    expect(result.data.omitted).toBe(2);
+  });
+
+  it('getEnrollmentLimits: ohne Benutzer notApplicable ohne Request; 403 → forbidden mit Scope; 404 → unavailable', async () => {
+    const none = setup();
+    expectStatus(
+      await none.provider.getEnrollmentLimits(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(none.calls).toHaveLength(0);
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getEnrollmentLimits(withUser()), 'forbidden').error
+        .requiredScope,
+    ).toBe('DeviceManagementServiceConfig.Read.All');
+    expectStatus(
+      await setup(() => graphError(404, 'NotFound')).provider.getEnrollmentLimits(withUser()),
+      'unavailable',
+    );
+  });
+});

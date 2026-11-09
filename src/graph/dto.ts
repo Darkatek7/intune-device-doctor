@@ -566,3 +566,47 @@ export interface GraphAssignment {
   intent?: MobileAppAssignmentIntent | null;
   target?: GraphAssignmentTarget | null;
 }
+
+// ---------- Lizenzen des Benutzers (v1.0, users/{id}/licenseDetails) – M14/S3 ----------
+// https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/serviceplaninfo?view=graph-rest-1.0
+// Scope LicenseAssignment.Read.All (optional). Gelesen werden nur Plan-IDs/-Namen/-Status und die SKU.
+
+/** servicePlanInfo.provisioningStatus */
+export type ServicePlanProvisioningStatus =
+  'Success' | 'Disabled' | 'Error' | 'PendingInput' | 'PendingActivation' | 'PendingProvisioning';
+
+export interface GraphServicePlanInfo {
+  servicePlanId: string | null;
+  servicePlanName: string | null;
+  provisioningStatus: ServicePlanProvisioningStatus | null;
+  /** User | Company */
+  appliesTo: string | null;
+}
+
+export interface GraphLicenseDetails {
+  id?: string | null;
+  skuId: string | null;
+  skuPartNumber: string | null;
+  servicePlans: GraphServicePlanInfo[] | null;
+}
+
+export const LICENSE_DETAILS_SELECT = ['id', 'skuId', 'skuPartNumber', 'servicePlans'] as const;
+
+// ---------- Gerätelimit (v1.0, deviceManagement/deviceEnrollmentConfigurations) – M14/S3 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-enrollmentconfigurationassignment-list?view=graph-rest-1.0
+// Die Liste enthält Konfigurationen verschiedener Typen; relevant sind nur Einträge mit
+// `@odata.type` = #microsoft.graph.deviceEnrollmentLimitConfiguration (Feld `limit`). Zuweisungen haben
+// dieselbe Form wie GraphAssignment (id, target).
+
+export interface GraphDeviceEnrollmentConfiguration {
+  '@odata.type'?: string | null;
+  id: string;
+  displayName: string | null;
+  /** Benutzer unterliegen nur der Konfiguration mit dem niedrigsten Prioritätswert */
+  priority: number | null;
+  /** Nur bei deviceEnrollmentLimitConfiguration: maximale Zahl der Geräte, die ein Benutzer registrieren darf */
+  limit?: number | null;
+}

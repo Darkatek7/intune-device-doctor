@@ -5,7 +5,15 @@
  */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
-import { ago, appState, entraDevice, inFuture, policy, windowsDevice } from './helpers';
+import {
+  ago,
+  appState,
+  enrollmentLimit,
+  entraDevice,
+  inFuture,
+  policy,
+  windowsDevice,
+} from './helpers';
 
 const GB = 1024 ** 3;
 
@@ -35,6 +43,20 @@ export const and21Android: MockScenario = {
     });
     return {
       device,
+      // M14/S3: Gerätelimit von 1 Gerät für diese Benutzergruppe – das Gerät erreicht es bereits
+      enrollmentLimits: {
+        status: 'ok',
+        data: {
+          omitted: 0,
+          limits: [
+            enrollmentLimit(1, 'Contoso – Externe Mitarbeitende', {
+              limit: 1,
+              targets: [{ kind: 'group', groupId: '00000000-0000-4000-a000-000000000311' }],
+            }),
+            enrollmentLimit(2, 'Contoso – Standard', { limit: 5 }),
+          ],
+        },
+      },
       protection: { status: 'notApplicable', reason: de.reasons.defenderNotWindows },
       compliancePolicies: {
         status: 'ok',
