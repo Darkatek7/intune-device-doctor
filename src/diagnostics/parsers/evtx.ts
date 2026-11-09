@@ -2,8 +2,9 @@
  * Reiner Parser für Windows-XML-Ereignisprotokolle (.evtx), ohne Abhängigkeit.
  * Läuft ausschließlich im Analyse-Worker; die Daten verlassen den Browser nie.
  *
- * Format (Quelle: libevtx „Windows XML Event Log (EVTX) format“ sowie die Microsoft-Dokumentation zu
- * Binary XML):
+ * Format (Quellen: [MS-EVEN6] 2.2.12 BinXml — Microsoft Open Specifications, Tokens und Werttypen;
+ * der Datei-/Chunk-/Datensatz-Aufbau stammt aus libevtx „Windows XML Event Log (EVTX) format“,
+ * https://github.com/libyal/libevtx, da Microsoft ihn nicht dokumentiert):
  *  - Dateikopf 4096 Byte, Signatur `ElfFile\0`.
  *  - Chunks à 65 536 Byte, Signatur `ElfChnk\0`, Kopf 512 Byte. Namen und Template-Definitionen
  *    werden per Offset (relativ zum Chunk-Anfang) referenziert.
@@ -445,6 +446,7 @@ function parseValueToken(cur: Cursor, token: number): TNode | null {
       return { t: 'sub', id, optional: token === 0x0e };
     }
     case 0x08:
+    case 0x48:
       cur.skip(1);
       return { t: 'text', text: String.fromCharCode(cur.u16()) };
     case 0x09:
