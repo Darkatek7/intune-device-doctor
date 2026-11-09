@@ -8,7 +8,7 @@
  * erscheinen als „Unbekannter Code“ mit Hex/Dezimal. Der Schwellwert „Fehler → Warnung“ ist ein eigener
  * Richtwert (rules/thresholds.ts), keine Microsoft-Aussage.
  */
-import { DEFAULT_MAX_EVTX_BYTES } from '../../diagnostics/eventLogs';
+import { DEFAULT_MAX_EVTX_BYTES } from '../../diagnostics/limits';
 import type {
   DiagEntry,
   DiagEvent,

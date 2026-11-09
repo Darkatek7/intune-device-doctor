@@ -6,7 +6,8 @@
 import { maskUserPaths } from '../domain/format';
 import { de } from '../i18n/de';
 import { THRESHOLDS } from '../rules/thresholds';
-import { DEFAULT_MAX_EVTX_BYTES, loadEventLog, selectEventLogEntries } from './eventLogs';
+import { loadEventLog, selectEventLogEntries } from './eventLogs';
+import { DEFAULT_MAX_EVTX_BYTES } from './limits';
 import { parseCmTrace } from './parsers/cmtrace';
 import { parseDsregcmd } from './parsers/dsregcmd';
 import { extractEnrollments, isEnrollmentRootKey } from './parsers/enrollments';
@@ -27,13 +28,7 @@ import type {
 import { DEFAULT_MAX_TEXT_BYTES, extensionOf, isBinaryEntry, openZip } from './zip/reader';
 
 export type AnalysisStage =
-  | 'opening'
-  | 'results'
-  | 'dsregcmd'
-  | 'registry'
-  | 'imeLogs'
-  | 'eventLogs'
-  | 'done';
+  'opening' | 'results' | 'dsregcmd' | 'registry' | 'imeLogs' | 'eventLogs' | 'done';
 
 export interface AnalysisProgress {
   stage: AnalysisStage;

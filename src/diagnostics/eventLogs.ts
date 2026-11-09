@@ -8,12 +8,11 @@
  * damit sie den Worker nie unmaskiert verlassen.
  */
 import { maskId, maskUpn, maskUserPaths } from '../domain/format';
+import { DEFAULT_MAX_EVTX_BYTES } from './limits';
 import { EvtxFormatError, parseEvtx } from './parsers/evtx';
 import type { DiagEntry, DiagEvent, DiagEventLog, DiagEventLogId } from './types';
 import type { OpenedZip } from './zip/reader';
 
-/** Größenlimit je Ereignisprotokoll (entpackt) */
-export const DEFAULT_MAX_EVTX_BYTES = 48 * 1024 * 1024;
 /** Höchstzahl übernommener Ereignisse je Protokoll (jüngste zuerst behalten) */
 export const MAX_EVENTS_PER_LOG = 5000;
 /** Höchstzahl dekodierter Datensätze je Protokoll */
