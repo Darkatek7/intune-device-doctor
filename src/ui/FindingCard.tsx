@@ -1,6 +1,6 @@
 import { ExternalLink, Info } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { DataSource, Finding } from '../domain/types';
+import type { DataSource, Finding, FindingTable } from '../domain/types';
 import { de } from '../i18n/de';
 import { EvidenceTable } from './EvidenceTable';
 import { SeverityBadge, SeverityIcon } from './SeverityBadge';
@@ -35,6 +35,48 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
         {title}
       </h4>
       <div className="mt-1 text-base text-label">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Kleine Textabelle (z. B. gleichnamige Entra-Objekte); horizontal scrollbar, Markierung für die Hervorhebung.
+ * Der scrollbare Bereich ist per Tastatur fokussierbar und benannt (WCAG 2.1.1, axe „scrollable-region-focusable“).
+ */
+function FindingTableView({ table, label }: { table: FindingTable; label: string }) {
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      tabIndex={0}
+      className="hc-edge overflow-x-auto rounded-xl bg-canvas outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      <table className="w-full min-w-max border-collapse text-left text-sm">
+        <thead>
+          <tr className="text-xs text-secondary-label">
+            {table.columns.map((column) => (
+              <th key={column} scope="col" className="px-3 py-2 font-semibold">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-separator">
+          {table.rows.map((row, index) => (
+            <tr
+              key={index}
+              data-highlight={row.highlight ? 'true' : undefined}
+              className={row.highlight ? 'bg-accent/8 font-medium' : undefined}
+            >
+              {row.cells.map((cell, i) => (
+                <td key={i} className="px-3 py-2 align-top text-label">
+                  {cell || '–'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -82,6 +124,9 @@ export function FindingCard({ finding }: { finding: Finding }) {
             ))}
           </ol>
         </Section>
+      )}
+      {finding.table && (
+        <FindingTableView table={finding.table} label={de.detail.table(finding.title)} />
       )}
       {finding.links && finding.links.length > 0 && (
         <div className="flex flex-wrap gap-2">

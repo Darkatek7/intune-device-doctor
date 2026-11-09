@@ -40,6 +40,12 @@ export const de = {
     signIns: 'Anmeldungen',
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
+    registration: 'Registrierung (Benutzer)',
+    securityAlerts: 'Sicherheitswarnungen',
+    // Ansicht „Mandant“ (M14/S5)
+    tenantApplePush: 'Apple-MDM-Push-Zertifikat',
+    tenantVpp: 'Apple-VPP-Token',
+    tenantUnavailable: 'Weitere Konnektoren und Token',
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -62,6 +68,8 @@ export const de = {
     source: 'Quelle',
     docs: 'Microsoft-Dokumentation',
     close: 'Schließen',
+    /** Zugänglicher Name der scrollbaren Befund-Tabelle (per Tastatur erreichbar) */
+    table: (title: string) => `Tabelle: ${title}`,
   },
   states: {
     loading: 'Wird geladen …',
@@ -152,6 +160,31 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S5: Mandanten-Status
+    vppTokensNotReported:
+      'Graph meldet HTTP 404 für die VPP-Token – über diese Schnittstelle nicht verfügbar.',
+    // M14/S4: Sicherheitswarnungen
+    securityAlertsNotReported:
+      'Graph meldet HTTP 404 für die Sicherheitswarnungen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S3: Registrierung des Benutzers
+    licenseNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – es gibt keine Lizenz zu prüfen.',
+    licenseNotReported:
+      'Graph meldet HTTP 404 für die Lizenzdetails des Benutzers – über diese Schnittstelle nicht verfügbar.',
+    enrollmentLimitsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – das Gerätelimit gilt je Benutzer.',
+    enrollmentLimitsNotReported:
+      'Graph meldet HTTP 404 für die Registrierungskonfigurationen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S2: Zuweisungen
+    assignmentsNothingToCheck:
+      'Keine Richtlinien oder Apps aus den Gerätezuständen vorhanden – es gibt nichts abzugleichen.',
+    assignmentsNotReported:
+      'Graph meldet HTTP 404 für die Zuweisungen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S1: gleichnamige Entra-Objekte
+    duplicatesNoName:
+      'Das Gerät hat keinen Namen – gleichnamige Entra-Objekte lassen sich nicht suchen.',
+    duplicatesNotReported:
+      'Graph meldet HTTP 404 für die Suche nach gleichnamigen Entra-Objekten – über diese Schnittstelle nicht verfügbar.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>
@@ -178,6 +211,8 @@ export const de = {
   /** Links ins Intune Admin Center (src/links/intunePortal.ts) */
   links: {
     openApp: 'App im Intune Admin Center öffnen',
+    assignIntuneLicense: 'Intune-Lizenzen zuweisen (Microsoft Learn)',
+    openInDefender: 'Im Defender-Portal öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     openDeviceInventory: 'Geräteinventar im Intune Admin Center',
@@ -204,7 +239,96 @@ export const de = {
     notConfigured: 'Anmeldung nicht möglich: Client-ID und Tenant-ID fehlen (.env.local).',
   },
   /** UI-Shell (M2): Toolbar, Suche, Header, Sheet, Leerzustände */
+  /** Verbindungstest (M14/S6, nur Live) */
+  connectionTest: {
+    open: 'Verbindungstest',
+    openHint: 'Jeden verwendeten Graph-Endpunkt einmal lesend prüfen',
+    title: 'Verbindungstest',
+    subtitle:
+      'Ruft jeden von MDM Doctor verwendeten Graph-Endpunkt genau einmal lesend (GET) auf und zeigt nur Ergebnis, Dauer, Anzahl der Einträge und die Namen der Felder – keine Werte.',
+    deviceHint:
+      'Die Parameter stammen vom gewählten Gerät. Am aussagekräftigsten ist ein Windows-Gerät mit primärem Benutzer.',
+    back: 'Zurück zum Gerät',
+    start: 'Test starten',
+    restart: 'Erneut testen',
+    cancel: 'Abbrechen',
+    running: (done: number, total: number) => `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
+    finished: 'Test abgeschlossen',
+    cancelled: 'Test abgebrochen – die bisherigen Ergebnisse bleiben erhalten.',
+    failedToStart: 'Das Gerät konnte nicht geladen werden.',
+    copy: 'Bericht kopieren (Markdown)',
+    copied: 'Kopiert',
+    copyFallback: 'Die Zwischenablage ist nicht verfügbar – Text bitte manuell kopieren:',
+    reportLabel: 'Bericht als Markdown',
+    privacy:
+      'Der Bericht enthält keine IDs, Namen oder Antwortwerte und kann bedenkenlos in docs/live-verification.md übernommen werden.',
+    betaBadge: 'Beta',
+    betaTitle: 'Freigegebene Beta-Ausnahme (App-Installationsstatus)',
+    tableLabel: 'Ergebnisse des Verbindungstests',
+    columns: {
+      endpoint: 'Endpunkt',
+      version: 'Version',
+      scope: 'Scope',
+      result: 'Ergebnis',
+      duration: 'Dauer',
+      entries: 'Einträge',
+      fields: 'Felder (Namen)',
+    },
+    outcome: {
+      ok: 'OK',
+      forbidden: 'Verweigert (403)',
+      notFound: 'Nicht gefunden (404)',
+      badRequest: 'Ungültige Anfrage (400)',
+      error: 'Fehler',
+      skipped: 'Übersprungen',
+    },
+    summary: (counts: Record<string, number>) =>
+      [
+        counts['ok'] ? `${counts['ok']} OK` : null,
+        counts['forbidden'] ? `${counts['forbidden']} verweigert` : null,
+        counts['notFound'] ? `${counts['notFound']} nicht gefunden` : null,
+        counts['badRequest'] ? `${counts['badRequest']} ungültig` : null,
+        counts['error'] ? `${counts['error']} Fehler` : null,
+        counts['skipped'] ? `${counts['skipped']} übersprungen` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    skip: {
+      noUser: 'Das Gerät hat keinen primären Benutzer.',
+      noAzureAdId: 'Das Gerät hat keine Entra-Geräte-ID.',
+      windowsOnly: 'Nur für Windows-Geräte.',
+      noSource: 'Kein Eintrag in der vorherigen Antwort, aus dem sich die Kennung ableiten ließe.',
+    },
+    report: {
+      title: 'Verbindungstest (MDM Doctor)',
+      date: 'Datum',
+      platform: 'Plattform des Testgeräts',
+      platformNote: 'ohne Namen und IDs',
+      result: 'Ergebnis',
+      partial: 'abgebrochen, unvollständig',
+      note: 'Nur Ergebnis, Dauer, Anzahl der Einträge und Feldnamen – keine Werte, IDs oder Namen.',
+      betaMark: 'beta (freigegebene Ausnahme)',
+      none: '–',
+    },
+    a11y: {
+      running: 'Verbindungstest läuft …',
+      done: (summary: string) => `Verbindungstest abgeschlossen: ${summary}`,
+    },
+  },
+  /** Ansicht „Mandant“ (M14/S5) */
+  tenantView: {
+    title: 'Mandant',
+    subtitle: 'Zertifikate und Token, die für alle Geräte gelten',
+    back: 'Startseite',
+    refresh: 'Aktualisieren',
+    a11y: {
+      loading: 'Mandanten-Status wird geladen …',
+      done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
+    },
+  },
   toolbar: {
+    tenant: 'Mandanten-Status',
+    tenantShort: 'Mandant',
     home: 'MDM Doctor – zur Startseite',
     modeLabel: 'Datenmodus',
     skipToContent: 'Zum Inhalt springen',

@@ -9,6 +9,7 @@ import {
   healthyProtection,
   osVolumeKey,
   windowsDevice,
+  securityAlert,
   signInEntry,
   signInsInfo,
 } from './helpers';
@@ -61,6 +62,29 @@ export const pc027Defender: MockScenario = {
           ],
           { totalForUser: 8 },
         ),
+      },
+      // M14/S4: offene Defender-Warnungen (fiktive Titel nach dem Muster der Defender-Alerts)
+      securityAlerts: {
+        status: 'ok',
+        data: {
+          alerts: [
+            securityAlert(now, 27, 'Suspicious PowerShell command line', {
+              severity: 'high',
+              categories: ['Execution', 'DefenseEvasion'],
+              deviceRiskScore: 'high',
+              createdDateTime: ago(now, { hours: 3 }),
+            }),
+            securityAlert(now, 28, 'Suspicious execution of hidden file', {
+              severity: 'low',
+              status: 'inProgress',
+              categories: ['DefenseEvasion'],
+              createdDateTime: ago(now, { days: 2 }),
+            }),
+          ],
+          resolvedCount: 1,
+          evaluated: 57,
+          moreAvailable: false,
+        },
       },
     };
   },

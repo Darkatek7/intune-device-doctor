@@ -16,6 +16,10 @@ export const GraphScope = {
    * (least privileged laut Doku), nicht `DeviceLocalCredential.Read.All`.
    */
   DeviceLocalCredentialReadBasic: 'DeviceLocalCredential.ReadBasic.All',
+  /** Lizenzdetails des primären Benutzers (Kachel „Registrierung (Benutzer)“, M14/S3) – optional. */
+  LicenseAssignmentRead: 'LicenseAssignment.Read.All',
+  /** Sicherheitswarnungen (Defender, Kachel „Sicherheitswarnungen“, M14/S4) – optional. */
+  SecurityAlertRead: 'SecurityAlert.Read.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -30,6 +34,8 @@ export const OPTIONAL_SCOPES: readonly GraphScope[] = [
   GraphScope.ServiceConfigRead,
   GraphScope.AuditLogRead,
   GraphScope.DeviceLocalCredentialReadBasic,
+  GraphScope.LicenseAssignmentRead,
+  GraphScope.SecurityAlertRead,
 ];
 
 /** Scopes, die beim Login angefragt werden. */

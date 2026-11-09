@@ -11,6 +11,12 @@ import { T, expect, openDevice, test, waitForTilesReady } from './helpers';
 
 const HOME_BUTTON = 'MDM Doctor – zur Startseite';
 
+/** Vergleich ist erst möglich, wenn alles geladen ist (inkl. Zuweisungen, die nach den Kacheln kommen). */
+async function compareInput(page: Page) {
+  await expect(page.getByRole('button', { name: 'Mit Stand vergleichen' })).toBeEnabled();
+  return page.getByTestId('compare-input');
+}
+
 test.describe('Vorher/Nachher (Gerät)', () => {
   test('Export lädt eine Datei herunter, Vergleich mit demselben Gerät zeigt keine Unterschiede', async ({
     page,
@@ -36,7 +42,7 @@ test.describe('Vorher/Nachher (Gerät)', () => {
     // Keine Rohdaten, keine UPNs
     expect(readFileSync(target, 'utf8')).not.toMatch(/@contoso\.com/i);
 
-    await page.getByTestId('compare-input').setInputFiles(target);
+    await (await compareInput(page)).setInputFiles(target);
     const dialog = page.getByRole('dialog', { name: 'Vergleich' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('compare-name-mismatch')).toHaveCount(0);
@@ -53,7 +59,7 @@ test.describe('Vorher/Nachher (Gerät)', () => {
     await (await download).saveAs(target);
 
     await openDevice(page, 'CONTOSO-PC042');
-    await page.getByTestId('compare-input').setInputFiles(target);
+    await (await compareInput(page)).setInputFiles(target);
     const dialog = page.getByRole('dialog', { name: 'Vergleich' });
     await expect(dialog.getByTestId('compare-name-mismatch')).toContainText('CONTOSO-PC001');
     await expect(dialog.getByRole('list', { name: 'Kacheln im Vergleich' })).toBeVisible();
@@ -62,7 +68,9 @@ test.describe('Vorher/Nachher (Gerät)', () => {
 
   test('fremde Datei wird abgelehnt', async ({ page }) => {
     await openDevice(page, 'CONTOSO-PC042');
-    await page.getByTestId('compare-input').setInputFiles({
+    await (
+      await compareInput(page)
+    ).setInputFiles({
       name: 'fremd.json',
       mimeType: 'application/json',
       buffer: Buffer.from('{"hello":"world"}'),
@@ -221,7 +229,9 @@ test.describe('Barrierefreiheit M12/B', () => {
 
   test('Vergleichsdialog (Gerät)', async ({ page }) => {
     await openDevice(page, 'CONTOSO-PC042');
-    await page.getByTestId('compare-input').setInputFiles({
+    await (
+      await compareInput(page)
+    ).setInputFiles({
       name: 'x.json',
       mimeType: 'application/json',
       buffer: Buffer.from(

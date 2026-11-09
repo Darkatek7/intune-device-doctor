@@ -31,7 +31,9 @@ import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
 import { Toolbar } from '../ui/Toolbar';
 import { ZipProgress } from '../ui/ZipProgress';
+import { ConnectionTestView } from './ConnectionTestView';
 import { DeviceView } from './DeviceView';
+import { TenantView } from './TenantView';
 import { useProviderContext } from './providerContextValue';
 import { ZipView } from './ZipView';
 
@@ -161,18 +163,32 @@ function Shell({ account, extraChips }: Props) {
     async (value: string) => {
       if (zip.status !== 'idle') discardZip();
       setBulkOpen(false);
+      // Eine Suche verlässt die Ansicht „Mandant“ bzw. den Verbindungstest, damit die Trefferliste sichtbar wird.
+      if (url.view === 'tenant' || url.view === 'connectionTest') {
+        navigateTo({ device: null, tile: null, mode });
+      }
       const results = await search(value);
       setSearchedAt(new Date());
       if (results?.length === 1) openDevice(results[0]!);
     },
-    [search, openDevice, zip.status, discardZip],
+    [search, openDevice, zip.status, discardZip, url.view, mode],
   );
 
   const openBulk = () => {
     discardZip();
     reset();
     setQuery('');
+    // Die Sammelprüfung verlässt eine geöffnete Mandanten-Ansicht bzw. ein geöffnetes Gerät.
+    if (url.device || url.view) navigateTo({ device: null, tile: null, mode });
     setBulkOpen(true);
+  };
+
+  const openTenant = () => {
+    setBulkOpen(false);
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'tenant' });
   };
 
   const goHome = () => {
@@ -208,18 +224,42 @@ function Shell({ account, extraChips }: Props) {
   );
 
   const liveWithoutProvider = !provider;
-  const showDevice = Boolean(provider && url.device);
-  const showZip = !showDevice && !liveWithoutProvider && zip.status !== 'idle';
-  const showBulk = bulkOpen && !showDevice && !showZip && !liveWithoutProvider;
+  // Verbindungstest (M14/S6): nur Live, d. h. wenn der Provider ihn anbietet; sonst die normale Geräteansicht.
+  const canTestConnection = Boolean(provider && typeof provider.testConnection === 'function');
+  const showConnectionTest = Boolean(
+    provider && url.device && url.view === 'connectionTest' && canTestConnection,
+  );
+  const showDevice = Boolean(provider && url.device) && !showConnectionTest;
+  /** Geräteansicht oder Verbindungstest: beide gehören zu einem geöffneten Gerät */
+  const showDeviceArea = showDevice || showConnectionTest;
+  const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
+  const showZip = !showDeviceArea && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
+  const showBulk = bulkOpen && !showDeviceArea && !showTenant && !showZip && !liveWithoutProvider;
   const showPicker =
-    !showDevice && !showZip && !showBulk && state.status === 'done' && state.results.length > 1;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'done' &&
+    state.results.length > 1;
   const showNotFound =
-    !showDevice && !showZip && !showBulk && state.status === 'done' && state.results.length === 0;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'done' &&
+    state.results.length === 0;
   const showSearchError =
-    !showDevice && !showZip && !showBulk && state.status === 'error' && state.error;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'error' &&
+    state.error;
   const showHero =
     !liveWithoutProvider &&
-    !showDevice &&
+    !showDeviceArea &&
+    !showTenant &&
     !showZip &&
     !showBulk &&
     !showPicker &&
@@ -244,6 +284,17 @@ function Shell({ account, extraChips }: Props) {
         }
       />
     );
+  } else if (showConnectionTest && provider && url.device) {
+    const deviceId = url.device;
+    content = (
+      <ConnectionTestView
+        key={deviceId}
+        provider={provider}
+        deviceId={deviceId}
+        onBack={() => navigateTo({ device: deviceId, tile: null, mode })}
+        onToneChange={setDeviceTone}
+      />
+    );
   } else if (showDevice && provider && url.device) {
     content = (
       <DeviceView
@@ -262,9 +313,31 @@ function Shell({ account, extraChips }: Props) {
         onToneChange={setDeviceTone}
         onDeviceLoaded={recentDevices.remember}
         onOpenDevice={openDevice}
+        {...(canTestConnection
+          ? {
+              onOpenConnectionTest: () =>
+                navigateTo({ device: url.device, tile: null, mode, view: 'connectionTest' }),
+            }
+          : {})}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
+      />
+    );
+  } else if (showTenant && provider) {
+    content = (
+      <TenantView
+        provider={provider}
+        openTileId={url.tile}
+        onOpenTile={(tileId) =>
+          navigateTo({ device: null, tile: tileId, mode, view: 'tenant' }, { tileOpened: true })
+        }
+        onCloseTile={() => {
+          const current = parseUrl(window.location.search);
+          if (current.tile) closeTileInHistory(current);
+        }}
+        onBack={goHome}
+        onToneChange={setDeviceTone}
       />
     );
   } else if (showZip) {
@@ -389,7 +462,13 @@ function Shell({ account, extraChips }: Props) {
 
   return (
     <div className="min-h-dvh bg-canvas text-label">
-      <AmbientGlow tone={showDevice || (showZip && zipReport) ? deviceTone : 'accent'} />
+      <AmbientGlow
+        tone={
+          showDevice || showConnectionTest || showTenant || (showZip && zipReport)
+            ? deviceTone
+            : 'accent'
+        }
+      />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:ring-2 focus:ring-accent"
@@ -402,6 +481,7 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
+        {...(liveWithoutProvider ? {} : { onOpenTenant: openTenant, tenantActive: showTenant })}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}

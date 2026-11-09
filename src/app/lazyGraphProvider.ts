@@ -4,8 +4,15 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  AssignmentLookup,
+  AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  SecurityAlertsInfo,
+  TenantStatus,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppInfo,
   ApplePushCertificateInfo,
@@ -13,6 +20,7 @@ import type {
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
+  EndpointProbeResult,
   EntraDeviceInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
@@ -102,6 +110,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<EntraDeviceInfo | null>((p) => p.getEntraDevice(device, options));
   }
 
+  getDuplicateDevices(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<DuplicateDevicesInfo>((p) => p.getDuplicateDevices(device, options));
+  }
+
   getAppInstallStates(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<AppInstallStateInfo[]>((p) => p.getAppInstallStates(device, options));
   }
@@ -140,7 +152,52 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
   }
 
+  async getTenantStatus(options?: RequestOptions): Promise<TenantStatus> {
+    let provider: DeviceDataProvider;
+    try {
+      provider = await this.load();
+    } catch {
+      const failed = {
+        status: 'error',
+        error: { code: 'network', message: de.errors.network },
+        source: SOURCE,
+      } as const;
+      return { applePushCertificate: failed, vppTokens: failed };
+    }
+    return provider.getTenantStatus(options);
+  }
+
+  getSecurityAlerts(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<SecurityAlertsInfo>((p) => p.getSecurityAlerts(device, options));
+  }
+
+  getUserLicense(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<UserLicenseInfo>((p) => p.getUserLicense(device, options));
+  }
+
+  getEnrollmentLimits(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<EnrollmentLimitsInfo>((p) => p.getEnrollmentLimits(device, options));
+  }
+
+  getAssignments(device: ManagedDeviceInfo, lookups: AssignmentLookup[], options?: RequestOptions) {
+    return this.section<AssignmentsInfo>((p) => p.getAssignments(device, lookups, options));
+  }
+
   getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>> {
     return this.section((provider) => provider.getMobileApps(appIds, options));
+  }
+
+  /** Verbindungstest (M14/S6): lädt den GraphProvider erst bei Bedarf; ein Ladefehler wird zum Netzwerkfehler. */
+  async testConnection(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    },
+  ): Promise<EndpointProbeResult[]> {
+    const provider = await this.loadOrThrow();
+    if (!provider.testConnection) {
+      throw new ProviderError({ code: 'unknown', message: de.errors.unknown });
+    }
+    return provider.testConnection(device, options);
   }
 }

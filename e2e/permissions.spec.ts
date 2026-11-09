@@ -34,6 +34,7 @@ test.describe('Fehlende Berechtigung (CONTOSO-PC050)', () => {
     { title: 'Anmeldungen', scope: 'AuditLog.Read.All' },
     { title: 'Lokaler Administrator (LAPS)', scope: 'DeviceLocalCredential.ReadBasic.All' },
     { title: 'Autopilot', scope: 'DeviceManagementServiceConfig.Read.All' },
+    { title: 'Sicherheitswarnungen', scope: 'SecurityAlert.Read.All' },
   ] as const;
 
   for (const { title, scope } of OPTIONAL_SCOPE_CASES) {

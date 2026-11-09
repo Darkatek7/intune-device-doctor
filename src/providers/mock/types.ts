@@ -3,19 +3,26 @@
  * der MockProvider ergänzt Quelle/Zeitstempel und verpackt alles in SectionResult.
  */
 import type {
+  AssignmentEntry,
+  AssignmentsInfo,
   DeviceSearchResult,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
+  EnrollmentLimitsInfo,
   EntraDeviceInfo,
   HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SecurityAlertsInfo,
   SignInsInfo,
+  UserLicenseInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 
@@ -36,6 +43,8 @@ export interface MockDeviceFixture {
   /** data null = kein Entra-Objekt gefunden */
   entraDevice: MockSection<EntraDeviceInfo | null>;
   bitlockerKeys: MockSection<BitLockerKeyInfo[]>;
+  /** Optional – ohne Angabe: nur das aktuelle Entra-Objekt (kein Duplikat); ohne Entra-Objekt leer. */
+  duplicateDevices?: MockSection<DuplicateDevicesInfo>;
   /** Optional – ohne Angabe liefert der MockProvider den Standard-App-Satz (alle installiert). */
   appInstallStates?: MockSection<AppInstallStateInfo[]>;
   /** Optional – ohne Angabe: Apple-Geräte ok (läuft in ~200 Tagen ab), andere notApplicable. */
@@ -52,6 +61,20 @@ export interface MockDeviceFixture {
   userDevices?: MockSection<DeviceSearchResult[]>;
   /** Optional – ohne Angabe: Windows ok (unauffällige Rohwerte), sonst notApplicable. */
   healthAttestation?: MockSection<HealthAttestationInfo>;
+  /** Optional (M14/S3) – ohne Angabe: Benutzer hat INTUNE_A (Success); ohne primären Benutzer notApplicable. */
+  userLicense?: MockSection<UserLicenseInfo>;
+  /** Optional (M14/S4) – ohne Angabe: ok, keine offene Warnung für dieses Gerät. */
+  securityAlerts?: MockSection<SecurityAlertsInfo>;
+  /** Optional (M14/S3) – ohne Angabe: zwei Gerätelimit-Konfigurationen (5 und 15 Geräte); ohne Benutzer notApplicable. */
+  enrollmentLimits?: MockSection<EnrollmentLimitsInfo>;
+  /**
+   * Optional (M14/S2) – ohne Angabe: jedes nachgeschlagene Objekt ist der Gruppe „Contoso – Alle Geräte“
+   * zugewiesen. Ein `ok`-Wert ersetzt die abgeleitete Antwort vollständig; die anderen Status simulieren
+   * z. B. fehlende Berechtigung.
+   */
+  assignments?: MockSection<AssignmentsInfo>;
+  /** Optional (M14/S2): Zuweisungen einzelner Objekte (Schlüssel = Richtlinien-/App-ID) statt der Standardzuweisung. */
+  assignmentTargets?: Record<string, AssignmentEntry[]>;
 }
 
 export interface MockScenario {
@@ -61,4 +84,10 @@ export interface MockScenario {
   label: string;
   /** Datumswerte relativ zu now berechnen */
   build: (now: Date) => MockDeviceFixture;
+}
+
+/** Demo-Daten der Ansicht „Mandant“ (M14/S5). Ohne Angabe: gültiges Push-Zertifikat, zwei VPP-Tokens (eines läuft in 20 Tagen ab). */
+export interface MockTenantFixture {
+  applePushCertificate?: MockSection<ApplePushCertificateInfo>;
+  vppTokens?: MockSection<VppTokenInfo[]>;
 }

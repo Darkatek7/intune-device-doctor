@@ -328,6 +328,23 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
     }
 
     if (path === '/v1.0/devices') {
+      const byName = /^displayName eq '(.*)'$/.exec(filter)?.[1]?.replace(/''/g, "'");
+      if (byName !== undefined) {
+        const lower = byName.toLowerCase();
+        return collection(
+          [
+            pc001Entra(),
+            {
+              ...pc001Entra(),
+              id: '00000000-0000-4000-a000-000000000007',
+              deviceId: MAC07_ENTRA_ID,
+              displayName: 'CONTOSO-MAC07',
+              trustType: 'Workplace' as const,
+              operatingSystem: 'MacMDM',
+            },
+          ].filter((entry) => entry.displayName?.toLowerCase() === lower),
+        );
+      }
       const id = /^deviceId eq '(.*)'$/.exec(filter)?.[1];
       if (id === MAC07_ENTRA_ID) {
         return collection([

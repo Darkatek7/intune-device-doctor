@@ -1,5 +1,7 @@
 /**
  * URL-State der App: ?device=<id>&mode=demo|live (+ &tile=<tileId> für ein offenes Detail-Sheet).
+ * Die Ansicht „Mandant“ (M14/S5) ist ?view=tenant (ohne Gerät; &tile=<tileId> öffnet auch dort ein Sheet).
+ * Der Verbindungstest (M14/S6, nur Live) ist ?view=connection-test&device=<id> (ohne Kachel-Sheet).
  * Änderungen laufen über history.pushState/replaceState; Browser-Zurück (popstate) wird mitgeführt.
  */
 import { useMemo, useSyncExternalStore } from 'react';
@@ -9,6 +11,14 @@ export interface UrlState {
   device: string | null;
   tile: string | null;
   mode: DataMode | null;
+  /** Ansicht „Mandant“ bzw. „Verbindungstest“; fehlt/null = Start- bzw. Geräteansicht */
+  view?: 'tenant' | 'connectionTest' | null;
+}
+
+function parseView(value: string | null): UrlState['view'] {
+  if (value === 'tenant') return 'tenant';
+  if (value === 'connection-test') return 'connectionTest';
+  return null;
 }
 
 export function parseUrl(search: string): UrlState {
@@ -18,14 +28,21 @@ export function parseUrl(search: string): UrlState {
     device: params.get('device') || null,
     tile: params.get('tile') || null,
     mode: mode === 'demo' || mode === 'live' ? mode : null,
+    view: parseView(params.get('view')),
   };
 }
 
 export function buildSearch(state: UrlState): string {
   const params = new URLSearchParams();
+  const connectionTest = Boolean(state.device) && state.view === 'connectionTest';
   if (state.device) params.set('device', state.device);
+  else if (state.view === 'tenant') params.set('view', 'tenant');
+  if (connectionTest) params.set('view', 'connection-test');
   if (state.mode) params.set('mode', state.mode);
-  if (state.device && state.tile) params.set('tile', state.tile);
+  // Kachel-Sheets gibt es nur in der Geräte- und der Mandanten-Ansicht
+  if (!connectionTest && (state.device || state.view === 'tenant') && state.tile) {
+    params.set('tile', state.tile);
+  }
   const s = params.toString();
   return s ? `?${s}` : '';
 }

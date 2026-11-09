@@ -45,9 +45,9 @@ Speicher: Vitest nur `--maxWorkers=2`, Playwright nur `--workers=1` mit eigenem 
 
 ## Akzeptanz
 
-- [ ] Reine Funktionen (`timeline`, `correlate`, Vergleich, CSV-Import/-Export, Bookmarklet-URL-Parsing) mit Unit-Tests
-- [ ] Jede Insight mit Learn-Quelle; keine Schlüsse aus `forbidden`/`error`-Bereichen
-- [ ] Keine Daten verlassen den Browser; Exporte nur per Download
-- [ ] Alle Texte in `de.ts`/`de-rules.ts`; A11y nach `docs/ui-guidelines.md`
-- [ ] E2E für Zeitachse, Ursache-Karte, Sammelprüfung (Demo), Vergleich
-- [ ] `npm run check` und E2E grün
+- [x] Reine Funktionen (`timeline`, `correlate`, Vergleich, CSV-Import/-Export, Bookmarklet-URL-Parsing) mit Unit-Tests
+- [x] Jede Insight mit Learn-Quelle; keine Schlüsse aus `forbidden`/`error`-Bereichen
+- [x] Keine Daten verlassen den Browser; Exporte nur per Download
+- [x] Alle Texte in `de.ts`/`de-rules.ts`; A11y nach `docs/ui-guidelines.md`
+- [x] E2E für Zeitachse, Ursache-Karte, Sammelprüfung (Demo), Vergleich
+- [x] `npm run check` und E2E grün

@@ -288,6 +288,8 @@ export interface GraphEntraDevice {
   operatingSystem: string | null;
   operatingSystemVersion: string | null;
   registrationDateTime: string | null;
+  /** Nur bei der Abfrage gleichnamiger Objekte angefordert: RegisteredDevice | SecureVM | Printer | Shared | IoT */
+  profileType?: string | null;
 }
 
 export const ENTRA_DEVICE_SELECT = [
@@ -302,6 +304,27 @@ export const ENTRA_DEVICE_SELECT = [
   'operatingSystem',
   'operatingSystemVersion',
   'registrationDateTime',
+] as const;
+
+/**
+ * Gleichnamige Entra-Geräteobjekte (M14/S1): `GET /devices?$filter=displayName eq '…'`. `eq` auf
+ * displayName ist ohne ConsistencyLevel-Header möglich (Standard-Query). Nicht angefordert werden
+ * `physicalIds` und `deviceMetadata`.
+ * https://learn.microsoft.com/en-us/graph/api/device-list?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/aad-advanced-queries#device-properties
+ */
+export const ENTRA_SAME_NAME_SELECT = [
+  'id',
+  'deviceId',
+  'displayName',
+  'trustType',
+  'accountEnabled',
+  'approximateLastSignInDateTime',
+  'isCompliant',
+  'isManaged',
+  'registrationDateTime',
+  'profileType',
+  'operatingSystem',
 ] as const;
 
 // ---------- BitLocker-Recovery-Key-Metadaten (v1.0) ----------
@@ -515,4 +538,146 @@ export interface GraphDeviceHealthAttestationState {
 export interface GraphManagedDeviceHealthAttestation {
   id?: string;
   deviceHealthAttestationState?: Partial<GraphDeviceHealthAttestationState> | null;
+}
+
+// ---------- Zuweisungen (v1.0) – Richtlinien und Apps (M14/S2) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0
+// Ziele (deviceAndAppManagementAssignmentTarget): groupAssignmentTarget und exclusionGroupAssignmentTarget
+// (je `groupId`), allDevicesAssignmentTarget, allLicensedUsersAssignmentTarget. Das `@odata.type` steht in
+// der Praxis mit führendem `#`; die Doku-Beispiele zeigen es teils ohne → der Mapper akzeptiert beides.
+// Bewusst NICHT im DTO: `settings` (App-Zuweisungseinstellungen) und Zuweisungsfilter (nur beta).
+
+/** installIntent (mobileAppAssignment.intent) */
+export type MobileAppAssignmentIntent =
+  'available' | 'required' | 'uninstall' | 'availableWithoutEnrollment';
+
+export interface GraphAssignmentTarget {
+  '@odata.type'?: string | null;
+  /** Nur bei group-/exclusionGroupAssignmentTarget */
+  groupId?: string | null;
+}
+
+/** deviceConfigurationAssignment, deviceCompliancePolicyAssignment bzw. mobileAppAssignment */
+export interface GraphAssignment {
+  id?: string | null;
+  /** Nur bei mobileAppAssignment */
+  intent?: MobileAppAssignmentIntent | null;
+  target?: GraphAssignmentTarget | null;
+}
+
+// ---------- Lizenzen des Benutzers (v1.0, users/{id}/licenseDetails) – M14/S3 ----------
+// https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/serviceplaninfo?view=graph-rest-1.0
+// Scope LicenseAssignment.Read.All (optional). Gelesen werden nur Plan-IDs/-Namen/-Status und die SKU.
+
+/** servicePlanInfo.provisioningStatus */
+export type ServicePlanProvisioningStatus =
+  'Success' | 'Disabled' | 'Error' | 'PendingInput' | 'PendingActivation' | 'PendingProvisioning';
+
+export interface GraphServicePlanInfo {
+  servicePlanId: string | null;
+  servicePlanName: string | null;
+  provisioningStatus: ServicePlanProvisioningStatus | null;
+  /** User | Company */
+  appliesTo: string | null;
+}
+
+export interface GraphLicenseDetails {
+  id?: string | null;
+  skuId: string | null;
+  skuPartNumber: string | null;
+  servicePlans: GraphServicePlanInfo[] | null;
+}
+
+export const LICENSE_DETAILS_SELECT = ['id', 'skuId', 'skuPartNumber', 'servicePlans'] as const;
+
+// ---------- Gerätelimit (v1.0, deviceManagement/deviceEnrollmentConfigurations) – M14/S3 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-enrollmentconfigurationassignment-list?view=graph-rest-1.0
+// Die Liste enthält Konfigurationen verschiedener Typen; relevant sind nur Einträge mit
+// `@odata.type` = #microsoft.graph.deviceEnrollmentLimitConfiguration (Feld `limit`). Zuweisungen haben
+// dieselbe Form wie GraphAssignment (id, target).
+
+export interface GraphDeviceEnrollmentConfiguration {
+  '@odata.type'?: string | null;
+  id: string;
+  displayName: string | null;
+  /** Benutzer unterliegen nur der Konfiguration mit dem niedrigsten Prioritätswert */
+  priority: number | null;
+  /** Nur bei deviceEnrollmentLimitConfiguration: maximale Zahl der Geräte, die ein Benutzer registrieren darf */
+  limit?: number | null;
+}
+
+// ---------- Sicherheitswarnungen (v1.0, security/alerts_v2) – M14/S4 ----------
+// https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/security-alert?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/security-deviceevidence?view=graph-rest-1.0
+// Scope SecurityAlert.Read.All (optional). Die Liste kennt kein $select; die Antwort enthält deshalb mehr
+// Felder, als hier deklariert sind (u. a. loggedOnUsers, ipInterfaces, assignedTo, Benutzer-/Datei-
+// Evidenz). Deklariert – und im Mapper übernommen – wird nur diese Whitelist ohne Personenbezug.
+
+/** alert.severity */
+export type SecurityAlertSeverity =
+  'unknown' | 'informational' | 'low' | 'medium' | 'high' | 'unknownFutureValue';
+
+/** alert.status (alertStatus) */
+export type SecurityAlertStatus =
+  'unknown' | 'new' | 'inProgress' | 'resolved' | 'unknownFutureValue';
+
+/** Nur die Felder von microsoft.graph.security.deviceEvidence, die zur Zuordnung und Anzeige dienen. */
+export interface GraphSecurityDeviceEvidence {
+  '@odata.type'?: string | null;
+  azureAdDeviceId?: string | null;
+  mdeDeviceId?: string | null;
+  deviceDnsName?: string | null;
+  hostName?: string | null;
+  /** deviceRiskScore: none | informational | low | medium | high | unknownFutureValue */
+  riskScore?: string | null;
+  /** defenderAvStatus: notReporting | disabled | notUpdated | updated | unknown | notSupported | unknownFutureValue */
+  defenderAvStatus?: string | null;
+}
+
+export interface GraphSecurityAlert {
+  id: string;
+  title?: string | null;
+  severity?: SecurityAlertSeverity | null;
+  status?: SecurityAlertStatus | null;
+  createdDateTime?: string | null;
+  lastUpdateDateTime?: string | null;
+  categories?: string[] | null;
+  alertWebUrl?: string | null;
+  /** Gemischte Evidenz-Typen; gelesen werden nur #microsoft.graph.security.deviceEvidence-Einträge. */
+  evidence?: GraphSecurityDeviceEvidence[] | null;
+}
+
+// ---------- Apple-VPP-Token (v1.0, deviceAppManagement/vppTokens) – M14/S5 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-onboarding-vpptoken?view=graph-rest-1.0
+// Scope DeviceManagementServiceConfig.Read.All (optional). Die Antwort enthält auch `token` (das
+// VPP-Token selbst) und `appleId`; ein $select ist nicht dokumentiert. Diese beiden Felder sind
+// deshalb ABSICHTLICH NICHT deklariert und werden nie gelesen, gespeichert oder protokolliert – der
+// Mapper übernimmt nur die Whitelist unten (Tests: mappers.test.ts, GraphProvider.test.ts).
+
+/** vppToken.vppTokenAccountType */
+export type VppTokenAccountType = 'business' | 'education';
+
+/** vppToken.state (vppTokenState) */
+export type VppTokenState = 'unknown' | 'valid' | 'expired' | 'invalid' | 'assignedToExternalMDM';
+
+/** vppToken.lastSyncStatus (vppTokenSyncStatus) */
+export type VppTokenSyncStatus = 'none' | 'inProgress' | 'completed' | 'failed';
+
+export interface GraphVppToken {
+  id: string;
+  organizationName?: string | null;
+  vppTokenAccountType?: VppTokenAccountType | null;
+  expirationDateTime?: string | null;
+  lastSyncDateTime?: string | null;
+  state?: VppTokenState | null;
+  lastSyncStatus?: VppTokenSyncStatus | null;
+  countryOrRegion?: string | null;
+  lastAppCount?: number | null;
 }

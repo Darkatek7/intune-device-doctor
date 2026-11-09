@@ -12,14 +12,17 @@ import type {
   SnapshotSectionKey,
 } from '../domain/types';
 import type { DiagnosticsReport } from '../diagnostics/types';
+import { assignmentLookups } from '../domain/assignmentLookups';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { isAbort, toAppError } from './useDeviceSearch';
 
-export const SECTION_KEYS: SnapshotSectionKey[] = [
+/** Sections, die unabhängig voneinander (parallel) laden. */
+export const INDEPENDENT_SECTION_KEYS: SnapshotSectionKey[] = [
   'protection',
   'compliancePolicies',
   'configurationPolicies',
   'entraDevice',
+  'duplicateDevices',
   'bitlockerKeys',
   'appInstallStates',
   'applePushCertificate',
@@ -29,6 +32,24 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'deviceGroups',
   'userDevices',
   'healthAttestation',
+  'userLicense',
+  'enrollmentLimits',
+  'securityAlerts',
+];
+
+/** Sections, die erst nach den unabhängigen laden, weil sie deren Ergebnis brauchen (M14/S2). */
+export const DEPENDENT_SECTION_KEYS: SnapshotSectionKey[] = ['assignments'];
+
+/** Sections, deren Ergebnis die Zuweisungen bestimmt – nach einem Neuladen werden diese neu abgeglichen. */
+const ASSIGNMENT_INPUTS: ReadonlySet<SnapshotSectionKey> = new Set([
+  'compliancePolicies',
+  'configurationPolicies',
+  'appInstallStates',
+]);
+
+export const SECTION_KEYS: SnapshotSectionKey[] = [
+  ...INDEPENDENT_SECTION_KEYS,
+  ...DEPENDENT_SECTION_KEYS,
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -43,12 +64,16 @@ interface InternalState {
   now: Date;
 }
 
-/** Ruft die Provider-Methode zu einer Section auf (auch von Tests genutzt). */
+/**
+ * Ruft die Provider-Methode zu einer Section auf (auch von Tests genutzt). `loaded` enthält die bereits
+ * geladenen Sections – nur die abhängige Section `assignments` braucht sie.
+ */
 export function loadSection(
   provider: DeviceDataProvider,
   key: SnapshotSectionKey,
   device: ManagedDeviceInfo,
   signal: AbortSignal,
+  loaded: Partial<DeviceSnapshot> = {},
 ): Promise<SectionResult<unknown>> {
   switch (key) {
     case 'protection':
@@ -59,6 +84,8 @@ export function loadSection(
       return provider.getConfigurationPolicyStates(device, { signal });
     case 'entraDevice':
       return provider.getEntraDevice(device, { signal });
+    case 'duplicateDevices':
+      return provider.getDuplicateDevices(device, { signal });
     case 'bitlockerKeys':
       return provider.getBitLockerKeys(device, { signal });
     case 'appInstallStates':
@@ -77,6 +104,14 @@ export function loadSection(
       return provider.getUserDevices(device, { signal });
     case 'healthAttestation':
       return provider.getHealthAttestation(device, { signal });
+    case 'userLicense':
+      return provider.getUserLicense(device, { signal });
+    case 'enrollmentLimits':
+      return provider.getEnrollmentLimits(device, { signal });
+    case 'securityAlerts':
+      return provider.getSecurityAlerts(device, { signal });
+    case 'assignments':
+      return provider.getAssignments(device, assignmentLookups(loaded), { signal });
   }
 }
 
@@ -93,6 +128,8 @@ export function useDeviceSnapshot(
     provider: DeviceDataProvider;
     device: ManagedDeviceInfo;
     key: string;
+    /** Bisher geladene Sections (Eingabe der abhängigen Section) */
+    loaded: DeviceSnapshot;
   } | null>(null);
 
   const fetchSection = useCallback(
@@ -100,7 +137,7 @@ export function useDeviceSnapshot(
       const { controller, provider: p, device, key: stateKey } = ctx;
       let result: SectionResult<unknown>;
       try {
-        result = await loadSection(p, sectionKey, device, controller.signal);
+        result = await loadSection(p, sectionKey, device, controller.signal, ctx.loaded);
       } catch (error) {
         if (controller.signal.aborted || isAbort(error)) return;
         // Vertrag: Section-Methoden werfen nicht. Defensiv trotzdem als Fehler-Section abbilden.
@@ -111,6 +148,7 @@ export function useDeviceSnapshot(
         result = { status: 'error', error: toAppError(error), source };
       }
       if (controller.signal.aborted) return;
+      ctx.loaded = { ...ctx.loaded, [sectionKey]: result };
       setState((prev) =>
         prev && prev.key === stateKey && prev.snapshot
           ? {
@@ -149,7 +187,13 @@ export function useDeviceSnapshot(
         return;
       }
       if (controller.signal.aborted) return;
-      const ctx = { controller, provider, device, key: stateKey };
+      const ctx = {
+        controller,
+        provider,
+        device,
+        key: stateKey,
+        loaded: { device } as DeviceSnapshot,
+      };
       run.current = ctx;
       setState({
         key: stateKey,
@@ -158,7 +202,9 @@ export function useDeviceSnapshot(
         error: null,
         now: new Date(),
       });
-      await Promise.all(SECTION_KEYS.map((k) => fetchSection(k, ctx)));
+      await Promise.all(INDEPENDENT_SECTION_KEYS.map((k) => fetchSection(k, ctx)));
+      // Zuweisungen brauchen Richtlinien, Apps und Gruppen – erst nach diesen
+      await Promise.all(DEPENDENT_SECTION_KEYS.map((k) => fetchSection(k, ctx)));
     })();
 
     return () => {
@@ -177,7 +223,11 @@ export function useDeviceSnapshot(
           ? { ...prev, snapshot: { ...prev.snapshot, [sectionKey]: undefined }, now: new Date() }
           : prev,
       );
-      void fetchSection(sectionKey, ctx);
+      ctx.loaded = { ...ctx.loaded, [sectionKey]: undefined };
+      void fetchSection(sectionKey, ctx).then(() => {
+        // Neue Richtlinien-/App-Daten → Zuweisungen neu abgleichen (alte Anzeige bleibt bis dahin)
+        if (ASSIGNMENT_INPUTS.has(sectionKey)) void fetchSection('assignments', ctx);
+      });
     },
     [fetchSection],
   );

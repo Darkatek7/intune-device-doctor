@@ -4,8 +4,15 @@
  */
 import type {
   AppliedPolicyInfo,
+  EnrollmentLimitInfo,
+  IntuneLicensePlanInfo,
+  IntunePlanName,
+  UserLicenseInfo,
+  AssignmentEntry,
+  AssignmentTarget,
   AutopilotInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   HealthAttestationInfo,
   LocalAdminInfo,
   ApplePushCertificateInfo,
@@ -19,8 +26,11 @@ import type {
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SecurityAlertEntry,
+  SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
@@ -32,6 +42,10 @@ import type {
   ConditionalAccessStatus,
   DeviceEnrollmentType,
   GraphAppliedConditionalAccessPolicy,
+  GraphAssignment,
+  GraphDeviceEnrollmentConfiguration,
+  GraphLicenseDetails,
+  ServicePlanProvisioningStatus,
   GraphApplePushNotificationCertificate,
   GraphDirectoryObject,
   GraphManagedDeviceHealthAttestation,
@@ -43,10 +57,14 @@ import type {
   GraphManagedDevice,
   GraphMobileApp,
   GraphMobileAppIntentAndState,
+  MobileAppAssignmentIntent,
   MobileAppIntent,
   ResultantAppState,
   GraphPolicySettingState,
+  GraphSecurityAlert,
+  GraphSecurityDeviceEvidence,
   GraphSignIn,
+  GraphVppToken,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
   ManagedDevicePartnerReportedHealthState,
@@ -386,6 +404,49 @@ export function mapEntraDevice(dto: GraphEntraDevice): EntraDeviceInfo {
   };
 }
 
+// ---------- Gleichnamige Entra-Objekte (M14/S1) ----------
+
+/**
+ * Gleichnamige Objekte aus `GET /devices?$filter=displayName eq '…'`. `isCurrent` = deviceId ==
+ * azureADDeviceId des Intune-Geräts (Groß-/Kleinschreibung egal). `differentOs` nur, wenn beide
+ * Betriebssystem-Familien bekannt sind und sich unterscheiden. Neueste Registrierung zuerst; das
+ * aktuelle Objekt steht vorn. physicalIds/deviceMetadata werden nie gelesen.
+ */
+export function mapDuplicateDevices(
+  entries: GraphEntraDevice[],
+  device: { azureADDeviceId: string | null; osFamily: ManagedDeviceInfo['osFamily'] },
+  moreAvailable: boolean,
+): DuplicateDevicesInfo {
+  const current = usableId(device.azureADDeviceId)?.toLowerCase() ?? null;
+  const devices = entries
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => {
+      const deviceId = str(entry.deviceId);
+      const family = osFamilyFrom(str(entry.operatingSystem));
+      return {
+        objectId: entry.id,
+        deviceId,
+        trustType: pickOrNull(entry.trustType, TRUST_TYPES),
+        accountEnabled: bool(entry.accountEnabled),
+        approximateLastSignInDateTime: validDate(entry.approximateLastSignInDateTime),
+        isCompliant: bool(entry.isCompliant),
+        isManaged: bool(entry.isManaged),
+        registrationDateTime: validDate(entry.registrationDateTime),
+        operatingSystem: str(entry.operatingSystem),
+        isCurrent: current !== null && deviceId?.toLowerCase() === current,
+        differentOs:
+          family !== 'other' && device.osFamily !== 'other' && family !== device.osFamily,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isCurrent) - Number(a.isCurrent) ||
+        (Date.parse(b.registrationDateTime ?? '') || 0) -
+          (Date.parse(a.registrationDateTime ?? '') || 0),
+    );
+  return { devices, moreAvailable };
+}
+
 // ---------- BitLocker (nur Metadaten) ----------
 
 const VOLUME_TYPE_BY_NUMBER: Record<number, BitLockerVolumeType> = {
@@ -707,4 +768,286 @@ export function mapHealthAttestation(
     healthStatusMismatchInfo: text(state.healthStatusMismatchInfo),
     healthAttestationSupportedStatus: text(state.healthAttestationSupportedStatus),
   };
+}
+
+// ---------- Zuweisungen (M14/S2) ----------
+
+const GUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+/** Nur echte GUIDs werden als Richtlinien-/App-ID abgefragt (kein Request mit zusammengesetzten IDs). */
+export function isGuid(value: string): boolean {
+  return GUID_PATTERN.test(value.trim());
+}
+
+const ASSIGNMENT_INTENTS: readonly MobileAppAssignmentIntent[] = [
+  'available',
+  'required',
+  'uninstall',
+  'availableWithoutEnrollment',
+];
+
+/**
+ * Ziel einer Zuweisung. Das `@odata.type` steht in der Praxis mit führendem `#`, in den Doku-Beispielen
+ * teils ohne → beides wird akzeptiert. Alles andere (z. B. scopeTagGroupAssignmentTarget) bleibt
+ * `unknown` und wird nicht gedeutet. Gruppenziele ohne groupId ebenfalls.
+ */
+export function mapAssignmentTarget(target: GraphAssignment['target']): AssignmentTarget {
+  const rawType = str(target?.['@odata.type']);
+  const odataType = rawType ? rawType.replace(/^#/, '') : null;
+  const groupId = str(target?.groupId)?.trim() || null;
+  switch (odataType) {
+    case 'microsoft.graph.groupAssignmentTarget':
+      return groupId ? { kind: 'group', groupId } : { kind: 'unknown', odataType };
+    case 'microsoft.graph.exclusionGroupAssignmentTarget':
+      return groupId ? { kind: 'exclusionGroup', groupId } : { kind: 'unknown', odataType };
+    case 'microsoft.graph.allDevicesAssignmentTarget':
+      return { kind: 'allDevices' };
+    case 'microsoft.graph.allLicensedUsersAssignmentTarget':
+      return { kind: 'allUsers' };
+    default:
+      return { kind: 'unknown', odataType };
+  }
+}
+
+/** Zuweisungsliste eines Objekts. Einträge ohne `target` zählen als unbekanntes Ziel. */
+export function mapAssignments(entries: GraphAssignment[] | null | undefined): AssignmentEntry[] {
+  return (Array.isArray(entries) ? entries : [])
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => ({
+      target: mapAssignmentTarget(entry.target),
+      intent: pickOrNull(entry.intent, ASSIGNMENT_INTENTS),
+    }));
+}
+
+// ---------- Lizenz des Benutzers (M14/S3) ----------
+
+/**
+ * Intune-Serviceplans nach servicePlanId (Quelle: Licensing service plan reference,
+ * https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference). INTUNE_O365 ist
+ * „Mobile Device Management for Office 365“ – kein Intune-Plan im engeren Sinn.
+ */
+export const INTUNE_PLAN_IDS: Record<string, IntunePlanName> = {
+  'c1ec4a95-1f05-45b3-a911-aa3fa01094f5': 'INTUNE_A',
+  '3e170737-c728-4eae-bbb9-3f3360f7184c': 'INTUNE_A_VL',
+  'da24caf9-af8e-485c-b7c8-e73336da2693': 'INTUNE_EDU',
+  '882e1d05-acd1-4ccb-8708-6ee03664b117': 'INTUNE_O365',
+};
+
+const PLAN_STATUSES: readonly ServicePlanProvisioningStatus[] = [
+  'Success',
+  'Disabled',
+  'Error',
+  'PendingInput',
+  'PendingActivation',
+  'PendingProvisioning',
+];
+
+/** Reduziert die Lizenzdetails auf die Intune-Serviceplans; alles andere wird verworfen. */
+export function mapUserLicense(entries: GraphLicenseDetails[] | null | undefined): UserLicenseInfo {
+  const licenses = (Array.isArray(entries) ? entries : []).filter(
+    (entry) => entry && typeof entry === 'object',
+  );
+  const plans: IntuneLicensePlanInfo[] = [];
+  for (const license of licenses) {
+    for (const servicePlan of Array.isArray(license.servicePlans) ? license.servicePlans : []) {
+      const plan = INTUNE_PLAN_IDS[(str(servicePlan?.servicePlanId) ?? '').toLowerCase()];
+      if (!plan) continue;
+      plans.push({
+        plan,
+        skuPartNumber: str(license.skuPartNumber),
+        provisioningStatus: pickOrNull(servicePlan.provisioningStatus, PLAN_STATUSES),
+      });
+    }
+  }
+  return { plans, licenseCount: licenses.length };
+}
+
+// ---------- Gerätelimit (M14/S3) ----------
+
+/**
+ * Gerätelimit-Konfigurationen aus der gemischten Liste der Registrierungskonfigurationen (Erkennung am
+ * `@odata.type`, mit oder ohne `#`). `assignments` je Konfigurations-ID; fehlt ein Eintrag, sind die
+ * Ziele nicht lesbar (null). Sortiert nach Priorität (niedrigster Wert zuerst).
+ */
+export function mapEnrollmentLimits(
+  configs: GraphDeviceEnrollmentConfiguration[] | null | undefined,
+  assignments: ReadonlyMap<string, GraphAssignment[]>,
+): EnrollmentLimitInfo[] {
+  return (Array.isArray(configs) ? configs : [])
+    .filter(
+      (config) =>
+        config &&
+        typeof config.id === 'string' &&
+        str(config['@odata.type'])?.replace(/^#/, '') ===
+          'microsoft.graph.deviceEnrollmentLimitConfiguration',
+    )
+    .map((config) => {
+      const entries = assignments.get(config.id);
+      return {
+        id: config.id,
+        displayName: str(config.displayName)?.trim() || config.id,
+        priority: num(config.priority),
+        limit: num(config.limit),
+        targets: entries ? mapAssignments(entries).map((entry) => entry.target) : null,
+      };
+    })
+    .sort(
+      (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
+    );
+}
+
+/** Ob eine Konfiguration ein Gerätelimit ist (für den Provider: nur dafür Zuweisungen lesen). */
+export function isEnrollmentLimitConfig(config: GraphDeviceEnrollmentConfiguration): boolean {
+  return (
+    str(config?.['@odata.type'])?.replace(/^#/, '') ===
+    'microsoft.graph.deviceEnrollmentLimitConfiguration'
+  );
+}
+
+// ---------- Sicherheitswarnungen (M14/S4) ----------
+
+const DEVICE_EVIDENCE_TYPE = 'microsoft.graph.security.deviceEvidence';
+const ALERT_SEVERITIES = ['high', 'medium', 'low', 'informational'] as const;
+const ALERT_STATUSES = ['new', 'inProgress', 'resolved'] as const;
+/** deviceRiskScore (deviceEvidence) */
+const DEVICE_RISK_SCORES = ['none', 'informational', 'low', 'medium', 'high'] as const;
+/** defenderAvStatus (deviceEvidence) */
+const DEFENDER_AV_STATUSES = [
+  'notReporting',
+  'disabled',
+  'notUpdated',
+  'updated',
+  'unknown',
+  'notSupported',
+] as const;
+const PORTAL_HOST = /(^|\.)microsoft\.(com|us)$/i;
+
+/** Link ins Defender-Portal: nur https auf Microsoft-Domains, sonst kein Link. */
+export function safeAlertWebUrl(value: unknown): string | null {
+  const text = str(value)?.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === 'https:' && PORTAL_HOST.test(url.hostname) ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Gerätename für den Vergleich: kleingeschrieben, ohne Domänensuffix (Name vor dem ersten Punkt). */
+const shortDeviceName = (value: unknown): string | null => {
+  const name = str(value)?.trim().toLowerCase().split('.')[0];
+  return name ? name : null;
+};
+
+/**
+ * Gehört diese Geräte-Evidenz zum Gerät? Mit Entra-Geräte-ID auf beiden Seiten entscheidet nur die ID
+ * (ein gleichnamiges anderes Gerät passt nicht). Fehlt die ID auf einer Seite, gilt der Gerätename
+ * (hostName bzw. deviceDnsName vor dem ersten Punkt, ohne Beachtung der Groß-/Kleinschreibung).
+ */
+function matchDeviceEvidence(
+  evidence: GraphSecurityDeviceEvidence,
+  device: { azureAdDeviceId: string | null; deviceName: string },
+): 'azureAdDeviceId' | 'deviceName' | null {
+  const evidenceId = str(evidence.azureAdDeviceId)?.trim().toLowerCase();
+  const wantedId = device.azureAdDeviceId?.trim().toLowerCase();
+  if (evidenceId && evidenceId !== EMPTY_GUID && wantedId && wantedId !== EMPTY_GUID) {
+    return evidenceId === wantedId ? 'azureAdDeviceId' : null;
+  }
+  const wantedName = shortDeviceName(device.deviceName);
+  if (!wantedName) return null;
+  const names = [shortDeviceName(evidence.hostName), shortDeviceName(evidence.deviceDnsName)];
+  return names.includes(wantedName) ? 'deviceName' : null;
+}
+
+/**
+ * Warnungen → die offenen Warnungen dieses Geräts. Whitelist: übernommen werden nur Titel, Schweregrad,
+ * Status, Zeiten, Kategorien, Portal-Link sowie Risikostufe/AV-Status der Geräte-Evidenz. Nie übernommen
+ * werden loggedOnUsers, ipInterfaces, assignedTo, Kommentare und Benutzer-/Datei-/Prozess-Evidenz.
+ * Behobene Warnungen (status = resolved) werden nur gezählt. Doppelte IDs (Seitenüberlappung) zählen einmal.
+ */
+export function mapSecurityAlerts(
+  entries: GraphSecurityAlert[] | null | undefined,
+  device: { azureAdDeviceId: string | null; deviceName: string },
+  meta: { moreAvailable: boolean },
+): SecurityAlertsInfo {
+  const list = (Array.isArray(entries) ? entries : []).filter(
+    (entry) => entry && typeof entry === 'object',
+  );
+  const seen = new Set<string>();
+  const alerts: SecurityAlertEntry[] = [];
+  let resolvedCount = 0;
+  for (const alert of list) {
+    const id = str(alert.id);
+    if (!id || seen.has(id)) continue;
+    const evidence = (Array.isArray(alert.evidence) ? alert.evidence : []).filter(
+      (item) => str(item?.['@odata.type'])?.replace(/^#/, '') === DEVICE_EVIDENCE_TYPE,
+    );
+    let matchedBy: 'azureAdDeviceId' | 'deviceName' | null = null;
+    let matched: GraphSecurityDeviceEvidence | null = null;
+    for (const item of evidence) {
+      const result = matchDeviceEvidence(item, device);
+      if (result) {
+        matchedBy = result;
+        matched = item;
+        break;
+      }
+    }
+    if (!matched || !matchedBy) continue;
+    seen.add(id);
+    const status = pickOrNull(alert.status, ALERT_STATUSES) ?? 'unknown';
+    if (status === 'resolved') {
+      resolvedCount += 1;
+      continue;
+    }
+    alerts.push({
+      id,
+      title: str(alert.title)?.trim() || null,
+      severity: pickOrNull(alert.severity, ALERT_SEVERITIES) ?? 'unknown',
+      status,
+      createdDateTime: validDate(alert.createdDateTime),
+      lastUpdateDateTime: validDate(alert.lastUpdateDateTime),
+      categories: strings(alert.categories),
+      alertWebUrl: safeAlertWebUrl(alert.alertWebUrl),
+      matchedBy,
+      deviceRiskScore: pickOrNull(matched.riskScore, DEVICE_RISK_SCORES),
+      defenderAvStatus: pickOrNull(matched.defenderAvStatus, DEFENDER_AV_STATUSES),
+    });
+  }
+  alerts.sort(
+    (a, b) => Date.parse(b.createdDateTime ?? '') - Date.parse(a.createdDateTime ?? '') || 0,
+  );
+  return { alerts, resolvedCount, evaluated: list.length, moreAvailable: meta.moreAvailable };
+}
+
+// ---------- Mandanten-Status: VPP-Tokens (M14/S5) ----------
+
+const VPP_ACCOUNT_TYPES = ['business', 'education'] as const;
+const VPP_STATES = ['unknown', 'valid', 'expired', 'invalid', 'assignedToExternalMDM'] as const;
+const VPP_SYNC_STATUSES = ['none', 'inProgress', 'completed', 'failed'] as const;
+
+/**
+ * VPP-Tokens → Whitelist-Modell, frühester Ablauf zuerst. Die Antwort enthält `token` und `appleId`;
+ * beides wird nie übernommen (jedes Feld wird einzeln gelesen, es gibt kein Durchreichen des Objekts).
+ */
+export function mapVppTokens(entries: GraphVppToken[] | null | undefined): VppTokenInfo[] {
+  const mapped: VppTokenInfo[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const id = entry && typeof entry === 'object' ? str(entry.id) : null;
+    if (!id) continue;
+    mapped.push({
+      id,
+      organizationName: str(entry.organizationName)?.trim() || null,
+      accountType: pickOrNull(entry.vppTokenAccountType, VPP_ACCOUNT_TYPES),
+      expirationDateTime: validDate(entry.expirationDateTime),
+      lastSyncDateTime: validDate(entry.lastSyncDateTime),
+      state: pickOrNull(entry.state, VPP_STATES),
+      lastSyncStatus: pickOrNull(entry.lastSyncStatus, VPP_SYNC_STATUSES),
+      countryOrRegion: str(entry.countryOrRegion)?.trim() || null,
+      lastAppCount: num(entry.lastAppCount),
+    });
+  }
+  const time = (token: VppTokenInfo) =>
+    token.expirationDateTime ? Date.parse(token.expirationDateTime) : Number.MAX_SAFE_INTEGER;
+  return mapped.sort((a, b) => time(a) - time(b));
 }
