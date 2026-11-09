@@ -30,7 +30,7 @@ export const EVENT_KNOWLEDGE: EventKnowledge[] = [
       'Laut Microsoft kennzeichnet Ereignis 76 („Auto MDM Enroll: Failed“, Stufe Fehler) eine fehlgeschlagene automatische Registrierung; der Fehlercode steht im Ereignis. Eine erfolgreiche Registrierung wird dagegen als Ereignis 75 („Auto MDM Enroll: Succeeded“) protokolliert.',
     remediation: [
       'Den Fehlercode aus den Rohdaten mit der Microsoft-Seite zur Fehlerbehebung bei der Windows-Registrierung abgleichen („Troubleshooting Windows device enrollment errors in Intune“).',
-      'Prüfen, ob später ein Ereignis 75 (erfolgreiche Registrierung) folgt – dann war der Fehler vorübergehend.',
+      'Nach Ereignis 75 („Auto MDM Enroll: Succeeded“) suchen: Laut Microsoft wird es bei erfolgreicher automatischer Registrierung protokolliert.',
     ],
     docsUrl: Docs.autoMdmEnrollFailed,
   },

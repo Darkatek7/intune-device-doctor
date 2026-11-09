@@ -870,7 +870,7 @@ export const deRules = {
       unavailableTitle: 'Ereignisprotokoll nicht ausgewertet',
       unavailableCause: {
         missing:
-          'Die Sammlung des Ereignisprotokolls ist fehlgeschlagen oder das Diagnoseprofil enthält es nicht.',
+          'Das Archiv enthält das Protokoll nicht (Sammlung fehlgeschlagen oder nicht Teil der Diagnosedaten).',
         tooLarge: 'Das Protokoll ist größer als das Limit für die Auswertung im Browser.',
         unreadable: 'Der Eintrag im Archiv ist leer oder beschädigt.',
         invalid: 'Die Datei hat nicht das Format eines Windows-Ereignisprotokolls (.evtx).',
@@ -907,7 +907,7 @@ export const deRules = {
         'Den Zeitpunkt mit anderen Befunden vergleichen (Registrierung, IME-Log, Entra-Join).',
       ],
       warningCause:
-        'Warnungen sind kein Fehlerzustand; sie können Hinweise auf wiederkehrende, noch behebbare Probleme sein.',
+        'Warnungen werden nur angezeigt und nicht als Fehler gewertet; für diese Ereignis-ID ist keine Deutung mit Microsoft-Learn-Quelle hinterlegt – angezeigt werden nur die Rohdaten aus dem Ereignis.',
       moreTitle: (n: number) => `Weitere ${n} ${n === 1 ? 'Ereignis-ID' : 'Ereignis-IDs'}`,
       moreDetail: (items: string) => `Nicht einzeln aufgeführt: ${items}.`,
       moreCause: 'Die Anzeige ist auf die häufigsten Ereignisgruppen begrenzt.',
@@ -923,7 +923,7 @@ export const deRules = {
           .filter(Boolean)
           .join(' '),
       incompleteCause:
-        'Der Eintrag im Archiv ist gekappt (Intune begrenzt die Größe gesammelter Dateien) oder beschädigt; deshalb sind nicht alle Ereignisse sichtbar.',
+        'Der Eintrag im Archiv ist gekappt oder beschädigt bzw. sehr groß; deshalb sind nicht alle Ereignisse sichtbar.',
       incompleteRemediation: [
         'Bei Bedarf das Protokoll direkt am Gerät in der Ereignisanzeige prüfen.',
       ],

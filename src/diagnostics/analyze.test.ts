@@ -79,7 +79,7 @@ describe('analyzeDiagnosticsZip (Fixture)', () => {
     expect(report.fileName).toBe(FIXTURE_FILE_NAME);
     expect(report.deviceNameFromFile).toBe('CONTOSO-PC042');
     expect(report.collectedAtUtc).toBe('2026-10-14T12:53:56Z');
-    expect(report.entryCount).toBe(9);
+    expect(report.entryCount).toBe(10);
 
     expect(report.dsregcmd).toMatchObject({
       azureAdPrt: 'NO',

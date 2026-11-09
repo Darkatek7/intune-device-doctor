@@ -29,7 +29,8 @@ export function eventLogIdFor(entry: DiagEntry): DiagEventLogId | null {
   if (entry.kind !== 'Events' || entry.isDirectory || entry.failedHresult) return null;
   if (!/\.evtx$/i.test(entry.path)) return null;
   const name = normalize(entry.name);
-  if (name.includes('devicemanagemententerprisediagnosticsprovider') && name.includes('admin'))
+  // „Diagnostics-Provider“ (Protokollname) bzw. „Diagnostic-Provider“ (Ereignisanzeige) – beides zulassen
+  if (/devicemanagemententerprisediagnostics?provider/.test(name) && name.includes('admin'))
     return 'mdmAdmin';
   if (/(^|[^a-z])aad/i.test(entry.name) && name.includes('operational')) return 'aadOperational';
   if (name.includes('microsoftwindowsaadoperational')) return 'aadOperational';

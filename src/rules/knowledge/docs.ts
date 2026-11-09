@@ -81,8 +81,6 @@ export const Docs = {
     'https://learn.microsoft.com/entra/identity/devices/troubleshoot-primary-refresh-token',
   // Ereignisprotokolle (DiagLogs-ZIP): Event-IDs mit Microsoft-Learn-Beleg, abgerufen 2026-11-09
   mdmCollectLogs: 'https://learn.microsoft.com/windows/client-management/mdm-collect-logs',
-  mdmDiagnoseEnrollment:
-    'https://learn.microsoft.com/windows/client-management/mdm-diagnose-enrollment#troubleshoot-group-policy-enrollment',
   autoMdmEnrollFailed:
     'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-enrollment-errors#auto-mdm-enroll-failed',
   defenderOnboardingMdmEvents:
