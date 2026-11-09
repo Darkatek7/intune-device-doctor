@@ -304,3 +304,71 @@ describe('nicht unterstützt und Limits', () => {
     expect(openCab(buildCab(many), { maxFiles: 5 }).files).toHaveLength(5);
   });
 });
+
+/**
+ * Das Beispiel-Cabinet aus der Microsoft-Cabinet-Spezifikation (Abschnitt „A Sample Cabinet File“,
+ * 253 Byte, unkomprimiert, zwei Quelltextdateien): https://learn.microsoft.com/previous-versions/bb417343(v=msdn.10)
+ * Die Prüfsumme des Datenblocks ist dort mit 0x30A65ABD angegeben und wird beim Entpacken geprüft.
+ */
+const SPEC_SAMPLE_HEX = [
+  '4D534346 00000000 FD000000 00000000',
+  '2C000000 00000000 03010100 02000000',
+  '22060000 5E000000 01000000 4D000000',
+  '00000000 00006C22 BA592000 68656C6C',
+  '6F2E6300 4A000000 4D000000 00006C22',
+  'E7592000 77656C63 6F6D652E 6300BD5A',
+  'A6309700 97002369 6E636C75 6465203C',
+  '7374 64696F2E 683E0D0A 0D0A766F 6964',
+  '206D6169 6E28766F 6964290D 0A7B0D0A',
+  '20202020 7072696E 7466282248656C6C',
+  '6F2C2077 6F726C64 215C6E22 293B0D0A',
+  '7D0D0A23 696E636C 75646520 3C737464',
+  '696F2E68 3E0D0A0D 0A766F69 64206D61',
+  '696E2876 6F696429 0D0A7B0D 0A202020',
+  '20707269 6E746628 2257656C 636F6D65',
+  '215C6E22 293B0D0A 7D0D0A0D 0A',
+].join('');
+
+function specSample(): Uint8Array {
+  const hex = SPEC_SAMPLE_HEX.replace(/\s+/g, '');
+  return Uint8Array.from(hex.match(/../g)!, (pair) => parseInt(pair, 16));
+}
+
+describe('Beispiel-Cabinet aus der Microsoft-Spezifikation', () => {
+  it('Kopf, Ordner und beide Dateien stimmen mit der Beschreibung überein', () => {
+    const raw = specSample();
+    expect(raw).toHaveLength(0xfd);
+    const cab = openCab(raw);
+    expect(cab.declaredSize).toBe(0xfd);
+    expect(cab.truncated).toBe(false);
+    expect(cab.version).toBe('1.3');
+    expect(cab.setId).toBe(0x0622);
+    expect(cab.cabinetIndex).toBe(0);
+    expect(cab.hasPrev || cab.hasNext).toBe(false);
+    expect(cab.folders).toEqual([
+      { dataOffset: 0x5e, blockCount: 1, typeCompress: 0, compression: 'none' },
+    ]);
+    expect(cab.files.map((f) => [f.name, f.size, f.offset, f.folderIndex])).toEqual([
+      ['hello.c', 77, 0, 0],
+      ['welcome.c', 74, 77, 0],
+    ]);
+  });
+
+  it('entpackt beide Dateien; die Prüfsumme 0x30A65ABD wird akzeptiert', () => {
+    const cab = openCab(specSample());
+    const [hello, welcome] = cab.files.map((file) => dec.decode(cab.extract(file)));
+    expect(hello).toContain('printf("Hello, world!\\n");');
+    expect(hello).toHaveLength(77);
+    expect(welcome).toContain('printf("Welcome!\\n");');
+    expect(welcome).toHaveLength(74);
+  });
+
+  it('ein verändertes Datenbyte verletzt die Prüfsumme', () => {
+    const raw = specSample();
+    raw[0x70] ^= 0x01;
+    const cab = openCab(raw);
+    expect(() => cab.extract(cab.files[0]!)).toThrowError(
+      expect.objectContaining({ code: 'checksum' }),
+    );
+  });
+});
