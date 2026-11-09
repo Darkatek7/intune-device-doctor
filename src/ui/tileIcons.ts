@@ -4,6 +4,7 @@ import {
   Cpu,
   Fingerprint,
   FileArchive,
+  FileSearch,
   HardDrive,
   KeyRound,
   Rocket,
@@ -41,5 +42,6 @@ export const TILE_ICON: Record<TileId, LucideIcon> = {
   enrollment: UserPlus,
   certsNetwork: Network,
   mdmEvents: ScrollText,
+  mdmDiagReport: FileSearch,
   diagCollection: FileArchive,
 };

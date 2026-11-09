@@ -90,7 +90,11 @@ export function evaluatePolicies(snapshot: DeviceSnapshot, _now: Date): Tile {
     title: t.settingsCatalogTitle,
     detail: t.settingsCatalogDetail,
     cause: t.settingsCatalogCause,
-    remediation: [...t.settingsCatalogRemediation],
+    remediation: [
+      ...t.settingsCatalogRemediation,
+      // M13: liegt ein MDM-Diagnosebericht aus einem DiagLogs-ZIP vor, darauf verweisen
+      ...(snapshot.diagnostics?.mdmDiag?.status === 'ok' ? [t.settingsCatalogMdmDiagHint] : []),
+    ],
     source: configuration.source,
     docsUrl: Docs.settingsCatalog,
   });

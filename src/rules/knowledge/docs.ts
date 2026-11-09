@@ -134,4 +134,11 @@ export const Docs = {
   ipconfig: 'https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig',
   entraDeviceRegistrationCert:
     'https://learn.microsoft.com/troubleshoot/mem/intune/comanage-configmgr/troubleshoot-co-management-auto-enrolling#common-issues',
+  // M13: MDM-Diagnosepaket (mdmlogs-*.cab), abgerufen 2026-11-09
+  diagnoseProvisioningPackages:
+    'https://learn.microsoft.com/windows/configuration/provisioning-packages/diagnose-provisioning-packages',
+  /** Cabinet-Spezifikation (CFHEADER/CFFOLDER/CFFILE/CFDATA, Prüfsumme) und MSZIP-Format */
+  cabinetFormat: 'https://learn.microsoft.com/previous-versions/bb417343(v=msdn.10)',
+  expandCommand:
+    'https://learn.microsoft.com/windows-server/administration/windows-commands/expand',
 } as const;

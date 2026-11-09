@@ -90,13 +90,14 @@ function enrollment(overrides: Partial<EnrollmentInfo> = {}): EnrollmentInfo {
 // ---------- Fixture-ZIP ----------
 
 describe('Fixture-ZIP: Kacheln', () => {
-  it('liefert genau die fünf ZIP-Kacheln in fester Reihenfolge', () => {
+  it('liefert genau die sieben ZIP-Kacheln in fester Reihenfolge', () => {
     expect(fixtureTiles.map((t) => t.id)).toEqual([
       'entraJoin',
       'win32Apps',
       'enrollment',
       'certsNetwork',
       'mdmEvents',
+      'mdmDiagReport',
       'diagCollection',
     ]);
   });

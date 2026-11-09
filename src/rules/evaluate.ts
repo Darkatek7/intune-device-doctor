@@ -41,6 +41,7 @@ export const TILE_ORDER: TileId[] = [
   'enrollment',
   'certsNetwork',
   'mdmEvents',
+  'mdmDiagReport',
   'diagCollection',
 ];
 

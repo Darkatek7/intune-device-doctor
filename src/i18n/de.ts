@@ -45,6 +45,7 @@ export const de = {
     certsNetwork: 'Zertifikate & Netzwerk',
     diagCollection: 'Diagnosedaten',
     mdmEvents: 'MDM-Ereignisse',
+    mdmDiagReport: 'MDM-Diagnosebericht',
   },
   severity: {
     ok: 'In Ordnung',
