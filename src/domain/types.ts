@@ -4,6 +4,7 @@
  */
 import type {
   AppliedConditionalAccessPolicyResult,
+  AutopilotEnrollmentState,
   ComplianceState,
   ComplianceStatus,
   ConditionalAccessStatus,
@@ -268,6 +269,17 @@ export interface LocalAdminInfo {
   refreshDateTime: string | null;
 }
 
+/** Windows-Autopilot-Eintrag des Geräts (v1.0). Ohne Seriennummer, Benutzer und Produktschlüssel. */
+export interface AutopilotInfo {
+  groupTag: string | null;
+  enrollmentState: AutopilotEnrollmentState | null;
+  lastContactedDateTime: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  /** Wie der Eintrag zugeordnet wurde */
+  matchedBy: 'managedDeviceId' | 'serialNumber';
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -284,6 +296,11 @@ export interface DeviceSnapshot {
   signIns?: SectionResult<SignInsInfo>;
   /** Nur Windows: Windows-LAPS-Metadaten aus Entra (optionaler Scope DeviceLocalCredential.ReadBasic.All) */
   localAdmin?: SectionResult<LocalAdminInfo>;
+  /**
+   * Nur Windows: Eintrag in der Autopilot-Geräteliste. data null = Liste vollständig gelesen, das
+   * Gerät steht nicht darin (kein Fehler). Optionaler Scope DeviceManagementServiceConfig.Read.All.
+   */
+  autopilot?: SectionResult<AutopilotInfo | null>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -301,6 +318,7 @@ export type TileId =
   | 'apps'
   | 'signIns'
   | 'laps'
+  | 'autopilot'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -349,7 +367,8 @@ export type SnapshotSectionKey =
   | 'appInstallStates'
   | 'applePushCertificate'
   | 'signIns'
-  | 'localAdmin';
+  | 'localAdmin'
+  | 'autopilot';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

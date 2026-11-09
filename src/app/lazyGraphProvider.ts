@@ -4,6 +4,7 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  AutopilotInfo,
   AppInfo,
   ApplePushCertificateInfo,
   AppInstallStateInfo,
@@ -115,6 +116,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getLocalAdmin(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<LocalAdminInfo>((p) => p.getLocalAdmin(device, options));
+  }
+
+  getAutopilot(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<AutopilotInfo | null>((p) => p.getAutopilot(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

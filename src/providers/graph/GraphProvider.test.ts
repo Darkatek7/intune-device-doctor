@@ -815,3 +815,75 @@ describe('GraphProvider – Windows LAPS', () => {
     expectStatus(await broken.provider.getLocalAdmin(windowsDevice()), 'error');
   });
 });
+
+describe('GraphProvider – Windows Autopilot', () => {
+  const AP_PATH = '/v1.0/deviceManagement/windowsAutopilotDeviceIdentities';
+  const pageOf = (n: number, withNext: boolean) =>
+    jsonResponse({
+      value: [{ id: `ap-${n}`, serialNumber: `X-${n}`, managedDeviceId: null }],
+      ...(withNext
+        ? { '@odata.nextLink': `https://graph.microsoft.com${AP_PATH}?$skiptoken=${n + 1}` }
+        : {}),
+    });
+
+  it('liest die Liste ohne Query per GET und findet das Gerät über managedDeviceId', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.pathname).toBe(AP_PATH);
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data).toMatchObject({
+      groupTag: 'Contoso-Standard',
+      enrollmentState: 'enrolled',
+      matchedBy: 'managedDeviceId',
+    });
+    expect(JSON.stringify(result.data)).not.toMatch(/AAAAA|anna\.schmidt|productKey/);
+    expect(result.source.label).toBe(Endpoints.windowsAutopilotDeviceIdentities.display);
+  });
+
+  it('nicht gefunden, Liste zu Ende → ok mit null (nicht registriert)', async () => {
+    const { provider } = setup(() => pageOf(1, false));
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(result.data).toBeNull();
+  });
+
+  it('nicht gefunden, weitere Seiten → nach 5 Seiten unavailable mit ehrlichem Grund', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() => pageOf(++n, true));
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'unavailable');
+    expect(calls).toHaveLength(5);
+    expect(result.reason).toBe(de.reasons.autopilotNotFoundInLimit(5));
+  });
+
+  it('bricht beim ersten Treffer ab (Seite 2 von 3)', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() => {
+      n += 1;
+      return n < 2
+        ? pageOf(n, true)
+        : jsonResponse({
+            value: [{ id: 'ap-hit', serialNumber: 'x', managedDeviceId: PC001_ID }],
+            '@odata.nextLink': `https://graph.microsoft.com${AP_PATH}?$skiptoken=9`,
+          });
+    });
+    expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('nicht Windows → notApplicable ohne Request; 403 → forbidden mit Scope; 404 → unavailable', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getAutopilot(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const b = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    const forbidden = expectStatus(await b.provider.getAutopilot(windowsDevice()), 'forbidden');
+    expect(forbidden.error.requiredScope).toBe('DeviceManagementServiceConfig.Read.All');
+    const c = setup(() => graphError(404, 'ResourceNotFound'));
+    expect(expectStatus(await c.provider.getAutopilot(windowsDevice()), 'unavailable').reason).toBe(
+      de.reasons.autopilotNotReported,
+    );
+  });
+});

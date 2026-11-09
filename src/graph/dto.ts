@@ -450,3 +450,24 @@ export interface GraphDeviceLocalCredentialInfo {
   /** Zeitpunkt der nächsten geplanten Aktualisierung (Rotation) und Sicherung */
   refreshDateTime: string | null;
 }
+
+// ---------- Windows Autopilot (v1.0, deviceManagement/windowsAutopilotDeviceIdentities) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity?view=graph-rest-1.0
+// Bewusst NICHT im DTO: productKey, userPrincipalName/addressableUserName, azureActiveDirectoryDeviceId
+// („to be deprecated“) sowie alle Felder, die es nur in beta gibt (z. B. deploymentProfileAssignmentStatus).
+
+/** enrollmentState (v1.0) */
+export type AutopilotEnrollmentState =
+  'unknown' | 'enrolled' | 'pendingReset' | 'failed' | 'notContacted';
+
+export interface GraphWindowsAutopilotDeviceIdentity {
+  id: string;
+  groupTag: string | null;
+  serialNumber: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  enrollmentState: AutopilotEnrollmentState | null;
+  lastContactedDateTime: string | null;
+  managedDeviceId: string | null;
+}

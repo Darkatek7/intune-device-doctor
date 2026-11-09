@@ -15,6 +15,7 @@ import {
   mapApplePushCertificate,
   mapBitlockerKey,
   mapDetectedMalware,
+  mapAutopilot,
   mapEntraDevice,
   mapLocalAdmin,
   mapManagedDevice,
@@ -608,5 +609,58 @@ describe('mapLocalAdmin (Windows LAPS)', () => {
     expect(
       mapLocalAdmin({ lastBackupDateTime: 'kaputt', refreshDateTime: '0001-01-01T00:00:00Z' }),
     ).toEqual(empty);
+  });
+});
+
+describe('mapAutopilot', () => {
+  const device = { id: 'dev-1', serialNumber: 'SN-123' };
+  const entry = (overrides: Record<string, unknown> = {}) =>
+    ({
+      id: 'ap',
+      groupTag: ' Contoso-Standard ',
+      serialNumber: 'sn-123',
+      managedDeviceId: 'DEV-1',
+      enrollmentState: 'enrolled',
+      lastContactedDateTime: '2026-10-13T08:00:00Z',
+      manufacturer: 'Microsoft Corporation',
+      model: 'Surface Laptop 6',
+      productKey: 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE',
+      userPrincipalName: 'anna.schmidt@contoso.com',
+      ...overrides,
+    }) as never;
+
+  it('ordnet zuerst über managedDeviceId zu (Groß-/Kleinschreibung egal)', () => {
+    const info = mapAutopilot([entry()], device);
+    expect(info).toMatchObject({
+      groupTag: 'Contoso-Standard',
+      enrollmentState: 'enrolled',
+      matchedBy: 'managedDeviceId',
+    });
+  });
+
+  it('fällt auf die Seriennummer zurück, wenn managedDeviceId fehlt oder die Null-GUID ist', () => {
+    const zero = '00000000-0000-0000-0000-000000000000';
+    expect(mapAutopilot([entry({ managedDeviceId: zero })], device)?.matchedBy).toBe(
+      'serialNumber',
+    );
+    expect(mapAutopilot([entry({ managedDeviceId: null })], device)?.matchedBy).toBe(
+      'serialNumber',
+    );
+  });
+
+  it('kein Treffer → null; ohne Seriennummer wird nicht über sie zugeordnet', () => {
+    expect(mapAutopilot([entry({ managedDeviceId: 'x', serialNumber: 'x' })], device)).toBeNull();
+    expect(
+      mapAutopilot([entry({ managedDeviceId: 'x', serialNumber: '' })], {
+        id: 'dev-1',
+        serialNumber: '',
+      }),
+    ).toBeNull();
+  });
+
+  it('übernimmt weder Seriennummer noch Produktschlüssel noch Benutzer; unbekannte Status → null', () => {
+    const info = mapAutopilot([entry({ enrollmentState: 'blocked' })], device)!;
+    expect(info.enrollmentState).toBeNull();
+    expect(JSON.stringify(info)).not.toMatch(/AAAAA|anna\.schmidt|SN-123|productKey|serialNumber/i);
   });
 });

@@ -656,6 +656,54 @@ export const deRules = {
       'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
     ],
   },
+  /** M10: Kachel „Autopilot“ (Windows Autopilot, v1.0) */
+  autopilot: {
+    valueRegistered: 'Registriert',
+    valueFailed: 'Fehlgeschlagen',
+    valueNotRegistered: 'Nicht registriert',
+    summaryRegistered: (groupTag: string | null) =>
+      groupTag
+        ? `Autopilot-Eintrag mit Group Tag „${groupTag}“`
+        : 'Autopilot-Eintrag ohne Group Tag',
+    summaryNotRegistered: 'Gerät steht nicht in der Autopilot-Geräteliste',
+    facts: {
+      groupTag: 'Group Tag',
+      groupTagNone: 'keiner',
+      enrollmentState: 'Registrierungsstatus',
+      lastContacted: 'Zuletzt kontaktiert',
+      hardware: 'Hardware',
+      matchedBy: 'Zuordnung',
+      matchedByManagedDeviceId: 'über Intune-Geräte-ID',
+      matchedBySerialNumber: 'über Seriennummer',
+      profile: 'Bereitstellungsprofil',
+      profileUnavailable: 'über dokumentierte API (v1.0) nicht verfügbar',
+    },
+    /** Übersetzung der Enum-Werte von enrollmentState (v1.0) */
+    states: {
+      unknown: 'unbekannt',
+      enrolled: 'registriert',
+      pendingReset: 'Zurücksetzen ausstehend',
+      failed: 'fehlgeschlagen',
+      notContacted: 'noch nicht kontaktiert',
+    } as Record<string, string>,
+    failedTitle: 'Autopilot-Registrierung fehlgeschlagen',
+    failedDetail: 'Der Autopilot-Eintrag des Geräts meldet enrollmentState = failed.',
+    failedCause:
+      'Autopilot meldet für dieses Gerät eine fehlgeschlagene Registrierung. Die Dokumentation beschreibt die Ursache nicht näher; der Wert sagt nur, dass sie nicht abgeschlossen wurde.',
+    failedRemediation: [
+      'Den Eintrag des Geräts in der Autopilot-Geräteliste im Intune Admin Center öffnen und den Status prüfen (Zuordnung des Bereitstellungsprofils, Group Tag).',
+      'Letzten Check-in und Compliance des Geräts in den Kacheln „Letzter Check-in“ und „Compliance“ ansehen.',
+      'Den Bereitstellungsstatus nicht aus dieser Kachel ableiten: Das Bereitstellungsprofil ist über die dokumentierte v1.0-API nicht lesbar.',
+    ],
+    notRegisteredTitle: 'Nicht in Autopilot registriert',
+    notRegisteredDetail:
+      'Die Autopilot-Geräteliste wurde vollständig gelesen; weder die Intune-Geräte-ID noch die Seriennummer des Geräts kommen darin vor.',
+    notRegisteredCause:
+      'Nicht jedes Windows-Gerät wird über Autopilot bereitgestellt (z. B. manuell oder per Imaging registriert) – das ist kein Fehler.',
+    notRegisteredRemediation: [
+      'Nur falls das Gerät über Autopilot bereitgestellt werden sollte: Seriennummer und Hardware-Hash im Intune Admin Center in der Autopilot-Geräteliste prüfen.',
+    ],
+  },
   /** M10: Kachel „Lokaler Administrator (LAPS)“ (Windows LAPS, nur Metadaten) */
   laps: {
     valueOk: 'Kennwort gesichert',

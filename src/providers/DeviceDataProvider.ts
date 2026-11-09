@@ -9,6 +9,7 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInfo,
@@ -94,6 +95,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<LocalAdminInfo>>;
+
+  /**
+   * Windows Autopilot (nur Windows): Eintrag des Geräts in der Autopilot-Geräteliste. data null =
+   * Liste vollständig gelesen, Gerät nicht darin; innerhalb der Seitengrenze nicht gefunden → unavailable.
+   */
+  getAutopilot(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AutopilotInfo | null>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

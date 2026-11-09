@@ -25,6 +25,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'applePushCertificate',
   'signIns',
   'localAdmin',
+  'autopilot',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -65,6 +66,8 @@ export function loadSection(
       return provider.getSignIns(device, { signal });
     case 'localAdmin':
       return provider.getLocalAdmin(device, { signal });
+    case 'autopilot':
+      return provider.getAutopilot(device, { signal });
   }
 }
 

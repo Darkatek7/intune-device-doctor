@@ -12,6 +12,7 @@ import { evaluateDefender } from './tiles/defender';
 import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
+import { evaluateAutopilot } from './tiles/autopilot';
 import { evaluateLaps } from './tiles/laps';
 import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
@@ -30,6 +31,7 @@ export const TILE_ORDER: TileId[] = [
   'apps',
   'signIns',
   'laps',
+  'autopilot',
   'entraJoin',
   'win32Apps',
   'enrollment',
@@ -51,7 +53,9 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
   tiles.push(evaluateSignIns(snapshot, now));
   // Windows-spezifische Live-Kacheln (M10): nur für Windows-Geräte
-  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateLaps(snapshot, now));
+  if (snapshot.device.osFamily === 'windows') {
+    tiles.push(evaluateLaps(snapshot, now), evaluateAutopilot(snapshot, now));
+  }
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }

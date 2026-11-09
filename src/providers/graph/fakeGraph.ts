@@ -330,6 +330,24 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         lastModifiedDateTime: '2026-05-03T12:00:00Z',
       });
     }
+    if (path === '/v1.0/deviceManagement/windowsAutopilotDeviceIdentities') {
+      return collection([
+        { id: 'ap-0', serialNumber: 'OTHER-1', managedDeviceId: null, groupTag: 'Contoso-Andere' },
+        {
+          id: 'ap-1',
+          serialNumber: 'DEMO-000001',
+          managedDeviceId: PC001_ID,
+          groupTag: 'Contoso-Standard',
+          enrollmentState: 'enrolled',
+          lastContactedDateTime: '2026-10-13T08:00:00Z',
+          manufacturer: 'Microsoft Corporation',
+          model: 'Surface Laptop 6',
+          // nur in der echten Antwort, nie übernommen:
+          productKey: 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE',
+          userPrincipalName: 'anna.schmidt@contoso.com',
+        },
+      ]);
+    }
     const laps = /^\/v1\.0\/directory\/deviceLocalCredentials\/([^/]+)$/.exec(path);
     if (laps) {
       return laps[1] === PC001_ENTRA_ID

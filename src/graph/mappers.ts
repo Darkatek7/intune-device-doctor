@@ -4,6 +4,7 @@
  */
 import type {
   AppliedPolicyInfo,
+  AutopilotInfo,
   LocalAdminInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -23,12 +24,14 @@ import type {
 import { osFamilyFrom } from '../domain/format';
 import type {
   AppliedConditionalAccessPolicyResult,
+  AutopilotEnrollmentState,
   ComplianceState,
   ComplianceStatus,
   ConditionalAccessStatus,
   DeviceEnrollmentType,
   GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
+  GraphWindowsAutopilotDeviceIdentity,
   GraphBitlockerRecoveryKey,
   GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
@@ -596,5 +599,43 @@ export function mapLocalAdmin(
     deviceName: str(info.deviceName),
     lastBackupDateTime: validDate(info.lastBackupDateTime),
     refreshDateTime: validDate(info.refreshDateTime),
+  };
+}
+
+// ---------- Windows Autopilot ----------
+
+const AUTOPILOT_STATES: readonly AutopilotEnrollmentState[] = [
+  'unknown',
+  'enrolled',
+  'pendingReset',
+  'failed',
+  'notContacted',
+];
+
+/**
+ * Sucht das Gerät in einer Seite der Autopilot-Liste: zuerst über managedDeviceId (= Intune-Geräte-ID),
+ * sonst über die Seriennummer (ohne Beachtung der Groß-/Kleinschreibung). Kein Treffer → null.
+ * Seriennummer, Benutzer und Produktschlüssel werden nie übernommen.
+ */
+export function mapAutopilot(
+  entries: GraphWindowsAutopilotDeviceIdentity[],
+  device: { id: string; serialNumber: string | null },
+): AutopilotInfo | null {
+  const id = device.id.trim().toLowerCase();
+  const serial = device.serialNumber?.trim().toLowerCase() || null;
+  const byManaged = entries.find((e) => usableId(e?.managedDeviceId)?.toLowerCase() === id);
+  const bySerial =
+    serial === null
+      ? undefined
+      : entries.find((e) => str(e?.serialNumber)?.trim().toLowerCase() === serial);
+  const hit = byManaged ?? bySerial;
+  if (!hit) return null;
+  return {
+    groupTag: str(hit.groupTag)?.trim() || null,
+    enrollmentState: pickOrNull(hit.enrollmentState, AUTOPILOT_STATES),
+    lastContactedDateTime: validDate(hit.lastContactedDateTime),
+    manufacturer: str(hit.manufacturer),
+    model: str(hit.model),
+    matchedBy: byManaged ? 'managedDeviceId' : 'serialNumber',
   };
 }

@@ -2,6 +2,7 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  AutopilotInfo,
   AppInstallStateInfo,
   AppliedPolicyInfo,
   BitLockerKeyInfo,
@@ -317,4 +318,25 @@ export function defaultLocalAdmin(
   device: Pick<DeviceBase, 'deviceName'>,
 ): LocalAdminInfo {
   return localAdminInfo(now, device.deviceName, { backupDaysAgo: 3, refreshInDays: 27 });
+}
+
+/** Autopilot-Eintrag (fiktiv). */
+export function autopilotInfo(now: Date, overrides: Partial<AutopilotInfo> = {}): AutopilotInfo {
+  return {
+    groupTag: 'Contoso-Standard',
+    enrollmentState: 'enrolled',
+    lastContactedDateTime: ago(now, { days: 2 }),
+    manufacturer: 'Microsoft Corporation',
+    model: 'Surface Laptop 6',
+    matchedBy: 'managedDeviceId',
+    ...overrides,
+  };
+}
+
+/** Standard: bei Autopilot registriert und eingeschrieben. */
+export function defaultAutopilot(
+  now: Date,
+  device: Pick<DeviceBase, 'manufacturer' | 'model'>,
+): AutopilotInfo {
+  return autopilotInfo(now, { manufacturer: device.manufacturer, model: device.model });
 }

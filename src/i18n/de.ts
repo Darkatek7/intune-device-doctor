@@ -38,6 +38,7 @@ export const de = {
     apps: 'Apps',
     signIns: 'Anmeldungen',
     laps: 'Lokaler Administrator (LAPS)',
+    autopilot: 'Autopilot',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -123,6 +124,12 @@ export const de = {
       'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
     signInsNotReported:
       'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
+    // M10: Windows Autopilot
+    autopilotNotWindows: 'Windows Autopilot gibt es nur unter Windows.',
+    autopilotNotReported:
+      'Graph meldet HTTP 404 für die Autopilot-Geräteliste – über diese Schnittstelle nicht verfügbar.',
+    autopilotNotFoundInLimit: (pages: number) =>
+      `Das Gerät wurde in den ersten ${pages} Seiten der Autopilot-Geräteliste nicht gefunden; weitere Seiten wurden nicht gelesen (für die Liste ist kein Filter dokumentiert). Das Gerät kann trotzdem registriert sein.`,
     // M10: Windows LAPS
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:

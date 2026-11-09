@@ -4,6 +4,7 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInfo,
@@ -24,7 +25,12 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
-import { defaultAppStates, defaultLocalAdmin, defaultSignIns } from './scenarios/helpers';
+import {
+  defaultAppStates,
+  defaultAutopilot,
+  defaultLocalAdmin,
+  defaultSignIns,
+} from './scenarios/helpers';
 import type { MockDeviceFixture, MockScenario, MockSection } from './types';
 
 export interface MockProviderOptions {
@@ -47,6 +53,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   applePushCertificate: 'applePushNotificationCertificate',
   signIns: 'signIns',
   localAdmin: 'deviceLocalCredentialInfo',
+  autopilot: 'windowsAutopilotDeviceIdentities',
 };
 
 export function abortError(): DOMException {
@@ -192,6 +199,12 @@ export class MockProvider implements DeviceDataProvider {
       }
       return { status: 'ok', data: defaultLocalAdmin(this.now(), fixture.device) };
     }
+    if (key === 'autopilot') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.autopilotNotWindows };
+      }
+      return { status: 'ok', data: defaultAutopilot(this.now(), fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -266,6 +279,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<SignInsInfo>(device, 'signIns', options);
+  }
+
+  getAutopilot(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AutopilotInfo | null>(device, 'autopilot', options);
   }
 
   getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {

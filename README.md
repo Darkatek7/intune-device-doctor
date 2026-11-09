@@ -52,18 +52,18 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
 2. **Plattform:** Authentifizierung › Plattform hinzufügen › **Single-page application** (nicht „Web“, sonst `AADSTS9002326`). **Redirect-URI** `http://localhost:5173` (bzw. die URL, unter der die App gehostet wird; muss exakt mit `VITE_MSAL_REDIRECT_URI` bzw. dem Origin übereinstimmen).
 3. **API-Berechtigungen** (Microsoft Graph, **delegiert**) – genau diese, keine Schreibrechte:
 
-   | Scope                                     | Zweck                                                                    |
-   | ----------------------------------------- | ------------------------------------------------------------------------ |
-   | `User.Read`                               | Anmeldung/Profil                                                         |
-   | `DeviceManagementManagedDevices.Read.All` | Geräte, Defender, Compliance-Status                                      |
-   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps)                      |
-   | `Device.Read.All`                         | Entra-Geräteobjekt                                                       |
-   | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst) |
-   | `DeviceManagementServiceConfig.Read.All`  | Ablauf des Apple-MDM-Push-Zertifikats (nur Datum, keine Apple-ID)        |
-   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)         |
-   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)    |
+   | Scope                                     | Zweck                                                                                           |
+   | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+   | `User.Read`                               | Anmeldung/Profil                                                                                |
+   | `DeviceManagementManagedDevices.Read.All` | Geräte, Defender, Compliance-Status                                                             |
+   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps)                                             |
+   | `Device.Read.All`                         | Entra-Geräteobjekt                                                                              |
+   | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst)                        |
+   | `DeviceManagementServiceConfig.Read.All`  | Ablauf des Apple-MDM-Push-Zertifikats (nur Datum, keine Apple-ID), Autopilot-Eintrag des Geräts |
+   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)                                |
+   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)                           |
 
-   Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn). **Nach einem Update der App, das einen neuen Scope ergänzt** (zuletzt `DeviceLocalCredential.ReadBasic.All`), muss der Admin-Consent erneut erteilt werden – bis dahin zeigt die betroffene Prüfung „Fehlende Berechtigung“ mit dem Scope, der Rest funktioniert weiter.
+   Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn). **Nach einem Update der App, das einen neuen Scope ergänzt** (zuletzt `DeviceManagementServiceConfig.Read.All` für die Autopilot-Kachel), muss der Admin-Consent erneut erteilt werden – bis dahin zeigt die betroffene Prüfung „Fehlende Berechtigung“ mit dem Scope, der Rest funktioniert weiter.
 
 4. **Konfiguration:** `.env.example` nach `.env.local` kopieren und setzen:
 
@@ -109,6 +109,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 - **App-Status (Beta):** Die Kachel „Apps“ nutzt als einzige Ausnahme den dokumentierten Beta-Endpunkt `GET /beta/users/{userId}/mobileAppIntentAndStates` (kein v1.0-Pendant, gleicher Scope `DeviceManagementManagedDevices.Read.All`, kein zusätzlicher Consent). Er liefert den Status pro primärem Benutzer, ohne Fehlercode; In einem echten Tenant lieferte der Endpunkt eine leere Liste; die Kachel erscheint deshalb **nur, wenn Graph tatsächlich App-Status für das Gerät liefert** (sonst fehlt sie, statt dauerhaft „nicht verfügbar“ zu zeigen). Beta-APIs können sich ändern.
 - **Anmeldungen:** Es wird nur die erste Seite (neueste 200 Einträge) des Anmeldeprotokolls des primären Benutzers der letzten 7 Tage gelesen und clientseitig auf die Entra-Geräte-ID eingegrenzt (ein Filter auf `deviceDetail/deviceId` ist nicht dokumentiert). Das Protokoll enthält laut Microsoft nur interaktive und erfolgreiche föderierte Anmeldungen; die Geräte-ID ist nur für in Entra registrierte Geräte gefüllt. IP-Adresse, Standort und Risikoangaben werden nie ausgewertet oder gespeichert.
 - **Windows LAPS:** Nur Windows, nur Metadaten (Sicherungs- und Rotationszeitpunkt). Ob Graph für ein Gerät keinen Eintrag liefert (HTTP 404), weil LAPS nicht aktiv ist oder aus anderem Grund, ist in der Doku nicht beschrieben – die Kachel sagt das ehrlich. Der geforderte `User-Agent`-Header wird vom Browser selbst gesetzt (siehe „Live zu verifizieren“ in `docs/graph-api-reference.md`). Der Richtwert „Sicherung älter als 30 Tage“ ist ein eigener Wert dieser App, keine Microsoft-Vorgabe.
+- **Windows Autopilot:** Nur Windows. `DeviceManagementServiceConfig.Read.All` ist optional (nicht beim Login angefragt); ohne Consent zeigt die Kachel „Fehlende Berechtigung“. Für die Autopilot-Liste ist laut Doku kein Filter verfügbar – die App liest höchstens 5 Seiten und sagt ehrlich „nicht gefunden (Seitengrenze)“, statt „nicht registriert“ zu behaupten. Das Bereitstellungsprofil ist über die dokumentierte v1.0-API nicht lesbar und wird so ausgewiesen.
 - **Suche:** `$filter` auf `deviceName` ist nur in der Beta-Ressource dokumentiert; bei HTTP 400 fällt die App auf die paginierte Liste (max. 5 Seiten) zurück. Gegen einen echten Tenant noch nicht verifiziert.
 - **Fehlercodes von App-Installationen** liefert der Beta-Endpunkt nicht; Win32-App-Fehlercodes gibt es aus dem DiagLogs-ZIP.
 - **Windows-Edition** (Home/Pro vs. Enterprise) meldet Graph v1.0 nicht; Supportenden werden für Enterprise/Education bewertet, Home/Pro als Hinweis.

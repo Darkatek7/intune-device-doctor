@@ -49,6 +49,8 @@ const enc = encodeURIComponent;
 export const SIGN_IN_WINDOW_DAYS = 7;
 /** Seitengröße der Abfrage: höchstens 1000 laut Doku; nur die erste Seite (neueste zuerst) wird gelesen. */
 export const SIGN_IN_PAGE_SIZE = 200;
+/** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
+export const MAX_LIST_PAGES = 5;
 
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
@@ -279,6 +281,21 @@ export const Endpoints = {
       withQuery(`/directory/deviceLocalCredentials/${enc(azureAdDeviceId)}`, {
         $select: LAPS_SELECT.join(','),
       }),
+  },
+  /**
+   * Autopilot-Geräteliste (v1.0). Für die Liste sind keine Query-Optionen dokumentiert (auch kein
+   * $filter auf serialNumber) → bewusst ohne Query; der Provider liest höchstens 5 Seiten und sucht
+   * clientseitig über managedDeviceId bzw. serialNumber.
+   */
+  windowsAutopilotDeviceIdentities: {
+    id: 'windowsAutopilotDeviceIdentities',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/windowsAutopilotDeviceIdentities',
+    path: () => '/deviceManagement/windowsAutopilotDeviceIdentities',
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

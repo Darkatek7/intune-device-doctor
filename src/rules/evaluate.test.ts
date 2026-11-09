@@ -37,11 +37,16 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     apps: 'critical',
     signIns: 'warning',
   },
-  'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning' },
+  'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning', autopilot: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
-  'CONTOSO-PC050': { policies: 'unknown', signIns: 'unknown', laps: 'unknown' },
+  'CONTOSO-PC050': {
+    policies: 'unknown',
+    signIns: 'unknown',
+    laps: 'unknown',
+    autopilot: 'unknown',
+  },
 };
 
 /** Lädt ein Mock-Gerät vollständig (alle Sections) – wie der Provider es in der App liefert. */
@@ -289,7 +294,16 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
       .map((t) => t.id)
       .sort();
     expect(loading).toEqual(
-      ['bitlocker', 'compliance', 'defender', 'deviceStatus', 'laps', 'policies', 'signIns'].sort(),
+      [
+        'autopilot',
+        'bitlocker',
+        'compliance',
+        'defender',
+        'deviceStatus',
+        'laps',
+        'policies',
+        'signIns',
+      ].sort(),
     );
     expect(tileOf(tiles, 'checkIn').state).toBe('ready');
     expect(tileOf(tiles, 'osVersion').state).toBe('ready');
@@ -327,7 +341,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(7);
+    expect(summary.loading).toBe(8);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

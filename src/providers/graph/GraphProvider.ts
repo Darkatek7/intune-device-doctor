@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  AutopilotInfo,
   ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
@@ -36,14 +37,21 @@ import type {
   GraphMobileApp,
   GraphMobileAppIntentAndState,
   GraphSignIn,
+  GraphWindowsAutopilotDeviceIdentity,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
-import { Endpoints, SIGN_IN_WINDOW_DAYS, type EndpointId } from '../../graph/endpoints';
+import {
+  Endpoints,
+  MAX_LIST_PAGES,
+  SIGN_IN_WINDOW_DAYS,
+  type EndpointId,
+} from '../../graph/endpoints';
 import {
   graphSource,
   mapApplePushCertificate,
   mapAppInstallStates,
+  mapAutopilot,
   mapBitlockerKey,
   mapEntraDevice,
   mapLocalAdmin,
@@ -58,7 +66,6 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 
 const MAX_SEARCH_RESULTS = 25;
-const MAX_LIST_PAGES = 5;
 /** Höchstens so viele App-Namen je Aufruf nachschlagen (nur fehlgeschlagene/auffällige Apps). */
 const MAX_APP_LOOKUPS = 25;
 const APP_LOOKUP_CONCURRENCY = 4;
@@ -481,6 +488,48 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapLocalAdmin(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.lapsNotReported, source }),
+    );
+  }
+
+  /**
+   * Windows Autopilot (nur Windows): Für die Liste ist kein Filter dokumentiert → seitenweise lesen
+   * (höchstens MAX_LIST_PAGES Seiten, Abbruch beim ersten Treffer). Nicht gefunden und weitere Seiten
+   * vorhanden → unavailable (ehrlich); nicht gefunden und Liste zu Ende → ok mit null.
+   */
+  getAutopilot(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AutopilotInfo | null>> {
+    const endpoint = Endpoints.windowsAutopilotDeviceIdentities;
+    return this.run<AutopilotInfo | null>(
+      'windowsAutopilotDeviceIdentities',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.autopilotNotWindows, source };
+        }
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_LIST_PAGES) {
+          const page: GraphCollection<GraphWindowsAutopilotDeviceIdentity> | undefined =
+            await this.client.get<GraphCollection<GraphWindowsAutopilotDeviceIdentity>>(next, {
+              signal: options.signal,
+              scope: endpoint.scope,
+            });
+          pages += 1;
+          const hit = mapAutopilot(page?.value ?? [], device);
+          if (hit) return this.ok(hit, source);
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        if (next) {
+          return {
+            status: 'unavailable',
+            reason: de.reasons.autopilotNotFoundInLimit(pages),
+            source,
+          };
+        }
+        return this.ok(null, source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.autopilotNotReported, source }),
     );
   }
 

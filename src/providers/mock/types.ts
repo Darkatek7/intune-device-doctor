@@ -3,6 +3,7 @@
  * der MockProvider ergänzt Quelle/Zeitstempel und verpackt alles in SectionResult.
  */
 import type {
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInstallStateInfo,
@@ -40,6 +41,8 @@ export interface MockDeviceFixture {
   signIns?: MockSection<SignInsInfo>;
   /** Optional – ohne Angabe: Windows ok (Sicherung vor wenigen Tagen), sonst notApplicable. */
   localAdmin?: MockSection<LocalAdminInfo>;
+  /** Optional – ohne Angabe: Windows ok (registriert, Group Tag „Contoso-Standard“), sonst notApplicable. data null = nicht registriert. */
+  autopilot?: MockSection<AutopilotInfo | null>;
 }
 
 export interface MockScenario {
