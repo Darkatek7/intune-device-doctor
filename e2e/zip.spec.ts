@@ -51,6 +51,13 @@ test.describe('DiagLogs-ZIP', () => {
     await page.getByRole('button', { name: T.zipMerge }).click();
     await waitForTilesReady(page);
     await expect(tileButtons(page)).toHaveCount(BASE_TILE_TITLES.length + 7);
+
+    // Richtlinien-Kachel verweist nach dem Zusammenführen auf den MDM-Diagnosebericht
+    const policies = await openTile(page, 'Richtlinien');
+    await settleSheet(page);
+    await expect(policies).toContainText('Kachel „MDM-Diagnosebericht“');
+    await page.keyboard.press('Escape');
+    await expect(policies).toBeHidden();
   });
 
   test('Upload per Datei-Eingabe: ZIP-Ansicht erscheint, kein Request sendet die Datei', async ({
