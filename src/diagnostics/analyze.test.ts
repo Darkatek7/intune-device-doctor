@@ -121,6 +121,21 @@ describe('analyzeDiagnosticsZip (Fixture)', () => {
 
     expect(report.analysisNotes.some((n) => n.includes('.evtx'))).toBe(true);
 
+    // Ereignisprotokoll (gezielt gelesen): Fenster = 14 Tage vor dem ZIP-Zeitstempel
+    expect(report.eventLogs).toHaveLength(1);
+    const admin = report.eventLogs[0]!;
+    expect(admin).toMatchObject({
+      id: 'mdmAdmin',
+      status: 'ok',
+      windowStartUtc: '2026-09-30T12:53:56.000Z',
+      windowEndUtc: '2026-10-14T12:53:56.000Z',
+      scanned: 7,
+      counts: { critical: 0, error: 4, warning: 1 },
+      incomplete: false,
+    });
+    expect(admin.events.map((e) => e.eventId)).toEqual([76, 1819, 76, 208, 1234]);
+    expect(progress.some((p) => p.stage === 'eventLogs')).toBe(true);
+
     expect(progress[0]?.stage).toBe('opening');
     expect(progress.at(-1)).toMatchObject({ stage: 'done' });
   });
