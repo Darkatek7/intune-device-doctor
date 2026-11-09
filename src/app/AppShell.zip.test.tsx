@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe('ZIP-Analyse in der App', () => {
-  it('zeigt nach „Beispiel-ZIP analysieren“ die fünf ZIP-Kacheln – ohne fetch', async () => {
+  it('zeigt nach „Beispiel-ZIP analysieren“ die sechs ZIP-Kacheln – ohne fetch', async () => {
     const fetchSpy = vi.fn(() => {
       throw new Error('fetch darf bei der ZIP-Analyse nicht aufgerufen werden');
     });
@@ -32,7 +32,7 @@ describe('ZIP-Analyse in der App', () => {
 
     await openExampleZip(user);
 
-    await waitFor(() => expect(tileButtons()).toHaveLength(5));
+    await waitFor(() => expect(tileButtons()).toHaveLength(6));
     expect(screen.getByText(new RegExp(de.zipView.kind))).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_FILE_NAME)).toBeInTheDocument();
 
@@ -40,6 +40,7 @@ describe('ZIP-Analyse in der App', () => {
     expect(tile('entraJoin')).toHaveTextContent(de.severity.critical);
     expect(tile('win32Apps')).toHaveTextContent(de.tiles.win32Apps);
     expect(tile('enrollment')).toHaveTextContent(de.tiles.enrollment);
+    expect(tile('mdmEvents')).toHaveTextContent(de.tiles.mdmEvents);
     expect(tile('diagCollection')).toHaveTextContent(de.tiles.diagCollection);
 
     // Die Win32-Kachel nennt den Fehlercode im Detail.
@@ -68,7 +69,7 @@ describe('ZIP-Analyse in der App', () => {
     });
     await user.click(within(offer).getByRole('button', { name: de.zipView.merge.action }));
 
-    await waitFor(() => expect(tileButtons()).toHaveLength(13));
+    await waitFor(() => expect(tileButtons()).toHaveLength(14));
     expect(window.location.search).toMatch(/device=.+&mode=demo/);
     expect(screen.getByRole('heading', { level: 1, name: 'CONTOSO-PC042' })).toBeInTheDocument();
     expect(screen.getByText(de.zipView.chip.label)).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe('ZIP-Analyse in der App', () => {
     const user = userEvent.setup();
     await openExampleZip(user);
     await user.click(await screen.findByRole('button', { name: de.zipView.merge.action }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(13));
+    await waitFor(() => expect(tileButtons()).toHaveLength(14));
 
     const input = screen.getByRole('combobox', { name: de.field.label });
     await user.clear(input);
@@ -102,7 +103,7 @@ describe('ZIP-Analyse in der App', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC042' }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tileButtons()).toHaveLength(5));
+    await waitFor(() => expect(tileButtons()).toHaveLength(6));
     expect(tile('win32Apps')).toBeInTheDocument();
     expect(await screen.findByText(de.zipView.merge.action)).toBeInTheDocument();
   });
@@ -136,7 +137,7 @@ describe('ZIP-Analyse in der App', () => {
   it('Browser-Zurück führt aus der ZIP-Ansicht zur Startseite', async () => {
     const user = userEvent.setup();
     await openExampleZip(user);
-    await waitFor(() => expect(tileButtons()).toHaveLength(5));
+    await waitFor(() => expect(tileButtons()).toHaveLength(6));
 
     await act(async () => {
       window.history.back();
@@ -179,7 +180,7 @@ describe('Ticket-Notiz mit ZIP-Befunden', () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await openExampleZip(user);
-    await waitFor(() => expect(tileButtons()).toHaveLength(5));
+    await waitFor(() => expect(tileButtons()).toHaveLength(6));
 
     await user.click(screen.getByRole('button', { name: de.ticket.button }));
     const note = writeText.mock.calls[0]![0];
@@ -194,7 +195,7 @@ describe('Ticket-Notiz mit ZIP-Befunden', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await openExampleZip(user);
     await user.click(await screen.findByRole('button', { name: de.zipView.merge.action }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(13));
+    await waitFor(() => expect(tileButtons()).toHaveLength(14));
 
     const button = screen.getByRole('button', { name: de.ticket.button });
     await waitFor(() => expect(button).toBeEnabled());

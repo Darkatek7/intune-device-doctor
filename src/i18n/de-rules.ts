@@ -915,6 +915,103 @@ export const deRules = {
         FoldersFiles: 'Dateien',
       } as Record<string, string>,
     },
+    /** Kachel „MDM-Ereignisse“: Ereignisprotokolle aus dem ZIP (Strang B, M11) */
+    mdmEvents: {
+      logLabel: {
+        mdmAdmin: 'DeviceManagement-Enterprise-Diagnostics-Provider/Admin',
+        aadOperational: 'AAD/Operational',
+      } as Record<string, string>,
+      logShort: {
+        mdmAdmin: 'MDM Admin',
+        aadOperational: 'AAD Operational',
+      } as Record<string, string>,
+      levelLabel: { 1: 'Kritisch', 2: 'Fehler', 3: 'Warnung' } as Record<number, string>,
+      valueOk: 'Keine Fehler',
+      valueOkWithWarnings: (warnings: number) =>
+        `Keine Fehler · ${warnings} ${warnings === 1 ? 'Warnung' : 'Warnungen'}`,
+      valueErrors: (errors: number) =>
+        `${errors} ${errors === 1 ? 'Fehlerereignis' : 'Fehlerereignisse'}`,
+      summaryOk: (scanned: number, days: number) =>
+        `${scanned} ${scanned === 1 ? 'Ereignis' : 'Ereignisse'} der letzten ${days} Tage geprüft`,
+      summaryErrors: (groups: number, days: number) =>
+        `${groups} ${groups === 1 ? 'Ereignis-ID' : 'Ereignis-IDs'} · letzte ${days} Tage`,
+      reasons: {
+        missing:
+          'Das Ereignisprotokoll „DeviceManagement-Enterprise-Diagnostics-Provider/Admin“ ist nicht im Archiv enthalten.',
+        tooLarge: (log: string, sizeMiB: number, limitMiB: number) =>
+          `Das Ereignisprotokoll „${log}“ wurde nicht gelesen: ${sizeMiB} MiB überschreiten das Größenlimit von ${limitMiB} MiB.`,
+        unreadable: (log: string) =>
+          `Das Ereignisprotokoll „${log}“ konnte nicht aus dem Archiv gelesen werden.`,
+        invalid: (log: string) =>
+          `Das Ereignisprotokoll „${log}“ ist keine gültige .evtx-Datei oder zu stark beschädigt.`,
+      },
+      unavailableTitle: 'Ereignisprotokoll nicht ausgewertet',
+      unavailableCause: {
+        missing:
+          'Das Archiv enthält das Protokoll nicht (Sammlung fehlgeschlagen oder nicht Teil der Diagnosedaten).',
+        tooLarge: 'Das Protokoll ist größer als das Limit für die Auswertung im Browser.',
+        unreadable: 'Der Eintrag im Archiv ist leer oder beschädigt.',
+        invalid: 'Die Datei hat nicht das Format eines Windows-Ereignisprotokolls (.evtx).',
+      } as Record<string, string>,
+      unavailableRemediation: [
+        'Das Protokoll am Gerät in der Ereignisanzeige öffnen: Anwendungs- und Dienstprotokolle › Microsoft › Windows › DeviceManagement-Enterprise-Diagnostics-Provider › Admin.',
+        'Bei fehlendem Protokoll die Diagnosedaten erneut sammeln.',
+      ],
+      groupTitle: (eventId: number, level: string, count: number, known: string | null) =>
+        known
+          ? `Ereignis ${eventId}: ${known} (${count}×)`
+          : `Ereignis ${eventId} (${level}, ${count}×)`,
+      groupDetail: (
+        count: number,
+        level: string,
+        log: string,
+        last: string,
+        sample: string | null,
+        codes: string[],
+      ) =>
+        [
+          `${count}× ${level} im Protokoll ${log}, zuletzt ${last}.`,
+          sample ? `Beispiel: ${sample}.` : null,
+          ...codes,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      sampleField: (name: string, value: string) => `${name} = „${value}“`,
+      codeKnown: (hex: string, name: string, text: string) => `${hex} = ${name} („${text}“).`,
+      unknownEventCause:
+        'Für diese Ereignis-ID ist keine Deutung mit Microsoft-Learn-Quelle hinterlegt – angezeigt werden nur die Rohdaten aus dem Ereignis.',
+      genericRemediation: [
+        'Den vollständigen Meldungstext in der Ereignisanzeige am Gerät lesen – das Archiv enthält nur die Parameter, nicht den Meldungstext des Providers.',
+        'Den Zeitpunkt mit anderen Befunden vergleichen (Registrierung, IME-Log, Entra-Join).',
+      ],
+      warningCause:
+        'Warnungen werden nur angezeigt und nicht als Fehler gewertet; für diese Ereignis-ID ist keine Deutung mit Microsoft-Learn-Quelle hinterlegt – angezeigt werden nur die Rohdaten aus dem Ereignis.',
+      moreTitle: (n: number) => `Weitere ${n} ${n === 1 ? 'Ereignis-ID' : 'Ereignis-IDs'}`,
+      moreDetail: (items: string) => `Nicht einzeln aufgeführt: ${items}.`,
+      moreCause: 'Die Anzeige ist auf die häufigsten Ereignisgruppen begrenzt.',
+      moreRemediation: ['Das Protokoll bei Bedarf am Gerät in der Ereignisanzeige filtern.'],
+      incompleteTitle: 'Ereignisprotokoll unvollständig oder begrenzt',
+      incompleteDetail: (log: string, skipped: number, capped: boolean) =>
+        [
+          `„${log}“: Die Datei ist gekappt oder teilweise beschädigt${skipped > 0 ? ` (${skipped} nicht lesbare Bereiche übersprungen)` : ''}.`,
+          capped
+            ? 'Die Auswertung wurde mengen- bzw. zeitbegrenzt; ältere Ereignisse fehlen.'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      incompleteCause:
+        'Der Eintrag im Archiv ist gekappt oder beschädigt bzw. sehr groß; deshalb sind nicht alle Ereignisse sichtbar.',
+      incompleteRemediation: [
+        'Bei Bedarf das Protokoll direkt am Gerät in der Ereignisanzeige prüfen.',
+      ],
+      factWindow: 'Zeitfenster',
+      factWindowValue: (from: string, to: string, days: number) =>
+        `${from} – ${to} UTC (${days} Tage)`,
+      factLog: (shortName: string) => shortName,
+      factLogValue: (scanned: number, errors: number, warnings: number) =>
+        `${scanned} geprüft · ${errors} Fehler · ${warnings} Warnungen`,
+    },
   },
   ticket: {
     heading: (name: string) => `MDM Doctor – Befunde für ${name}`,

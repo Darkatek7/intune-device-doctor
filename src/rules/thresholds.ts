@@ -14,4 +14,10 @@ export const THRESHOLDS = {
   osEndOfUpdatesWarningDays: 60,
   /** Ab hier wird die Entra-Anmeldung als alt hervorgehoben (nur Hinweis, keine Severity) */
   entraSignInStaleDays: 30,
+  /** Ereignisprotokolle (DiagLogs-ZIP): Auswertungsfenster in Tagen vor dem ZIP-Zeitstempel – eigener Richtwert, keine Microsoft-Vorgabe */
+  eventLogWindowDays: 14,
+  /** Ab so vielen Fehlerereignissen (Kritisch/Fehler) im Fenster → Warnung – eigener Richtwert, keine Microsoft-Vorgabe */
+  eventLogErrorWarningCount: 1,
+  /** Höchstzahl der Ereignisgruppen, die als einzelne Befunde erscheinen */
+  eventLogMaxFindings: 8,
 } as const;

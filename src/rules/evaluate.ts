@@ -30,6 +30,7 @@ export const TILE_ORDER: TileId[] = [
   'win32Apps',
   'enrollment',
   'certsNetwork',
+  'mdmEvents',
   'diagCollection',
 ];
 

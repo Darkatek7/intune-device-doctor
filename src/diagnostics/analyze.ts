@@ -5,6 +5,9 @@
  */
 import { maskUserPaths } from '../domain/format';
 import { de } from '../i18n/de';
+import { THRESHOLDS } from '../rules/thresholds';
+import { loadEventLog, selectEventLogEntries } from './eventLogs';
+import { DEFAULT_MAX_EVTX_BYTES } from './limits';
 import { parseCmTrace } from './parsers/cmtrace';
 import { parseCertutilStore } from './parsers/certutil';
 import { parseDsregcmd } from './parsers/dsregcmd';
@@ -19,6 +22,7 @@ import type {
   CmTraceEntry,
   CollectionFailure,
   DiagEntry,
+  DiagEventLog,
   DiagnosticsReport,
   DsregStatus,
   EnrollmentInfo,
@@ -27,7 +31,8 @@ import type {
 } from './types';
 import { DEFAULT_MAX_TEXT_BYTES, extensionOf, isBinaryEntry, openZip } from './zip/reader';
 
-export type AnalysisStage = 'opening' | 'results' | 'dsregcmd' | 'registry' | 'imeLogs' | 'done';
+export type AnalysisStage =
+  'opening' | 'results' | 'dsregcmd' | 'registry' | 'imeLogs' | 'eventLogs' | 'done';
 
 export interface AnalysisProgress {
   stage: AnalysisStage;
@@ -44,6 +49,8 @@ export interface AnalyzeOptions {
   maxTextBytes?: number;
   /** Größenlimit je .reg-Export (Standard 32 MiB; IME-Exporte sind mehrere MB groß) */
   maxRegBytes?: number;
+  /** Größenlimit je Ereignisprotokoll (.evtx, Standard 48 MiB) */
+  maxEvtxBytes?: number;
 }
 
 export const MAX_IME_ISSUES_PER_FILE = 200;
@@ -167,6 +174,7 @@ export async function analyzeDiagnosticsZip(
   const { onProgress, signal } = options;
   const maxTextBytes = options.maxTextBytes ?? DEFAULT_MAX_TEXT_BYTES;
   const maxRegBytes = options.maxRegBytes ?? DEFAULT_MAX_REG_BYTES;
+  const maxEvtxBytes = options.maxEvtxBytes ?? DEFAULT_MAX_EVTX_BYTES;
   const t = de.diagnostics;
   const notes: string[] = [];
 
@@ -308,7 +316,7 @@ export async function analyzeDiagnosticsZip(
 
     // --- IME-Logs ---------------------------------------------------------------------------
     const logEntries = selectImeLogEntries(entries);
-    total = 5 + logEntries.length;
+    total = 6 + logEntries.length;
     const imeIssues: CmTraceEntry[] = [];
     let logsDone = 0;
     for (const entry of logEntries) {
@@ -329,8 +337,27 @@ export async function analyzeDiagnosticsZip(
     }
     if (logEntries.length === 0) notes.push(t.notes.noImeLogs);
 
+    // --- Ereignisprotokolle (.evtx, gezielt) ------------------------------------------------
+    report('eventLogs', t.progress.eventLogs);
+    const { deviceName, collectedAtUtc } = parseDiagFileName(file.name);
+    const eventLogs: DiagEventLog[] = [];
+    for (const selected of selectEventLogEntries(entries)) {
+      signal?.throwIfAborted();
+      evaluated.add(selected.entry.path);
+      eventLogs.push(
+        await loadEventLog(zip, selected, {
+          referenceUtc: collectedAtUtc,
+          windowDays: THRESHOLDS.eventLogWindowDays,
+          maxBytes: maxEvtxBytes,
+        }),
+      );
+    }
+    completed = 5 + logEntries.length;
+
     // --- Hinweise zur Analyse ---------------------------------------------------------------
-    const binaries = entries.filter((e) => !e.isDirectory && isBinaryEntry(e.path));
+    const binaries = entries.filter(
+      (e) => !e.isDirectory && isBinaryEntry(e.path) && !evaluated.has(e.path),
+    );
     if (binaries.length > 0) {
       const counts = new Map<string, number>();
       for (const e of binaries) {
@@ -354,7 +381,6 @@ export async function analyzeDiagnosticsZip(
     completed = total;
     report('done', t.progress.done);
 
-    const { deviceName, collectedAtUtc } = parseDiagFileName(file.name);
     return {
       fileName: file.name,
       deviceNameFromFile: deviceName,
@@ -369,6 +395,7 @@ export async function analyzeDiagnosticsZip(
       imeIssues,
       certificates,
       network,
+      eventLogs,
       analysisNotes: notes,
     };
   } finally {

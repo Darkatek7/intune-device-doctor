@@ -6,6 +6,7 @@
  */
 import { zipSync } from 'fflate';
 import { decodeCp850 } from './parsers/encoding';
+import { buildEvtx, type EvtxEventInput } from './evtxFixture';
 
 export const FIXTURE_FILE_NAME = 'DiagLogs-CONTOSO-PC042-20261014T125356Z.zip';
 
@@ -68,6 +69,7 @@ const RESULTS_XML = crlf(String.raw`<?xml version="1.0" encoding="utf-8"?>
   <Command HRESULT="0">%windir%\system32\certutil.exe -store My</Command>
   <Command HRESULT="0">%windir%\system32\ipconfig.exe /all</Command>
   <Events HRESULT="0">System</Events>
+  <Events HRESULT="0">Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin</Events>
   <FoldersFiles HRESULT="0">%ProgramData%\Microsoft\IntuneManagementExtension\Logs\*.*</FoldersFiles>
   <FoldersFiles HRESULT="-2147024893">%ProgramData%\Microsoft\EPMAgent\Logs\*.*</FoldersFiles>
   <ClientTimeoutInSeconds>3600</ClientTimeoutInSeconds>
@@ -335,11 +337,92 @@ const IME_LOG_TEXT = IME_LOG_LINES.map(
 // Entries
 // ---------------------------------------------------------------------------
 
-/** Dummy-Binär: "ElfFile\0" + 120 Nullbytes (128 Byte). Wird im MVP nicht ausgewertet. */
+/** Dummy-Binär: "ElfFile\0" + 120 Nullbytes (128 Byte). Steht für die vielen nicht ausgewerteten .evtx-Dateien. */
 function buildEvtxDummy(): Uint8Array {
   const bytes = new Uint8Array(128);
   bytes.set(utf8('ElfFile'), 0);
   return bytes;
+}
+
+// ---------------------------------------------------------------------------
+// (8) Ereignisprotokoll DeviceManagement-Enterprise-Diagnostics-Provider/Admin (.evtx)
+// ---------------------------------------------------------------------------
+
+/**
+ * Kleines gültiges Admin-Log mit fiktiven Ereignissen (Zeitfenster: 14 Tage vor dem ZIP-Zeitstempel
+ * 2026-10-14T12:53:56Z, also ab 2026-09-30T12:53:56Z). Event-IDs 76/75/1819 entsprechen den
+ * Microsoft-Learn-Beschreibungen; Event 1234/208 sind frei erfunden (ohne dokumentierte Deutung).
+ */
+export const FIXTURE_ADMIN_LOG_EVENTS: EvtxEventInput[] = [
+  // vor dem Fenster – darf nicht erscheinen
+  {
+    time: '2026-09-01T07:00:00Z',
+    eventId: 76,
+    level: 2,
+    data: [['Message', 'Auto MDM Enroll: Failed (Unknown Win32 Error code: 0x8018002b)']],
+  },
+  {
+    time: '2026-10-02T08:15:00Z',
+    eventId: 76,
+    level: 2,
+    data: [['Message', 'Auto MDM Enroll: Failed (Unknown Win32 Error code: 0x8018002b)']],
+  },
+  {
+    time: '2026-10-02T08:40:00Z',
+    eventId: 75,
+    level: 4,
+    data: [['Message', 'Auto MDM Enroll: Succeeded']],
+  },
+  {
+    time: '2026-10-09T09:05:12Z',
+    eventId: 1819,
+    level: 2,
+    data: [
+      ['NodeId', './Device/Vendor/MSFT/WindowsAdvancedThreatProtection/Onboarding'],
+      ['TokenName', 'Onboarding'],
+      ['Result', '-2147024891'],
+    ],
+  },
+  {
+    time: '2026-10-11T11:20:30Z',
+    eventId: 76,
+    level: 2,
+    data: [['Message', 'Auto MDM Enroll: Failed (Unknown Win32 Error code: 0x8018002b)']],
+  },
+  // klassischer Stil (EventData als verschachteltes BinXml, unbenannte Felder), mit sensiblen Werten
+  {
+    time: '2026-10-12T06:30:00Z',
+    eventId: 208,
+    level: 3,
+    provider: 'Contoso-Demo-Provider',
+    providerGuid: '{00000000-0000-0000-0000-0000000000D1}',
+    style: 'binxml',
+    data: [
+      ['', 'Demo-Warnung für user@contoso.com'],
+      ['', 'Tenant 00000000-0000-0000-0000-000000000000, Serial Number: CONTOSO-SN-0001'],
+    ],
+  },
+  // UserData-Stil
+  {
+    time: '2026-10-13T14:00:00Z',
+    eventId: 1234,
+    level: 2,
+    style: 'userdata',
+    data: [
+      ['Operation', 'Contoso Demo-Vorgang'],
+      ['Result', '0x80070005'],
+    ],
+  },
+  {
+    time: '2026-10-14T10:00:00Z',
+    eventId: 75,
+    level: 4,
+    data: [['Message', 'Auto MDM Enroll: Succeeded']],
+  },
+];
+
+function buildAdminLogEvtx(): Uint8Array {
+  return buildEvtx(FIXTURE_ADMIN_LOG_EVENTS);
 }
 
 /** Pfad im ZIP → Bytes. Verzeichniseinträge enden auf '/' und haben 0 Byte. */
@@ -361,6 +444,8 @@ export function buildFixtureEntries(): Record<string, Uint8Array> {
     '(6) No Results - Error [0x80070003] FoldersFiles ProgramData_Microsoft_EPMAgent_Logs':
       new Uint8Array(0),
     '(7) Events System Events.evtx': buildEvtxDummy(),
+    '(8) Events Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider_Admin Events.evtx':
+      buildAdminLogEvtx(),
   };
 }
 

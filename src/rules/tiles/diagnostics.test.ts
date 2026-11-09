@@ -96,6 +96,7 @@ describe('Fixture-ZIP: Kacheln', () => {
       'win32Apps',
       'enrollment',
       'certsNetwork',
+      'mdmEvents',
       'diagCollection',
     ]);
   });

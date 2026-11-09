@@ -8,6 +8,7 @@ import {
   ListChecks,
   Network,
   Package,
+  ScrollText,
   Shield,
   ShieldCheck,
   UserCheck,
@@ -29,5 +30,6 @@ export const TILE_ICON: Record<TileId, LucideIcon> = {
   win32Apps: Package,
   enrollment: UserPlus,
   certsNetwork: Network,
+  mdmEvents: ScrollText,
   diagCollection: FileArchive,
 };

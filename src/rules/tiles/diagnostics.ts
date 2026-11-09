@@ -17,6 +17,7 @@ import { sortFindings, worstActionable } from '../helpers';
 import { Docs } from '../knowledge/docs';
 import { INSTALLER_EXIT_CODES } from '../knowledge/errorCodes';
 import { findPrtError } from '../knowledge/prtErrors';
+import { mdmEventsTile } from './mdmEvents';
 import { explainCode } from '../knowledge/win32';
 import { certsNetworkTile } from './certsNetwork';
 
@@ -38,6 +39,7 @@ export function evaluateDiagnosticsTiles(report: DiagnosticsReport, now: Date): 
     win32AppsTile(report),
     enrollmentTile(report),
     ...(certsNetwork ? [certsNetwork] : []),
+    mdmEventsTile(report),
     collectionTile(report),
   ];
 }

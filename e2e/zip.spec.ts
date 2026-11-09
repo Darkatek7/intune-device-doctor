@@ -12,7 +12,7 @@ import {
 } from './helpers';
 
 test.describe('DiagLogs-ZIP', () => {
-  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt dreizehn Kacheln', async ({ page }) => {
+  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt vierzehn Kacheln', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: new RegExp(T.zipChip) }).click();
     await waitForTilesReady(page);
@@ -26,9 +26,18 @@ test.describe('DiagLogs-ZIP', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
 
+    // Ereignisprotokoll (.evtx) aus dem Fixture: gruppierte Fehlerereignisse, Event 76 mit Learn-Beleg
+    const events = await openTile(page, 'MDM-Ereignisse');
+    await settleSheet(page);
+    await expect(events).toContainText('Ereignis 76');
+    await expect(events).toContainText('Auto MDM Enroll');
+    await expect(events).not.toContainText('user@contoso.com');
+    await page.keyboard.press('Escape');
+    await expect(events).toBeHidden();
+
     await page.getByRole('button', { name: T.zipMerge }).click();
     await waitForTilesReady(page);
-    await expect(tileButtons(page)).toHaveCount(13);
+    await expect(tileButtons(page)).toHaveCount(14);
   });
 
   test('Upload per Datei-Eingabe: ZIP-Ansicht erscheint, kein Request sendet die Datei', async ({
