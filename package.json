@@ -21,7 +21,9 @@
     "check": "npm run lint && npm run typecheck && npm test && vite build",
     "test:e2e": "playwright test",
     "check:full": "npm run check && npm run test:e2e",
-    "capture:launch": "tsx e2e/capture-launch-assets.ts"
+    "capture:launch": "tsx e2e/capture-launch-assets.ts",
+    "docker:up": "npm run build && docker compose up -d --build",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.25.1",

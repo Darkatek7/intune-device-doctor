@@ -1,0 +1,9 @@
+# Lokal mit Docker/Rancher Desktop: npm run docker:up (baut dist/ auf dem Host) → http://localhost:5173
+# Port 5173 passt zur Redirect-URI der Entra-App (siehe README „Live-Modus einrichten“).
+services:
+  mdm-doctor:
+    build: .
+    image: mdm-doctor:local
+    ports:
+      - '5173:80'
+    restart: unless-stopped
