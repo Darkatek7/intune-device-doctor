@@ -36,6 +36,26 @@ describe('Endpunkte – Anmeldeprotokoll', () => {
   });
 });
 
+describe('Endpunkte – Integritätsnachweis', () => {
+  const id = '00000000-0000-4000-9000-000000000001';
+  const def = Endpoints.managedDeviceHealthAttestation;
+  const url = new URL(`https://graph.microsoft.com/v1.0${def.path(id)}`);
+
+  it('ist ein v1.0-GET auf die Einzelressource mit $select=deviceHealthAttestationState', () => {
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    expect(url.pathname).toBe(`/v1.0/deviceManagement/managedDevices/${id}`);
+    expect(url.searchParams.get('$select')).toBe('deviceHealthAttestationState');
+    expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+
+  it('braucht keinen zusätzlichen Scope (bereits beim Login angefragt)', () => {
+    expect(def.scope).toBe('DeviceManagementManagedDevices.Read.All');
+    expect(LOGIN_SCOPES).toContain(def.scope);
+    expect(OPTIONAL_SCOPES).not.toContain(def.scope);
+  });
+});
+
 describe('Endpunkte – Windows LAPS', () => {
   const id = '00000000-0000-4000-9000-000000000001';
   const url = new URL(

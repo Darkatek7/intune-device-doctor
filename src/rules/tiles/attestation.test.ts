@@ -40,13 +40,13 @@ const EMPTY: HealthAttestationInfo = {
 describe('Integritätsnachweis (Device Health Attestation)', () => {
   it('lädt, solange die Section fehlt', async () => {
     const base = await snapshotOf('CONTOSO-PC001');
-    const tile = evaluateAttestation({ device: base.device }, NOW);
+    const tile = evaluateAttestation({ device: base.device });
     expect(tile.state).toBe('loading');
     expect(tile.sections).toEqual(['healthAttestation']);
   });
 
   it('Rohwerte ohne Abweichung → ok; Werte unverändert als Fakten, mit Hinweis zur Dokumentation', async () => {
-    const tile = evaluateAttestation(await snapshotOf('CONTOSO-PC001'), NOW);
+    const tile = evaluateAttestation(await snapshotOf('CONTOSO-PC001'));
     expect(tile.severity).toBe('ok');
     expect(tile.value).toBe(t.valueData);
     expect(tile.findings).toEqual([]);
@@ -58,14 +58,13 @@ describe('Integritätsnachweis (Device Health Attestation)', () => {
   it('einzelne Rohwerte wie „disabled“ werden nicht bewertet (kein Befund ohne Quelle)', async () => {
     const tile = evaluateAttestation(
       await withData(healthAttestationInfo(NOW, { secureBoot: 'disabled', codeIntegrity: 'x' })),
-      NOW,
     );
     expect(tile.severity).toBe('ok');
     expect(tile.findings).toEqual([]);
   });
 
   it('healthStatusMismatchInfo gesetzt → warning mit Quelle, Ursache und Schritten (CONTOSO-PC014)', async () => {
-    const tile = evaluateAttestation(await snapshotOf('CONTOSO-PC014'), NOW);
+    const tile = evaluateAttestation(await snapshotOf('CONTOSO-PC014'));
     expect(tile.severity).toBe('warning');
     expect(tile.value).toBe(t.valueMismatch);
     const finding = tile.findings[0]!;
@@ -76,7 +75,7 @@ describe('Integritätsnachweis (Device Health Attestation)', () => {
   });
 
   it('keine Werte → nur Hinweis (unknown), Kachel bleibt ok', async () => {
-    const tile = evaluateAttestation(await withData(EMPTY), NOW);
+    const tile = evaluateAttestation(await withData(EMPTY));
     expect(tile.severity).toBe('ok');
     expect(tile.value).toBe(t.valueNone);
     expect(tile.findings.map((f) => [f.id, f.severity])).toEqual([
@@ -87,36 +86,29 @@ describe('Integritätsnachweis (Device Health Attestation)', () => {
   it('Zeitwert, der kein Datum ist, wird unverändert angezeigt', async () => {
     const tile = evaluateAttestation(
       await withData(healthAttestationInfo(NOW, { lastUpdateDateTime: 'gestern' })),
-      NOW,
     );
     expect(tile.facts.find((f) => f.label === t.facts.lastUpdate)?.value).toBe('gestern');
   });
 
   it('notApplicable (nicht Windows) / unavailable / error werden als Kachelzustand ausgewiesen', async () => {
     const base = await snapshotOf('CONTOSO-PC001');
-    const na = evaluateAttestation(
-      {
-        ...base,
-        healthAttestation: {
-          status: 'notApplicable',
-          reason: de.reasons.attestationNotWindows,
-          source: SOURCE,
-        },
+    const na = evaluateAttestation({
+      ...base,
+      healthAttestation: {
+        status: 'notApplicable',
+        reason: de.reasons.attestationNotWindows,
+        source: SOURCE,
       },
-      NOW,
-    );
+    });
     expect(na.availability).toBe('notApplicable');
-    const unavailable = evaluateAttestation(
-      {
-        ...base,
-        healthAttestation: {
-          status: 'unavailable',
-          reason: de.reasons.attestationNotReported,
-          source: SOURCE,
-        },
+    const unavailable = evaluateAttestation({
+      ...base,
+      healthAttestation: {
+        status: 'unavailable',
+        reason: de.reasons.attestationNotReported,
+        source: SOURCE,
       },
-      NOW,
-    );
+    });
     expect(unavailable.availability).toBe('unavailable');
   });
 

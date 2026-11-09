@@ -29,7 +29,8 @@ function displayTime(value: string): { value: string; title?: string } {
     : { value: formatDateTime(value), title: value };
 }
 
-export function evaluateAttestation(snapshot: DeviceSnapshot, _now: Date): Tile {
+/** `now` wird nicht gebraucht (keine zeitabhängige Bewertung), bleibt aber für eine einheitliche Regel-Signatur. */
+export function evaluateAttestation(snapshot: DeviceSnapshot): Tile {
   const sections: Tile['sections'] = ['healthAttestation'];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('attestation', sections);
   const section = snapshot.healthAttestation!;

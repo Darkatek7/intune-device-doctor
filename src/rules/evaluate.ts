@@ -61,7 +61,7 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
     tiles.push(evaluateLaps(snapshot, now), evaluateAutopilot(snapshot, now));
   }
   tiles.push(evaluateGroups(snapshot, now));
-  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateAttestation(snapshot, now));
+  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateAttestation(snapshot));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }

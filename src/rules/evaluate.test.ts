@@ -21,6 +21,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     bitlocker: 'critical',
     policies: 'warning',
     signIns: 'warning',
+    attestation: 'warning',
   },
   'CONTOSO-PC027': { defender: 'warning' },
   'CONTOSO-PC033': {
@@ -295,6 +296,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
       .sort();
     expect(loading).toEqual(
       [
+        'attestation',
         'autopilot',
         'bitlocker',
         'compliance',
@@ -342,7 +344,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(9);
+    expect(summary.loading).toBe(10);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');
