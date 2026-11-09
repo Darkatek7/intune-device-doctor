@@ -45,7 +45,11 @@ describe('Registrierung (Benutzer) – Lizenz', () => {
     expect(tile.findings.map((f) => [f.id, f.severity])).toEqual([
       ['registration-limits', 'unknown'],
     ]);
-    expect(tile.facts).toContainEqual({ label: t.facts.plans, value: 'INTUNE_A – aktiv' });
+    expect(tile.facts).toContainEqual({
+      label: t.facts.plans,
+      value: 'INTUNE_A – aktiv',
+      title: t.facts.plansNote,
+    });
     expect(tile.facts.find((f) => f.label === t.facts.smallestLimit)?.value).toBe('5');
   });
 
@@ -64,7 +68,7 @@ describe('Registrierung (Benutzer) – Lizenz', () => {
     expect(tile.value).toBe(t.valueNoLicense);
   });
 
-  it('Lizenzen ohne Intune-Plan werden gezählt; Intune-Plan nicht „Success“ → warning mit Statustext', async () => {
+  it('Lizenzen ohne Intune-Plan werden gezählt; nur deaktivierte Intune-Pläne → warning mit Statustext', async () => {
     const base = await snapshotOf('CONTOSO-PC001');
     const without = evaluateRegistration(
       { ...base, userLicense: license(userLicenseInfo([], 2)) },
@@ -73,25 +77,72 @@ describe('Registrierung (Benutzer) – Lizenz', () => {
     expect(without.findings.find((f) => f.id === 'registration-noLicense')!.detail).toBe(
       t.noLicenseDetailNone(2),
     );
-    const inactive = evaluateRegistration(
+    const disabled = evaluateRegistration(
       {
         ...base,
         userLicense: license(
           userLicenseInfo([
+            { plan: 'INTUNE_A', skuPartNumber: 'SPE_E3', provisioningStatus: 'Disabled' },
+          ]),
+        ),
+      },
+      NOW,
+    );
+    const finding = disabled.findings.find((f) => f.id === 'registration-noLicense')!;
+    expect(finding.detail).toBe(t.noLicenseDetailDisabled(`INTUNE_A (${t.planStatus.Disabled})`));
+    expect(disabled.severity).toBe('warning');
+  });
+
+  it('zugewiesener Intune-Plan mit anderem Status als „Success“ ist keine fehlende Lizenz', async () => {
+    const base = await snapshotOf('CONTOSO-PC001');
+    for (const status of [
+      'PendingInput',
+      'PendingActivation',
+      'PendingProvisioning',
+      'Error',
+      null,
+    ] as const) {
+      const tile = evaluateRegistration(
+        {
+          ...base,
+          userLicense: license(
+            userLicenseInfo([
+              { plan: 'INTUNE_A', skuPartNumber: 'SPE_E5', provisioningStatus: status },
+            ]),
+          ),
+        },
+        NOW,
+      );
+      expect(
+        tile.findings.some((f) => f.id === 'registration-noLicense'),
+        String(status),
+      ).toBe(false);
+      expect(tile.value, String(status)).toBe(t.valueLicenseOk);
+    }
+  });
+
+  it('Microsoft 365 E5 wie im Live-Test (INTUNE_A PendingInput + INTUNE_O365 PendingActivation): kein Befund zur Lizenz', async () => {
+    const base = await snapshotOf('CONTOSO-PC001');
+    const tile = evaluateRegistration(
+      {
+        ...base,
+        userLicense: license(
+          userLicenseInfo([
+            { plan: 'INTUNE_A', skuPartNumber: 'SPE_E5', provisioningStatus: 'PendingInput' },
             {
-              plan: 'INTUNE_A',
-              skuPartNumber: 'SPE_E3',
-              provisioningStatus: 'PendingProvisioning',
+              plan: 'INTUNE_O365',
+              skuPartNumber: 'SPE_E5',
+              provisioningStatus: 'PendingActivation',
             },
           ]),
         ),
       },
       NOW,
     );
-    const finding = inactive.findings.find((f) => f.id === 'registration-noLicense')!;
-    expect(finding.detail).toBe(
-      t.noLicenseDetailInactive(`INTUNE_A (${t.planStatus.PendingProvisioning})`),
-    );
+    const ids = tile.findings.map((f) => f.id);
+    expect(ids).not.toContain('registration-noLicense');
+    expect(ids).not.toContain('registration-mdmO365');
+    expect(tile.summary).toContain(t.summaryLicenseOk);
   });
 
   it('INTUNE_A_VL oder INTUNE_EDU mit Success genügen', async () => {

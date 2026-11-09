@@ -53,7 +53,10 @@ function licenseFindings(
   const findings: Finding[] = [];
   const intunePlans = license.plans.filter((p) => p.plan !== 'INTUNE_O365');
   const mdmO365 = license.plans.filter((p) => p.plan === 'INTUNE_O365');
-  const active = intunePlans.filter((p) => p.provisioningStatus === 'Success');
+  // Nur „Disabled“ (Plan in der Lizenzzuweisung abgeschaltet) zählt als fehlend. Andere Werte als
+  // „Success“ (z. B. PendingInput) meldet Graph laut Live-Test auch bei aktiver M365-E5-Lizenz und
+  // normal verwaltetem Gerät – daraus wird keine fehlende Lizenz abgeleitet.
+  const assigned = intunePlans.filter((p) => p.provisioningStatus !== 'Disabled');
   const facts: TileFact[] = [
     { label: t.facts.licenses, value: String(license.licenseCount) },
     {
@@ -62,9 +65,10 @@ function licenseFindings(
         license.plans.length === 0
           ? t.facts.noPlan
           : license.plans.map((p) => `${p.plan} – ${statusText(p.provisioningStatus)}`).join('; '),
+      title: t.facts.plansNote,
     },
   ];
-  const missing = active.length === 0;
+  const missing = assigned.length === 0;
   if (missing) {
     findings.push({
       id: 'registration-noLicense',
@@ -73,7 +77,7 @@ function licenseFindings(
       detail:
         intunePlans.length === 0
           ? t.noLicenseDetailNone(license.licenseCount)
-          : t.noLicenseDetailInactive(
+          : t.noLicenseDetailDisabled(
               intunePlans.map((p) => `${p.plan} (${statusText(p.provisioningStatus)})`).join(', '),
             ),
       cause: t.noLicenseCause,
@@ -87,7 +91,8 @@ function licenseFindings(
       links: [{ label: de.links.assignIntuneLicense, url: Docs.intuneLicensesAssign }],
     });
   }
-  if (mdmO365.length > 0) {
+  // INTUNE_O365 steckt auch in Bundles mit echtem Intune-Plan (z. B. Microsoft 365 E5) – Hinweis nur ohne diesen.
+  if (mdmO365.length > 0 && intunePlans.length === 0) {
     findings.push({
       id: 'registration-mdmO365',
       severity: 'unknown',
