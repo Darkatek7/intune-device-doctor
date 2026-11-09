@@ -76,7 +76,7 @@ describe('parseSnapshotFile', () => {
 
   it('toleriert BOM und verwirft unbekannte Felder', () => {
     const extra = { ...valid, secret: 'x', tiles: [{ ...valid.tiles[0], upn: 'a@b.c' }] };
-    const result = parseSnapshotFile(`﻿${JSON.stringify(extra)}`);
+    const result = parseSnapshotFile(`\uFEFF${JSON.stringify(extra)}`);
     expect(result.ok).toBe(true);
     expect(JSON.stringify(result)).not.toContain('secret');
     expect(JSON.stringify(result)).not.toContain('a@b.c');

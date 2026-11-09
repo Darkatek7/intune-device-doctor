@@ -98,7 +98,7 @@ export function parseSnapshotFile(text: string): ParseSnapshotResult {
   if (text.length > SNAPSHOT_MAX_CHARS) return { ok: false, reason: 'tooLarge' };
   let raw: unknown;
   try {
-    raw = JSON.parse(text.replace(/^﻿/, ''));
+    raw = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch {
     return { ok: false, reason: 'notJson' };
   }

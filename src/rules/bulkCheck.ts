@@ -27,7 +27,7 @@ const HEADER_CELLS = /^(device ?name|name|gerätename|geraetename|computer(name)
 export function parseDeviceNames(text: string): ParsedNames {
   const seen = new Set<string>();
   const unique: string[] = [];
-  const lines = text.replace(/^﻿/, '').split(/\r\n|\r|\n/);
+  const lines = text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/);
   lines.forEach((line, index) => {
     const first = (line.split(/[;,\t]/)[0] ?? '')
       .trim()
@@ -143,5 +143,5 @@ export function bulkRowsToCsv(rows: readonly BulkRow[], now: Date, labels: BulkC
         .join(';'),
     );
   }
-  return `﻿${lines.join('\r\n')}\r\n`;
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
