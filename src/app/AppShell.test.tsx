@@ -147,3 +147,25 @@ describe('AppShell', () => {
     expect(screen.getByRole('combobox', { name: de.field.label })).toHaveFocus();
   });
 });
+
+describe('AppShell – weitere Geräte des Benutzers', () => {
+  it('zeigt weitere Geräte desselben Benutzers im Header und öffnet sie per Klick', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /CONTOSO-PC014/ }));
+    const nav = await screen.findByRole('navigation', { name: de.header.otherDevicesLabel });
+    await user.click(within(nav).getByRole('button', { name: /CONTOSO-IP015/ }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'CONTOSO-IP015' }),
+    ).toBeInTheDocument();
+    expect(window.location.search).toMatch(/device=/);
+  });
+
+  it('Geräte ohne weitere Geräte des Benutzers haben keine Zeile', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await search(user, 'CONTOSO-PC001');
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
+    expect(screen.queryByRole('navigation', { name: de.header.otherDevicesLabel })).toBeNull();
+  });
+});

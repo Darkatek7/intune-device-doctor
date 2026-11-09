@@ -127,6 +127,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<DeviceGroupsInfo>((p) => p.getDeviceGroups(device, options));
   }
 
+  getUserDevices(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<DeviceSearchResult[]>((p) => p.getUserDevices(device, options));
+  }
+
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
   }

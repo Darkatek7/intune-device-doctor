@@ -665,3 +665,17 @@ export function mapDeviceGroups(
   groups.sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
   return { groups, hiddenCount, truncated };
 }
+
+// ---------- Weitere Geräte des Benutzers ----------
+
+/** Geräte des Benutzers ohne das aktuelle Gerät, alphabetisch; nur Name, Plattform, Compliance. */
+export function mapUserDevices(
+  entries: Array<Partial<GraphManagedDevice> & { id: string }>,
+  currentDeviceId: string,
+): DeviceSearchResult[] {
+  const current = currentDeviceId.trim().toLowerCase();
+  return entries
+    .filter((entry) => typeof entry?.id === 'string' && entry.id.toLowerCase() !== current)
+    .map(mapSearchResult)
+    .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
+}

@@ -116,6 +116,15 @@ export interface DeviceDataProvider {
   ): Promise<SectionResult<DeviceGroupsInfo>>;
 
   /**
+   * Weitere Geräte des primären Benutzers (nur Name, Plattform, Compliance), ohne das aktuelle Gerät.
+   * Ohne Benutzer-UPN nicht anwendbar.
+   */
+  getUserDevices(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DeviceSearchResult[]>>;
+
+  /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im
    * Ergebnis einfach; eine fehlende Berechtigung liefert "forbidden".
    */

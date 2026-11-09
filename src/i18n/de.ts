@@ -125,6 +125,9 @@ export const de = {
       'Das Gerät hat keinen primären Benutzer – das Anmeldeprotokoll wird pro Benutzer abgefragt.',
     signInsNotReported:
       'Graph meldet HTTP 404 für das Anmeldeprotokoll – über diese Schnittstelle nicht verfügbar.',
+    // M10: weitere Geräte des Benutzers (Geräte-Header)
+    userDevicesNoUser: 'Das Gerät hat keinen primären Benutzer.',
+    userDevicesNotReported: 'Graph liefert keine weiteren Geräte des Benutzers (HTTP 404).',
     // M10: Gruppen des Geräts
     groupsNotReported:
       'Graph meldet HTTP 404 für das Entra-Gerät – die Gruppen sind über diese Schnittstelle nicht verfügbar.',
@@ -217,6 +220,9 @@ export const de = {
     enrolled: (date: string) => `Registriert am ${date}`,
     summaryLabel: 'Zusammenfassung',
     portalLinks: 'Links ins Intune Admin Center',
+    otherDevices: (user: string) => `Weitere Geräte von ${user}`,
+    otherDevicesLabel: 'Weitere Geräte des Benutzers',
+    openOtherDevice: (name: string, compliance: string) => `${name} öffnen (${compliance})`,
   },
   grid: {
     label: 'Statuskacheln',

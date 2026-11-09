@@ -55,6 +55,7 @@ import {
   mapAppInstallStates,
   mapAutopilot,
   mapDeviceGroups,
+  mapUserDevices,
   mapBitlockerKey,
   mapEntraDevice,
   mapLocalAdmin,
@@ -566,6 +567,29 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapDeviceGroups(objects, Boolean(next)), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.groupsNotReported, source }),
+    );
+  }
+
+  /** Weitere Geräte des Benutzers (nur die erste Seite), ohne das aktuelle Gerät. */
+  getUserDevices(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DeviceSearchResult[]>> {
+    const endpoint = Endpoints.managedDevicesOfUser;
+    return this.run<DeviceSearchResult[]>(
+      'managedDevicesOfUser',
+      async (source) => {
+        const upn = device.userPrincipalName?.trim();
+        if (!upn) {
+          return { status: 'notApplicable', reason: de.reasons.userDevicesNoUser, source };
+        }
+        const page = await this.client.get<GraphCollection<GraphManagedDevice>>(
+          endpoint.path(upn),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        return this.ok(mapUserDevices(page?.value ?? [], device.id), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.userDevicesNotReported, source }),
     );
   }
 

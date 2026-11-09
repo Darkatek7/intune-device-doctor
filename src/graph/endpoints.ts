@@ -9,6 +9,7 @@ import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
   LAPS_SELECT,
+  USER_DEVICES_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
   MOBILE_APP_SELECT,
 } from './dto';
@@ -312,6 +313,24 @@ export const Endpoints = {
     display: "GET /devices(deviceId='{deviceId}')/transitiveMemberOf",
     path: (azureAdDeviceId: string) =>
       `/devices(deviceId=${odataString(azureAdDeviceId)})/transitiveMemberOf`,
+  },
+  /**
+   * Weitere Geräte des primären Benutzers (Geräte-Header): dokumentierter eq-Filter auf
+   * userPrincipalName. `GET /users/{id}/managedDevices` ist nicht als Methode dokumentiert → nicht verwendet.
+   */
+  managedDevicesOfUser: {
+    id: 'managedDevicesOfUser',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0#properties',
+    display: "GET /deviceManagement/managedDevices?$filter=userPrincipalName eq '…'",
+    path: (userPrincipalName: string) =>
+      withQuery('/deviceManagement/managedDevices', {
+        $filter: `userPrincipalName eq ${odataString(userPrincipalName)}`,
+        $select: USER_DEVICES_SELECT.join(','),
+      }),
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

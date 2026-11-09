@@ -3,6 +3,7 @@
  * der MockProvider ergänzt Quelle/Zeitstempel und verpackt alles in SectionResult.
  */
 import type {
+  DeviceSearchResult,
   DeviceGroupsInfo,
   AutopilotInfo,
   AppError,
@@ -46,6 +47,8 @@ export interface MockDeviceFixture {
   autopilot?: MockSection<AutopilotInfo | null>;
   /** Optional – ohne Angabe: drei Standardgruppen (ok). */
   deviceGroups?: MockSection<DeviceGroupsInfo>;
+  /** Optional – ohne Angabe: andere Szenarien mit demselben Benutzer (UPN), ohne das Gerät selbst. */
+  userDevices?: MockSection<DeviceSearchResult[]>;
 }
 
 export interface MockScenario {

@@ -57,6 +57,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   localAdmin: 'deviceLocalCredentialInfo',
   autopilot: 'windowsAutopilotDeviceIdentities',
   deviceGroups: 'deviceTransitiveMemberOf',
+  userDevices: 'managedDevicesOfUser',
 };
 
 export function abortError(): DOMException {
@@ -98,6 +99,20 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 function sourceFor(endpoint: EndpointId): DataSource {
   const def = Endpoints[endpoint];
   return { kind: 'mock', label: def.display, docsUrl: def.docsUrl };
+}
+
+function toSearchResult(device: MockDeviceFixture['device']): DeviceSearchResult {
+  return {
+    id: device.id,
+    deviceName: device.deviceName,
+    userPrincipalName: device.userPrincipalName,
+    userDisplayName: device.userDisplayName,
+    operatingSystem: device.operatingSystem,
+    osVersion: device.osVersion,
+    model: device.model,
+    complianceState: device.complianceState,
+    lastSyncDateTime: device.lastSyncDateTime,
+  };
 }
 
 export class MockProvider implements DeviceDataProvider {
@@ -143,17 +158,7 @@ export class MockProvider implements DeviceDataProvider {
       ),
     );
     const hits = exact.length > 0 ? exact : byName.length > 0 ? byName : byUser;
-    return hits.map(({ device }) => ({
-      id: device.id,
-      deviceName: device.deviceName,
-      userPrincipalName: device.userPrincipalName,
-      userDisplayName: device.userDisplayName,
-      operatingSystem: device.operatingSystem,
-      osVersion: device.osVersion,
-      model: device.model,
-      complianceState: device.complianceState,
-      lastSyncDateTime: device.lastSyncDateTime,
-    }));
+    return hits.map(({ device }) => toSearchResult(device));
   }
 
   async getDevice(
@@ -207,6 +212,19 @@ export class MockProvider implements DeviceDataProvider {
         return { status: 'notApplicable', reason: de.reasons.autopilotNotWindows };
       }
       return { status: 'ok', data: defaultAutopilot(this.now(), fixture.device) };
+    }
+    if (key === 'userDevices') {
+      const upn = fixture.device.userPrincipalName;
+      if (!upn) return { status: 'notApplicable', reason: de.reasons.userDevicesNoUser };
+      const others = this.fixtures()
+        .filter(
+          (f) =>
+            f.device.id !== fixture.device.id &&
+            f.device.userPrincipalName?.toLowerCase() === upn.toLowerCase(),
+        )
+        .map(({ device }) => toSearchResult(device))
+        .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
+      return { status: 'ok', data: others };
     }
     if (key === 'deviceGroups') {
       return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
@@ -285,6 +303,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getSignIns(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<SignInsInfo>(device, 'signIns', options);
+  }
+
+  getUserDevices(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DeviceSearchResult[]>(device, 'userDevices', options);
   }
 
   getDeviceGroups(device: ManagedDeviceInfo, options: RequestOptions = {}) {

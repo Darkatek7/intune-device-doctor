@@ -318,6 +318,11 @@ export interface DeviceSnapshot {
   autopilot?: SectionResult<AutopilotInfo | null>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
   deviceGroups?: SectionResult<DeviceGroupsInfo>;
+  /**
+   * Weitere Geräte des primären Benutzers (Geräte-Header, keine Kachel). Ohne Treffer, ohne Berechtigung
+   * oder bei Fehlern entfällt die Zeile still. Enthält das aktuelle Gerät nicht.
+   */
+  userDevices?: SectionResult<DeviceSearchResult[]>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -387,7 +392,8 @@ export type SnapshotSectionKey =
   | 'signIns'
   | 'localAdmin'
   | 'autopilot'
-  | 'deviceGroups';
+  | 'deviceGroups'
+  | 'userDevices';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

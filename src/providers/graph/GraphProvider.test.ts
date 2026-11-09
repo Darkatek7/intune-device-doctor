@@ -938,3 +938,57 @@ describe('GraphProvider – Gruppen des Geräts', () => {
     ).toBe(de.reasons.groupsNotReported);
   });
 });
+
+describe('GraphProvider – weitere Geräte des Benutzers', () => {
+  it('filtert per dokumentiertem eq-Filter auf userPrincipalName, minimales $select, ohne das aktuelle Gerät', async () => {
+    const { provider, calls } = setup((call) =>
+      jsonResponse({
+        value: [
+          { id: PC001_ID, deviceName: 'CONTOSO-PC001', operatingSystem: 'Windows' },
+          {
+            id: 'other-1',
+            deviceName: 'CONTOSO-IP015',
+            operatingSystem: 'iOS',
+            complianceState: 'noncompliant',
+          },
+        ],
+        _call: call.url,
+      }),
+    );
+    const result = expectStatus(
+      await provider.getUserDevices(windowsDevice({ userPrincipalName: "o'brien@contoso.com" })),
+      'ok',
+    );
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe('/v1.0/deviceManagement/managedDevices');
+    expect(call.parsed.searchParams.get('$filter')).toBe(
+      "userPrincipalName eq 'o''brien@contoso.com'",
+    );
+    expect(call.parsed.searchParams.get('$select')).toBe(
+      'id,deviceName,operatingSystem,complianceState,lastSyncDateTime',
+    );
+    expect(result.data.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015']);
+    expect(result.data[0]!.complianceState).toBe('noncompliant');
+  });
+
+  it('ohne Benutzer: notApplicable ohne Request; 403/404/500 werden zu Section-Zuständen', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getUserDevices(windowsDevice({ userPrincipalName: null })),
+      'notApplicable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const device = windowsDevice({ userPrincipalName: 'anna.schmidt@contoso.com' });
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getUserDevices(device), 'forbidden').error
+        .requiredScope,
+    ).toBe('DeviceManagementManagedDevices.Read.All');
+    const missing = setup(() => graphError(404, 'ResourceNotFound'));
+    expectStatus(await missing.provider.getUserDevices(device), 'unavailable');
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getUserDevices(device), 'error');
+  });
+});

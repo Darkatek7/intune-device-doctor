@@ -653,3 +653,18 @@ describe('MockProvider – Anmeldungen', () => {
     expect(result.status).toBe('notApplicable');
   });
 });
+
+describe('MockProvider – weitere Geräte des Benutzers', () => {
+  it('liefert andere Szenarien mit demselben Benutzer, aber nie das Gerät selbst', async () => {
+    const provider = new MockProvider({ latency: false });
+    const [pc014] = await provider.searchDevices('CONTOSO-PC014');
+    const device = await provider.getDevice(pc014!.id);
+    const result = await provider.getUserDevices(device);
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+    expect(result.data.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015']);
+    const [pc001] = await provider.searchDevices('CONTOSO-PC001');
+    const none = await provider.getUserDevices(await provider.getDevice(pc001!.id));
+    expect(none).toMatchObject({ status: 'ok', data: [] });
+  });
+});

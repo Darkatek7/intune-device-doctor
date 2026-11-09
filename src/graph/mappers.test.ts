@@ -23,6 +23,7 @@ import {
   mapPolicyState,
   mapSearchResult,
   mapSignIns,
+  mapUserDevices,
   mapVolumeType,
   mapWindowsProtection,
   splitProductStatus,
@@ -698,5 +699,19 @@ describe('mapDeviceGroups', () => {
     expect(info.groups.map((g) => g.displayName)).toEqual(['Alpha']);
     expect(info.hiddenCount).toBe(0);
     expect(info.truncated).toBe(true);
+  });
+});
+
+describe('mapUserDevices', () => {
+  const entry = (id: string, deviceName: string) =>
+    ({ id, deviceName, operatingSystem: 'iOS', complianceState: 'compliant' }) as never;
+
+  it('blendet das aktuelle Gerät aus (Groß-/Kleinschreibung egal) und sortiert nach Name', () => {
+    const result = mapUserDevices(
+      [entry('B', 'CONTOSO-PC014'), entry('a', 'CONTOSO-PC001'), entry('C', 'CONTOSO-IP015')],
+      'A',
+    );
+    expect(result.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015', 'CONTOSO-PC014']);
+    expect(result[0]).toMatchObject({ operatingSystem: 'iOS', complianceState: 'compliant' });
   });
 });
