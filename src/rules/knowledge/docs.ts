@@ -137,6 +137,19 @@ export const Docs = {
   /** Dual State vermeiden/bereinigen; Hinweis: Entfernen des registrierten Zustands kann Intune-Registrierung beenden */
   hybridJoinReviewThingsToKnow:
     'https://learn.microsoft.com/entra/identity/devices/hybrid-join-plan#review-things-you-should-know',
+  // M14/S2: Zuweisungen (abgerufen 2026-11-09)
+  configurationAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',
+  complianceAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0',
+  mobileAppAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0',
+  /** Ein-/Ausschluss von Gruppen: Vorrang, dynamische Gerätegruppen (Latenz), Benutzer-/Gerätegruppen werden nicht verknüpft */
+  assignPolicyExcludeGroups:
+    'https://learn.microsoft.com/intune/device-configuration/assign-device-profile#exclude-groups-from-a-policy-assignment',
+  /** Ein-/Ausschluss bei Apps: Ausschluss hat Vorrang bei gleicher Gruppenart; gemischte Gruppen werden nicht ausgewertet */
+  appAssignmentScope:
+    'https://learn.microsoft.com/intune/app-management/deployment/configure-assignment-scope',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

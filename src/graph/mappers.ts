@@ -4,6 +4,8 @@
  */
 import type {
   AppliedPolicyInfo,
+  AssignmentEntry,
+  AssignmentTarget,
   AutopilotInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -33,6 +35,7 @@ import type {
   ConditionalAccessStatus,
   DeviceEnrollmentType,
   GraphAppliedConditionalAccessPolicy,
+  GraphAssignment,
   GraphApplePushNotificationCertificate,
   GraphDirectoryObject,
   GraphManagedDeviceHealthAttestation,
@@ -44,6 +47,7 @@ import type {
   GraphManagedDevice,
   GraphMobileApp,
   GraphMobileAppIntentAndState,
+  MobileAppAssignmentIntent,
   MobileAppIntent,
   ResultantAppState,
   GraphPolicySettingState,
@@ -751,4 +755,53 @@ export function mapHealthAttestation(
     healthStatusMismatchInfo: text(state.healthStatusMismatchInfo),
     healthAttestationSupportedStatus: text(state.healthAttestationSupportedStatus),
   };
+}
+
+// ---------- Zuweisungen (M14/S2) ----------
+
+const GUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+/** Nur echte GUIDs werden als Richtlinien-/App-ID abgefragt (kein Request mit zusammengesetzten IDs). */
+export function isGuid(value: string): boolean {
+  return GUID_PATTERN.test(value.trim());
+}
+
+const ASSIGNMENT_INTENTS: readonly MobileAppAssignmentIntent[] = [
+  'available',
+  'required',
+  'uninstall',
+  'availableWithoutEnrollment',
+];
+
+/**
+ * Ziel einer Zuweisung. Das `@odata.type` steht in der Praxis mit führendem `#`, in den Doku-Beispielen
+ * teils ohne → beides wird akzeptiert. Alles andere (z. B. scopeTagGroupAssignmentTarget) bleibt
+ * `unknown` und wird nicht gedeutet. Gruppenziele ohne groupId ebenfalls.
+ */
+export function mapAssignmentTarget(target: GraphAssignment['target']): AssignmentTarget {
+  const rawType = str(target?.['@odata.type']);
+  const odataType = rawType ? rawType.replace(/^#/, '') : null;
+  const groupId = str(target?.groupId)?.trim() || null;
+  switch (odataType) {
+    case 'microsoft.graph.groupAssignmentTarget':
+      return groupId ? { kind: 'group', groupId } : { kind: 'unknown', odataType };
+    case 'microsoft.graph.exclusionGroupAssignmentTarget':
+      return groupId ? { kind: 'exclusionGroup', groupId } : { kind: 'unknown', odataType };
+    case 'microsoft.graph.allDevicesAssignmentTarget':
+      return { kind: 'allDevices' };
+    case 'microsoft.graph.allLicensedUsersAssignmentTarget':
+      return { kind: 'allUsers' };
+    default:
+      return { kind: 'unknown', odataType };
+  }
+}
+
+/** Zuweisungsliste eines Objekts. Einträge ohne `target` zählen als unbekanntes Ziel. */
+export function mapAssignments(entries: GraphAssignment[] | null | undefined): AssignmentEntry[] {
+  return (Array.isArray(entries) ? entries : [])
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry) => ({
+      target: mapAssignmentTarget(entry.target),
+      intent: pickOrNull(entry.intent, ASSIGNMENT_INTENTS),
+    }));
 }

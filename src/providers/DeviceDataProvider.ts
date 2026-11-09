@@ -9,6 +9,8 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  AssignmentLookup,
+  AssignmentsInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -143,6 +145,18 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<HealthAttestationInfo>>;
+
+  /**
+   * Zuweisungen der Richtlinien/Apps, die in den Gerätezuständen erscheinen (M14/S2): je Objekt ein GET
+   * auf `…/{id}/assignments`, höchstens 30 Objekte, 4 parallel. Hängt von anderen Sections ab, deshalb
+   * bekommt die Methode die nachzuschlagenden Objekte übergeben (siehe `assignmentLookups`). Ohne Objekte
+   * notApplicable; fehlende Berechtigung betrifft alle Objekte → forbidden.
+   */
+  getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options?: RequestOptions,
+  ): Promise<SectionResult<AssignmentsInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

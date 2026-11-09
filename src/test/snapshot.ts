@@ -1,9 +1,13 @@
 import type { DeviceSnapshot } from '../domain/types';
-import { SECTION_KEYS, loadSection } from '../hooks/useDeviceSnapshot';
+import {
+  DEPENDENT_SECTION_KEYS,
+  INDEPENDENT_SECTION_KEYS,
+  loadSection,
+} from '../hooks/useDeviceSnapshot';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 
 /**
- * Lädt ein Gerät vollständig (alle Sections aus SECTION_KEYS) – so wie die App es progressiv lädt.
+ * Lädt ein Gerät vollständig (alle Sections; abhängige Sections erst danach) – so wie die App es progressiv lädt.
  * Neue Sections sind damit automatisch in den Tests enthalten.
  */
 export async function loadFullSnapshot(
@@ -15,9 +19,15 @@ export async function loadFullSnapshot(
   const device = await provider.getDevice(hit.id);
   const signal = new AbortController().signal;
   const entries = await Promise.all(
-    SECTION_KEYS.map(
+    INDEPENDENT_SECTION_KEYS.map(
       async (key) => [key, await loadSection(provider, key, device, signal)] as const,
     ),
   );
-  return { device, ...Object.fromEntries(entries) };
+  const independent: DeviceSnapshot = { device, ...Object.fromEntries(entries) };
+  const dependent = await Promise.all(
+    DEPENDENT_SECTION_KEYS.map(
+      async (key) => [key, await loadSection(provider, key, device, signal, independent)] as const,
+    ),
+  );
+  return { ...independent, ...Object.fromEntries(dependent) };
 }

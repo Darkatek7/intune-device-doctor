@@ -53,6 +53,11 @@ export const SIGN_IN_WINDOW_DAYS = 7;
 export const SIGN_IN_PAGE_SIZE = 200;
 /** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
 export const MAX_LIST_PAGES = 5;
+/** Zuweisungen (M14/S2): höchstens so viele Objekte je Gerät nachschlagen, höchstens so viele parallel. */
+export const MAX_ASSIGNMENT_LOOKUPS = 30;
+export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
+/** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
+export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments (Profile, Richtlinien, Apps)';
 
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
@@ -366,6 +371,47 @@ export const Endpoints = {
       withQuery(`/deviceManagement/managedDevices/${enc(managedDeviceId)}`, {
         $select: 'deviceHealthAttestationState',
       }),
+  },
+  /**
+   * Zuweisungen eines Konfigurationsprofils (M14/S2). Kein `$expand=assignments` (nicht dokumentiert).
+   * Least privileged laut Doku: DeviceManagementConfiguration.Read.All.
+   */
+  deviceConfigurationAssignments: {
+    id: 'deviceConfigurationAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurations/{id}/assignments',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceConfigurations/${enc(configurationId)}/assignments`,
+  },
+  /** Zuweisungen einer Compliance-Richtlinie (M14/S2). */
+  deviceCompliancePolicyAssignments: {
+    id: 'deviceCompliancePolicyAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/assignments',
+    path: (policyId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/assignments`,
+  },
+  /**
+   * Zuweisungen einer App (M14/S2). Least privileged laut Doku: DeviceManagementConfiguration.Read.All
+   * (DeviceManagementApps.Read.All wäre ein weiterer Scope und wird nicht angefragt).
+   */
+  mobileAppAssignments: {
+    id: 'mobileAppAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/mobileApps/{id}/assignments',
+    path: (appId: string) => `/deviceAppManagement/mobileApps/${enc(appId)}/assignments`,
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

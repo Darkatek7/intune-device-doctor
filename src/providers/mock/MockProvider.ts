@@ -4,6 +4,8 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  AssignmentLookup,
+  AssignmentsInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
   AutopilotInfo,
@@ -23,13 +25,19 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
-import { Endpoints, type EndpointId } from '../../graph/endpoints';
+import {
+  ASSIGNMENTS_DISPLAY,
+  Endpoints,
+  MAX_ASSIGNMENT_LOOKUPS,
+  type EndpointId,
+} from '../../graph/endpoints';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
+  defaultAssignments,
   defaultAutopilot,
   defaultDeviceGroups,
   defaultDuplicateDevices,
@@ -47,7 +55,7 @@ export interface MockProviderOptions {
   seed?: number;
 }
 
-type SectionKey = Exclude<keyof MockDeviceFixture, 'device'>;
+type SectionKey = Exclude<keyof MockDeviceFixture, 'device' | 'assignments' | 'assignmentTargets'>;
 
 const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   protection: 'windowsProtectionState',
@@ -269,6 +277,15 @@ export class MockProvider implements DeviceDataProvider {
       return { status: 'error', error, source };
     }
     const spec = (fixture[key] ?? this.defaultSection(key, fixture)) as MockSection<T>;
+    return this.fromSpec(spec, endpoint, source);
+  }
+
+  /** Übersetzt die Fixture-Angabe einer Section in ein SectionResult. */
+  private fromSpec<T>(
+    spec: MockSection<T>,
+    endpoint: EndpointId,
+    source: DataSource,
+  ): SectionResult<T> {
     switch (spec.status) {
       case 'ok':
         return { status: 'ok', data: spec.data, source, fetchedAt: this.now().toISOString() };
@@ -346,6 +363,35 @@ export class MockProvider implements DeviceDataProvider {
 
   getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<LocalAdminInfo>(device, 'localAdmin', options);
+  }
+
+  /** Zuweisungen: Standard oder Szenario-Vorgabe (siehe MockDeviceFixture.assignments/assignmentTargets). */
+  async getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AssignmentsInfo>> {
+    await this.delay(`assignments:${device.id}`, options.signal);
+    const source: DataSource = {
+      ...sourceFor('deviceConfigurationAssignments'),
+      label: ASSIGNMENTS_DISPLAY,
+    };
+    const fixture = this.fixtureById(device.id);
+    if (!fixture) {
+      return {
+        status: 'error',
+        error: { code: 'notFound', httpStatus: 404, message: de.errors.deviceNotFound },
+        source,
+      };
+    }
+    if (lookups.length === 0) {
+      return { status: 'notApplicable', reason: de.reasons.assignmentsNothingToCheck, source };
+    }
+    const spec: MockSection<AssignmentsInfo> = fixture.assignments ?? {
+      status: 'ok',
+      data: defaultAssignments(lookups.slice(0, MAX_ASSIGNMENT_LOOKUPS), fixture.assignmentTargets),
+    };
+    return this.fromSpec(spec, 'deviceConfigurationAssignments', source);
   }
 
   async getMobileApps(

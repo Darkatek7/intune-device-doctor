@@ -1,4 +1,4 @@
-/** CONTOSO-PC042 – Konfigurationskonflikt (SmartScreen), Profil mit errorCode, Compliance in Schonfrist. Erwartung: Richtlinien critical, Compliance warning, Apps critical (VPN-Client fehlgeschlagen). */
+/** CONTOSO-PC042 – Konfigurationskonflikt (SmartScreen), Profil mit errorCode, Compliance in Schonfrist. Erwartung: Richtlinien critical, Compliance warning, Apps critical (VPN-Client fehlgeschlagen). Zuweisungen (M14/S2): Edge-Baseline schließt die Gerätegruppe „Pilot“ aus, obwohl das Gerät Mitglied ist (Hinweis); VPN über Benutzergruppe. */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
@@ -17,6 +17,12 @@ import {
   signInsInfo,
   deviceGroupsInfo,
 } from './helpers';
+import type { AssignmentEntry } from '../../../domain/types';
+
+const groupTarget = (n: number): AssignmentEntry => ({
+  target: { kind: 'group', groupId: demoGuid('object', n) },
+  intent: null,
+});
 
 export const pc042PolicyConflict: MockScenario = {
   deviceName: 'CONTOSO-PC042',
@@ -85,6 +91,23 @@ export const pc042PolicyConflict: MockScenario = {
       },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 42)] },
+      // Gruppen-IDs: 200 = Alle Geräte, 201 = Windows-Geräte, 202 = Pilot (siehe deviceGroupsInfo unten);
+      // 300/301 = Benutzergruppen, in denen das Gerät nicht Mitglied ist
+      assignmentTargets: {
+        [demoGuid('policy', 1)]: [groupTarget(201)],
+        [demoGuid('policy', 2)]: [{ target: { kind: 'allDevices' }, intent: null }],
+        [demoGuid('policy', 21)]: [
+          groupTarget(200),
+          { target: { kind: 'exclusionGroup', groupId: demoGuid('object', 202) }, intent: null },
+        ],
+        [demoGuid('policy', 23)]: [groupTarget(300)],
+        '00000000-0000-0000-0000-0000000000A2': [
+          { target: { kind: 'group', groupId: demoGuid('object', 301) }, intent: 'required' },
+        ],
+        '00000000-0000-0000-0000-0000000000A4': [
+          { target: { kind: 'allUsers' }, intent: 'available' },
+        ],
+      },
       // zwei Gruppen ohne Namen (Objekte ohne Leserecht liefern nur Typ + ID)
       deviceGroups: {
         status: 'ok',

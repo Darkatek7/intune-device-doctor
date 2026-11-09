@@ -151,6 +151,11 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S2: Zuweisungen
+    assignmentsNothingToCheck:
+      'Keine Richtlinien oder Apps aus den Gerätezuständen vorhanden – es gibt nichts abzugleichen.',
+    assignmentsNotReported:
+      'Graph meldet HTTP 404 für die Zuweisungen – über diese Schnittstelle nicht verfügbar.',
     // M14/S1: gleichnamige Entra-Objekte
     duplicatesNoName:
       'Das Gerät hat keinen Namen – gleichnamige Entra-Objekte lassen sich nicht suchen.',

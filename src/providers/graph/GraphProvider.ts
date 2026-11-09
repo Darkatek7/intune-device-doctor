@@ -5,6 +5,9 @@
  */
 import type {
   AppError,
+  AssignmentLookup,
+  AssignmentObjectInfo,
+  AssignmentsInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -32,6 +35,7 @@ import {
 import type {
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
+  GraphAssignment,
   GraphCollection,
   GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
@@ -47,14 +51,19 @@ import type {
   GraphWindowsProtectionState,
 } from '../../graph/dto';
 import {
+  ASSIGNMENTS_DISPLAY,
+  ASSIGNMENT_LOOKUP_CONCURRENCY,
   Endpoints,
+  MAX_ASSIGNMENT_LOOKUPS,
   MAX_LIST_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
 import {
   graphSource,
+  isGuid,
   mapApplePushCertificate,
+  mapAssignments,
   mapAppInstallStates,
   mapAutopilot,
   mapDeviceGroups,
@@ -647,6 +656,90 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.attestationNotReported, source }),
     );
+  }
+
+  /**
+   * Zuweisungen der übergebenen Richtlinien/Apps (M14/S2): je Objekt ein GET, höchstens
+   * MAX_ASSIGNMENT_LOOKUPS Objekte, ASSIGNMENT_LOOKUP_CONCURRENCY parallel. IDs, die keine GUID sind,
+   * werden nicht abgefragt (notEvaluable). 404 → notFound (die ID ist kein Objekt dieses Typs).
+   * Fehlende Berechtigung betrifft alle Aufrufe → ganze Section forbidden; schlägt jeder Aufruf mit einem
+   * anderen Fehler fehl, ist die Section ein Fehler.
+   */
+  getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AssignmentsInfo>> {
+    void device;
+    return this.run<AssignmentsInfo>(
+      'deviceConfigurationAssignments',
+      async (source) => {
+        const combined = { ...source, label: ASSIGNMENTS_DISPLAY };
+        if (lookups.length === 0) {
+          return { status: 'notApplicable', reason: de.reasons.assignmentsNothingToCheck, source };
+        }
+        const limited = lookups.slice(0, MAX_ASSIGNMENT_LOOKUPS);
+        const objects: AssignmentObjectInfo[] = [];
+        let firstError: unknown = null;
+        let failed = 0;
+        let requested = 0;
+        for (let i = 0; i < limited.length; i += ASSIGNMENT_LOOKUP_CONCURRENCY) {
+          const batch = limited.slice(i, i + ASSIGNMENT_LOOKUP_CONCURRENCY);
+          const results = await Promise.allSettled(
+            batch.map((lookup) => this.readAssignments(lookup, options)),
+          );
+          results.forEach((result, index) => {
+            const lookup = batch[index]!;
+            if (result.status === 'fulfilled') {
+              if (result.value.requested) requested += 1;
+              objects.push(result.value.object);
+              return;
+            }
+            if (isAbort(result.reason)) throw result.reason;
+            const appError = toAppError(result.reason);
+            // Fehlende Berechtigung betrifft alle Aufrufe → ganze Section „forbidden“.
+            if (appError.code === 'forbidden') throw result.reason;
+            requested += 1;
+            failed += 1;
+            firstError ??= result.reason;
+            objects.push({ ...lookup, status: 'error', assignments: [] });
+          });
+        }
+        if (requested > 0 && failed === requested) throw firstError;
+        return this.ok({ objects, skipped: lookups.length - limited.length }, combined);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.assignmentsNotReported, source }),
+    );
+  }
+
+  private async readAssignments(
+    lookup: AssignmentLookup,
+    options: RequestOptions,
+  ): Promise<{ object: AssignmentObjectInfo; requested: boolean }> {
+    if (!isGuid(lookup.id)) {
+      return { object: { ...lookup, status: 'notEvaluable', assignments: [] }, requested: false };
+    }
+    const endpoint =
+      lookup.kind === 'app'
+        ? Endpoints.mobileAppAssignments
+        : lookup.kind === 'compliance'
+          ? Endpoints.deviceCompliancePolicyAssignments
+          : Endpoints.deviceConfigurationAssignments;
+    try {
+      const page = await this.client.get<GraphCollection<GraphAssignment>>(
+        endpoint.path(lookup.id),
+        { signal: options.signal, scope: endpoint.scope },
+      );
+      return {
+        object: { ...lookup, status: 'ok', assignments: mapAssignments(page?.value) },
+        requested: true,
+      };
+    } catch (error) {
+      if (!isAbort(error) && toAppError(error).code === 'notFound') {
+        return { object: { ...lookup, status: 'notFound', assignments: [] }, requested: true };
+      }
+      throw error;
+    }
   }
 
   /** App-Namen per GET /deviceAppManagement/mobileApps/{id} – je ID ein GET, gedrosselt parallel. */

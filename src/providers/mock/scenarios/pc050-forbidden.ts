@@ -26,6 +26,8 @@ export const pc050Forbidden: MockScenario = {
       signIns: { status: 'forbidden' },
       localAdmin: { status: 'forbidden' },
       autopilot: { status: 'forbidden' },
+      // gleicher Scope wie die Konfigurationsprofile (DeviceManagementConfiguration.Read.All)
+      assignments: { status: 'forbidden' },
     };
   },
 };

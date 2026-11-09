@@ -539,3 +539,30 @@ export interface GraphManagedDeviceHealthAttestation {
   id?: string;
   deviceHealthAttestationState?: Partial<GraphDeviceHealthAttestationState> | null;
 }
+
+// ---------- Zuweisungen (v1.0) – Richtlinien und Apps (M14/S2) ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0
+// Ziele (deviceAndAppManagementAssignmentTarget): groupAssignmentTarget und exclusionGroupAssignmentTarget
+// (je `groupId`), allDevicesAssignmentTarget, allLicensedUsersAssignmentTarget. Das `@odata.type` steht in
+// der Praxis mit führendem `#`; die Doku-Beispiele zeigen es teils ohne → der Mapper akzeptiert beides.
+// Bewusst NICHT im DTO: `settings` (App-Zuweisungseinstellungen) und Zuweisungsfilter (nur beta).
+
+/** installIntent (mobileAppAssignment.intent) */
+export type MobileAppAssignmentIntent =
+  'available' | 'required' | 'uninstall' | 'availableWithoutEnrollment';
+
+export interface GraphAssignmentTarget {
+  '@odata.type'?: string | null;
+  /** Nur bei group-/exclusionGroupAssignmentTarget */
+  groupId?: string | null;
+}
+
+/** deviceConfigurationAssignment, deviceCompliancePolicyAssignment bzw. mobileAppAssignment */
+export interface GraphAssignment {
+  id?: string | null;
+  /** Nur bei mobileAppAssignment */
+  intent?: MobileAppAssignmentIntent | null;
+  target?: GraphAssignmentTarget | null;
+}

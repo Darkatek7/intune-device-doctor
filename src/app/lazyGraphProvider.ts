@@ -4,6 +4,8 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  AssignmentLookup,
+  AssignmentsInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
@@ -143,6 +145,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
+  }
+
+  getAssignments(device: ManagedDeviceInfo, lookups: AssignmentLookup[], options?: RequestOptions) {
+    return this.section<AssignmentsInfo>((p) => p.getAssignments(device, lookups, options));
   }
 
   getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>> {

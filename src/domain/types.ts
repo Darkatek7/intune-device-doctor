@@ -11,6 +11,7 @@ import type {
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
+  MobileAppAssignmentIntent,
   MobileAppIntent,
   PolicyPlatformType,
   ResultantAppState,
@@ -341,6 +342,48 @@ export interface HealthAttestationInfo {
   healthAttestationSupportedStatus: string | null;
 }
 
+// ---------- Zuweisungen (M14/S2) ----------
+
+/** Ziel einer Zuweisung (Graph: deviceAndAppManagementAssignmentTarget). */
+export type AssignmentTarget =
+  | { kind: 'group'; groupId: string }
+  | { kind: 'exclusionGroup'; groupId: string }
+  | { kind: 'allDevices' }
+  | { kind: 'allUsers' }
+  /** Unbekannter `@odata.type` – wird nicht gedeutet */
+  | { kind: 'unknown'; odataType: string | null };
+
+export interface AssignmentEntry {
+  target: AssignmentTarget;
+  /** Nur bei Apps (installIntent der Zuweisung) */
+  intent: MobileAppAssignmentIntent | null;
+}
+
+export type AssignmentObjectKind = 'compliance' | 'configuration' | 'app';
+
+/** Ein Objekt (aus den Gerätezuständen), dessen Zuweisungen nachgeschlagen werden. */
+export interface AssignmentLookup {
+  kind: AssignmentObjectKind;
+  id: string;
+  displayName: string;
+}
+
+export interface AssignmentObjectInfo extends AssignmentLookup {
+  /**
+   * ok = Zuweisungen gelesen (ggf. leer); notFound = Graph kennt unter dieser ID kein Objekt dieses
+   * Typs (404); notEvaluable = ID nicht abfragbar (keine GUID, kein Request); error = anderer Fehler
+   */
+  status: 'ok' | 'notFound' | 'notEvaluable' | 'error';
+  assignments: AssignmentEntry[];
+}
+
+/** Zuweisungen der Richtlinien/Apps eines Geräts (höchstens 30 Objekte, die übrigen zählen als `skipped`). */
+export interface AssignmentsInfo {
+  objects: AssignmentObjectInfo[];
+  /** Objekte, die wegen der Obergrenze nicht abgefragt wurden */
+  skipped: number;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -373,6 +416,11 @@ export interface DeviceSnapshot {
   userDevices?: SectionResult<DeviceSearchResult[]>;
   /** Nur Windows: Device Health Attestation (Integritätsnachweis, Rohwerte) */
   healthAttestation?: SectionResult<HealthAttestationInfo>;
+  /**
+   * Zuweisungen der Richtlinien und Apps, die in den Gerätezuständen erscheinen (M14/S2). Hängt von
+   * compliancePolicies, configurationPolicies, appInstallStates und deviceGroups ab und lädt erst danach.
+   */
+  assignments?: SectionResult<AssignmentsInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -456,7 +504,8 @@ export type SnapshotSectionKey =
   | 'autopilot'
   | 'deviceGroups'
   | 'userDevices'
-  | 'healthAttestation';
+  | 'healthAttestation'
+  | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

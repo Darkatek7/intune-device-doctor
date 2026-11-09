@@ -13,7 +13,10 @@ import {
 import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
 import {
   graphSource,
+  isGuid,
   mapApplePushCertificate,
+  mapAssignmentTarget,
+  mapAssignments,
   mapBitlockerKey,
   mapDetectedMalware,
   mapAutopilot,
@@ -820,5 +823,71 @@ describe('mapDuplicateDevices (M14/S1)', () => {
     const odd = { ...hybrid, trustType: 'Other' as never };
     const info = mapDuplicateDevices([odd], { ...device, azureADDeviceId: null }, false);
     expect(info.devices[0]).toMatchObject({ trustType: null, isCurrent: false });
+  });
+});
+
+describe('Zuweisungen (M14/S2)', () => {
+  it.each([
+    ['#microsoft.graph.allDevicesAssignmentTarget', { kind: 'allDevices' }],
+    ['microsoft.graph.allDevicesAssignmentTarget', { kind: 'allDevices' }],
+    ['#microsoft.graph.allLicensedUsersAssignmentTarget', { kind: 'allUsers' }],
+    ['microsoft.graph.allLicensedUsersAssignmentTarget', { kind: 'allUsers' }],
+  ])('Ziel %s → %j (mit und ohne führendes #)', (odataType, expected) => {
+    expect(mapAssignmentTarget({ '@odata.type': odataType })).toEqual(expected);
+  });
+
+  it('Gruppenziele tragen die groupId; Ausschlussgruppe ist eigener Typ', () => {
+    expect(
+      mapAssignmentTarget({
+        '@odata.type': '#microsoft.graph.groupAssignmentTarget',
+        groupId: 'g-1',
+      }),
+    ).toEqual({ kind: 'group', groupId: 'g-1' });
+    expect(
+      mapAssignmentTarget({
+        '@odata.type': '#microsoft.graph.exclusionGroupAssignmentTarget',
+        groupId: 'g-2',
+      }),
+    ).toEqual({ kind: 'exclusionGroup', groupId: 'g-2' });
+  });
+
+  it('unbekannte Zieltypen und Gruppenziele ohne groupId bleiben „unknown“ (keine Deutung)', () => {
+    expect(
+      mapAssignmentTarget({
+        '@odata.type': 'microsoft.graph.scopeTagGroupAssignmentTarget',
+        groupId: null,
+      }),
+    ).toEqual({ kind: 'unknown', odataType: 'microsoft.graph.scopeTagGroupAssignmentTarget' });
+    expect(
+      mapAssignmentTarget({ '@odata.type': '#microsoft.graph.groupAssignmentTarget' }),
+    ).toEqual({ kind: 'unknown', odataType: 'microsoft.graph.groupAssignmentTarget' });
+    expect(mapAssignmentTarget(undefined)).toEqual({ kind: 'unknown', odataType: null });
+  });
+
+  it('mapAssignments übernimmt nur dokumentierte intent-Werte und überlebt Müll', () => {
+    const result = mapAssignments([
+      {
+        intent: 'required',
+        target: { '@odata.type': '#microsoft.graph.allDevicesAssignmentTarget' },
+      },
+      { intent: 'bogus' as never, target: null },
+      null as never,
+    ]);
+    expect(result).toEqual([
+      { target: { kind: 'allDevices' }, intent: 'required' },
+      { target: { kind: 'unknown', odataType: null }, intent: null },
+    ]);
+    expect(mapAssignments(null)).toEqual([]);
+    expect(mapAssignments(undefined)).toEqual([]);
+  });
+
+  it('isGuid akzeptiert GUIDs, aber keine zusammengesetzten oder Kurz-IDs', () => {
+    expect(isGuid('00000000-0000-4000-b000-000000000015')).toBe(true);
+    expect(isGuid(' 00000000-0000-4000-B000-000000000015 ')).toBe(true);
+    expect(
+      isGuid('00000000-0000-4000-b000-000000000015_00000000-0000-4000-8000-000000000001'),
+    ).toBe(false);
+    expect(isGuid('c-1')).toBe(false);
+    expect(isGuid('')).toBe(false);
   });
 });

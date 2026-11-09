@@ -108,6 +108,84 @@ export const deRules = {
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
   },
+  /** M14/S2: Zuweisungen – „Warum gilt diese Richtlinie / diese App?“ (Richtlinien- und Apps-Kachel) */
+  assignments: {
+    factChecked: 'Zuweisungen geprüft',
+    factCheckedValue: (done: number, total: number) => `${done} von ${total}`,
+    policiesTitle: 'Zuweisungen: Warum gelten diese Richtlinien?',
+    appsTitle: 'Zuweisungen: Warum ist diese App zugewiesen?',
+    policiesDetail: (count: number) =>
+      `Zuweisungsziele von ${count === 1 ? '1 Richtlinie bzw. einem Profil' : `${count} Richtlinien und Profilen`}, abgeglichen mit den Gruppen, in denen dieses Gerät Mitglied ist.`,
+    appsDetail: (count: number) =>
+      `Zuweisungsziele von ${count === 1 ? '1 App' : `${count} Apps`}, abgeglichen mit den Gruppen, in denen dieses Gerät Mitglied ist.`,
+    cause:
+      'Laut Microsoft hat ein Ausschluss Vorrang vor einem Einschluss, wenn beide dieselbe Gruppenart betreffen (Geräte- oder Benutzergruppen). Intune verknüpft Benutzer- und Gerätegruppen dabei nicht: Ein Ausschluss über eine Gerätegruppe greift nicht für Zuweisungen an Benutzergruppen.',
+    remediation: [
+      'Zeile mit der gewünschten Richtlinie bzw. App suchen und die Spalte „Zuweisung“ lesen: Sie nennt die Gerätegruppe, über die das Gerät das Ziel erreicht.',
+      'Fehlt die erwartete Gruppe, die Mitgliedschaft des Geräts im Microsoft Entra Admin Center prüfen (dynamische Gerätegruppen werden zeitverzögert berechnet).',
+      '„Vermutlich Benutzergruppe“ heißt: Das Gerät ist nicht Mitglied dieser Gruppe. Gehört die Gruppe dem primären Benutzer, im Entra Admin Center nachsehen – MDM Doctor liest Benutzergruppen nicht.',
+    ],
+    unavailableNote:
+      'Über die dokumentierte v1.0-Schnittstelle nicht verfügbar: Zuweisungsfilter und die Zuweisungen von Settings-Catalog-Richtlinien (nur in der Beta-Schnittstelle). Beides im Intune Admin Center prüfen.',
+    skippedNote: (n: number) =>
+      `${n === 1 ? '1 weiteres Objekt wurde' : `${n} weitere Objekte wurden`} nicht abgefragt (höchstens 30 Abrufe je Gerät).`,
+    columns: { name: 'Name', kind: 'Art', assignment: 'Zuweisung' },
+    kinds: { compliance: 'Compliance', configuration: 'Profil', app: 'App' },
+    intents: {
+      available: 'verfügbar',
+      required: 'erforderlich',
+      uninstall: 'deinstallieren',
+      availableWithoutEnrollment: 'verfügbar ohne Registrierung',
+    },
+    viaDeviceGroup: (name: string) => `zugewiesen über Gerätegruppe „${name}“`,
+    excludedViaDeviceGroup: (name: string) => `ausgeschlossen über Gerätegruppe „${name}“`,
+    allDevices: 'zugewiesen an „Alle Geräte“',
+    allUsers: 'zugewiesen an „Alle Benutzer“',
+    groupNoMembership:
+      'Gruppe ohne Mitgliedschaft des Geräts – vermutlich Benutzergruppe (Benutzergruppen werden nicht gelesen)',
+    groupNoMembershipHidden:
+      'Gruppe ohne bekannte Mitgliedschaft des Geräts – vermutlich Benutzergruppe oder eine Gerätegruppe, deren Name nicht lesbar ist',
+    exclusionNoMembership: 'Ausschluss einer Gruppe ohne Mitgliedschaft des Geräts',
+    groupUnchecked: 'Gruppe (Mitgliedschaft des Geräts nicht prüfbar)',
+    exclusionUnchecked: 'Ausschluss einer Gruppe (Mitgliedschaft des Geräts nicht prüfbar)',
+    unknownTarget: 'unbekannter Zieltyp',
+    noAssignments: 'keine Zuweisung gefunden',
+    notFound:
+      'nicht auswertbar – Graph kennt unter der ID des Gerätezustands kein Objekt dieses Typs (HTTP 404)',
+    notEvaluable: 'nicht auswertbar – die ID des Gerätezustands ist keine Objekt-ID',
+    error: 'nicht auswertbar – der Abruf ist fehlgeschlagen',
+    excludedTitle: (name: string) =>
+      `„${name}“: Ausschluss über Gerätegruppe, Zustand nicht „Nicht zutreffend“`,
+    excludedDetail: (groupName: string, state: string) =>
+      `Die Zuweisung schließt die Gerätegruppe „${groupName}“ aus, in der dieses Gerät Mitglied ist. Der gemeldete Zustand lautet trotzdem „${state}“ statt „Nicht zutreffend“.`,
+    excludedCause:
+      'Laut Microsoft hat ein Ausschluss bei gleicher Gruppenart Vorrang. Dass das Gerät trotzdem einen anderen Zustand meldet, kann an einer weiteren Zuweisung liegen, die das Gerät über eine Benutzergruppe erreicht (Benutzer- und Gerätegruppen werden nicht verknüpft), oder an einer dynamischen Gerätegruppe, deren Mitgliedschaft verzögert berechnet wird.',
+    excludedRemediation: [
+      'Alle Zuweisungen des Objekts im Intune Admin Center ansehen und prüfen, ob das Gerät das Ziel zusätzlich über eine Benutzergruppe oder „Alle Benutzer“ erreicht.',
+      'Bei einer dynamischen Ausschlussgruppe: Zeitpunkt der Aufnahme des Geräts in die Gruppe mit dem Zeitpunkt der Zuweisung vergleichen.',
+    ],
+    stateLabels: {
+      policy: {
+        unknown: 'Unbekannt',
+        notApplicable: 'Nicht zutreffend',
+        compliant: 'Konform',
+        remediated: 'Behoben',
+        nonCompliant: 'Nicht konform',
+        error: 'Fehler',
+        conflict: 'Konflikt',
+        notAssigned: 'Nicht zugewiesen',
+      } as Record<string, string>,
+      app: {
+        installed: 'Installiert',
+        failed: 'Fehlgeschlagen',
+        notInstalled: 'Nicht installiert',
+        uninstallFailed: 'Deinstallation fehlgeschlagen',
+        pendingInstall: 'Ausstehend',
+        unknown: 'Unbekannt',
+        notApplicable: 'Nicht zutreffend',
+      } as Record<string, string>,
+    },
+  },
   /** M14/S1: gleichnamige Entra-Objekte (Befund in „Gerätestatus“) */
   duplicates: {
     factCount: 'Entra-Objekte mit gleichem Namen',

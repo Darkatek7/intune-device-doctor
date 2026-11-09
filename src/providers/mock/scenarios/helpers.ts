@@ -2,6 +2,9 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  AssignmentEntry,
+  AssignmentLookup,
+  AssignmentsInfo,
   DeviceGroupsInfo,
   DuplicateDevicesInfo,
   SameNameEntraDevice,
@@ -446,5 +449,33 @@ export function defaultDuplicateDevices(
       },
     ],
     moreAvailable: false,
+  };
+}
+
+/** Id der Standardgruppe „Contoso – Alle Geräte“ (erste Gruppe in `deviceGroupsInfo`/`defaultDeviceGroups`). */
+export const ALL_DEVICES_GROUP_ID = demoGuid('object', 200);
+
+/** Standardzuweisung der Demo: Gruppe „Contoso – Alle Geräte“ (Apps: erforderlich). */
+export function defaultAssignmentEntries(kind: AssignmentLookup['kind']): AssignmentEntry[] {
+  return [
+    {
+      target: { kind: 'group', groupId: ALL_DEVICES_GROUP_ID },
+      intent: kind === 'app' ? 'required' : null,
+    },
+  ];
+}
+
+/** Zuweisungen der nachgeschlagenen Objekte: `overrides` (Schlüssel = ID) vor der Standardzuweisung. */
+export function defaultAssignments(
+  lookups: AssignmentLookup[],
+  overrides: Record<string, AssignmentEntry[]> = {},
+): AssignmentsInfo {
+  return {
+    skipped: 0,
+    objects: lookups.map((lookup) => ({
+      ...lookup,
+      status: 'ok' as const,
+      assignments: overrides[lookup.id] ?? defaultAssignmentEntries(lookup.kind),
+    })),
   };
 }

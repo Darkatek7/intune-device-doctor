@@ -121,3 +121,39 @@ describe('Endpunkte – gleichnamige Entra-Objekte (M14/S1)', () => {
     expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
   });
 });
+
+describe('Endpoints – Zuweisungen (M14/S2)', () => {
+  const id = '00000000-0000-4000-b000-000000000015';
+  const cases = [
+    [
+      'deviceConfigurationAssignments',
+      `/v1.0/deviceManagement/deviceConfigurations/${id}/assignments`,
+    ],
+    [
+      'deviceCompliancePolicyAssignments',
+      `/v1.0/deviceManagement/deviceCompliancePolicies/${id}/assignments`,
+    ],
+    ['mobileAppAssignments', `/v1.0/deviceAppManagement/mobileApps/${id}/assignments`],
+  ] as const;
+
+  it.each(cases)(
+    '%s: v1.0-GET ohne Query-Optionen (kein $expand), Scope Configuration.Read',
+    (key, path) => {
+      const def = Endpoints[key];
+      expect(def.method).toBe('GET');
+      expect(def.version).toBe('v1.0');
+      expect(`/v1.0${def.path(id)}`).toBe(path);
+      expect(def.path(id)).not.toContain('?');
+      expect(def.path(id)).not.toContain('$expand');
+      expect(def.scope).toBe('DeviceManagementConfiguration.Read.All');
+      expect(LOGIN_SCOPES).toContain(def.scope);
+      expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+    },
+  );
+
+  it('kodiert die ID im Pfad', () => {
+    expect(Endpoints.mobileAppAssignments.path('a/b')).toBe(
+      '/deviceAppManagement/mobileApps/a%2Fb/assignments',
+    );
+  });
+});

@@ -1096,3 +1096,149 @@ describe('GraphProvider – gleichnamige Entra-Objekte (M14/S1)', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('GraphProvider – Zuweisungen (M14/S2)', () => {
+  const guid = (n: number) => `00000000-0000-4000-b000-${n.toString(16).padStart(12, '0')}`;
+  const lookup = (kind: 'compliance' | 'configuration' | 'app', n: number) => ({
+    kind,
+    id: guid(n),
+    displayName: `Objekt ${n}`,
+  });
+  const groupAssignment = (groupId: string, extra: object = {}) => ({
+    '@odata.type': '#microsoft.graph.deviceConfigurationAssignment',
+    id: 'a-1',
+    target: { '@odata.type': '#microsoft.graph.groupAssignmentTarget', groupId },
+    ...extra,
+  });
+
+  it('ruft je Objekt genau den passenden v1.0-GET ohne Query auf und mappt die Ziele', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.pathname.endsWith('/assignments')) {
+        return collection([
+          groupAssignment('g-1', { intent: 'required' }),
+          {
+            target: {
+              '@odata.type': '#microsoft.graph.exclusionGroupAssignmentTarget',
+              groupId: 'g-2',
+            },
+          },
+        ]);
+      }
+      return graphError(404, 'NotFound');
+    });
+    const result = expectStatus(
+      await provider.getAssignments(windowsDevice(), [
+        lookup('configuration', 1),
+        lookup('compliance', 2),
+        lookup('app', 3),
+      ]),
+      'ok',
+    );
+    expect(calls.map((c) => [c.method, c.parsed.pathname, c.parsed.search])).toEqual([
+      ['GET', `/v1.0/deviceManagement/deviceConfigurations/${guid(1)}/assignments`, ''],
+      ['GET', `/v1.0/deviceManagement/deviceCompliancePolicies/${guid(2)}/assignments`, ''],
+      ['GET', `/v1.0/deviceAppManagement/mobileApps/${guid(3)}/assignments`, ''],
+    ]);
+    expect(result.data.skipped).toBe(0);
+    expect(result.data.objects.map((o) => o.status)).toEqual(['ok', 'ok', 'ok']);
+    expect(result.data.objects[0]!.assignments).toEqual([
+      { target: { kind: 'group', groupId: 'g-1' }, intent: 'required' },
+      { target: { kind: 'exclusionGroup', groupId: 'g-2' }, intent: null },
+    ]);
+    expect(result.source.kind).toBe('graph');
+  });
+
+  it('begrenzt auf 30 Abrufe (4 parallel) und weist die übrigen Objekte als „skipped“ aus', async () => {
+    let running = 0;
+    let peak = 0;
+    const { provider, calls } = setup(async () => {
+      running += 1;
+      peak = Math.max(peak, running);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      running -= 1;
+      return collection([]);
+    });
+    const lookups = Array.from({ length: 35 }, (_, i) => lookup('configuration', i + 1));
+    const result = expectStatus(await provider.getAssignments(windowsDevice(), lookups), 'ok');
+    expect(calls).toHaveLength(30);
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(result.data.objects).toHaveLength(30);
+    expect(result.data.skipped).toBe(5);
+  });
+
+  it('IDs, die keine GUID sind, werden nicht abgefragt (notEvaluable); 404 → notFound', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname.includes(guid(2)) ? graphError(404, 'ResourceNotFound') : collection([]),
+    );
+    const result = expectStatus(
+      await provider.getAssignments(windowsDevice(), [
+        { kind: 'configuration', id: 'c-1_dev_user', displayName: 'Zusammengesetzt' },
+        lookup('compliance', 2),
+        lookup('compliance', 3),
+      ]),
+      'ok',
+    );
+    expect(calls).toHaveLength(2);
+    expect(result.data.objects.map((o) => o.status)).toEqual(['notEvaluable', 'notFound', 'ok']);
+  });
+
+  it('ohne Objekte: notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    expectStatus(await provider.getAssignments(windowsDevice(), []), 'notApplicable');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('nur nicht abfragbare IDs: ok ohne Request, alle notEvaluable', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getAssignments(windowsDevice(), [
+        { kind: 'configuration', id: 'k-1', displayName: 'Profil' },
+      ]),
+      'ok',
+    );
+    expect(calls).toHaveLength(0);
+    expect(result.data.objects[0]!.status).toBe('notEvaluable');
+  });
+
+  it('403 → ganze Section forbidden mit Scope DeviceManagementConfiguration.Read.All', async () => {
+    const { provider } = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    const result = expectStatus(
+      await provider.getAssignments(windowsDevice(), [lookup('configuration', 1)]),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe('DeviceManagementConfiguration.Read.All');
+  });
+
+  it('schlägt jeder Abruf fehl → error; einzelne Fehler bleiben Objektstatus „error“', async () => {
+    const allFail = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(
+      await allFail.provider.getAssignments(windowsDevice(), [
+        lookup('configuration', 1),
+        lookup('app', 2),
+      ]),
+      'error',
+    );
+    const partial = setup((call) =>
+      call.parsed.pathname.includes(guid(1))
+        ? graphError(500, 'InternalServerError')
+        : collection([]),
+    );
+    const result = expectStatus(
+      await partial.provider.getAssignments(windowsDevice(), [
+        lookup('configuration', 1),
+        lookup('app', 2),
+      ]),
+      'ok',
+    );
+    expect(result.data.objects.map((o) => o.status)).toEqual(['error', 'ok']);
+  });
+
+  it('Abbruch wird weitergereicht', async () => {
+    const { provider } = setup(() => collection([]));
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      provider.getAssignments(windowsDevice(), [lookup('app', 1)], { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});

@@ -50,6 +50,12 @@ Die offenen Fragen je Endpunkt stehen als Checkliste in `docs/graph-api-referenc
 - **Weitere Geräte**: `GET …/managedDevices?$filter=userPrincipalName eq '…'&$select=…` – erwartet 200.
 - **Integritätsnachweis**: `GET …/managedDevices/{id}?$select=deviceHealthAttestationState` – Feldstruktur und Wertebeispiele (ohne Gerätebezug) notieren.
 
+## 4. Erweiterungen aus M14
+
+Die offenen Fragen stehen als Checkliste in `docs/graph-api-reference.md` › „Live zu verifizieren (M14)“. Der Verbindungstest der App (Ansicht „Verbindungstest“, nur Live) ruft jeden Endpunkt einmal auf und zeigt nur Status, Dauer, Anzahl und Feldnamen – daraus lässt sich der Bericht für diese Liste kopieren.
+
+- **Zuweisungen** (Scope `DeviceManagementConfiguration.Read.All`, bereits beim Login): Gerät mit Richtlinien öffnen → `GET …/deviceConfigurations/{id}/assignments`, `…/deviceCompliancePolicies/{id}/assignments`, `…/deviceAppManagement/mobileApps/{id}/assignments`. Prüfen: (a) 200 oder 404 – und ob die `id` aus dem Gerätezustand die Richtlinien-ID ist (bei 404 / nicht-GUID zeigt die App „nicht auswertbar“); (b) Schreibweise von `target/@odata.type` (mit/ohne `#`); (c) `groupId`-Feld bei Gruppenzielen.
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.
