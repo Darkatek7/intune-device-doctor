@@ -805,6 +805,84 @@ export const deRules = {
       providerValue: (state: number | null, type: number | null) =>
         `EnrollmentState ${state ?? '–'}, EnrollmentType ${type ?? '–'}`,
     },
+    /** M11/A: certutil- und ipconfig-Ausgaben (OEM-Codepage) – nur Rohdaten, ohne Bewertung */
+    certsNetwork: {
+      valueNone: 'Keine Daten',
+      value: (certs: number, adapters: number | null) =>
+        [
+          certs > 0 ? `${certs} ${certs === 1 ? 'Zertifikat' : 'Zertifikate'}` : null,
+          adapters !== null ? `${adapters} Adapter` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      summary: 'Rohdaten aus certutil und ipconfig – ohne Bewertung',
+      factCerts: 'Zertifikate',
+      factExpired: (date: string) => `Laut NotAfter abgelaufen (vor ${date})`,
+      factExpiring: 'Läuft innerhalb von 30 Tagen ab',
+      factAdapters: 'Netzwerkadapter',
+      factPrimarySuffix: 'Primäres DNS-Suffix',
+      factSearchList: 'DNS-Suffixsuchliste',
+      certsTitle: (n: number) => `Zertifikate im Speicher (${n})`,
+      certsDetail: (n: number, expired: number, expiring: number, date: string) =>
+        `${n} ${n === 1 ? 'Zertifikat' : 'Zertifikate'} aus certutil. Verglichen mit dem Sammelzeitpunkt (${date}) ist der Ablauf (NotAfter) bei ${expired} überschritten, bei ${expiring} innerhalb von 30 Tagen erreicht.`,
+      certsCause:
+        'Rohdaten aus der certutil-Ausgabe. Zu diesen Zertifikaten gibt es in Microsoft Learn keine allgemeine Bewertung des Ablaufdatums; sie werden deshalb nur angezeigt, nicht gedeutet.',
+      certsRemediation: [
+        'Bei Bedarf das Zertifikat am Gerät prüfen (certlm.msc bzw. „certutil -store“).',
+      ],
+      certsNoneTitle: 'Keine Zertifikate erkannt',
+      certsNoneDetail:
+        'Die certutil-Ausgabe enthielt keine erkennbaren Zertifikatsblöcke (Format oder Sprache unbekannt).',
+      certsNoneCause:
+        'Der Parser kennt die deutsche und englische certutil-Ausgabe; andere Sprachen oder Formate werden nicht ausgewertet.',
+      certsNoneRemediation: ['Ausgabe im Archiv direkt prüfen.'],
+      certLine: (subject: string | null, serial: string | null, until: string, expired: boolean) =>
+        [
+          subject ? `Antragsteller ${subject}` : null,
+          serial ? `Seriennummer ${serial}` : null,
+          `gültig bis ${until}${expired ? ' (abgelaufen)' : ''}`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      untilUnknown: (raw: string | null) => (raw ? `${raw} (Format unbekannt)` : 'unbekannt'),
+      moreCerts: (n: number) => `… und ${n} weitere`,
+      entraRegTitle: 'Zertifikat mit Aussteller „MS-Organization-Access“',
+      entraRegDetail: (n: number) =>
+        `${n} ${n === 1 ? 'Zertifikat' : 'Zertifikate'} mit dem Aussteller „MS-Organization-Access“ im Speicher.`,
+      entraRegCause:
+        'Microsoft Learn nennt das Computerzertifikat mit diesem Aussteller im Zusammenhang mit der Geräteregistrierung (Microsoft Entra ID). Eine Bewertung des Ablaufdatums ist dort nicht beschrieben – die Werte werden nur angezeigt.',
+      entraRegRemediation: [
+        'Zum Zusammenhang siehe die verlinkte Microsoft-Learn-Seite (Geräteregistrierung, dsregcmd /leave).',
+      ],
+      networkTitle: (n: number) => `Netzwerkadapter (ipconfig /all, ${n})`,
+      networkDetail:
+        'Adapter, IPv4-Adressen, DNS-Server und DNS-Suffixe laut ipconfig. MAC-Adressen sind bis auf das Herstellerpräfix maskiert.',
+      networkCause: 'Rohdaten aus ipconfig /all; es erfolgt keine Bewertung.',
+      networkRemediation: [
+        'Bei Verbindungsproblemen die Werte mit der erwarteten Netzwerkkonfiguration vergleichen.',
+      ],
+      networkNoneTitle: 'ipconfig-Ausgabe nicht erkannt',
+      networkNoneDetail: 'In der ipconfig-Ausgabe wurde kein Adapter erkannt.',
+      networkNoneCause:
+        'Der Parser kennt die deutsche und englische ipconfig-Ausgabe; andere Sprachen oder Formate werden nicht ausgewertet.',
+      adapterLine: (
+        ipv4: string[],
+        dns: string[],
+        suffix: string | null,
+        mac: string | null,
+        disconnected: boolean,
+      ) =>
+        disconnected
+          ? 'Medium getrennt'
+          : [
+              `IPv4 ${ipv4.length ? ipv4.join(', ') : '–'}`,
+              `DNS ${dns.length ? dns.join(', ') : '–'}`,
+              suffix ? `Suffix ${suffix}` : null,
+              mac ? `MAC ${mac}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+    },
     collection: {
       valueOk: 'Vollständig',
       valueFailed: (n: number) => `${n} ${n === 1 ? 'Sammlung' : 'Sammlungen'} fehlgeschlagen`,

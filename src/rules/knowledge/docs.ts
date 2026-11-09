@@ -85,4 +85,9 @@ export const Docs = {
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',
+  certutilStore:
+    'https://learn.microsoft.com/windows-server/administration/windows-commands/certutil#-store',
+  ipconfig: 'https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig',
+  entraDeviceRegistrationCert:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/comanage-configmgr/troubleshoot-co-management-auto-enrolling#common-issues',
 } as const;

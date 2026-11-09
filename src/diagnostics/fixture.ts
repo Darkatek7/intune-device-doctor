@@ -5,6 +5,7 @@
  * Format und Encodings: docs/diaglogs-format.md. Browser- und Node-tauglich (keine Node-Imports).
  */
 import { zipSync } from 'fflate';
+import { decodeCp850 } from './parsers/encoding';
 
 export const FIXTURE_FILE_NAME = 'DiagLogs-CONTOSO-PC042-20261014T125356Z.zip';
 
@@ -40,6 +41,16 @@ export function utf16leWithBom(text: string): Uint8Array {
   return out;
 }
 
+/** OEM-Codepage CP850 ohne BOM, wie ipconfig/certutil sie schreiben. Unbekannte Zeichen → "?". */
+export function cp850(text: string): Uint8Array {
+  const reverse = new Map<string, number>();
+  for (let b = 0x80; b <= 0xff; b++) reverse.set(decodeCp850(Uint8Array.of(b)), b);
+  return Uint8Array.from(text, (ch) => {
+    const code = ch.charCodeAt(0);
+    return code < 0x80 ? code : (reverse.get(ch) ?? 0x3f);
+  });
+}
+
 const crlf = (text: string): string => text.replace(/\r?\n/g, CRLF);
 
 // ---------------------------------------------------------------------------
@@ -54,6 +65,8 @@ const RESULTS_XML = crlf(String.raw`<?xml version="1.0" encoding="utf-8"?>
   <RegistryKey HRESULT="-2147024893">HKLM\Software\Microsoft\IntuneManagementExtension</RegistryKey>
   <RegistryKey HRESULT="-2147024895">HKLM\SYSTEM\Setup\SetupDiag\Results</RegistryKey>
   <Command HRESULT="0">%windir%\system32\Dsregcmd.exe /status</Command>
+  <Command HRESULT="0">%windir%\system32\certutil.exe -store My</Command>
+  <Command HRESULT="0">%windir%\system32\ipconfig.exe /all</Command>
   <Events HRESULT="0">System</Events>
   <FoldersFiles HRESULT="0">%ProgramData%\Microsoft\IntuneManagementExtension\Logs\*.*</FoldersFiles>
   <FoldersFiles HRESULT="-2147024893">%ProgramData%\Microsoft\EPMAgent\Logs\*.*</FoldersFiles>
@@ -193,6 +206,75 @@ const DSREGCMD_TEXT =
   ].join(CRLF) + CRLF;
 
 // ---------------------------------------------------------------------------
+// (3a) certutil -store / ipconfig /all (OEM-Codepage CP850, deutsch lokalisiert)
+// ---------------------------------------------------------------------------
+
+const CERTUTIL_TEXT = crlf(`My "Eigene Zertifikate"
+================ Zertifikat 0 ================
+Seriennummer: 0a1b2c3d4e5f60718293a4b5c6d7e8f9
+Aussteller: CN=MS-Organization-Access
+ NotBefore: 01.01.2026 08:00
+ NotAfter: 01.01.2036 08:00
+Antragsteller: CN=00000000-0000-0000-0000-000000000042
+Kein Stammzertifikat
+Zertifikathash(sha1): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01
+  Schlüsselcontainer = {00000000-0000-0000-0000-000000000001}
+Verschlüsselungstest bestanden
+
+================ Zertifikat 1 ================
+Seriennummer: 1122334455667788
+Aussteller: CN=Contoso Geräte-CA, O=Contoso, C=DE
+ NotBefore: 01.10.2025 08:00
+ NotAfter: 01.10.2026 08:00
+Antragsteller: CN=Büro-Gerät-042, O=Contoso
+Kein Stammzertifikat
+Zertifikathash(sha1): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02
+
+================ Zertifikat 2 ================
+Seriennummer: 99aabbccddeeff00
+Aussteller: CN=Contoso Geräte-CA, O=Contoso, C=DE
+ NotBefore: 30.10.2025 08:00
+ NotAfter: 30.10.2026 08:00
+Antragsteller: CN=Größe-Prüfstand-7, O=Contoso
+Kein Stammzertifikat
+Zertifikathash(sha1): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03
+
+CertUtil: -store-Befehl wurde erfolgreich ausgeführt.
+`);
+
+const IPCONFIG_TEXT = crlf(`
+Windows-IP-Konfiguration
+
+   Hostname  . . . . . . . . . . . . : CONTOSO-PC042
+   Primäres DNS-Suffix . . . . . . . : contoso.com
+   Knotentyp . . . . . . . . . . . . : Hybrid
+   IP-Routing aktiviert  . . . . . . : Nein
+   WINS-Proxy aktiviert  . . . . . . : Nein
+   Suchliste für DNS-Suffixe . . . . : contoso.com
+                                       corp.contoso.com
+
+Ethernet-Adapter Ethernet:
+
+   Verbindungsspezifisches DNS-Suffix: contoso.com
+   Beschreibung. . . . . . . . . . . : Contoso Virtual Ethernet
+   Physische Adresse . . . . . . . . : 00-00-5E-00-53-42
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+   IPv4-Adresse  . . . . . . . . . . : 192.0.2.42(Bevorzugt)
+   Subnetzmaske  . . . . . . . . . . : 255.255.255.0
+   Standardgateway . . . . . . . . . : 192.0.2.1
+   DNS-Server  . . . . . . . . . . . : 192.0.2.53
+                                       192.0.2.54
+
+Drahtlos-LAN-Adapter WLAN:
+
+   Medienstatus. . . . . . . . . . . : Medium getrennt
+   Beschreibung. . . . . . . . . . . : Contoso Virtual WLAN
+   Physische Adresse . . . . . . . . : 00-00-5E-00-53-43
+   DHCP aktiviert. . . . . . . . . . : Ja
+`);
+
+// ---------------------------------------------------------------------------
 // (4) IME-Log im CMTrace-Format (UTF-8 mit BOM)
 // ---------------------------------------------------------------------------
 
@@ -269,6 +351,8 @@ export function buildFixtureEntries(): Record<string, Uint8Array> {
     '(2) RegistryKey HKLM_Software_Microsoft_IntuneManagementExtension export.reg':
       utf16leWithBom(IME_REG),
     '(3) Command windir_system32_Dsregcmd_exe_status output.log': utf8(DSREGCMD_TEXT),
+    '(20) Command windir_system32_certutil_exe_-store_My output.log': cp850(CERTUTIL_TEXT),
+    '(21) Command windir_system32_ipconfig_exe_-all output.log': cp850(IPCONFIG_TEXT),
     '(4) FoldersFiles ProgramData_Microsoft_IntuneManagementExtension_Logs/': new Uint8Array(0),
     '(4) FoldersFiles ProgramData_Microsoft_IntuneManagementExtension_Logs/IntuneManagementExtension.log':
       utf8WithBom(IME_LOG_TEXT),

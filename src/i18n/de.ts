@@ -37,6 +37,7 @@ export const de = {
     win32Apps: 'Win32-Apps',
     apps: 'Apps',
     enrollment: 'Enrollment',
+    certsNetwork: 'Zertifikate & Netzwerk',
     diagCollection: 'Diagnosedaten',
   },
   severity: {

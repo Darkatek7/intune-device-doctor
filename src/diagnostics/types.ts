@@ -83,6 +83,40 @@ export interface Win32AppState {
   errorCodeDecimal: number | null;
 }
 
+/** Zertifikat aus `certutil -store` (Antragsteller/Seriennummer bereits maskiert). */
+export interface CertificateInfo {
+  /** Kopfzeile der Ausgabe, z. B. `My "Personal"` (lokalisiert) */
+  store: string | null;
+  /** Aussteller (GUIDs/E-Mail-Adressen maskiert) */
+  issuer: string | null;
+  subjectMasked: string | null;
+  serialMasked: string | null;
+  /** ISO-Zeitstempel; certutil gibt lokale Zeit ohne Zone aus, sie wird hier wie UTC behandelt */
+  notBefore: string | null;
+  notAfter: string | null;
+  /** Ablaufdatum unverändert aus der Ausgabe (falls nicht lesbar: nur dieser Wert) */
+  notAfterRaw: string | null;
+}
+
+/** Adapter aus `ipconfig /all` – reine Rohdaten, MAC-Adresse maskiert. */
+export interface NetworkAdapterInfo {
+  /** Kopfzeile ohne Doppelpunkt, z. B. "Ethernet-Adapter Ethernet" */
+  name: string;
+  description: string | null;
+  macMasked: string | null;
+  dhcpEnabled: boolean | null;
+  mediaDisconnected: boolean;
+  ipv4: string[];
+  dnsServers: string[];
+  dnsSuffix: string | null;
+}
+
+export interface NetworkInfo {
+  primaryDnsSuffix: string | null;
+  dnsSuffixSearchList: string[];
+  adapters: NetworkAdapterInfo[];
+}
+
 export interface DiagnosticsReport {
   fileName: string;
   /** Aus dem Dateinamen DiagLogs-<NAME>-<Zeitstempel>.zip */
@@ -97,6 +131,10 @@ export interface DiagnosticsReport {
   win32Apps: Win32AppState[];
   /** Ausgewählte Fehler-/Warnzeilen aus IME-Logs (begrenzt) */
   imeIssues: CmTraceEntry[];
+  /** Zertifikate aus certutil-Ausgaben (OEM-Codepage); leer, wenn keine Ausgabe im Archiv */
+  certificates: CertificateInfo[];
+  /** Ausgabe von `ipconfig /all` (OEM-Codepage); null, wenn nicht im Archiv */
+  network: NetworkInfo | null;
   /**
    * App-Namen zu Win32-App-IDs (Schlüssel: ID in Kleinschreibung). Stammt nicht aus dem ZIP, sondern
    * wird nach der Analyse über den aktiven Provider (Graph bzw. Mock-Katalog) nachgeladen.

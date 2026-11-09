@@ -6,6 +6,7 @@ import {
   HardDrive,
   Laptop,
   ListChecks,
+  Network,
   Package,
   Shield,
   ShieldCheck,
@@ -27,5 +28,6 @@ export const TILE_ICON: Record<TileId, LucideIcon> = {
   entraJoin: UserCheck,
   win32Apps: Package,
   enrollment: UserPlus,
+  certsNetwork: Network,
   diagCollection: FileArchive,
 };
