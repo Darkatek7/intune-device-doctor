@@ -29,6 +29,8 @@ export const pc050Forbidden: MockScenario = {
       // M14/S3: optionale Scopes LicenseAssignment.Read.All und DeviceManagementServiceConfig.Read.All
       userLicense: { status: 'forbidden' },
       enrollmentLimits: { status: 'forbidden' },
+      // M14/S4: optionaler Scope SecurityAlert.Read.All
+      securityAlerts: { status: 'forbidden' },
       // gleicher Scope wie die Konfigurationsprofile (DeviceManagementConfiguration.Read.All)
       assignments: { status: 'forbidden' },
     };

@@ -24,7 +24,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     signIns: 'warning',
     attestation: 'warning',
   },
-  'CONTOSO-PC027': { defender: 'warning' },
+  'CONTOSO-PC027': { defender: 'warning', securityAlerts: 'critical' }, // M14/S4: offene Defender-Warnung high
   'CONTOSO-PC033': {
     checkIn: 'critical',
     compliance: 'critical',
@@ -54,6 +54,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     laps: 'unknown',
     autopilot: 'unknown',
     registration: 'unknown', // M14/S3: Lizenz und Gerätelimit ohne Berechtigung
+    securityAlerts: 'unknown', // M14/S4: ohne SecurityAlert.Read.All
   },
 };
 
@@ -313,6 +314,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
         'laps',
         'policies',
         'registration',
+        'securityAlerts',
         'signIns',
       ].sort(),
     );
@@ -352,7 +354,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(11);
+    expect(summary.loading).toBe(12);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

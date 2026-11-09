@@ -19,6 +19,7 @@ import type {
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SecurityAlertsInfo,
   SignInsInfo,
   UserLicenseInfo,
   WindowsProtectionInfo,
@@ -61,6 +62,8 @@ export interface MockDeviceFixture {
   healthAttestation?: MockSection<HealthAttestationInfo>;
   /** Optional (M14/S3) – ohne Angabe: Benutzer hat INTUNE_A (Success); ohne primären Benutzer notApplicable. */
   userLicense?: MockSection<UserLicenseInfo>;
+  /** Optional (M14/S4) – ohne Angabe: ok, keine offene Warnung für dieses Gerät. */
+  securityAlerts?: MockSection<SecurityAlertsInfo>;
   /** Optional (M14/S3) – ohne Angabe: zwei Gerätelimit-Konfigurationen (5 und 15 Geräte); ohne Benutzer notApplicable. */
   enrollmentLimits?: MockSection<EnrollmentLimitsInfo>;
   /**

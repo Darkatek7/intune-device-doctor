@@ -422,6 +422,44 @@ export interface EnrollmentLimitsInfo {
   omitted: number;
 }
 
+// ---------- Sicherheitswarnungen (Defender for Endpoint, M14/S4) ----------
+
+export type SecurityAlertSeverityLevel = 'high' | 'medium' | 'low' | 'informational' | 'unknown';
+export type SecurityAlertStatusLevel = 'new' | 'inProgress' | 'resolved' | 'unknown';
+
+/**
+ * Eine offene Warnung, die diesem Gerät zugeordnet ist. Bewusst ohne Personenbezug: keine angemeldeten
+ * Benutzer, keine IP-Adressen, keine Bearbeiter, keine Datei-/Prozess-/Benutzer-Evidenz.
+ */
+export interface SecurityAlertEntry {
+  id: string;
+  title: string | null;
+  severity: SecurityAlertSeverityLevel;
+  status: SecurityAlertStatusLevel;
+  createdDateTime: string | null;
+  lastUpdateDateTime: string | null;
+  categories: string[];
+  /** Link ins Defender-Portal (nur https auf Microsoft-Domains, sonst null) */
+  alertWebUrl: string | null;
+  /** Wie die Warnung dem Gerät zugeordnet wurde */
+  matchedBy: 'azureAdDeviceId' | 'deviceName';
+  /** Risikostufe des Geräts laut Defender (deviceEvidence.riskScore) */
+  deviceRiskScore: string | null;
+  /** Zustand des Defender-Antivirus laut Evidenz (deviceEvidence.defenderAvStatus) */
+  defenderAvStatus: string | null;
+}
+
+export interface SecurityAlertsInfo {
+  /** Nicht behobene Warnungen dieses Geräts, neueste zuerst */
+  alerts: SecurityAlertEntry[];
+  /** Als „resolved“ geführte Warnungen dieses Geräts (ausgeblendet) */
+  resolvedCount: number;
+  /** Anzahl der gelesenen Warnungen (alle Geräte) */
+  evaluated: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden (nur die neuesten Warnungen geprüft) */
+  moreAvailable: boolean;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -449,6 +487,8 @@ export interface DeviceSnapshot {
   userLicense?: SectionResult<UserLicenseInfo>;
   /** Gerätelimit-Konfigurationen des Mandanten (M14/S3, optionaler Scope DeviceManagementServiceConfig.Read.All) */
   enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
+  /** Offene Defender-Warnungen dieses Geräts (M14/S4, optionaler Scope SecurityAlert.Read.All) */
+  securityAlerts?: SectionResult<SecurityAlertsInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
   deviceGroups?: SectionResult<DeviceGroupsInfo>;
   /**
@@ -484,6 +524,7 @@ export type TileId =
   | 'groups'
   | 'attestation'
   | 'registration'
+  | 'securityAlerts'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -550,6 +591,7 @@ export type SnapshotSectionKey =
   | 'healthAttestation'
   | 'userLicense'
   | 'enrollmentLimits'
+  | 'securityAlerts'
   | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */

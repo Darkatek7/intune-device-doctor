@@ -22,6 +22,8 @@ import type {
   ManagedDeviceInfo,
   PolicySettingInfo,
   PolicyStateInfo,
+  SecurityAlertEntry,
+  SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
   WindowsProtectionInfo,
@@ -508,6 +510,34 @@ export function enrollmentLimit(
     targets: [{ kind: 'allUsers' }],
     ...overrides,
   };
+}
+
+/** Eine offene Defender-Warnung (fiktiv) – Standard: neu, mittlere Schwere, vor 2 Stunden erzeugt. */
+export function securityAlert(
+  now: Date,
+  n: number,
+  title: string,
+  overrides: Partial<SecurityAlertEntry> = {},
+): SecurityAlertEntry {
+  return {
+    id: `da6375512276775608${String(n).padStart(2, '0')}_-961444813`,
+    title,
+    severity: 'medium',
+    status: 'new',
+    createdDateTime: ago(now, { hours: 2 }),
+    lastUpdateDateTime: ago(now, { hours: 1 }),
+    categories: ['Execution'],
+    alertWebUrl: `https://security.microsoft.com/alerts/da6375512276775608${String(n).padStart(2, '0')}_-961444813`,
+    matchedBy: 'azureAdDeviceId',
+    deviceRiskScore: 'medium',
+    defenderAvStatus: 'updated',
+    ...overrides,
+  };
+}
+
+/** Standard: Defender kennt für dieses Gerät keine offene Warnung (42 Warnungen des Mandanten gelesen). */
+export function defaultSecurityAlerts(): SecurityAlertsInfo {
+  return { alerts: [], resolvedCount: 0, evaluated: 42, moreAvailable: false };
 }
 
 /** Standard: Gruppe „Außendienst“ (Priorität 1, Limit 15) vor der Standardkonfiguration (Priorität 2, Limit 5). */

@@ -10,7 +10,7 @@ import {
   policyState,
   signInDto,
 } from '../providers/graph/fakeGraph';
-import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
+import type { GraphManagedDevice, GraphSecurityAlert, GraphWindowsProtectionState } from './dto';
 import {
   graphSource,
   isGuid,
@@ -30,10 +30,12 @@ import {
   mapManagedDevice,
   mapPolicyState,
   mapSearchResult,
+  mapSecurityAlerts,
   mapSignIns,
   mapUserDevices,
   mapVolumeType,
   mapWindowsProtection,
+  safeAlertWebUrl,
   splitProductStatus,
 } from './mappers';
 import { Endpoints } from './endpoints';
@@ -1027,5 +1029,217 @@ describe('Gerätelimit (M14/S3)', () => {
     );
     expect(config).toMatchObject({ id: 'c', displayName: 'c', priority: null, limit: null });
     expect(mapEnrollmentLimits(null, new Map())).toEqual([]);
+  });
+});
+
+describe('mapSecurityAlerts (M14/S4)', () => {
+  const DEVICE = {
+    azureAdDeviceId: '11111111-2222-3333-4444-555555555555',
+    deviceName: 'CONTOSO-PC042',
+  };
+  const evidence = (extra: object = {}) => ({
+    '@odata.type': '#microsoft.graph.security.deviceEvidence',
+    azureAdDeviceId: DEVICE.azureAdDeviceId,
+    riskScore: 'high',
+    defenderAvStatus: 'updated',
+    ...extra,
+  });
+  const alert = (id: string, extra: Partial<GraphSecurityAlert> = {}): GraphSecurityAlert => ({
+    id,
+    title: `Titel ${id}`,
+    severity: 'medium',
+    status: 'new',
+    createdDateTime: '2026-11-09T08:00:00Z',
+    lastUpdateDateTime: '2026-11-09T09:00:00Z',
+    categories: ['Execution'],
+    alertWebUrl: `https://security.microsoft.com/alerts/${id}`,
+    evidence: [evidence()],
+    ...extra,
+  });
+
+  it('ordnet über die Entra-Geräte-ID zu (ohne Beachtung der Groß-/Kleinschreibung) und mappt die Whitelist', () => {
+    const info = mapSecurityAlerts(
+      [
+        alert('a1', {
+          evidence: [evidence({ azureAdDeviceId: DEVICE.azureAdDeviceId.toUpperCase() })],
+        }),
+      ],
+      DEVICE,
+      { moreAvailable: false },
+    );
+    expect(info.evaluated).toBe(1);
+    expect(info.resolvedCount).toBe(0);
+    expect(info.alerts).toEqual([
+      {
+        id: 'a1',
+        title: 'Titel a1',
+        severity: 'medium',
+        status: 'new',
+        createdDateTime: '2026-11-09T08:00:00Z',
+        lastUpdateDateTime: '2026-11-09T09:00:00Z',
+        categories: ['Execution'],
+        alertWebUrl: 'https://security.microsoft.com/alerts/a1',
+        matchedBy: 'azureAdDeviceId',
+        deviceRiskScore: 'high',
+        defenderAvStatus: 'updated',
+      },
+    ]);
+  });
+
+  it('ein anderes Gerät mit gleichem Namen passt nicht, wenn beide Seiten eine Geräte-ID haben', () => {
+    const other = alert('a2', {
+      evidence: [
+        evidence({
+          azureAdDeviceId: '99999999-2222-3333-4444-555555555555',
+          hostName: 'CONTOSO-PC042',
+        }),
+      ],
+    });
+    expect(mapSecurityAlerts([other], DEVICE, { moreAvailable: false }).alerts).toEqual([]);
+  });
+
+  it('ohne Geräte-ID in der Evidenz zählt der Name (hostName oder deviceDnsName vor dem ersten Punkt, ohne Groß-/Kleinschreibung)', () => {
+    const byHost = alert('h', {
+      evidence: [evidence({ azureAdDeviceId: null, hostName: 'contoso-pc042' })],
+    });
+    const byDns = alert('d', {
+      evidence: [
+        evidence({ azureAdDeviceId: null, deviceDnsName: 'Contoso-PC042.corp.contoso.com' }),
+      ],
+    });
+    const wrong = alert('w', {
+      evidence: [evidence({ azureAdDeviceId: null, hostName: 'CONTOSO-PC043' })],
+    });
+    const info = mapSecurityAlerts([byHost, byDns, wrong], DEVICE, { moreAvailable: false });
+    expect(info.alerts.map((a) => [a.id, a.matchedBy]).sort()).toEqual([
+      ['d', 'deviceName'],
+      ['h', 'deviceName'],
+    ]);
+  });
+
+  it('ohne Geräte-ID am Gerät entscheidet der Name; nicht-Geräte-Evidenz wird ignoriert', () => {
+    const noId = { azureAdDeviceId: null, deviceName: 'CONTOSO-PC042' };
+    const fileOnly = alert('f', {
+      evidence: [
+        { '@odata.type': '#microsoft.graph.security.fileEvidence', hostName: 'CONTOSO-PC042' },
+      ],
+    });
+    const named = alert('n', {
+      evidence: [evidence({ azureAdDeviceId: 'x', hostName: 'CONTOSO-PC042' })],
+    });
+    expect(
+      mapSecurityAlerts([fileOnly, named], noId, { moreAvailable: false }).alerts.map((a) => a.id),
+    ).toEqual(['n']);
+  });
+
+  it('blendet behobene Warnungen aus (zählt sie), dedupliziert IDs und sortiert neueste zuerst', () => {
+    const info = mapSecurityAlerts(
+      [
+        alert('old', { createdDateTime: '2026-11-01T00:00:00Z' }),
+        alert('done', { status: 'resolved' }),
+        alert('new', { createdDateTime: '2026-11-09T10:00:00Z' }),
+        alert('new', { createdDateTime: '2026-11-09T10:00:00Z' }),
+      ],
+      DEVICE,
+      { moreAvailable: true },
+    );
+    expect(info.alerts.map((a) => a.id)).toEqual(['new', 'old']);
+    expect(info.resolvedCount).toBe(1);
+    expect(info.evaluated).toBe(4);
+    expect(info.moreAvailable).toBe(true);
+  });
+
+  it('unbekannte Enum-Werte werden zu unknown bzw. null; fehlende Felder sind unkritisch', () => {
+    const info = mapSecurityAlerts(
+      [
+        {
+          id: 'u',
+          severity: 'unknownFutureValue',
+          status: 'unknownFutureValue',
+          evidence: [evidence({ riskScore: 'bogus', defenderAvStatus: 'bogus' })],
+        } as never,
+        null as never,
+        { title: 'ohne ID', evidence: [evidence()] } as never,
+      ],
+      DEVICE,
+      { moreAvailable: false },
+    );
+    expect(info.alerts).toHaveLength(1);
+    expect(info.alerts[0]).toMatchObject({
+      id: 'u',
+      title: null,
+      severity: 'unknown',
+      status: 'unknown',
+      categories: [],
+      alertWebUrl: null,
+      deviceRiskScore: null,
+      defenderAvStatus: null,
+    });
+    expect(mapSecurityAlerts(null, DEVICE, { moreAvailable: false }).alerts).toEqual([]);
+  });
+
+  it('übernimmt keine Personen- oder Netzwerkdaten (loggedOnUsers, ipInterfaces, assignedTo, Kommentare, Benutzer-Evidenz)', () => {
+    const personal = {
+      ...alert('p'),
+      assignedTo: 'max.mustermann@contoso.com',
+      comments: [{ comment: 'Rückruf bei Max Mustermann', createdByDisplayName: 'Erika Beispiel' }],
+      description: 'Beschreibung mit Max Mustermann',
+      evidence: [
+        evidence({
+          loggedOnUsers: [{ accountName: 'mmustermann', domainName: 'CONTOSO' }],
+          ipInterfaces: ['10.20.30.40'],
+          deviceDnsName: 'contoso-pc042.corp.contoso.com',
+          tags: ['VIP'],
+        }),
+        {
+          '@odata.type': '#microsoft.graph.security.userEvidence',
+          userAccount: {
+            userPrincipalName: 'max.mustermann@contoso.com',
+            displayName: 'Max Mustermann',
+          },
+        },
+      ],
+    };
+    const json = JSON.stringify(mapSecurityAlerts([personal], DEVICE, { moreAvailable: false }));
+    for (const forbidden of [
+      'max.mustermann',
+      'Mustermann',
+      'mmustermann',
+      'Erika',
+      '10.20.30.40',
+      'loggedOnUsers',
+      'ipInterfaces',
+      'assignedTo',
+      'comment',
+      'userAccount',
+      'VIP',
+      'corp.contoso.com',
+      'description',
+    ]) {
+      expect(json, forbidden).not.toContain(forbidden);
+    }
+  });
+});
+
+describe('safeAlertWebUrl (M14/S4)', () => {
+  it('erlaubt nur https auf Microsoft-Domains', () => {
+    expect(safeAlertWebUrl('https://security.microsoft.com/alerts/x?tid=abc')).toBe(
+      'https://security.microsoft.com/alerts/x?tid=abc',
+    );
+    expect(safeAlertWebUrl('https://security.microsoft.us/alerts/x')).not.toBeNull();
+    for (const bad of [
+      'http://security.microsoft.com/alerts/x',
+      'javascript:alert(1)',
+      'https://evil.example.com/alerts/x',
+      'https://security.microsoft.com.evil.example/alerts/x',
+      'https://notmicrosoft.com/x',
+      '',
+      '   ',
+      null,
+      undefined,
+      42,
+    ]) {
+      expect(safeAlertWebUrl(bad), String(bad)).toBeNull();
+    }
   });
 });

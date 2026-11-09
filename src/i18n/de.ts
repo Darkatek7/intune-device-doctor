@@ -41,6 +41,7 @@ export const de = {
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
     registration: 'Registrierung (Benutzer)',
+    securityAlerts: 'Sicherheitswarnungen',
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -152,6 +153,9 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S4: Sicherheitswarnungen
+    securityAlertsNotReported:
+      'Graph meldet HTTP 404 für die Sicherheitswarnungen – über diese Schnittstelle nicht verfügbar.',
     // M14/S3: Registrierung des Benutzers
     licenseNoPrimaryUser:
       'Das Gerät hat keinen primären Benutzer – es gibt keine Lizenz zu prüfen.',
@@ -198,6 +202,7 @@ export const de = {
   links: {
     openApp: 'App im Intune Admin Center öffnen',
     assignIntuneLicense: 'Intune-Lizenzen zuweisen (Microsoft Learn)',
+    openInDefender: 'Im Defender-Portal öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     openDeviceInventory: 'Geräteinventar im Intune Admin Center',

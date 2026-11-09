@@ -25,6 +25,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SecurityAlertsInfo,
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
@@ -45,6 +46,7 @@ import type {
   GraphDirectoryObject,
   GraphEntraDevice,
   GraphLicenseDetails,
+  GraphSecurityAlert,
   GraphManagedDevice,
   GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
@@ -61,6 +63,7 @@ import {
   MAX_ASSIGNMENT_LOOKUPS,
   MAX_ENROLLMENT_LIMIT_CONFIGS,
   MAX_LIST_PAGES,
+  MAX_SECURITY_ALERT_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -85,6 +88,7 @@ import {
   mapPolicyState,
   mapSearchResult,
   mapSignIns,
+  mapSecurityAlerts,
   mapUserLicense,
   mapWindowsProtection,
 } from '../../graph/mappers';
@@ -688,6 +692,44 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapUserLicense(entries), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.licenseNotReported, source }),
+    );
+  }
+
+  /**
+   * Sicherheitswarnungen (M14/S4): `GET /security/alerts_v2` gefiltert auf Defender for Endpoint, höchstens
+   * MAX_SECURITY_ALERT_PAGES Seiten (neueste zuerst). Ein Filter auf das Gerät ist nicht dokumentiert →
+   * die Zuordnung (Entra-Geräte-ID, sonst Gerätename) geschieht clientseitig; behobene Warnungen werden
+   * ausgeblendet. Optionaler Scope SecurityAlert.Read.All.
+   */
+  getSecurityAlerts(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<SecurityAlertsInfo>> {
+    const endpoint = Endpoints.securityAlerts;
+    return this.run<SecurityAlertsInfo>(
+      'securityAlerts',
+      async (source) => {
+        const entries: GraphSecurityAlert[] = [];
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_SECURITY_ALERT_PAGES) {
+          const page: GraphCollection<GraphSecurityAlert> | undefined = await this.client.get<
+            GraphCollection<GraphSecurityAlert>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          if (Array.isArray(page?.value)) entries.push(...page.value);
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(
+          mapSecurityAlerts(
+            entries,
+            { azureAdDeviceId: usableAzureAdId(device), deviceName: device.deviceName },
+            { moreAvailable: Boolean(next) },
+          ),
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.securityAlertsNotReported, source }),
     );
   }
 

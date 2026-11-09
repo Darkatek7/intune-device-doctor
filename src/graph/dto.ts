@@ -610,3 +610,45 @@ export interface GraphDeviceEnrollmentConfiguration {
   /** Nur bei deviceEnrollmentLimitConfiguration: maximale Zahl der Geräte, die ein Benutzer registrieren darf */
   limit?: number | null;
 }
+
+// ---------- Sicherheitswarnungen (v1.0, security/alerts_v2) – M14/S4 ----------
+// https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/security-alert?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/security-deviceevidence?view=graph-rest-1.0
+// Scope SecurityAlert.Read.All (optional). Die Liste kennt kein $select; die Antwort enthält deshalb mehr
+// Felder, als hier deklariert sind (u. a. loggedOnUsers, ipInterfaces, assignedTo, Benutzer-/Datei-
+// Evidenz). Deklariert – und im Mapper übernommen – wird nur diese Whitelist ohne Personenbezug.
+
+/** alert.severity */
+export type SecurityAlertSeverity =
+  'unknown' | 'informational' | 'low' | 'medium' | 'high' | 'unknownFutureValue';
+
+/** alert.status (alertStatus) */
+export type SecurityAlertStatus =
+  'unknown' | 'new' | 'inProgress' | 'resolved' | 'unknownFutureValue';
+
+/** Nur die Felder von microsoft.graph.security.deviceEvidence, die zur Zuordnung und Anzeige dienen. */
+export interface GraphSecurityDeviceEvidence {
+  '@odata.type'?: string | null;
+  azureAdDeviceId?: string | null;
+  mdeDeviceId?: string | null;
+  deviceDnsName?: string | null;
+  hostName?: string | null;
+  /** deviceRiskScore: none | informational | low | medium | high | unknownFutureValue */
+  riskScore?: string | null;
+  /** defenderAvStatus: notReporting | disabled | notUpdated | updated | unknown | notSupported | unknownFutureValue */
+  defenderAvStatus?: string | null;
+}
+
+export interface GraphSecurityAlert {
+  id: string;
+  title?: string | null;
+  severity?: SecurityAlertSeverity | null;
+  status?: SecurityAlertStatus | null;
+  createdDateTime?: string | null;
+  lastUpdateDateTime?: string | null;
+  categories?: string[] | null;
+  alertWebUrl?: string | null;
+  /** Gemischte Evidenz-Typen; gelesen werden nur #microsoft.graph.security.deviceEvidence-Einträge. */
+  evidence?: GraphSecurityDeviceEvidence[] | null;
+}

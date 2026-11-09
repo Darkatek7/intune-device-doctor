@@ -17,6 +17,7 @@ import { evaluateAutopilot } from './tiles/autopilot';
 import { evaluateGroups } from './tiles/groups';
 import { evaluateLaps } from './tiles/laps';
 import { evaluateRegistration } from './tiles/registration';
+import { evaluateSecurityAlerts } from './tiles/securityAlerts';
 import { evaluateSignIns } from './tiles/signIns';
 import { evaluateDiagnosticsTiles } from './tiles/diagnostics';
 import { de } from '../i18n/de';
@@ -30,6 +31,7 @@ export const TILE_ORDER: TileId[] = [
   'osVersion',
   'bitlocker',
   'defender',
+  'securityAlerts',
   'policies',
   'apps',
   'signIns',
@@ -54,6 +56,7 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
     evaluateOsVersion(snapshot, now),
     evaluateBitLocker(snapshot, now),
     evaluateDefender(snapshot, now),
+    evaluateSecurityAlerts(snapshot, now),
     evaluatePolicies(snapshot, now),
   ];
   // App-Status (Graph beta) liefert in vielen Tenants keine Daten → Kachel nur, wenn Daten kamen;

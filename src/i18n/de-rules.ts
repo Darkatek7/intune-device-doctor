@@ -22,6 +22,8 @@ export const deRules = {
         'Das Anmeldeprotokoll erfordert laut Microsoft Entra ID P1/P2 und für das Konto eine Entra-Rolle wie Global Reader, Reports Reader, Security Administrator, Security Operator oder Security Reader.',
       'LicenseAssignment.Read.All':
         'Die Lizenzdetails eines Benutzers darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Directory Readers, License Administrator oder User Administrator hat (oder eine benutzerdefinierte Rolle mit microsoft.directory/users/licenseDetails/read).',
+      'SecurityAlert.Read.All':
+        'Sicherheitswarnungen darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Security Reader, Global Reader, Security Operator oder Security Administrator hat.',
       'DeviceLocalCredential.ReadBasic.All':
         'Für die LAPS-Metadaten braucht das Konto laut Microsoft eine Entra-Rolle wie Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Administrator, Security Reader oder Global Reader.',
     } as Record<string, string>,
@@ -109,6 +111,99 @@ export const deRules = {
     unknown: 'Unbekannt',
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
+  },
+  /** M14/S4: Kachel „Sicherheitswarnungen“ – offene Defender-for-Endpoint-Warnungen dieses Geräts */
+  securityAlerts: {
+    valueNone: 'Keine offenen Warnungen',
+    valueOpen: (n: number) => (n === 1 ? '1 offene Warnung' : `${n} offene Warnungen`),
+    summaryNone: (evaluated: number, more: boolean) =>
+      `Keine offene Defender-Warnung für dieses Gerät unter ${more ? 'den neuesten ' : ''}${evaluated} Warnungen`,
+    summary: (open: number, high: number, medium: number) =>
+      `${open === 1 ? '1 offene Warnung' : `${open} offene Warnungen`} (${high} hoch, ${medium} mittel)`,
+    facts: {
+      open: 'Offene Warnungen',
+      highMedium: 'Davon hoch / mittel',
+      resolved: 'Behoben (ausgeblendet)',
+      deviceRisk: 'Geräterisiko (Defender)',
+      latest: 'Neueste Warnung',
+      evaluated: 'Geprüfte Warnungen',
+      evaluatedMore: (n: number) => `${n} (nur die neuesten)`,
+    },
+    severity: {
+      high: 'Hoch',
+      medium: 'Mittel',
+      low: 'Niedrig',
+      informational: 'Information',
+      unknown: 'Unbekannt',
+    } as Record<string, string>,
+    status: { new: 'Neu', inProgress: 'In Bearbeitung', unknown: 'Unbekannt' } as Record<
+      string,
+      string
+    >,
+    risk: {
+      none: 'keines',
+      informational: 'Information',
+      low: 'niedrig',
+      medium: 'mittel',
+      high: 'hoch',
+    } as Record<string, string>,
+    untitled: 'Warnung ohne Titel',
+    alertDetail: (p: {
+      severity: string;
+      status: string;
+      created: string | null;
+      categories: string[];
+      byName: boolean;
+    }) =>
+      [
+        `Schweregrad: ${p.severity} · Status: ${p.status}${p.created ? ` · erzeugt ${p.created}` : ''}.`,
+        p.categories.length > 0 ? `Kategorien: ${p.categories.join(', ')}.` : null,
+        p.byName
+          ? 'Zuordnung über den Gerätenamen (die Warnung enthält keine Entra-Geräte-ID).'
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    /** Bedeutung des Schweregrads laut Microsoft Learn (Defender-for-Endpoint-Warnungsliste) */
+    causeBySeverity: {
+      high: 'Microsoft Defender for Endpoint stuft die Warnung als hohes Risiko ein: Solche Warnungen sind typisch für fortgeschrittene Angriffe, z. B. Diebstahl von Anmeldedaten, Ransomware-Aktivität oder Manipulation von Sicherheitssensoren.',
+      medium:
+        'Defender for Endpoint hat Verhalten erkannt, das zu einem fortgeschrittenen Angriff gehören kann (z. B. auffällige Registryänderung oder Ausführung verdächtiger Dateien). Es kann auch von internen Sicherheitstests stammen, erfordert laut Microsoft aber eine Untersuchung.',
+      low: 'Defender for Endpoint hat eine Bedrohung durch weit verbreitete Malware oder Hacking-Werkzeuge erkannt. Das deutet laut Microsoft oft nicht auf einen gezielten Angriff hin und kann auch vom Test eines Sicherheitswerkzeugs stammen.',
+      informational:
+        'Defender for Endpoint meldet einen Hinweis, der nicht zwingend schädlich ist, aber das Sicherheitsbewusstsein fördern soll.',
+      unknown:
+        'Defender for Endpoint hat zu dieser Warnung keinen Schweregrad gemeldet. Was erkannt wurde, steht in der Warnung im Defender-Portal.',
+    } as Record<string, string>,
+    remediation: [
+      'Warnung im Defender-Portal öffnen (Link) und dort Warnungsverlauf, betroffene Objekte und Untersuchungsstatus prüfen.',
+      'Bearbeitung (Zuweisung, Klassifizierung, Behebung) erfolgt im Defender-Portal durch das Security-Team – MDM Doctor ändert nichts.',
+      'Nach der Behebung der Warnung im Defender-Portal verschwindet sie hier (behobene Warnungen werden ausgeblendet).',
+    ],
+    moreTitle: (n: number) =>
+      n === 1 ? '1 weitere offene Warnung' : `${n} weitere offene Warnungen`,
+    moreDetail: (shown: number) =>
+      `Angezeigt werden die ${shown} schwerwiegendsten bzw. neuesten offenen Warnungen.`,
+    moreCause: 'Die Kachel zeigt aus Platzgründen nur eine begrenzte Zahl einzelner Warnungen.',
+    moreRemediation: [
+      'Alle Warnungen des Geräts im Defender-Portal unter „Investigation & response › Incidents & alerts › Alerts“ ansehen.',
+    ],
+    partialTitle: 'Nur die neuesten Warnungen geprüft',
+    partialDetail: (evaluated: number) =>
+      `Gelesen wurden die neuesten ${evaluated} Defender-for-Endpoint-Warnungen des Mandanten; weitere Seiten wurden nicht gelesen.`,
+    partialCause:
+      'Graph liefert die Warnungen seitenweise (neueste zuerst). Für ein Gerät lässt sich laut Dokumentation nicht filtern, deshalb liest MDM Doctor höchstens drei Seiten à 100 Warnungen und ordnet sie clientseitig zu.',
+    partialRemediation: [
+      'Ältere Warnungen dieses Geräts auf der Geräteseite im Defender-Portal („Incidents and alerts“) prüfen.',
+    ],
+    noneTitle: 'Keine offene Warnung für dieses Gerät',
+    noneDetail: (evaluated: number, more: boolean, resolved: number) =>
+      `Unter ${more ? 'den neuesten ' : ''}${evaluated} Defender-for-Endpoint-Warnungen des Mandanten gehört keine offene zu diesem Gerät${resolved > 0 ? ` (${resolved} behobene ausgeblendet)` : ''}.`,
+    noneCause:
+      'Für dieses Gerät ist unter den gelesenen Warnungen keine offene vorhanden. Das schließt nicht aus, dass es ältere Warnungen gibt oder andere Dienste (z. B. Defender for Identity) Warnungen zum Gerät führen – gelesen werden nur Warnungen von Defender for Endpoint.',
+    noneRemediation: [
+      'Keine Aktion nötig. Weitere Warnungen und Vorfälle zum Gerät im Defender-Portal ansehen.',
+    ],
   },
   /** M14/S3: Kachel „Registrierung (Benutzer)“ – Lizenz und Gerätelimit des primären Benutzers */
   registration: {

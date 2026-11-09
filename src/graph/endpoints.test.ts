@@ -197,3 +197,21 @@ describe('Endpunkte – Registrierung: Lizenz und Gerätelimit (M14/S3)', () => 
     }
   });
 });
+
+describe('Endpunkte – Sicherheitswarnungen (M14/S4)', () => {
+  it('securityAlerts: v1.0-GET /security/alerts_v2 nur mit dokumentierten Parametern ($filter auf serviceSource, $top), optionaler Scope SecurityAlert.Read.All', () => {
+    const def = Endpoints.securityAlerts;
+    const url = new URL(`https://graph.microsoft.com/v1.0${def.path()}`);
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    expect(url.pathname).toBe('/v1.0/security/alerts_v2');
+    expect(url.searchParams.get('$filter')).toBe("serviceSource eq 'microsoftDefenderForEndpoint'");
+    expect(url.searchParams.get('$top')).toBe('100');
+    // laut Doku nur $count, $filter, $skip, $top → kein $select/$orderby/$expand
+    expect([...url.searchParams.keys()].sort()).toEqual(['$filter', '$top']);
+    expect(def.scope).toBe('SecurityAlert.Read.All');
+    expect(OPTIONAL_SCOPES).toContain(def.scope);
+    expect(LOGIN_SCOPES).not.toContain(def.scope);
+    expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+});

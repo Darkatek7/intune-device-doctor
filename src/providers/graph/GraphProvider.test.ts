@@ -1384,3 +1384,146 @@ describe('GraphProvider – Registrierung: Lizenz und Gerätelimit (M14/S3)', ()
     );
   });
 });
+
+describe('GraphProvider – Sicherheitswarnungen (M14/S4)', () => {
+  const ALERTS_PATH = '/v1.0/security/alerts_v2';
+  const evidence = (extra: object = {}) => ({
+    '@odata.type': '#microsoft.graph.security.deviceEvidence',
+    azureAdDeviceId: PC001_ENTRA_ID,
+    riskScore: 'medium',
+    defenderAvStatus: 'updated',
+    ...extra,
+  });
+  const alertDto = (id: string, extra: object = {}) => ({
+    id,
+    title: `Titel ${id}`,
+    severity: 'high',
+    status: 'new',
+    createdDateTime: '2026-11-09T08:00:00Z',
+    lastUpdateDateTime: '2026-11-09T09:00:00Z',
+    categories: ['Execution'],
+    alertWebUrl: `https://security.microsoft.com/alerts/${id}`,
+    evidence: [evidence()],
+    ...extra,
+  });
+
+  it('liest GET /security/alerts_v2 mit Filter und $top, ordnet clientseitig zu und blendet behobene aus', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname === ALERTS_PATH
+        ? collection([
+            alertDto('mine'),
+            alertDto('done', { status: 'resolved' }),
+            alertDto('other', {
+              evidence: [evidence({ azureAdDeviceId: 'ffffffff-0000-0000-0000-000000000001' })],
+            }),
+          ])
+        : graphError(404, 'NotFound'),
+    );
+    const result = expectStatus(await provider.getSecurityAlerts(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.pathname).toBe(ALERTS_PATH);
+    expect(calls[0]!.parsed.searchParams.get('$filter')).toBe(
+      "serviceSource eq 'microsoftDefenderForEndpoint'",
+    );
+    expect(calls[0]!.parsed.searchParams.get('$top')).toBe('100');
+    expect(result.data.alerts.map((a) => a.id)).toEqual(['mine']);
+    expect(result.data.resolvedCount).toBe(1);
+    expect(result.data.evaluated).toBe(3);
+    expect(result.data.moreAvailable).toBe(false);
+    expect(result.source.label).toBe(Endpoints.securityAlerts.display);
+  });
+
+  it('liest höchstens 3 Seiten und meldet moreAvailable', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [alertDto(`a${++n}`)],
+        '@odata.nextLink': `https://graph.microsoft.com${ALERTS_PATH}?$skiptoken=${n}`,
+      }),
+    );
+    const result = expectStatus(await provider.getSecurityAlerts(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(3);
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    expect(result.data.alerts).toHaveLength(3);
+    expect(result.data.evaluated).toBe(3);
+    expect(result.data.moreAvailable).toBe(true);
+  });
+
+  it('endet ohne moreAvailable, wenn kein nextLink mehr kommt', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [alertDto(`b${++n}`)],
+        ...(n < 2
+          ? { '@odata.nextLink': `https://graph.microsoft.com${ALERTS_PATH}?$skiptoken=${n}` }
+          : {}),
+      }),
+    );
+    const result = expectStatus(await provider.getSecurityAlerts(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(2);
+    expect(result.data.moreAvailable).toBe(false);
+  });
+
+  it('ordnet ohne Entra-Geräte-ID über den Gerätenamen zu', async () => {
+    const { provider } = setup(() =>
+      collection([
+        alertDto('byName', {
+          evidence: [evidence({ azureAdDeviceId: null, hostName: 'contoso-pc001' })],
+        }),
+      ]),
+    );
+    const result = expectStatus(
+      await provider.getSecurityAlerts(
+        windowsDevice({ azureADDeviceId: null, deviceName: 'CONTOSO-PC001' }),
+      ),
+      'ok',
+    );
+    expect(result.data.alerts.map((a) => [a.id, a.matchedBy])).toEqual([['byName', 'deviceName']]);
+  });
+
+  it('403 → forbidden mit Scope SecurityAlert.Read.All; 404 → unavailable; 500 → error', async () => {
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getSecurityAlerts(windowsDevice()), 'forbidden').error
+        .requiredScope,
+    ).toBe('SecurityAlert.Read.All');
+    expectStatus(
+      await setup(() => graphError(404, 'NotFound')).provider.getSecurityAlerts(windowsDevice()),
+      'unavailable',
+    );
+    expectStatus(
+      await setup(() => graphError(500, 'InternalServerError')).provider.getSecurityAlerts(
+        windowsDevice(),
+      ),
+      'error',
+    );
+  });
+
+  it('personenbezogene Felder der Antwort gelangen nicht in das Ergebnis', async () => {
+    const { provider } = setup(() =>
+      collection([
+        alertDto('p', {
+          assignedTo: 'max.mustermann@contoso.com',
+          evidence: [
+            evidence({
+              loggedOnUsers: [{ accountName: 'mmustermann' }],
+              ipInterfaces: ['10.0.0.9'],
+            }),
+          ],
+        }),
+      ]),
+    );
+    const result = expectStatus(await provider.getSecurityAlerts(windowsDevice()), 'ok');
+    const json = JSON.stringify(result);
+    for (const forbidden of [
+      'mustermann',
+      '10.0.0.9',
+      'loggedOnUsers',
+      'ipInterfaces',
+      'assignedTo',
+    ]) {
+      expect(json, forbidden).not.toContain(forbidden);
+    }
+  });
+});

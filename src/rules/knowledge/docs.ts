@@ -158,6 +158,16 @@ export const Docs = {
     'https://learn.microsoft.com/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0',
   enrollmentConfigurationsList:
     'https://learn.microsoft.com/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
+  // M14/S4: Sicherheitswarnungen (abgerufen 2026-11-09)
+  securityAlertsList:
+    'https://learn.microsoft.com/graph/api/security-list-alerts_v2?view=graph-rest-1.0',
+  securityAlertResource:
+    'https://learn.microsoft.com/graph/api/resources/security-alert?view=graph-rest-1.0',
+  securityDeviceEvidence:
+    'https://learn.microsoft.com/graph/api/resources/security-deviceevidence?view=graph-rest-1.0',
+  /** Defender-Warteschlange: Schweregrade, Status, Dienstquellen */
+  defenderAlertsQueue: 'https://learn.microsoft.com/defender-endpoint/alerts-queue',
+  defenderInvestigateAlerts: 'https://learn.microsoft.com/defender-endpoint/investigate-alerts',
   // M14/S2: Zuweisungen (abgerufen 2026-11-09)
   configurationAssignmentsList:
     'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',

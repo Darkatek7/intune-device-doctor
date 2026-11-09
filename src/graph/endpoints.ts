@@ -59,6 +59,9 @@ export const MAX_ASSIGNMENT_LOOKUPS = 30;
 export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
 /** Gerätelimit (M14/S3): höchstens so viele Limit-Konfigurationen mit Zuweisungen lesen. */
 export const MAX_ENROLLMENT_LIMIT_CONFIGS = 10;
+/** Sicherheitswarnungen (M14/S4): Seitengröße der Abfrage ($top) und höchstens so viele Seiten lesen. */
+export const SECURITY_ALERTS_PAGE_SIZE = 100;
+export const MAX_SECURITY_ALERT_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments (Profile, Richtlinien, Apps)';
 
@@ -419,6 +422,28 @@ export const Endpoints = {
     display: 'GET /deviceManagement/deviceEnrollmentConfigurations/{id}/assignments',
     path: (configurationId: string) =>
       `/deviceManagement/deviceEnrollmentConfigurations/${enc(configurationId)}/assignments`,
+  },
+  /**
+   * Sicherheitswarnungen (M14/S4, Kachel „Sicherheitswarnungen“): Warnungen von Microsoft Defender for
+   * Endpoint, neueste zuerst. Dokumentierte Query-Parameter sind nur $count, $filter, $skip und $top;
+   * gefiltert werden darf u. a. nach serviceSource (Wert `microsoftDefenderForEndpoint` laut
+   * serviceSource-Enum). Ein Filter auf das Gerät ist nicht dokumentiert → Zuordnung clientseitig über die
+   * Geräte-Evidenz. Optionaler Scope SecurityAlert.Read.All; das Konto braucht laut Doku eine Rolle wie
+   * Security Reader, Global Reader, Security Operator oder Security Administrator.
+   */
+  securityAlerts: {
+    id: 'securityAlerts',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.SecurityAlertRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0',
+    display: 'GET /security/alerts_v2',
+    path: () =>
+      withQuery('/security/alerts_v2', {
+        $filter: "serviceSource eq 'microsoftDefenderForEndpoint'",
+        $top: String(SECURITY_ALERTS_PAGE_SIZE),
+      }),
   },
   /**
    * Zuweisungen eines Konfigurationsprofils (M14/S2). Kein `$expand=assignments` (nicht dokumentiert).

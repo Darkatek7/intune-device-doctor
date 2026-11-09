@@ -26,6 +26,8 @@ import type {
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SecurityAlertEntry,
+  SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
   WindowsProtectionInfo,
@@ -58,6 +60,8 @@ import type {
   MobileAppIntent,
   ResultantAppState,
   GraphPolicySettingState,
+  GraphSecurityAlert,
+  GraphSecurityDeviceEvidence,
   GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
@@ -896,4 +900,120 @@ export function isEnrollmentLimitConfig(config: GraphDeviceEnrollmentConfigurati
     str(config?.['@odata.type'])?.replace(/^#/, '') ===
     'microsoft.graph.deviceEnrollmentLimitConfiguration'
   );
+}
+
+// ---------- Sicherheitswarnungen (M14/S4) ----------
+
+const DEVICE_EVIDENCE_TYPE = 'microsoft.graph.security.deviceEvidence';
+const ALERT_SEVERITIES = ['high', 'medium', 'low', 'informational'] as const;
+const ALERT_STATUSES = ['new', 'inProgress', 'resolved'] as const;
+/** deviceRiskScore (deviceEvidence) */
+const DEVICE_RISK_SCORES = ['none', 'informational', 'low', 'medium', 'high'] as const;
+/** defenderAvStatus (deviceEvidence) */
+const DEFENDER_AV_STATUSES = [
+  'notReporting',
+  'disabled',
+  'notUpdated',
+  'updated',
+  'unknown',
+  'notSupported',
+] as const;
+const PORTAL_HOST = /(^|\.)microsoft\.(com|us)$/i;
+
+/** Link ins Defender-Portal: nur https auf Microsoft-Domains, sonst kein Link. */
+export function safeAlertWebUrl(value: unknown): string | null {
+  const text = str(value)?.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === 'https:' && PORTAL_HOST.test(url.hostname) ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Gerätename für den Vergleich: kleingeschrieben, ohne Domänensuffix (Name vor dem ersten Punkt). */
+const shortDeviceName = (value: unknown): string | null => {
+  const name = str(value)?.trim().toLowerCase().split('.')[0];
+  return name ? name : null;
+};
+
+/**
+ * Gehört diese Geräte-Evidenz zum Gerät? Mit Entra-Geräte-ID auf beiden Seiten entscheidet nur die ID
+ * (ein gleichnamiges anderes Gerät passt nicht). Fehlt die ID auf einer Seite, gilt der Gerätename
+ * (hostName bzw. deviceDnsName vor dem ersten Punkt, ohne Beachtung der Groß-/Kleinschreibung).
+ */
+function matchDeviceEvidence(
+  evidence: GraphSecurityDeviceEvidence,
+  device: { azureAdDeviceId: string | null; deviceName: string },
+): 'azureAdDeviceId' | 'deviceName' | null {
+  const evidenceId = str(evidence.azureAdDeviceId)?.trim().toLowerCase();
+  const wantedId = device.azureAdDeviceId?.trim().toLowerCase();
+  if (evidenceId && evidenceId !== EMPTY_GUID && wantedId && wantedId !== EMPTY_GUID) {
+    return evidenceId === wantedId ? 'azureAdDeviceId' : null;
+  }
+  const wantedName = shortDeviceName(device.deviceName);
+  if (!wantedName) return null;
+  const names = [shortDeviceName(evidence.hostName), shortDeviceName(evidence.deviceDnsName)];
+  return names.includes(wantedName) ? 'deviceName' : null;
+}
+
+/**
+ * Warnungen → die offenen Warnungen dieses Geräts. Whitelist: übernommen werden nur Titel, Schweregrad,
+ * Status, Zeiten, Kategorien, Portal-Link sowie Risikostufe/AV-Status der Geräte-Evidenz. Nie übernommen
+ * werden loggedOnUsers, ipInterfaces, assignedTo, Kommentare und Benutzer-/Datei-/Prozess-Evidenz.
+ * Behobene Warnungen (status = resolved) werden nur gezählt. Doppelte IDs (Seitenüberlappung) zählen einmal.
+ */
+export function mapSecurityAlerts(
+  entries: GraphSecurityAlert[] | null | undefined,
+  device: { azureAdDeviceId: string | null; deviceName: string },
+  meta: { moreAvailable: boolean },
+): SecurityAlertsInfo {
+  const list = (Array.isArray(entries) ? entries : []).filter(
+    (entry) => entry && typeof entry === 'object',
+  );
+  const seen = new Set<string>();
+  const alerts: SecurityAlertEntry[] = [];
+  let resolvedCount = 0;
+  for (const alert of list) {
+    const id = str(alert.id);
+    if (!id || seen.has(id)) continue;
+    const evidence = (Array.isArray(alert.evidence) ? alert.evidence : []).filter(
+      (item) => str(item?.['@odata.type'])?.replace(/^#/, '') === DEVICE_EVIDENCE_TYPE,
+    );
+    let matchedBy: 'azureAdDeviceId' | 'deviceName' | null = null;
+    let matched: GraphSecurityDeviceEvidence | null = null;
+    for (const item of evidence) {
+      const result = matchDeviceEvidence(item, device);
+      if (result) {
+        matchedBy = result;
+        matched = item;
+        break;
+      }
+    }
+    if (!matched || !matchedBy) continue;
+    seen.add(id);
+    const status = pickOrNull(alert.status, ALERT_STATUSES) ?? 'unknown';
+    if (status === 'resolved') {
+      resolvedCount += 1;
+      continue;
+    }
+    alerts.push({
+      id,
+      title: str(alert.title)?.trim() || null,
+      severity: pickOrNull(alert.severity, ALERT_SEVERITIES) ?? 'unknown',
+      status,
+      createdDateTime: validDate(alert.createdDateTime),
+      lastUpdateDateTime: validDate(alert.lastUpdateDateTime),
+      categories: strings(alert.categories),
+      alertWebUrl: safeAlertWebUrl(alert.alertWebUrl),
+      matchedBy,
+      deviceRiskScore: pickOrNull(matched.riskScore, DEVICE_RISK_SCORES),
+      defenderAvStatus: pickOrNull(matched.defenderAvStatus, DEFENDER_AV_STATUSES),
+    });
+  }
+  alerts.sort(
+    (a, b) => Date.parse(b.createdDateTime ?? '') - Date.parse(a.createdDateTime ?? '') || 0,
+  );
+  return { alerts, resolvedCount, evaluated: list.length, moreAvailable: meta.moreAvailable };
 }

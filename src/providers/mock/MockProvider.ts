@@ -5,6 +5,7 @@
  */
 import type {
   EnrollmentLimitsInfo,
+  SecurityAlertsInfo,
   UserLicenseInfo,
   AssignmentLookup,
   AssignmentsInfo,
@@ -41,6 +42,7 @@ import {
   defaultAppStates,
   defaultAssignments,
   defaultEnrollmentLimits,
+  defaultSecurityAlerts,
   userLicenseInfo,
   defaultAutopilot,
   defaultDeviceGroups,
@@ -78,6 +80,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   healthAttestation: 'managedDeviceHealthAttestation',
   userLicense: 'userLicenseDetails',
   enrollmentLimits: 'deviceEnrollmentConfigurations',
+  securityAlerts: 'securityAlerts',
 };
 
 export function abortError(): DOMException {
@@ -267,6 +270,9 @@ export class MockProvider implements DeviceDataProvider {
       }
       return { status: 'ok', data: defaultEnrollmentLimits() };
     }
+    if (key === 'securityAlerts') {
+      return { status: 'ok', data: defaultSecurityAlerts() };
+    }
     if (key === 'duplicateDevices') {
       const entra = fixture.entraDevice;
       if (entra.status !== 'ok') {
@@ -385,6 +391,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getUserLicense(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<UserLicenseInfo>(device, 'userLicense', options);
+  }
+
+  getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<SecurityAlertsInfo>(device, 'securityAlerts', options);
   }
 
   getEnrollmentLimits(device: ManagedDeviceInfo, options: RequestOptions = {}) {

@@ -12,6 +12,7 @@ import type {
   AssignmentLookup,
   AssignmentsInfo,
   EnrollmentLimitsInfo,
+  SecurityAlertsInfo,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -156,6 +157,16 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<UserLicenseInfo>>;
+
+  /**
+   * Offene Defender-for-Endpoint-Warnungen dieses Geräts (M14/S4): die neuesten Warnungen des Mandanten
+   * (höchstens 3 Seiten à 100), clientseitig dem Gerät zugeordnet; behobene ausgeblendet. Optionaler
+   * Scope SecurityAlert.Read.All (403 → forbidden).
+   */
+  getSecurityAlerts(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<SecurityAlertsInfo>>;
 
   /**
    * Gerätelimit-Konfigurationen des Mandanten mit ihren Zielen (M14/S3). Ohne primären Benutzer
