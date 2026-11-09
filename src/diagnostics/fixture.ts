@@ -7,6 +7,7 @@
 import { zipSync } from 'fflate';
 import { decodeCp850 } from './parsers/encoding';
 import { buildEvtx, type EvtxEventInput } from './evtxFixture';
+import { buildMdmLogsCab, FIXTURE_MDM_CAB_DIRECTORY, FIXTURE_MDM_CAB_NAME } from './mdmCabFixture';
 
 export const FIXTURE_FILE_NAME = 'DiagLogs-CONTOSO-PC042-20261014T125356Z.zip';
 
@@ -446,6 +447,11 @@ export function buildFixtureEntries(): Record<string, Uint8Array> {
     '(7) Events System Events.evtx': buildEvtxDummy(),
     '(8) Events Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider_Admin Events.evtx':
       buildAdminLogEvtx(),
+    // MDM-Diagnosepaket (M13): enthält zusätzlich eine Kopie des Admin-Logs, die nicht genutzt wird,
+    // solange das ZIP das Protokoll selbst enthält. Verzeichnisname ist eine Annahme.
+    [`(22) FoldersFiles ${FIXTURE_MDM_CAB_DIRECTORY}/${FIXTURE_MDM_CAB_NAME}`]: buildMdmLogsCab({
+      adminLogEvtx: buildAdminLogEvtx(),
+    }),
   };
 }
 

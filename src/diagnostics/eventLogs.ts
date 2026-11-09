@@ -109,7 +109,7 @@ export interface EventLogOptions {
   windowDays: number;
 }
 
-function emptyLog(sel: SelectedEventLog, status: DiagEventLog['status']): DiagEventLog {
+export function emptyLog(sel: SelectedEventLog, status: DiagEventLog['status']): DiagEventLog {
   return {
     id: sel.id,
     entryName: sel.entry.name,

@@ -369,6 +369,7 @@ export type TileId =
   | 'enrollment'
   | 'certsNetwork'
   | 'mdmEvents'
+  | 'mdmDiagReport'
   | 'diagCollection';
 
 /** Name einer Intune-App, aufgelöst über GET /deviceAppManagement/mobileApps/{id} (bzw. Mock-Katalog). */

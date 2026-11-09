@@ -46,6 +46,7 @@ export const de = {
     certsNetwork: 'Zertifikate & Netzwerk',
     diagCollection: 'Diagnosedaten',
     mdmEvents: 'MDM-Ereignisse',
+    mdmDiagReport: 'MDM-Diagnosebericht',
   },
   severity: {
     ok: 'In Ordnung',
@@ -322,6 +323,7 @@ export const de = {
       imeLogs: (done: number, total: number) =>
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
       eventLogs: 'Ereignisprotokolle werden ausgewertet …',
+      mdmCab: 'MDM-Diagnosepaket wird ausgewertet …',
       done: 'Analyse abgeschlossen',
     },
     aborted: 'Analyse abgebrochen.',

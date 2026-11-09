@@ -884,6 +884,8 @@ export const deRules = {
     settingsCatalogRemediation: [
       'Status dieser Profile im Intune Admin Center prüfen: Geräte › <Gerät> › Gerätekonfiguration.',
     ],
+    settingsCatalogMdmDiagHint:
+      'Das geladene DiagLogs-ZIP enthält ein MDM-Diagnosepaket: MDMDiagReport.xml bietet laut Microsoft Learn eine detailliertere Sicht auf die MDM-Konfiguration – Details in der Kachel „MDM-Diagnosebericht“ (Rohdaten, nicht gedeutet).',
     forbiddenProfilesSummary: 'Profile: Berechtigung fehlt',
   },
   zip: {
@@ -1236,6 +1238,142 @@ export const deRules = {
       factLog: (shortName: string) => shortName,
       factLogValue: (scanned: number, errors: number, warnings: number) =>
         `${scanned} geprüft · ${errors} Fehler · ${warnings} Warnungen`,
+    },
+    mdmDiagReport: {
+      valueReport: (sections: number, conditions: number) =>
+        [
+          `${sections} ${sections === 1 ? 'Abschnitt' : 'Abschnitte'}`,
+          conditions > 0
+            ? `${conditions} ${conditions === 1 ? 'Multivariant-Bedingung' : 'Multivariant-Bedingungen'}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      valueFiles: (files: number) => `${files} ${files === 1 ? 'Datei' : 'Dateien'} im Paket`,
+      summaryRaw:
+        'Rohdaten aus MDMDiagReport.xml – der Elementaufbau der Datei ist in Microsoft Learn nicht beschrieben.',
+      unsupported: {
+        lzx: 'LZX-Kompression',
+        quantum: 'Quantum-Kompression',
+        unknown: 'unbekanntes Kompressionsverfahren',
+        multiVolume: 'mehrteiliges Cabinet',
+      } as Record<string, string>,
+      packageReason: {
+        tooLarge: (sizeMiB: number, limitMiB: number) =>
+          `Das MDM-Diagnosepaket wurde nicht gelesen: ${sizeMiB} MiB überschreiten das Größenlimit von ${limitMiB} MiB.`,
+        unreadable: 'Das MDM-Diagnosepaket konnte nicht aus dem Archiv gelesen werden.',
+        invalid: 'Das MDM-Diagnosepaket ist keine gültige Cabinet-Datei oder zu stark beschädigt.',
+      },
+      packageUnavailableTitle: 'MDM-Diagnosepaket nicht ausgewertet',
+      packageUnavailableCause: {
+        tooLarge: 'Das Paket ist größer als das Limit für die Auswertung im Browser.',
+        unreadable: 'Der Eintrag im Archiv ist leer oder beschädigt.',
+        invalid:
+          'Die Datei hat nicht das Format eines Cabinets (Signatur MSCF fehlt oder Struktur defekt).',
+      } as Record<string, string>,
+      packageUnavailableRemediation: [
+        'Das Paket mdmlogs-*.cab aus dem Archiv lokal entpacken (Windows-Befehl expand) und MDMDiagReport.xml dort ansehen.',
+        'Bei defektem Paket die Diagnosedaten bzw. den MDM-Bericht erneut sammeln.',
+      ],
+      reportReason: {
+        missing: 'MDMDiagReport.xml ist im Paket nicht enthalten.',
+        tooLarge: (sizeMiB: number, limitMiB: number) =>
+          `MDMDiagReport.xml wurde nicht gelesen: ${sizeMiB} MiB überschreiten das Größenlimit von ${limitMiB} MiB.`,
+        unreadable: 'MDMDiagReport.xml konnte nicht aus dem Paket gelesen werden.',
+        unsupported: (reason: string) =>
+          `MDMDiagReport.xml wurde nicht gelesen: Das Paket verwendet ${reason}, die im Browser nicht unterstützt wird.`,
+        invalid: 'MDMDiagReport.xml ist kein lesbares XML oder das Paket ist beschädigt.',
+      },
+      reportUnavailableTitle: 'MDMDiagReport.xml nicht ausgewertet',
+      reportUnavailableCause: {
+        missing:
+          'Laut Microsoft Learn gehört MDMDiagReport.xml zur Ausgabe des MdmDiagnosticsTool und die Bereiche („-area“) bestimmen, was gesammelt wird; hier fehlt die Datei (möglicherweise anderer Bereich oder unvollständige Sammlung).',
+        tooLarge: 'Die Datei ist größer als das Limit für die Auswertung im Browser.',
+        unreadable: 'Die Datei im Paket ist beschädigt oder konnte nicht entpackt werden.',
+        unsupported:
+          'Der Browser-Parser entpackt aus Cabinets nur unkomprimierte Ordner und MSZIP; andere Verfahren werden bewusst nicht unterstützt.',
+        invalid: 'Die Datei ist kein XML oder das Cabinet ist an dieser Stelle beschädigt.',
+      } as Record<string, string>,
+      reportUnavailableRemediation: [
+        'Das Paket mdmlogs-*.cab lokal entpacken (Windows-Befehl expand) und MDMDiagReport.xml im Editor öffnen.',
+      ],
+      reportMissingRemediation: [
+        'In der Dateiliste prüfen, was das Paket enthält; bei Bedarf die MDM-Diagnose erneut sammeln (Microsoft Learn: „Collect MDM logs“).',
+      ],
+      packageTitle: (files: number) =>
+        `MDM-Diagnosepaket gelesen: ${files} ${files === 1 ? 'Datei' : 'Dateien'}`,
+      packageDetail: (name: string, files: number, listed: number, fromPackage: boolean) =>
+        [
+          `Das Paket „${name}“ enthält ${files} ${files === 1 ? 'Datei' : 'Dateien'}${listed < files ? ` (${listed} aufgeführt)` : ''}.`,
+          fromPackage
+            ? 'Das MDM-Admin-Ereignisprotokoll stammt aus diesem Paket, weil das Archiv kein lesbares eigenes enthält (Kachel „MDM-Ereignisse“).'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      packageCause:
+        'Das Paket stammt vom MdmDiagnosticsTool (Ausgabe-Log im DiagLogs-ZIP). Laut Microsoft Learn enthält dessen ZIP-Ausgabe u. a. MDMDiagReport.xml (detaillierte MDM-Konfiguration), MDMDiagHtmlReport.html, MdmDiagReport_RegistryDump.reg und .evtx-Dateien; maßgeblich ist die tatsächliche Dateiliste oben.',
+      packageRemediation: [
+        'Für Details die Dateien lokal entpacken (Windows-Befehl expand) – MDMDiagHtmlReport.html fasst laut Learn Verwaltungs-URL, Zertifikate und Richtlinien zusammen.',
+      ],
+      truncatedTitle: 'MDM-Diagnosepaket unvollständig',
+      truncatedDetail:
+        'Das Cabinet ist kürzer als im Kopf angegeben oder die Dateiliste endet vorzeitig; nur vollständig vorhandene Teile wurden gelesen.',
+      truncatedCause:
+        'Der Eintrag im Archiv ist gekappt (z. B. unterbrochene Sammlung oder Übertragung).',
+      truncatedRemediation: ['Die Diagnosedaten erneut sammeln.'],
+      structureTitle: 'Aufbau von MDMDiagReport.xml (Rohdaten)',
+      structureDetail: (root: string, elements: number, sections: number) =>
+        `Wurzelelement „${root}“ mit ${elements} ${elements === 1 ? 'Element' : 'Elementen'} in ${sections} ${sections === 1 ? 'Abschnitt' : 'Abschnitten'}. Angezeigt werden nur Elementnamen und Anzahl – keine Werte.`,
+      structureLine: (count: number, children: string[]) =>
+        children.length > 0 ? `${count}× · enthält: ${children.join(', ')}` : `${count}×`,
+      structureCause:
+        'Microsoft Learn beschreibt MDMDiagReport.xml nur allgemein („detaillierte Sicht auf die MDM-Konfiguration, z. B. Registrierungsvariablen, Provisioning-Pakete, Multivariant-Bedingungen“) und nicht den Elementaufbau. Deshalb gibt es keine Deutung einzelner Abschnitte.',
+      structureRemediation: [
+        'Die Datei lokal öffnen (nach dem Entpacken mit expand) und die Abschnitte dort lesen; Werte wie Benutzer, IDs und URLs bleiben in dieser Anzeige bewusst ausgeblendet.',
+      ],
+      structureLimited: (truncated: boolean, sectionsTruncated: boolean) =>
+        [
+          truncated ? 'Das Dokument ist sehr groß; nur der Anfang wurde gelesen.' : null,
+          sectionsTruncated ? 'Es werden nicht alle Abschnitte aufgeführt.' : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      multivariantTitle: (n: number) =>
+        `${n} ${n === 1 ? 'Multivariant-Bedingung' : 'Multivariant-Bedingungen'} (Provisioning-Pakete)`,
+      multivariantDetail: (n: number, listed: number) =>
+        `MDMDiagReport.xml enthält ${n} Knoten „Multivariant“ mit Bedingungen${listed < n ? ` (${listed} aufgeführt)` : ''}. Ob sie auf dem Gerät zutrafen, geht aus der Auswertung nicht hervor.`,
+      multivariantCause:
+        'Laut Microsoft Learn (ab Windows 11, Version 22H2) nimmt das MdmDiagnosticsTool die Bedingungen multivariater Provisioning-Pakete auf, damit sich klären lässt, warum ein Paket nicht angewendet wurde.',
+      multivariantRemediation: [
+        'Bedingungen (Name, Wert, ggf. Muster mit „Pattern:“) mit den Eigenschaften des Geräts vergleichen, z. B. Sprache, Region, Architektur.',
+        'Microsoft Learn: Diagnose provisioning packages – Abschnitt „Unable to apply a multivariant provisioning package“.',
+      ],
+      metadataTitle: 'Aufruf des Diagnosetools (MdmDiagLogMetadata.json)',
+      metadataDetail: (n: number) =>
+        `${n} ${n === 1 ? 'Feld' : 'Felder'} der obersten Ebene als Rohdaten (Namen und Werte sind nicht dokumentiert; Benutzerangaben maskiert).`,
+      metadataCause:
+        'Laut Microsoft Learn enthält die Datei die Kommandozeilenargumente, mit denen das MdmDiagnosticsTool ausgeführt wurde.',
+      metadataRemediation: [
+        'Prüfen, welche Bereiche („-area“) gesammelt wurden, wenn Dateien im Paket fehlen.',
+      ],
+      factPackage: 'Paket',
+      factPackageSize: 'Größe',
+      factFiles: 'Dateien im Paket',
+      factReport: 'MDMDiagReport.xml',
+      factReportOk: (elements: number) => `gelesen (${elements} Elemente)`,
+      factReportStatus: {
+        missing: 'nicht im Paket',
+        tooLarge: 'zu groß',
+        unreadable: 'nicht lesbar',
+        unsupported: 'nicht unterstützt',
+        invalid: 'ungültig',
+      } as Record<string, string>,
+      factConditions: 'Multivariant-Bedingungen',
+      factAdminLog: 'MDM-Admin-Ereignisprotokoll',
+      factAdminLogFromPackage: 'aus dem Paket',
+      factAdminLogFromZip: 'direkt aus dem Archiv',
+      factAdminLogMissing: 'nicht vorhanden',
     },
   },
   ticket: {
