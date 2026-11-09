@@ -20,6 +20,7 @@ import type {
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
+  EndpointProbeResult,
   EntraDeviceInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
@@ -31,6 +32,7 @@ import type {
   VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { runConnectionTest } from '../../graph/connectionTest';
 import {
   createGraphClient,
   GraphRequestError,
@@ -961,6 +963,20 @@ export class GraphProvider implements DeviceDataProvider {
       }
       if (apps.length === 0 && firstError) throw firstError;
       return this.ok(apps, source);
+    });
+  }
+
+  /** Verbindungstest (M14/S6): jeder Endpunkt genau einmal per GET, nur Struktur der Antwort (siehe connectionTest.ts). */
+  testConnection(
+    device: ManagedDeviceInfo,
+    options: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    } = {},
+  ): Promise<EndpointProbeResult[]> {
+    return runConnectionTest(this.client, device, {
+      signal: options.signal,
+      onResult: options.onResult,
+      now: this.now,
     });
   }
 }

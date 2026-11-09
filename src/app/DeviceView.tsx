@@ -2,6 +2,7 @@
  * Ergebnisansicht eines Geräts: Header, Kachel-Grid und Detail-Sheet.
  * Daten kommen ausschließlich über useDeviceSnapshot (Provider-Schnittstelle).
  */
+import { Activity } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
@@ -44,6 +45,8 @@ interface Props {
   onDeviceLoaded?: (device: Pick<ManagedDeviceInfo, 'id' | 'deviceName' | 'osFamily'>) => void;
   /** Öffnet ein anderes Gerät (Zeile „Weitere Geräte“ im Header) */
   onOpenDevice?: (device: Pick<DeviceSearchResult, 'id' | 'deviceName'>) => void;
+  /** Öffnet den Verbindungstest (M14/S6); nur gesetzt, wenn der Provider ihn anbietet (Live) */
+  onOpenConnectionTest?: () => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -61,6 +64,7 @@ export function DeviceView({
   onToneChange,
   onDeviceLoaded,
   onOpenDevice,
+  onOpenConnectionTest,
 }: Props) {
   const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
@@ -205,6 +209,17 @@ export function DeviceView({
               disabled={!snapshot || stillLoading}
             />
             <TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />
+            {onOpenConnectionTest && (
+              <button
+                type="button"
+                onClick={onOpenConnectionTest}
+                title={de.connectionTest.openHint}
+                className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+              >
+                <Activity aria-hidden="true" size={16} />
+                {de.connectionTest.open}
+              </button>
+            )}
           </div>
         }
         badges={

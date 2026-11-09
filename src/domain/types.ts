@@ -492,6 +492,36 @@ export interface TenantStatus {
   vppTokens: SectionResult<VppTokenInfo[]>;
 }
 
+// ---------- Verbindungstest (M14/S6) ----------
+
+/** Ergebnis eines einzelnen Endpunkt-Aufrufs im Verbindungstest. `skipped` = Aufruf nicht möglich (siehe skipReason). */
+export type ProbeOutcome = 'ok' | 'forbidden' | 'notFound' | 'badRequest' | 'error' | 'skipped';
+
+/**
+ * Ergebnis eines Endpunkts im Verbindungstest. Bewusst nur Struktur: nie Antwortwerte, IDs oder Namen –
+ * von der Antwort bleiben Anzahl der Einträge und die Namen der Felder auf oberster Ebene des ersten
+ * Eintrags.
+ */
+export interface EndpointProbeResult {
+  /** Schlüssel in `Endpoints` */
+  endpointId: string;
+  /** Lesbare Form, z. B. "GET /deviceManagement/managedDevices/{id}" (nur Platzhalter, keine Werte) */
+  display: string;
+  version: 'v1.0' | 'beta';
+  scope: string;
+  outcome: ProbeOutcome;
+  /** HTTP-Status bei Fehlern; bei Erfolg nicht bekannt (null) */
+  httpStatus: number | null;
+  /** Dauer inkl. Wiederholungen bei Drosselung; null bei skipped */
+  durationMs: number | null;
+  /** Einträge der Antwort (Sammlung: Länge von value, einzelnes Objekt: 1); null bei Fehler/skipped */
+  entryCount: number | null;
+  /** Namen der Felder auf oberster Ebene des ersten Eintrags (keine Werte) */
+  fieldNames: string[];
+  /** Grund, warum der Endpunkt nicht aufgerufen wurde (nur bei skipped) */
+  skipReason: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;

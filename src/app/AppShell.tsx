@@ -26,6 +26,7 @@ import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
 import { Toolbar } from '../ui/Toolbar';
 import { ZipProgress } from '../ui/ZipProgress';
+import { ConnectionTestView } from './ConnectionTestView';
 import { DeviceView } from './DeviceView';
 import { TenantView } from './TenantView';
 import { useProviderContext } from './providerContextValue';
@@ -150,8 +151,10 @@ function Shell({ account, extraChips }: Props) {
   const submit = useCallback(
     async (value: string) => {
       if (zip.status !== 'idle') discardZip();
-      // Eine Suche verlässt die Ansicht „Mandant“, damit die Trefferliste sichtbar wird.
-      if (url.view === 'tenant') navigateTo({ device: null, tile: null, mode });
+      // Eine Suche verlässt die Ansicht „Mandant“ bzw. den Verbindungstest, damit die Trefferliste sichtbar wird.
+      if (url.view === 'tenant' || url.view === 'connectionTest') {
+        navigateTo({ device: null, tile: null, mode });
+      }
       const results = await search(value);
       setSearchedAt(new Date());
       if (results?.length === 1) openDevice(results[0]!);
@@ -198,18 +201,33 @@ function Shell({ account, extraChips }: Props) {
   );
 
   const liveWithoutProvider = !provider;
-  const showDevice = Boolean(provider && url.device);
+  // Verbindungstest (M14/S6): nur Live, d. h. wenn der Provider ihn anbietet; sonst die normale Geräteansicht.
+  const canTestConnection = Boolean(provider && typeof provider.testConnection === 'function');
+  const showConnectionTest = Boolean(
+    provider && url.device && url.view === 'connectionTest' && canTestConnection,
+  );
+  const showDevice = Boolean(provider && url.device) && !showConnectionTest;
+  /** Geräteansicht oder Verbindungstest: beide gehören zu einem geöffneten Gerät */
+  const showDeviceArea = showDevice || showConnectionTest;
   const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
-  const showZip = !showDevice && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
+  const showZip = !showDeviceArea && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
   const showPicker =
-    !showDevice && !showTenant && !showZip && state.status === 'done' && state.results.length > 1;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    state.status === 'done' &&
+    state.results.length > 1;
   const showNotFound =
-    !showDevice && !showTenant && !showZip && state.status === 'done' && state.results.length === 0;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    state.status === 'done' &&
+    state.results.length === 0;
   const showSearchError =
-    !showDevice && !showTenant && !showZip && state.status === 'error' && state.error;
+    !showDeviceArea && !showTenant && !showZip && state.status === 'error' && state.error;
   const showHero =
     !liveWithoutProvider &&
-    !showDevice &&
+    !showDeviceArea &&
     !showTenant &&
     !showZip &&
     !showPicker &&
@@ -234,6 +252,17 @@ function Shell({ account, extraChips }: Props) {
         }
       />
     );
+  } else if (showConnectionTest && provider && url.device) {
+    const deviceId = url.device;
+    content = (
+      <ConnectionTestView
+        key={deviceId}
+        provider={provider}
+        deviceId={deviceId}
+        onBack={() => navigateTo({ device: deviceId, tile: null, mode })}
+        onToneChange={setDeviceTone}
+      />
+    );
   } else if (showDevice && provider && url.device) {
     content = (
       <DeviceView
@@ -252,6 +281,12 @@ function Shell({ account, extraChips }: Props) {
         onToneChange={setDeviceTone}
         onDeviceLoaded={recentDevices.remember}
         onOpenDevice={openDevice}
+        {...(canTestConnection
+          ? {
+              onOpenConnectionTest: () =>
+                navigateTo({ device: url.device, tile: null, mode, view: 'connectionTest' }),
+            }
+          : {})}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
@@ -374,7 +409,11 @@ function Shell({ account, extraChips }: Props) {
   return (
     <div className="min-h-dvh bg-canvas text-label">
       <AmbientGlow
-        tone={showDevice || showTenant || (showZip && zipReport) ? deviceTone : 'accent'}
+        tone={
+          showDevice || showConnectionTest || showTenant || (showZip && zipReport)
+            ? deviceTone
+            : 'accent'
+        }
       />
       <a
         href="#main"

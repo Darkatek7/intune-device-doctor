@@ -21,6 +21,7 @@ import type {
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
+  EndpointProbeResult,
   AppInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
@@ -203,6 +204,19 @@ export interface DeviceDataProvider {
    * Ergebnis einfach; eine fehlende Berechtigung liefert "forbidden".
    */
   getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>>;
+
+  /**
+   * Verbindungstest (M14/S6, nur Live): ruft jeden Endpunkt der Registry für dieses Gerät genau einmal
+   * lesend auf, nacheinander. Liefert je Endpunkt nur Ergebnis, Dauer, Anzahl der Einträge und
+   * Feldnamen – nie Werte. `onResult` meldet jedes Ergebnis sofort (Fortschritt). Wirft nur bei Abbruch.
+   * Fehlt im Demo-Modus (die UI blendet den Einstieg dann aus).
+   */
+  testConnection?(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    },
+  ): Promise<EndpointProbeResult[]>;
 }
 
 export class ProviderError extends Error {

@@ -20,6 +20,7 @@ import type {
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
+  EndpointProbeResult,
   EntraDeviceInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
@@ -184,5 +185,19 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>> {
     return this.section((provider) => provider.getMobileApps(appIds, options));
+  }
+
+  /** Verbindungstest (M14/S6): lädt den GraphProvider erst bei Bedarf; ein Ladefehler wird zum Netzwerkfehler. */
+  async testConnection(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    },
+  ): Promise<EndpointProbeResult[]> {
+    const provider = await this.loadOrThrow();
+    if (!provider.testConnection) {
+      throw new ProviderError({ code: 'unknown', message: de.errors.unknown });
+    }
+    return provider.testConnection(device, options);
   }
 }

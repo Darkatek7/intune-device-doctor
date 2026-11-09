@@ -1616,3 +1616,48 @@ describe('GraphProvider – Mandanten-Status (M14/S5)', () => {
     });
   });
 });
+
+describe('GraphProvider – testConnection (M14/S6)', () => {
+  const secretToken = 'SECRET-VPP-TOKEN-VALUE';
+  const handler: FakeHandler = (call) =>
+    call.parsed.pathname.endsWith('/vppTokens')
+      ? collection([{ id: 'v1', organizationName: 'Contoso GmbH', token: secretToken }])
+      : collection([{ id: 'x1', displayName: 'Contoso Eintrag' }]);
+
+  it('ruft jeden Endpunkt genau einmal per GET auf und meldet Ergebnisse fortlaufend', async () => {
+    const { provider, calls } = setup(handler);
+    const seen: string[] = [];
+    const results = await provider.testConnection(windowsDevice(), {
+      onResult: (result) => seen.push(result.endpointId),
+    });
+    expect(results).toHaveLength(Object.keys(Endpoints).length);
+    expect(seen).toEqual(results.map((result) => result.endpointId));
+    expect(calls.length).toBe(results.filter((result) => result.outcome !== 'skipped').length);
+    for (const call of calls) {
+      expect(call.method).toBe('GET');
+      expect(call.parsed.host).toBe('graph.microsoft.com');
+    }
+  });
+
+  it('gibt weder Antwortwerte noch Namen in Ergebnis oder Log preis', async () => {
+    const { provider, log } = setup(handler);
+    const results = await provider.testConnection(windowsDevice());
+    const everything = JSON.stringify([results, log.mock.calls]);
+    expect(everything).not.toContain(secretToken);
+    expect(everything).not.toContain('Contoso Eintrag');
+    expect(everything).not.toContain('Contoso GmbH');
+    expect(everything).not.toContain('CONTOSO-PC001');
+    expect(everything).not.toContain(PC001_ID);
+    expect(everything).not.toContain(PC001_ENTRA_ID);
+  });
+
+  it('Abbruch wird weitergereicht', async () => {
+    const { provider, calls } = setup(handler);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      provider.testConnection(windowsDevice(), { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(calls).toHaveLength(0);
+  });
+});
