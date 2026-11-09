@@ -2,6 +2,7 @@
  * Ergebnisansicht eines Geräts: Header, Kachel-Grid und Detail-Sheet.
  * Daten kommen ausschließlich über useDeviceSnapshot (Provider-Schnittstelle).
  */
+import { Activity } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
@@ -10,14 +11,20 @@ import { de } from '../i18n/de';
 import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
+import { buildSnapshotFile, type SnapshotFile } from '../rules/snapshotCompare';
 import { buildTicketNote } from '../rules/ticketNote';
-import type { DeviceSearchResult, ManagedDeviceInfo, Tile } from '../domain/types';
+import { correlate } from '../rules/correlate';
+import { buildTimeline } from '../rules/timeline';
+import type { DeviceSearchResult, ManagedDeviceInfo, Tile, TileId } from '../domain/types';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { CompareControls } from '../ui/CompareControls';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
 import { deviceMeta } from '../ui/deviceMeta';
 import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
+import { InsightCard } from '../ui/InsightCard';
+import { TimelineButton } from '../ui/TimelineButton';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
 import { TicketNoteButton } from '../ui/TicketNoteButton';
@@ -40,6 +47,8 @@ interface Props {
   onDeviceLoaded?: (device: Pick<ManagedDeviceInfo, 'id' | 'deviceName' | 'osFamily'>) => void;
   /** Öffnet ein anderes Gerät (Zeile „Weitere Geräte“ im Header) */
   onOpenDevice?: (device: Pick<DeviceSearchResult, 'id' | 'deviceName'>) => void;
+  /** Öffnet den Verbindungstest (M14/S6); nur gesetzt, wenn der Provider ihn anbietet (Live) */
+  onOpenConnectionTest?: () => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -57,6 +66,7 @@ export function DeviceView({
   onToneChange,
   onDeviceLoaded,
   onOpenDevice,
+  onOpenConnectionTest,
 }: Props) {
   const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
@@ -71,7 +81,11 @@ export function DeviceView({
     [snapshot, now],
   );
   const summary = useMemo(() => summarize(tiles), [tiles]);
-  const stillLoading = tiles.some((tile) => tile.state === 'loading');
+  // Die Zuweisungen (M14/S2) ergänzen Richtlinien und Apps erst nach deren Laden – bis dahin gilt
+  // die Ansicht als ladend (sonst enthielten Export, Ticket-Notiz und Ursache-Karte einen Zwischenstand).
+  const stillLoading =
+    tiles.some((tile) => tile.state === 'loading') ||
+    (snapshot !== null && snapshot.assignments === undefined);
   // Sortierung erst, wenn nichts mehr lädt – vorher springt sonst die Anordnung.
   const ordered = useMemo(() => (stillLoading ? tiles : sortTiles(tiles)), [tiles, stillLoading]);
 
@@ -96,6 +110,22 @@ export function DeviceView({
     return waits.length > 0 ? { retryAfterSeconds: Math.max(...waits) } : {};
   }, [snapshot]);
 
+  // M12/A: Zeitachse und „Wahrscheinlichste Ursache“ – erst, wenn alle Kacheln fertig sind
+  const timeline = useMemo(
+    () => (snapshot && now && !stillLoading ? buildTimeline({ snapshot, now }) : []),
+    [snapshot, now, stillLoading],
+  );
+  const insights = useMemo(() => (stillLoading ? [] : correlate(tiles)), [tiles, stillLoading]);
+  const openableTiles = useMemo(() => new Set<TileId>(tiles.map((tile) => tile.id)), [tiles]);
+  const openTileById = useCallback(
+    (tileId: TileId) => {
+      const element = document.querySelector<HTMLElement>(`[data-tile-id="${tileId}"]`);
+      setOrigin(element?.getBoundingClientRect() ?? null);
+      onOpenTile(tileId);
+    },
+    [onOpenTile],
+  );
+
   const getTicketNote = useCallback(() => {
     if (!snapshot) return '';
     return buildTicketNote({
@@ -104,8 +134,21 @@ export function DeviceView({
       mode: provider.mode,
       tiles,
       now: new Date(),
+      insights,
+      timeline,
     });
-  }, [snapshot, tiles, provider.mode]);
+  }, [snapshot, tiles, provider.mode, insights, timeline]);
+
+  // Stand für Export/Vergleich (M12/B1): nur ausgewertete Kacheln, keine Rohdaten.
+  const getSnapshotFile = useCallback((): SnapshotFile | null => {
+    if (!snapshot || stillLoading) return null;
+    return buildSnapshotFile({
+      tiles,
+      mode: provider.mode,
+      deviceName: snapshot.device.deviceName,
+      now: new Date(),
+    });
+  }, [snapshot, stillLoading, tiles, provider.mode]);
 
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
@@ -174,13 +217,42 @@ export function DeviceView({
           snapshot?.userDevices?.status === 'ok' ? snapshot.userDevices.data : undefined
         }
         onOpenDevice={onOpenDevice}
-        actions={<TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <TimelineButton
+              events={timeline}
+              openableTiles={openableTiles}
+              onOpenTile={openTileById}
+              disabled={!snapshot || stillLoading}
+            />
+            <TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />
+            <CompareControls
+              getCurrent={getSnapshotFile}
+              disabled={!snapshot || stillLoading}
+              currentLabel={snapshot?.device.deviceName ?? ''}
+            />
+            {onOpenConnectionTest && (
+              <button
+                type="button"
+                onClick={onOpenConnectionTest}
+                title={de.connectionTest.openHint}
+                className="inline-flex items-center gap-1.5 rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+              >
+                <Activity aria-hidden="true" size={16} />
+                {de.connectionTest.open}
+              </button>
+            )}
+          </div>
+        }
         badges={
           diagnostics && onRemoveDiagnostics ? (
             <DiagnosticsChip fileName={diagnostics.fileName} onRemove={onRemoveDiagnostics} />
           ) : undefined
         }
       />
+      {insights.length > 0 && (
+        <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
+      )}
       {snapshot ? (
         <TileGrid tiles={ordered} onOpen={handleOpen} />
       ) : (

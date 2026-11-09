@@ -5,16 +5,21 @@
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
-import type { Tile } from '../domain/types';
+import type { Tile, TileId } from '../domain/types';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { de } from '../i18n/de';
 import { useProviderContext } from './providerContextValue';
 import { sortTiles, summarize } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
+import { correlate } from '../rules/correlate';
+import { buildTimeline } from '../rules/timeline';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { CompareZipControls } from '../ui/CompareZipControls';
 import { DetailSheet } from '../ui/DetailSheet';
+import { InsightCard } from '../ui/InsightCard';
 import { MergeOffer } from '../ui/MergeOffer';
+import { TimelineButton } from '../ui/TimelineButton';
 import { TicketNoteButton } from '../ui/TicketNoteButton';
 import { TileGrid } from '../ui/TileGrid';
 import { ZipHeader } from '../ui/ZipHeader';
@@ -44,6 +49,16 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
   }, [summary.worst, onToneChange]);
   const openTile = openId ? tiles.find((tile) => tile.id === openId) : undefined;
 
+  // M12/A: Zeitachse und „Wahrscheinlichste Ursache“ (nur ZIP-Kacheln)
+  const timeline = useMemo(() => buildTimeline({ diagnostics: report, now }), [report, now]);
+  const insights = useMemo(() => correlate(tiles), [tiles]);
+  const openableTiles = useMemo(() => new Set<TileId>(tiles.map((tile) => tile.id)), [tiles]);
+  const openTileById = useCallback((tileId: TileId) => {
+    const element = document.querySelector<HTMLElement>(`[data-tile-id="${tileId}"]`);
+    setOrigin(element?.getBoundingClientRect() ?? null);
+    setOpenId(tileId);
+  }, []);
+
   const title = zipTitle(report);
   const getTicketNote = useCallback(
     () =>
@@ -53,8 +68,10 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
         mode: 'zip',
         tiles,
         now: new Date(),
+        insights,
+        timeline,
       }),
-    [title, report.fileName, tiles],
+    [title, report.fileName, tiles, insights, timeline],
   );
   useEffect(() => {
     const previous = document.title;
@@ -85,9 +102,22 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
         report={report}
         summary={summary}
         onBack={onBack}
-        actions={<TicketNoteButton getNote={getTicketNote} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <TimelineButton
+              events={timeline}
+              openableTiles={openableTiles}
+              onOpenTile={openTileById}
+            />
+            <TicketNoteButton getNote={getTicketNote} />
+            <CompareZipControls report={report} tiles={tiles} />
+          </div>
+        }
       />
       {offer && <MergeOffer deviceName={offer.deviceName} onMerge={onMerge} />}
+      {insights.length > 0 && (
+        <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
+      )}
       <TileGrid tiles={tiles} onOpen={handleOpen} />
       <AnimatePresence>
         {openTile && (

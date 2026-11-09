@@ -13,7 +13,7 @@ import {
 } from './helpers';
 
 test.describe('DiagLogs-ZIP', () => {
-  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt alle Windows-Kacheln plus sechs ZIP-Kacheln', async ({
+  test('Beispiel-ZIP zeigt Befunde; Zusammenführen ergibt alle Windows-Kacheln plus sieben ZIP-Kacheln', async ({
     page,
   }) => {
     await page.goto('/');
@@ -38,9 +38,26 @@ test.describe('DiagLogs-ZIP', () => {
     await page.keyboard.press('Escape');
     await expect(events).toBeHidden();
 
+    // MDM-Diagnosepaket (mdmlogs-*.cab): Rohdaten aus MDMDiagReport.xml, keine Werte
+    const mdmDiag = await openTile(page, 'MDM-Diagnosebericht');
+    await settleSheet(page);
+    await expect(mdmDiag).toContainText('MDMDiagReport.xml');
+    await expect(mdmDiag).toContainText('Multivariant');
+    await expect(mdmDiag).not.toContainText('user@contoso.com');
+    await expect(mdmDiag).not.toContainText('geheim');
+    await page.keyboard.press('Escape');
+    await expect(mdmDiag).toBeHidden();
+
     await page.getByRole('button', { name: T.zipMerge }).click();
     await waitForTilesReady(page);
-    await expect(tileButtons(page)).toHaveCount(BASE_TILE_TITLES.length + 6);
+    await expect(tileButtons(page)).toHaveCount(BASE_TILE_TITLES.length + 7);
+
+    // Richtlinien-Kachel verweist nach dem Zusammenführen auf den MDM-Diagnosebericht
+    const policies = await openTile(page, 'Richtlinien');
+    await settleSheet(page);
+    await expect(policies).toContainText('Kachel „MDM-Diagnosebericht“');
+    await page.keyboard.press('Escape');
+    await expect(policies).toBeHidden();
   });
 
   test('Upload per Datei-Eingabe: ZIP-Ansicht erscheint, kein Request sendet die Datei', async ({

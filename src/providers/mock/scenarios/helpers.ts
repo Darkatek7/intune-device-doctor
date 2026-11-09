@@ -2,7 +2,17 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  ApplePushCertificateInfo,
+  AssignmentEntry,
+  EnrollmentLimitInfo,
+  EnrollmentLimitsInfo,
+  IntuneLicensePlanInfo,
+  UserLicenseInfo,
+  AssignmentLookup,
+  AssignmentsInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
+  SameNameEntraDevice,
   AutopilotInfo,
   AppInstallStateInfo,
   AppliedPolicyInfo,
@@ -13,8 +23,11 @@ import type {
   ManagedDeviceInfo,
   PolicySettingInfo,
   PolicyStateInfo,
+  SecurityAlertEntry,
+  SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../../domain/types';
 import { SIGN_IN_WINDOW_DAYS } from '../../../graph/endpoints';
@@ -37,12 +50,18 @@ export function inFuture(now: Date, span: { days?: number; hours?: number }): st
 
 /** Fiktive, eindeutig erkennbare GUIDs: 00000000-0000-4000-8000-0000000000NN */
 export function demoGuid(
-  group: 'device' | 'entra' | 'object' | 'policy' | 'key' | 'user',
+  group: 'device' | 'entra' | 'object' | 'policy' | 'key' | 'user' | 'vpp',
   n: number,
 ): string {
-  const groupDigit = { device: '8', entra: '9', object: 'a', policy: 'b', key: 'c', user: 'd' }[
-    group
-  ];
+  const groupDigit = {
+    device: '8',
+    entra: '9',
+    object: 'a',
+    policy: 'b',
+    key: 'c',
+    user: 'd',
+    vpp: 'e',
+  }[group];
   return `00000000-0000-4000-${groupDigit}000-${n.toString(16).padStart(12, '0')}`;
 }
 
@@ -397,4 +416,184 @@ export function healthAttestationInfo(
 /** Standard: unauffällige Rohwerte, keine gemeldete Abweichung. */
 export function defaultHealthAttestation(now: Date): HealthAttestationInfo {
   return healthAttestationInfo(now);
+}
+
+/** Gleichnamiges Entra-Objekt (fiktiv). `isCurrent`/`differentOs` setzen Szenarien selbst. */
+export function sameNameDevice(
+  now: Date,
+  n: number,
+  overrides: Partial<SameNameEntraDevice> = {},
+): SameNameEntraDevice {
+  return {
+    objectId: demoGuid('object', n),
+    deviceId: demoGuid('entra', n),
+    trustType: 'AzureAd',
+    accountEnabled: true,
+    approximateLastSignInDateTime: ago(now, { hours: 5 }),
+    isCompliant: true,
+    isManaged: true,
+    registrationDateTime: ago(now, { days: 210 }),
+    operatingSystem: 'Windows',
+    isCurrent: false,
+    differentOs: false,
+    ...overrides,
+  };
+}
+
+/** Standard: nur das aktuelle Entra-Objekt – kein Duplikat. */
+export function defaultDuplicateDevices(
+  entra: EntraDeviceInfo | null,
+  device: Pick<DeviceBase, 'azureADDeviceId' | 'operatingSystem'>,
+): DuplicateDevicesInfo {
+  if (!entra) return { devices: [], moreAvailable: false };
+  return {
+    devices: [
+      {
+        objectId: entra.objectId,
+        deviceId: entra.deviceId,
+        trustType: entra.trustType,
+        accountEnabled: entra.accountEnabled,
+        approximateLastSignInDateTime: entra.approximateLastSignInDateTime,
+        isCompliant: entra.isCompliant,
+        isManaged: entra.isManaged,
+        registrationDateTime: entra.registrationDateTime,
+        operatingSystem: device.operatingSystem,
+        isCurrent: true,
+        differentOs: false,
+      },
+    ],
+    moreAvailable: false,
+  };
+}
+
+/** Id der Standardgruppe „Contoso – Alle Geräte“ (erste Gruppe in `deviceGroupsInfo`/`defaultDeviceGroups`). */
+export const ALL_DEVICES_GROUP_ID = demoGuid('object', 200);
+
+/** Standardzuweisung der Demo: Gruppe „Contoso – Alle Geräte“ (Apps: erforderlich). */
+export function defaultAssignmentEntries(kind: AssignmentLookup['kind']): AssignmentEntry[] {
+  return [
+    {
+      target: { kind: 'group', groupId: ALL_DEVICES_GROUP_ID },
+      intent: kind === 'app' ? 'required' : null,
+    },
+  ];
+}
+
+/** Zuweisungen der nachgeschlagenen Objekte: `overrides` (Schlüssel = ID) vor der Standardzuweisung. */
+export function defaultAssignments(
+  lookups: AssignmentLookup[],
+  overrides: Record<string, AssignmentEntry[]> = {},
+): AssignmentsInfo {
+  return {
+    skipped: 0,
+    objects: lookups.map((lookup) => ({
+      ...lookup,
+      status: 'ok' as const,
+      assignments: overrides[lookup.id] ?? defaultAssignmentEntries(lookup.kind),
+    })),
+  };
+}
+
+/** Lizenz des Benutzers (fiktiv): Standard = Intune-Plan INTUNE_A aktiv (SKU „SPE_E3“). */
+export function userLicenseInfo(
+  plans: IntuneLicensePlanInfo[] = [
+    { plan: 'INTUNE_A', skuPartNumber: 'SPE_E3', provisioningStatus: 'Success' },
+  ],
+  licenseCount = Math.max(1, new Set(plans.map((p) => p.skuPartNumber)).size),
+): UserLicenseInfo {
+  return { plans, licenseCount };
+}
+
+/** Eine Gerätelimit-Konfiguration (fiktiv). */
+export function enrollmentLimit(
+  n: number,
+  displayName: string,
+  overrides: Partial<EnrollmentLimitInfo> = {},
+): EnrollmentLimitInfo {
+  return {
+    id: demoGuid('policy', 700 + n),
+    displayName,
+    priority: n,
+    limit: 5,
+    targets: [{ kind: 'allUsers' }],
+    ...overrides,
+  };
+}
+
+/** Demo-Mandant: Apple-MDM-Push-Zertifikat noch 200 Tage gültig (wie auf den Apple-Geräten). */
+export function defaultTenantApplePush(now: Date): ApplePushCertificateInfo {
+  return {
+    expirationDateTime: inFuture(now, { days: 200 }),
+    lastModifiedDateTime: ago(now, { days: 165 }),
+  };
+}
+
+/** Demo-Mandant: ein Business-Token läuft in 20 Tagen ab, das Education-Token ist unauffällig (fiktiv). */
+export function defaultVppTokens(now: Date): VppTokenInfo[] {
+  return [
+    {
+      id: demoGuid('vpp', 1),
+      organizationName: 'Contoso GmbH',
+      accountType: 'business',
+      expirationDateTime: inFuture(now, { days: 20 }),
+      lastSyncDateTime: ago(now, { hours: 3 }),
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 128,
+    },
+    {
+      id: demoGuid('vpp', 2),
+      organizationName: 'Contoso Schulen',
+      accountType: 'education',
+      expirationDateTime: inFuture(now, { days: 210 }),
+      lastSyncDateTime: ago(now, { hours: 5 }),
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 41,
+    },
+  ];
+}
+
+/** Eine offene Defender-Warnung (fiktiv) – Standard: neu, mittlere Schwere, vor 2 Stunden erzeugt. */
+export function securityAlert(
+  now: Date,
+  n: number,
+  title: string,
+  overrides: Partial<SecurityAlertEntry> = {},
+): SecurityAlertEntry {
+  return {
+    id: `da6375512276775608${String(n).padStart(2, '0')}_-961444813`,
+    title,
+    severity: 'medium',
+    status: 'new',
+    createdDateTime: ago(now, { hours: 2 }),
+    lastUpdateDateTime: ago(now, { hours: 1 }),
+    categories: ['Execution'],
+    alertWebUrl: `https://security.microsoft.com/alerts/da6375512276775608${String(n).padStart(2, '0')}_-961444813`,
+    matchedBy: 'azureAdDeviceId',
+    deviceRiskScore: 'medium',
+    defenderAvStatus: 'updated',
+    ...overrides,
+  };
+}
+
+/** Standard: Defender kennt für dieses Gerät keine offene Warnung (42 Warnungen des Mandanten gelesen). */
+export function defaultSecurityAlerts(): SecurityAlertsInfo {
+  return { alerts: [], resolvedCount: 0, evaluated: 42, moreAvailable: false };
+}
+
+/** Standard: Gruppe „Außendienst“ (Priorität 1, Limit 15) vor der Standardkonfiguration (Priorität 2, Limit 5). */
+export function defaultEnrollmentLimits(): EnrollmentLimitsInfo {
+  return {
+    omitted: 0,
+    limits: [
+      enrollmentLimit(1, 'Contoso – Außendienst', {
+        limit: 15,
+        targets: [{ kind: 'group', groupId: demoGuid('object', 310) }],
+      }),
+      enrollmentLimit(2, 'Contoso – Standard', { limit: 5 }),
+    ],
+  };
 }

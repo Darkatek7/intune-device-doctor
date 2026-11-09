@@ -126,6 +126,83 @@ export const Docs = {
   // M10: Integritätsnachweis
   healthAttestationResource:
     'https://learn.microsoft.com/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
+  // M14/S1: doppelte Entra-Geräteobjekte (abgerufen 2026-11-09)
+  entraDeviceListResource: 'https://learn.microsoft.com/graph/api/device-list?view=graph-rest-1.0',
+  /** Dual State (hybrid joined + registriert): nichtdeterministische Auswertung, ab Windows 10 1803 automatische Bereinigung */
+  entraDualStateFaq:
+    'https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-a-duplicate-microsoft-entra-registered-record-for-my-windows-10-11-microsoft-entra-hybrid-joined-device-in-the-microsoft-entra-devices-list',
+  /** Ursachen doppelter Geräteeinträge (Unjoin/Rejoin, „Geschäfts- oder Schulkonto hinzufügen“, Neuinstallation) */
+  entraDuplicateEntriesFaq:
+    'https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-duplicate-device-entries',
+  /** Dual State vermeiden/bereinigen; Hinweis: Entfernen des registrierten Zustands kann Intune-Registrierung beenden */
+  hybridJoinReviewThingsToKnow:
+    'https://learn.microsoft.com/entra/identity/devices/hybrid-join-plan#review-things-you-should-know',
+  // M14/S3: Registrierung – Lizenz und Gerätelimit (abgerufen 2026-11-09)
+  licenseDetailsList:
+    'https://learn.microsoft.com/graph/api/user-list-licensedetails?view=graph-rest-1.0',
+  servicePlanInfo:
+    'https://learn.microsoft.com/graph/api/resources/serviceplaninfo?view=graph-rest-1.0',
+  licensingServicePlanReference:
+    'https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference',
+  /** Ursache/Lösung „IT admin needs to assign license for access“ */
+  enrollmentLicenseMissing:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#it-admin-needs-to-assign-license-for-access',
+  /** Ursache/Lösung „Device cap reached“ (DeviceCapReached) */
+  enrollmentDeviceCapReached:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#device-cap-reached',
+  intuneLicensesAssign: 'https://learn.microsoft.com/mem/intune/fundamentals/licenses-assign',
+  /** Intune- und Entra-Gerätelimit: für welche Registrierungsarten das Intune-Limit nicht gilt */
+  deviceLimitsIntuneEntra:
+    'https://learn.microsoft.com/intune/device-enrollment/limits-intune-entra',
+  enrollmentLimitResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0',
+  enrollmentConfigurationsList:
+    'https://learn.microsoft.com/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
+  // M14/S5: Mandanten-Status (abgerufen 2026-11-09)
+  vppTokenList:
+    'https://learn.microsoft.com/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0',
+  vppTokenResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-onboarding-vpptoken?view=graph-rest-1.0',
+  /** VPP-Token erneuern/synchronisieren; Status „invalid“ bei Kontoänderung oder Ablauf */
+  vppTokenRenew:
+    'https://learn.microsoft.com/intune/app-management/deployment/manage-vpp-apple#renewing-vpp-tokens-or-apple-business-manager-location-token',
+  vppTokenSync:
+    'https://learn.microsoft.com/intune/app-management/deployment/manage-vpp-apple#synchronize-a-vpp-token',
+  /** Beta-Ressourcen, über die dokumentierte v1.0-API nicht erreichbar */
+  depOnboardingSettingBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-deponboardingsetting?view=graph-rest-beta',
+  androidManagedStoreSettingsBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-androidforwork-androidmanagedstoreaccountenterprisesettings?view=graph-rest-beta',
+  windowsAutopilotSettingsBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-windowsautopilotsettings?view=graph-rest-beta',
+  ndesConnectorBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-ndesconnector?view=graph-rest-beta',
+  /** Apple-ADE-Token erneuern (Registrierungsprogramm-Token) */
+  appleAdeTokens:
+    'https://learn.microsoft.com/intune/device-enrollment/apple/manage-devices-tokens-apple#renew-your-token',
+  // M14/S4: Sicherheitswarnungen (abgerufen 2026-11-09)
+  securityAlertsList:
+    'https://learn.microsoft.com/graph/api/security-list-alerts_v2?view=graph-rest-1.0',
+  securityAlertResource:
+    'https://learn.microsoft.com/graph/api/resources/security-alert?view=graph-rest-1.0',
+  securityDeviceEvidence:
+    'https://learn.microsoft.com/graph/api/resources/security-deviceevidence?view=graph-rest-1.0',
+  /** Defender-Warteschlange: Schweregrade, Status, Dienstquellen */
+  defenderAlertsQueue: 'https://learn.microsoft.com/defender-endpoint/alerts-queue',
+  defenderInvestigateAlerts: 'https://learn.microsoft.com/defender-endpoint/investigate-alerts',
+  // M14/S2: Zuweisungen (abgerufen 2026-11-09)
+  configurationAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',
+  complianceAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0',
+  mobileAppAssignmentsList:
+    'https://learn.microsoft.com/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0',
+  /** Ein-/Ausschluss von Gruppen: Vorrang, dynamische Gerätegruppen (Latenz), Benutzer-/Gerätegruppen werden nicht verknüpft */
+  assignPolicyExcludeGroups:
+    'https://learn.microsoft.com/intune/device-configuration/assign-device-profile#exclude-groups-from-a-policy-assignment',
+  /** Ein-/Ausschluss bei Apps: Ausschluss hat Vorrang bei gleicher Gruppenart; gemischte Gruppen werden nicht ausgewertet */
+  appAssignmentScope:
+    'https://learn.microsoft.com/intune/app-management/deployment/configure-assignment-scope',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',
@@ -134,4 +211,11 @@ export const Docs = {
   ipconfig: 'https://learn.microsoft.com/windows-server/administration/windows-commands/ipconfig',
   entraDeviceRegistrationCert:
     'https://learn.microsoft.com/troubleshoot/mem/intune/comanage-configmgr/troubleshoot-co-management-auto-enrolling#common-issues',
+  // M13: MDM-Diagnosepaket (mdmlogs-*.cab), abgerufen 2026-11-09
+  diagnoseProvisioningPackages:
+    'https://learn.microsoft.com/windows/configuration/provisioning-packages/diagnose-provisioning-packages',
+  /** Cabinet-Spezifikation (CFHEADER/CFFOLDER/CFFILE/CFDATA, Prüfsumme) und MSZIP-Format */
+  cabinetFormat: 'https://learn.microsoft.com/previous-versions/bb417343(v=msdn.10)',
+  expandCommand:
+    'https://learn.microsoft.com/windows-server/administration/windows-commands/expand',
 } as const;

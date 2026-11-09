@@ -5,8 +5,14 @@
  */
 import type {
   AppError,
+  AssignmentLookup,
+  AssignmentObjectInfo,
+  AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -14,14 +20,19 @@ import type {
   BitLockerKeyInfo,
   DataSource,
   DeviceSearchResult,
+  EndpointProbeResult,
   EntraDeviceInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SectionResult,
+  SecurityAlertsInfo,
   SignInsInfo,
+  TenantStatus,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { runConnectionTest } from '../../graph/connectionTest';
 import {
   createGraphClient,
   GraphRequestError,
@@ -31,11 +42,16 @@ import {
 import type {
   GraphApplePushNotificationCertificate,
   GraphBitlockerRecoveryKey,
+  GraphAssignment,
   GraphCollection,
+  GraphDeviceEnrollmentConfiguration,
   GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
   GraphDirectoryObject,
   GraphEntraDevice,
+  GraphLicenseDetails,
+  GraphSecurityAlert,
+  GraphVppToken,
   GraphManagedDevice,
   GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
@@ -46,19 +62,29 @@ import type {
   GraphWindowsProtectionState,
 } from '../../graph/dto';
 import {
+  ASSIGNMENTS_DISPLAY,
+  ASSIGNMENT_LOOKUP_CONCURRENCY,
   Endpoints,
+  MAX_ASSIGNMENT_LOOKUPS,
+  MAX_ENROLLMENT_LIMIT_CONFIGS,
   MAX_LIST_PAGES,
+  MAX_SECURITY_ALERT_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
 import {
   graphSource,
+  isEnrollmentLimitConfig,
+  isGuid,
   mapApplePushCertificate,
+  mapAssignments,
   mapAppInstallStates,
   mapAutopilot,
   mapDeviceGroups,
+  mapDuplicateDevices,
   mapUserDevices,
   mapBitlockerKey,
+  mapEnrollmentLimits,
   mapEntraDevice,
   mapHealthAttestation,
   mapLocalAdmin,
@@ -67,6 +93,9 @@ import {
   mapPolicyState,
   mapSearchResult,
   mapSignIns,
+  mapSecurityAlerts,
+  mapUserLicense,
+  mapVppTokens,
   mapWindowsProtection,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
@@ -353,6 +382,35 @@ export class GraphProvider implements DeviceDataProvider {
     );
   }
 
+  /**
+   * Entra-Objekte mit demselben Namen (nur die erste Seite). `eq` auf displayName ist Standard-Query;
+   * weitere Seiten werden nicht gelesen, aber ausgewiesen.
+   */
+  getDuplicateDevices(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DuplicateDevicesInfo>> {
+    const endpoint = Endpoints.entraDevicesByName;
+    return this.run<DuplicateDevicesInfo>(
+      'entraDevicesByName',
+      async (source) => {
+        const name = device.deviceName.trim();
+        if (!name || name === '–') {
+          return { status: 'unavailable', reason: de.reasons.duplicatesNoName, source };
+        }
+        const page = await this.client.get<GraphCollection<GraphEntraDevice>>(endpoint.path(name), {
+          signal: options.signal,
+          scope: endpoint.scope,
+        });
+        return this.ok(
+          mapDuplicateDevices(page?.value ?? [], device, Boolean(page?.['@odata.nextLink'])),
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.duplicatesNotReported, source }),
+    );
+  }
+
   getBitLockerKeys(
     device: ManagedDeviceInfo,
     options: RequestOptions = {},
@@ -420,19 +478,59 @@ export class GraphProvider implements DeviceDataProvider {
     device: ManagedDeviceInfo,
     options: RequestOptions = {},
   ): Promise<SectionResult<ApplePushCertificateInfo>> {
+    if (device.osFamily !== 'macos' && device.osFamily !== 'ios') {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.reasons.applePushNotApple,
+        source: graphSource('applePushNotificationCertificate'),
+      });
+    }
+    return this.readApplePushCertificate(options);
+  }
+
+  /** Das Zertifikat gilt für den ganzen Mandanten (Gerät und Ansicht „Mandant“ teilen sich die Abfrage). */
+  private readApplePushCertificate(
+    options: RequestOptions,
+  ): Promise<SectionResult<ApplePushCertificateInfo>> {
     const endpoint = Endpoints.applePushNotificationCertificate;
     return this.run<ApplePushCertificateInfo>(
       'applePushNotificationCertificate',
       async (source) => {
-        if (device.osFamily !== 'macos' && device.osFamily !== 'ios') {
-          return { status: 'notApplicable', reason: de.reasons.applePushNotApple, source };
-        }
         const dto = await this.client.get<
           GraphApplePushNotificationCertificate | { value?: GraphApplePushNotificationCertificate }
         >(endpoint.path(), { signal: options.signal, scope: endpoint.scope });
         return this.ok(mapApplePushCertificate(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.applePushNotReported, source }),
+    );
+  }
+
+  /**
+   * Mandanten-Status (M14/S5): Apple-MDM-Push-Zertifikat und VPP-Tokens, unabhängig voneinander. Die
+   * VPP-Antwort enthält `token` und `appleId`; der Mapper übernimmt nur die Whitelist, das Rohobjekt
+   * verlässt diese Methode nicht.
+   */
+  async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
+    const [applePushCertificate, vppTokens] = await Promise.all([
+      this.readApplePushCertificate(options),
+      this.readVppTokens(options),
+    ]);
+    return { applePushCertificate, vppTokens };
+  }
+
+  private readVppTokens(options: RequestOptions): Promise<SectionResult<VppTokenInfo[]>> {
+    const endpoint = Endpoints.vppTokens;
+    return this.run<VppTokenInfo[]>(
+      'vppTokens',
+      async (source) => {
+        const entries = await this.client.getAllPages<GraphVppToken>(endpoint.path(), {
+          signal: options.signal,
+          scope: endpoint.scope,
+          maxPages: MAX_LIST_PAGES,
+        });
+        return this.ok(mapVppTokens(entries), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.vppTokensNotReported, source }),
     );
   }
 
@@ -618,6 +716,216 @@ export class GraphProvider implements DeviceDataProvider {
     );
   }
 
+  /**
+   * Lizenz des primären Benutzers (M14/S3): `GET /users/{id}/licenseDetails`, reduziert auf die
+   * Intune-Serviceplans. Optionaler Scope LicenseAssignment.Read.All.
+   */
+  getUserLicense(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<UserLicenseInfo>> {
+    const endpoint = Endpoints.userLicenseDetails;
+    return this.run<UserLicenseInfo>(
+      'userLicenseDetails',
+      async (source) => {
+        if (!device.userId) {
+          return { status: 'notApplicable', reason: de.reasons.licenseNoPrimaryUser, source };
+        }
+        const entries = await this.client.getAllPages<GraphLicenseDetails>(
+          endpoint.path(device.userId),
+          { signal: options.signal, scope: endpoint.scope, maxPages: MAX_LIST_PAGES },
+        );
+        return this.ok(mapUserLicense(entries), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.licenseNotReported, source }),
+    );
+  }
+
+  /**
+   * Sicherheitswarnungen (M14/S4): `GET /security/alerts_v2` gefiltert auf Defender for Endpoint, höchstens
+   * MAX_SECURITY_ALERT_PAGES Seiten (neueste zuerst). Ein Filter auf das Gerät ist nicht dokumentiert →
+   * die Zuordnung (Entra-Geräte-ID, sonst Gerätename) geschieht clientseitig; behobene Warnungen werden
+   * ausgeblendet. Optionaler Scope SecurityAlert.Read.All.
+   */
+  getSecurityAlerts(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<SecurityAlertsInfo>> {
+    const endpoint = Endpoints.securityAlerts;
+    return this.run<SecurityAlertsInfo>(
+      'securityAlerts',
+      async (source) => {
+        const entries: GraphSecurityAlert[] = [];
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_SECURITY_ALERT_PAGES) {
+          const page: GraphCollection<GraphSecurityAlert> | undefined = await this.client.get<
+            GraphCollection<GraphSecurityAlert>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          if (Array.isArray(page?.value)) entries.push(...page.value);
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(
+          mapSecurityAlerts(
+            entries,
+            { azureAdDeviceId: usableAzureAdId(device), deviceName: device.deviceName },
+            { moreAvailable: Boolean(next) },
+          ),
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.securityAlertsNotReported, source }),
+    );
+  }
+
+  /**
+   * Gerätelimit-Konfigurationen (M14/S3): Liste der Registrierungskonfigurationen (Limits am
+   * `@odata.type` erkannt) und je Limit-Konfiguration ein GET auf die Zuweisungen (höchstens
+   * MAX_ENROLLMENT_LIMIT_CONFIGS, 4 parallel). Nicht lesbare Zuweisungen → Ziele null.
+   */
+  getEnrollmentLimits(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<EnrollmentLimitsInfo>> {
+    const endpoint = Endpoints.deviceEnrollmentConfigurations;
+    const assignmentsEndpoint = Endpoints.deviceEnrollmentConfigurationAssignments;
+    return this.run<EnrollmentLimitsInfo>(
+      'deviceEnrollmentConfigurations',
+      async (source) => {
+        if (!device.userId) {
+          return {
+            status: 'notApplicable',
+            reason: de.reasons.enrollmentLimitsNoPrimaryUser,
+            source,
+          };
+        }
+        const configs = await this.client.getAllPages<GraphDeviceEnrollmentConfiguration>(
+          endpoint.path(),
+          { signal: options.signal, scope: endpoint.scope, maxPages: MAX_LIST_PAGES },
+        );
+        const limitConfigs = configs.filter(isEnrollmentLimitConfig);
+        const read = limitConfigs.slice(0, MAX_ENROLLMENT_LIMIT_CONFIGS);
+        const assignments = new Map<string, GraphAssignment[]>();
+        for (let i = 0; i < read.length; i += ASSIGNMENT_LOOKUP_CONCURRENCY) {
+          const batch = read.slice(i, i + ASSIGNMENT_LOOKUP_CONCURRENCY);
+          const results = await Promise.allSettled(
+            batch.map((config) =>
+              this.client.get<GraphCollection<GraphAssignment>>(
+                assignmentsEndpoint.path(config.id),
+                { signal: options.signal, scope: assignmentsEndpoint.scope },
+              ),
+            ),
+          );
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              assignments.set(batch[index]!.id, result.value?.value ?? []);
+            } else if (isAbort(result.reason)) {
+              throw result.reason;
+            }
+            // andere Fehler: Ziele dieser Konfiguration bleiben unbekannt (null)
+          });
+        }
+        return this.ok(
+          {
+            limits: mapEnrollmentLimits(read, assignments),
+            omitted: limitConfigs.length - read.length,
+          },
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.reasons.enrollmentLimitsNotReported,
+        source,
+      }),
+    );
+  }
+
+  /**
+   * Zuweisungen der übergebenen Richtlinien/Apps (M14/S2): je Objekt ein GET, höchstens
+   * MAX_ASSIGNMENT_LOOKUPS Objekte, ASSIGNMENT_LOOKUP_CONCURRENCY parallel. IDs, die keine GUID sind,
+   * werden nicht abgefragt (notEvaluable). 404 → notFound (die ID ist kein Objekt dieses Typs).
+   * Fehlende Berechtigung betrifft alle Aufrufe → ganze Section forbidden; schlägt jeder Aufruf mit einem
+   * anderen Fehler fehl, ist die Section ein Fehler.
+   */
+  getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AssignmentsInfo>> {
+    void device;
+    return this.run<AssignmentsInfo>(
+      'deviceConfigurationAssignments',
+      async (source) => {
+        const combined = { ...source, label: ASSIGNMENTS_DISPLAY };
+        if (lookups.length === 0) {
+          return { status: 'notApplicable', reason: de.reasons.assignmentsNothingToCheck, source };
+        }
+        const limited = lookups.slice(0, MAX_ASSIGNMENT_LOOKUPS);
+        const objects: AssignmentObjectInfo[] = [];
+        let firstError: unknown = null;
+        let failed = 0;
+        let requested = 0;
+        for (let i = 0; i < limited.length; i += ASSIGNMENT_LOOKUP_CONCURRENCY) {
+          const batch = limited.slice(i, i + ASSIGNMENT_LOOKUP_CONCURRENCY);
+          const results = await Promise.allSettled(
+            batch.map((lookup) => this.readAssignments(lookup, options)),
+          );
+          results.forEach((result, index) => {
+            const lookup = batch[index]!;
+            if (result.status === 'fulfilled') {
+              if (result.value.requested) requested += 1;
+              objects.push(result.value.object);
+              return;
+            }
+            if (isAbort(result.reason)) throw result.reason;
+            const appError = toAppError(result.reason);
+            // Fehlende Berechtigung betrifft alle Aufrufe → ganze Section „forbidden“.
+            if (appError.code === 'forbidden') throw result.reason;
+            requested += 1;
+            failed += 1;
+            firstError ??= result.reason;
+            objects.push({ ...lookup, status: 'error', assignments: [] });
+          });
+        }
+        if (requested > 0 && failed === requested) throw firstError;
+        return this.ok({ objects, skipped: lookups.length - limited.length }, combined);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.assignmentsNotReported, source }),
+    );
+  }
+
+  private async readAssignments(
+    lookup: AssignmentLookup,
+    options: RequestOptions,
+  ): Promise<{ object: AssignmentObjectInfo; requested: boolean }> {
+    if (!isGuid(lookup.id)) {
+      return { object: { ...lookup, status: 'notEvaluable', assignments: [] }, requested: false };
+    }
+    const endpoint =
+      lookup.kind === 'app'
+        ? Endpoints.mobileAppAssignments
+        : lookup.kind === 'compliance'
+          ? Endpoints.deviceCompliancePolicyAssignments
+          : Endpoints.deviceConfigurationAssignments;
+    try {
+      const page = await this.client.get<GraphCollection<GraphAssignment>>(
+        endpoint.path(lookup.id),
+        { signal: options.signal, scope: endpoint.scope },
+      );
+      return {
+        object: { ...lookup, status: 'ok', assignments: mapAssignments(page?.value) },
+        requested: true,
+      };
+    } catch (error) {
+      if (!isAbort(error) && toAppError(error).code === 'notFound') {
+        return { object: { ...lookup, status: 'notFound', assignments: [] }, requested: true };
+      }
+      throw error;
+    }
+  }
+
   /** App-Namen per GET /deviceAppManagement/mobileApps/{id} – je ID ein GET, gedrosselt parallel. */
   getMobileApps(appIds: string[], options: RequestOptions = {}): Promise<SectionResult<AppInfo[]>> {
     const endpoint = Endpoints.mobileApp;
@@ -655,6 +963,20 @@ export class GraphProvider implements DeviceDataProvider {
       }
       if (apps.length === 0 && firstError) throw firstError;
       return this.ok(apps, source);
+    });
+  }
+
+  /** Verbindungstest (M14/S6): jeder Endpunkt genau einmal per GET, nur Struktur der Antwort (siehe connectionTest.ts). */
+  testConnection(
+    device: ManagedDeviceInfo,
+    options: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    } = {},
+  ): Promise<EndpointProbeResult[]> {
+    return runConnectionTest(this.client, device, {
+      signal: options.signal,
+      onResult: options.onResult,
+      now: this.now,
     });
   }
 }

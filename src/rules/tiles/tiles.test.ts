@@ -46,6 +46,7 @@ async function loadSnapshot(deviceName: string): Promise<DeviceSnapshot> {
     compliancePolicies: await provider.getCompliancePolicyStates(device),
     configurationPolicies: await provider.getConfigurationPolicyStates(device),
     entraDevice: await provider.getEntraDevice(device),
+    duplicateDevices: await provider.getDuplicateDevices(device),
     bitlockerKeys: await provider.getBitLockerKeys(device),
     applePushCertificate: await provider.getApplePushCertificate(device),
   };

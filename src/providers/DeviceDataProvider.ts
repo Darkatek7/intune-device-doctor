@@ -9,11 +9,19 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  AssignmentLookup,
+  AssignmentsInfo,
+  EnrollmentLimitsInfo,
+  SecurityAlertsInfo,
+  TenantStatus,
+  UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
+  EndpointProbeResult,
   AppInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
@@ -59,6 +67,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<EntraDeviceInfo | null>>;
+
+  /**
+   * Entra-Objekte mit demselben Namen wie das Gerät (erste Seite, M14/S1). Dient dem Befund „doppelte
+   * Objekte“ (z. B. Dual State hybrid joined + registriert).
+   */
+  getDuplicateDevices(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DuplicateDevicesInfo>>;
 
   getBitLockerKeys(
     device: ManagedDeviceInfo,
@@ -135,10 +152,71 @@ export interface DeviceDataProvider {
   ): Promise<SectionResult<HealthAttestationInfo>>;
 
   /**
+   * Lizenz des primären Benutzers (M14/S3): nur die Intune-Serviceplans aus `licenseDetails`. Ohne
+   * primären Benutzer notApplicable; optionaler Scope LicenseAssignment.Read.All (403 → forbidden).
+   */
+  getUserLicense(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<UserLicenseInfo>>;
+
+  /**
+   * Status mandantenweiter Zertifikate und Token (M14/S5, Ansicht „Mandant“): Apple-MDM-Push-Zertifikat
+   * und Apple-VPP-Tokens. Unabhängig von einem Gerät; jede Quelle ist ein eigenes SectionResult
+   * (403/404/Fehler betreffen nur ihre Kachel). Die VPP-Antwort enthält `token` und `appleId` – beides
+   * wird nie gelesen. Wirft nur bei Abbruch.
+   */
+  getTenantStatus(options?: RequestOptions): Promise<TenantStatus>;
+
+  /**
+   * Offene Defender-for-Endpoint-Warnungen dieses Geräts (M14/S4): die neuesten Warnungen des Mandanten
+   * (höchstens 3 Seiten à 100), clientseitig dem Gerät zugeordnet; behobene ausgeblendet. Optionaler
+   * Scope SecurityAlert.Read.All (403 → forbidden).
+   */
+  getSecurityAlerts(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<SecurityAlertsInfo>>;
+
+  /**
+   * Gerätelimit-Konfigurationen des Mandanten mit ihren Zielen (M14/S3). Ohne primären Benutzer
+   * notApplicable; optionaler Scope DeviceManagementServiceConfig.Read.All.
+   */
+  getEnrollmentLimits(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<EnrollmentLimitsInfo>>;
+
+  /**
+   * Zuweisungen der Richtlinien/Apps, die in den Gerätezuständen erscheinen (M14/S2): je Objekt ein GET
+   * auf `…/{id}/assignments`, höchstens 30 Objekte, 4 parallel. Hängt von anderen Sections ab, deshalb
+   * bekommt die Methode die nachzuschlagenden Objekte übergeben (siehe `assignmentLookups`). Ohne Objekte
+   * notApplicable; fehlende Berechtigung betrifft alle Objekte → forbidden.
+   */
+  getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options?: RequestOptions,
+  ): Promise<SectionResult<AssignmentsInfo>>;
+
+  /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im
    * Ergebnis einfach; eine fehlende Berechtigung liefert "forbidden".
    */
   getMobileApps(appIds: string[], options?: RequestOptions): Promise<SectionResult<AppInfo[]>>;
+
+  /**
+   * Verbindungstest (M14/S6, nur Live): ruft jeden Endpunkt der Registry für dieses Gerät genau einmal
+   * lesend auf, nacheinander. Liefert je Endpunkt nur Ergebnis, Dauer, Anzahl der Einträge und
+   * Feldnamen – nie Werte. `onResult` meldet jedes Ergebnis sofort (Fortschritt). Wirft nur bei Abbruch.
+   * Fehlt im Demo-Modus (die UI blendet den Einstieg dann aus).
+   */
+  testConnection?(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions & {
+      onResult?: (result: EndpointProbeResult, index: number, total: number) => void;
+    },
+  ): Promise<EndpointProbeResult[]>;
 }
 
 export class ProviderError extends Error {

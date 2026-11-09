@@ -11,9 +11,11 @@ import type {
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
+  MobileAppAssignmentIntent,
   MobileAppIntent,
   PolicyPlatformType,
   ResultantAppState,
+  ServicePlanProvisioningStatus,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
   WindowsMalwareState,
@@ -191,6 +193,34 @@ export interface EntraDeviceInfo {
   registrationDateTime: string | null;
 }
 
+/**
+ * Ein Entra-Geräteobjekt mit demselben Namen wie das Intune-Gerät (M14/S1). Ohne physicalIds und
+ * deviceMetadata.
+ */
+export interface SameNameEntraDevice {
+  objectId: string;
+  deviceId: string | null;
+  trustType: 'Workplace' | 'AzureAd' | 'ServerAd' | null;
+  accountEnabled: boolean | null;
+  approximateLastSignInDateTime: string | null;
+  isCompliant: boolean | null;
+  isManaged: boolean | null;
+  registrationDateTime: string | null;
+  /** Rohwert laut Graph (z. B. "Windows", "MacMDM") */
+  operatingSystem: string | null;
+  /** deviceId == azureADDeviceId des Intune-Geräts */
+  isCurrent: boolean;
+  /** true = anderes Betriebssystem als das Intune-Gerät → nur „gleichnamig“, kein Duplikat */
+  differentOs: boolean;
+}
+
+/** Entra-Objekte mit dem Gerätenamen (erste Seite). Enthält das aktuelle Objekt, sofern gefunden. */
+export interface DuplicateDevicesInfo {
+  devices: SameNameEntraDevice[];
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden */
+  moreAvailable: boolean;
+}
+
 export type BitLockerVolumeType =
   'operatingSystemVolume' | 'fixedDataVolume' | 'removableDataVolume' | 'unknown';
 
@@ -313,6 +343,185 @@ export interface HealthAttestationInfo {
   healthAttestationSupportedStatus: string | null;
 }
 
+// ---------- Zuweisungen (M14/S2) ----------
+
+/** Ziel einer Zuweisung (Graph: deviceAndAppManagementAssignmentTarget). */
+export type AssignmentTarget =
+  | { kind: 'group'; groupId: string }
+  | { kind: 'exclusionGroup'; groupId: string }
+  | { kind: 'allDevices' }
+  | { kind: 'allUsers' }
+  /** Unbekannter `@odata.type` – wird nicht gedeutet */
+  | { kind: 'unknown'; odataType: string | null };
+
+export interface AssignmentEntry {
+  target: AssignmentTarget;
+  /** Nur bei Apps (installIntent der Zuweisung) */
+  intent: MobileAppAssignmentIntent | null;
+}
+
+export type AssignmentObjectKind = 'compliance' | 'configuration' | 'app';
+
+/** Ein Objekt (aus den Gerätezuständen), dessen Zuweisungen nachgeschlagen werden. */
+export interface AssignmentLookup {
+  kind: AssignmentObjectKind;
+  id: string;
+  displayName: string;
+}
+
+export interface AssignmentObjectInfo extends AssignmentLookup {
+  /**
+   * ok = Zuweisungen gelesen (ggf. leer); notFound = Graph kennt unter dieser ID kein Objekt dieses
+   * Typs (404); notEvaluable = ID nicht abfragbar (keine GUID, kein Request); error = anderer Fehler
+   */
+  status: 'ok' | 'notFound' | 'notEvaluable' | 'error';
+  assignments: AssignmentEntry[];
+}
+
+/** Zuweisungen der Richtlinien/Apps eines Geräts (höchstens 30 Objekte, die übrigen zählen als `skipped`). */
+export interface AssignmentsInfo {
+  objects: AssignmentObjectInfo[];
+  /** Objekte, die wegen der Obergrenze nicht abgefragt wurden */
+  skipped: number;
+}
+
+// ---------- Registrierung des Benutzers: Lizenz und Gerätelimit (M14/S3) ----------
+
+/** Intune-relevante Serviceplan-Namen laut Lizenz-Referenz (Match über die servicePlanId). */
+export type IntunePlanName = 'INTUNE_A' | 'INTUNE_A_VL' | 'INTUNE_EDU' | 'INTUNE_O365';
+
+export interface IntuneLicensePlanInfo {
+  plan: IntunePlanName;
+  /** SKU der Lizenz, in der der Plan enthalten ist (z. B. "SPE_E3") */
+  skuPartNumber: string | null;
+  provisioningStatus: ServicePlanProvisioningStatus | null;
+}
+
+/** Lizenzen des primären Benutzers, reduziert auf die Intune-Serviceplans. Ohne Benutzerangaben. */
+export interface UserLicenseInfo {
+  /** Gefundene Intune-Pläne (INTUNE_A, INTUNE_A_VL, INTUNE_EDU, INTUNE_O365) aller Lizenzen */
+  plans: IntuneLicensePlanInfo[];
+  /** Anzahl der dem Benutzer zugewiesenen Lizenzen (SKUs) */
+  licenseCount: number;
+}
+
+/** Eine Gerätelimit-Konfiguration (deviceEnrollmentLimitConfiguration) mit ihren Zielen. */
+export interface EnrollmentLimitInfo {
+  id: string;
+  displayName: string;
+  /** Benutzer unterliegen nur der Konfiguration mit dem niedrigsten Wert */
+  priority: number | null;
+  limit: number | null;
+  /** null = Zuweisungen konnten nicht gelesen werden */
+  targets: AssignmentTarget[] | null;
+}
+
+export interface EnrollmentLimitsInfo {
+  limits: EnrollmentLimitInfo[];
+  /** Limit-Konfigurationen, die wegen der Obergrenze nicht gelesen wurden */
+  omitted: number;
+}
+
+// ---------- Sicherheitswarnungen (Defender for Endpoint, M14/S4) ----------
+
+export type SecurityAlertSeverityLevel = 'high' | 'medium' | 'low' | 'informational' | 'unknown';
+export type SecurityAlertStatusLevel = 'new' | 'inProgress' | 'resolved' | 'unknown';
+
+/**
+ * Eine offene Warnung, die diesem Gerät zugeordnet ist. Bewusst ohne Personenbezug: keine angemeldeten
+ * Benutzer, keine IP-Adressen, keine Bearbeiter, keine Datei-/Prozess-/Benutzer-Evidenz.
+ */
+export interface SecurityAlertEntry {
+  id: string;
+  title: string | null;
+  severity: SecurityAlertSeverityLevel;
+  status: SecurityAlertStatusLevel;
+  createdDateTime: string | null;
+  lastUpdateDateTime: string | null;
+  categories: string[];
+  /** Link ins Defender-Portal (nur https auf Microsoft-Domains, sonst null) */
+  alertWebUrl: string | null;
+  /** Wie die Warnung dem Gerät zugeordnet wurde */
+  matchedBy: 'azureAdDeviceId' | 'deviceName';
+  /** Risikostufe des Geräts laut Defender (deviceEvidence.riskScore) */
+  deviceRiskScore: string | null;
+  /** Zustand des Defender-Antivirus laut Evidenz (deviceEvidence.defenderAvStatus) */
+  defenderAvStatus: string | null;
+}
+
+export interface SecurityAlertsInfo {
+  /** Nicht behobene Warnungen dieses Geräts, neueste zuerst */
+  alerts: SecurityAlertEntry[];
+  /** Als „resolved“ geführte Warnungen dieses Geräts (ausgeblendet) */
+  resolvedCount: number;
+  /** Anzahl der gelesenen Warnungen (alle Geräte) */
+  evaluated: number;
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden (nur die neuesten Warnungen geprüft) */
+  moreAvailable: boolean;
+}
+
+// ---------- Mandanten-Status (M14/S5) ----------
+
+export type VppTokenStateLevel =
+  'unknown' | 'valid' | 'expired' | 'invalid' | 'assignedToExternalMDM';
+export type VppSyncStatusLevel = 'none' | 'inProgress' | 'completed' | 'failed';
+
+/**
+ * Ein Apple-VPP-Token des Mandanten. Bewusst ohne das Token selbst und ohne Apple-ID (beides liefert
+ * die Graph-Antwort mit, beides wird nie gelesen).
+ */
+export interface VppTokenInfo {
+  id: string;
+  organizationName: string | null;
+  accountType: 'business' | 'education' | null;
+  expirationDateTime: string | null;
+  lastSyncDateTime: string | null;
+  state: VppTokenStateLevel | null;
+  lastSyncStatus: VppSyncStatusLevel | null;
+  countryOrRegion: string | null;
+  /** Anzahl der Apps seit der letzten Synchronisierung */
+  lastAppCount: number | null;
+}
+
+/**
+ * Status mandantenweiter Zertifikate und Token (Ansicht „Mandant“, unabhängig von einem Gerät). Jede
+ * Quelle ist ein eigenes SectionResult – eine fehlende Berechtigung betrifft nur ihre Kachel.
+ */
+export interface TenantStatus {
+  applePushCertificate: SectionResult<ApplePushCertificateInfo>;
+  vppTokens: SectionResult<VppTokenInfo[]>;
+}
+
+// ---------- Verbindungstest (M14/S6) ----------
+
+/** Ergebnis eines einzelnen Endpunkt-Aufrufs im Verbindungstest. `skipped` = Aufruf nicht möglich (siehe skipReason). */
+export type ProbeOutcome = 'ok' | 'forbidden' | 'notFound' | 'badRequest' | 'error' | 'skipped';
+
+/**
+ * Ergebnis eines Endpunkts im Verbindungstest. Bewusst nur Struktur: nie Antwortwerte, IDs oder Namen –
+ * von der Antwort bleiben Anzahl der Einträge und die Namen der Felder auf oberster Ebene des ersten
+ * Eintrags.
+ */
+export interface EndpointProbeResult {
+  /** Schlüssel in `Endpoints` */
+  endpointId: string;
+  /** Lesbare Form, z. B. "GET /deviceManagement/managedDevices/{id}" (nur Platzhalter, keine Werte) */
+  display: string;
+  version: 'v1.0' | 'beta';
+  scope: string;
+  outcome: ProbeOutcome;
+  /** HTTP-Status bei Fehlern; bei Erfolg nicht bekannt (null) */
+  httpStatus: number | null;
+  /** Dauer inkl. Wiederholungen bei Drosselung; null bei skipped */
+  durationMs: number | null;
+  /** Einträge der Antwort (Sammlung: Länge von value, einzelnes Objekt: 1); null bei Fehler/skipped */
+  entryCount: number | null;
+  /** Namen der Felder auf oberster Ebene des ersten Eintrags (keine Werte) */
+  fieldNames: string[];
+  /** Grund, warum der Endpunkt nicht aufgerufen wurde (nur bei skipped) */
+  skipReason: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -321,6 +530,8 @@ export interface DeviceSnapshot {
   configurationPolicies?: SectionResult<PolicyStateInfo[]>;
   /** data null = kein Entra-Objekt gefunden */
   entraDevice?: SectionResult<EntraDeviceInfo | null>;
+  /** Entra-Objekte mit demselben Namen (M14/S1, Scope Device.Read.All) */
+  duplicateDevices?: SectionResult<DuplicateDevicesInfo>;
   bitlockerKeys?: SectionResult<BitLockerKeyInfo[]>;
   appInstallStates?: SectionResult<AppInstallStateInfo[]>;
   /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
@@ -334,6 +545,12 @@ export interface DeviceSnapshot {
    * Gerät steht nicht darin (kein Fehler). Optionaler Scope DeviceManagementServiceConfig.Read.All.
    */
   autopilot?: SectionResult<AutopilotInfo | null>;
+  /** Lizenz des primären Benutzers (M14/S3, optionaler Scope LicenseAssignment.Read.All) */
+  userLicense?: SectionResult<UserLicenseInfo>;
+  /** Gerätelimit-Konfigurationen des Mandanten (M14/S3, optionaler Scope DeviceManagementServiceConfig.Read.All) */
+  enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
+  /** Offene Defender-Warnungen dieses Geräts (M14/S4, optionaler Scope SecurityAlert.Read.All) */
+  securityAlerts?: SectionResult<SecurityAlertsInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
   deviceGroups?: SectionResult<DeviceGroupsInfo>;
   /**
@@ -343,6 +560,11 @@ export interface DeviceSnapshot {
   userDevices?: SectionResult<DeviceSearchResult[]>;
   /** Nur Windows: Device Health Attestation (Integritätsnachweis, Rohwerte) */
   healthAttestation?: SectionResult<HealthAttestationInfo>;
+  /**
+   * Zuweisungen der Richtlinien und Apps, die in den Gerätezuständen erscheinen (M14/S2). Hängt von
+   * compliancePolicies, configurationPolicies, appInstallStates und deviceGroups ab und lädt erst danach.
+   */
+  assignments?: SectionResult<AssignmentsInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -363,12 +585,19 @@ export type TileId =
   | 'autopilot'
   | 'groups'
   | 'attestation'
+  | 'registration'
+  | 'securityAlerts'
+  // Ansicht „Mandant“ (M14/S5), kein Gerät:
+  | 'tenantApplePush'
+  | 'tenantVpp'
+  | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
   | 'enrollment'
   | 'certsNetwork'
   | 'mdmEvents'
+  | 'mdmDiagReport'
   | 'diagCollection';
 
 /** Name einer Intune-App, aufgelöst über GET /deviceAppManagement/mobileApps/{id} (bzw. Mock-Katalog). */
@@ -376,6 +605,12 @@ export interface AppInfo {
   id: string;
   displayName: string;
   publisher: string | null;
+}
+
+/** Kleine Tabelle innerhalb eines Befunds (z. B. gleichnamige Entra-Objekte). Reiner Text. */
+export interface FindingTable {
+  columns: string[];
+  rows: Array<{ cells: string[]; /** z. B. das aktuelle Objekt */ highlight?: boolean }>;
 }
 
 /** Weiterführender Link, z. B. "In Intune öffnen". */
@@ -397,6 +632,8 @@ export interface Finding {
   remediation: string[];
   /** Rohwerte, die den Befund belegen */
   evidence?: Record<string, string | number | boolean | null>;
+  /** Optionale Tabelle (Spalten × Zeilen), z. B. gleichnamige Objekte oder Zuweisungen */
+  table?: FindingTable;
   source: DataSource;
   docsUrl?: string;
   /** Links ins Intune Admin Center (App, Gerät, Richtlinienübersicht) */
@@ -409,6 +646,7 @@ export type SnapshotSectionKey =
   | 'compliancePolicies'
   | 'configurationPolicies'
   | 'entraDevice'
+  | 'duplicateDevices'
   | 'bitlockerKeys'
   | 'appInstallStates'
   | 'applePushCertificate'
@@ -417,7 +655,11 @@ export type SnapshotSectionKey =
   | 'autopilot'
   | 'deviceGroups'
   | 'userDevices'
-  | 'healthAttestation';
+  | 'healthAttestation'
+  | 'userLicense'
+  | 'enrollmentLimits'
+  | 'securityAlerts'
+  | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

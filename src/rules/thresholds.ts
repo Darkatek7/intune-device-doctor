@@ -6,6 +6,8 @@ export const THRESHOLDS = {
   checkInCriticalDays: 30,
   /** MDM-Gerätezertifikat bzw. Apple-Push-Zertifikat läuft innerhalb dieser Tage ab → Warnung */
   certificateWarningDays: 30,
+  /** Apple-VPP-Token läuft innerhalb dieser Tage ab → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
+  vppTokenWarningDays: 30,
   /** Android-Sicherheitspatch älter als diese Tage → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
   androidPatchWarningDays: 90,
   /** Unter diesem Anteil freien Speichers → Warnung */

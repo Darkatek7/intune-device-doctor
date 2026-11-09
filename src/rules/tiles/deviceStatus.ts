@@ -18,6 +18,7 @@ import {
 } from '../helpers';
 import { Docs } from '../knowledge/docs';
 import { THRESHOLDS } from '../thresholds';
+import { duplicatesContribution } from './duplicates';
 
 const t = de.rules.deviceStatus;
 const f = de.rules.facts;
@@ -32,8 +33,8 @@ const APPLE = new Set(['macos', 'ios']);
 export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile {
   const apple = APPLE.has(snapshot.device.osFamily);
   const sections: Tile['sections'] = apple
-    ? ['entraDevice', 'applePushCertificate']
-    : ['entraDevice'];
+    ? ['entraDevice', 'applePushCertificate', 'duplicateDevices']
+    : ['entraDevice', 'duplicateDevices'];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('deviceStatus', sections);
   const { device } = snapshot;
   const entra = snapshot.entraDevice!;
@@ -123,6 +124,12 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile 
     });
     values.push({ severity: 'critical', value: t.valueJailbroken });
   }
+
+  // M14/S1: gleichnamige Entra-Objekte (Dual State, Duplikate)
+  const duplicates = duplicatesContribution(snapshot);
+  findings.push(...duplicates.findings);
+  facts.push(...duplicates.facts);
+  if (duplicates.value) values.push(duplicates.value);
 
   const certExpiry = device.managementCertificateExpirationDate;
   if (certExpiry) {
@@ -251,11 +258,14 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile 
     value: primary ?? (entra.status === 'ok' ? t.valueActive : de.availability[entra.status]),
     summary: t.summary(summaryParts),
     findings: sortFindings(findings),
-    sources: uniqueSources(
-      apns && apns.status !== 'notApplicable'
-        ? [device.source, entra.source, apns.source]
-        : [device.source, entra.source],
-    ),
+    sources: uniqueSources([
+      device.source,
+      entra.source,
+      apns && apns.status !== 'notApplicable' ? apns.source : undefined,
+      snapshot.duplicateDevices && snapshot.duplicateDevices.status !== 'notApplicable'
+        ? snapshot.duplicateDevices.source
+        : undefined,
+    ]),
     facts,
     availability: availabilityOf(entra),
     sections,

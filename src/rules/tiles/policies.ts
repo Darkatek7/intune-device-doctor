@@ -25,6 +25,7 @@ import {
 } from '../helpers';
 import { Docs } from '../knowledge/docs';
 import { describeErrorCode } from '../knowledge/errorCodes';
+import { assignmentsContribution } from './assignments';
 import { settingName } from './policySettings';
 
 const t = de.rules.policies;
@@ -90,10 +91,19 @@ export function evaluatePolicies(snapshot: DeviceSnapshot, _now: Date): Tile {
     title: t.settingsCatalogTitle,
     detail: t.settingsCatalogDetail,
     cause: t.settingsCatalogCause,
-    remediation: [...t.settingsCatalogRemediation],
+    remediation: [
+      ...t.settingsCatalogRemediation,
+      // M13: liegt ein MDM-Diagnosebericht aus einem DiagLogs-ZIP vor, darauf verweisen
+      ...(snapshot.diagnostics?.mdmDiag?.status === 'ok' ? [t.settingsCatalogMdmDiagHint] : []),
+    ],
     source: configuration.source,
     docsUrl: Docs.settingsCatalog,
   });
+
+  // M14/S2: Zuweisungen (reine Hinweise; laden nach den Gerätezuständen, blockieren die Kachel nicht)
+  const assignments = assignmentsContribution(snapshot, 'policies');
+  findings.push(...assignments.findings);
+  facts.push(...assignments.facts);
 
   const actionable = findings.filter((x) => x.severity === 'critical' || x.severity === 'warning');
   const critical = actionable.filter((x) => x.severity === 'critical').length;
@@ -132,10 +142,10 @@ export function evaluatePolicies(snapshot: DeviceSnapshot, _now: Date): Tile {
     value,
     summary,
     findings: sortFindings(findings),
-    sources: uniqueSources([configuration.source, compliance.source]),
+    sources: uniqueSources([configuration.source, compliance.source, assignments.source]),
     facts,
     availability,
-    sections,
+    sections: [...sections, 'assignments'],
   };
 }
 

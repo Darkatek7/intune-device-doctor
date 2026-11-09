@@ -11,7 +11,7 @@ import {
 } from './helpers';
 
 test.describe('Suche', () => {
-  test('CONTOSO-PC001 öffnet das Gerät mit allen 13 Windows-Kacheln, alle in Ordnung', async ({
+  test('CONTOSO-PC001 öffnet das Gerät mit allen 15 Windows-Kacheln, alle in Ordnung', async ({
     page,
   }) => {
     await openDevice(page, 'CONTOSO-PC001');

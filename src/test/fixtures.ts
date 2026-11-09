@@ -4,7 +4,7 @@ import type { Finding, Tile } from '../domain/types';
  * Anzahl der Kacheln eines Windows-Geräts im Demo-Modus ohne DiagLogs-ZIP (Standard-Kacheln inkl.
  * Apps, Anmeldungen …). Bei neuen Kacheln hier einmal anpassen.
  */
-export const WINDOWS_TILE_COUNT = 13;
+export const WINDOWS_TILE_COUNT = 15;
 
 export function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {

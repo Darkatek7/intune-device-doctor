@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { openCab } from './parsers/cab';
 import { parseEvtx } from './parsers/evtx';
 import {
   FIXTURE_ADMIN_LOG_EVENTS,
@@ -23,6 +24,7 @@ const EXPECTED_NAMES = [
   '(20) Command windir_system32_certutil_exe_-store_My output.log',
   '(21) Command windir_system32_ipconfig_exe_-all output.log',
   '(8) Events Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider_Admin Events.evtx',
+  '(22) FoldersFiles Users_Public_Documents_MDMDiagnostics/mdmlogs-20261014-125312.cab',
 ].sort();
 
 const REG_ENROLLMENTS = '(1) RegistryKey HKLM_Software_Microsoft_Enrollments export.reg';
@@ -147,5 +149,26 @@ describe('Encoder-Helfer', () => {
 
   it('utf8WithBom stellt EF BB BF voran', () => {
     expect(Array.from(utf8WithBom('A'))).toEqual([0xef, 0xbb, 0xbf, 0x41]);
+  });
+});
+
+describe('fixture ZIP: MDM-Diagnosepaket', () => {
+  it('enthält ein kleines gültiges mdmlogs-*.cab mit den von Learn genannten Dateinamen', () => {
+    const key = Object.keys(unzipFixture()).find((k) => k.includes('mdmlogs-'))!;
+    const bytes = unzipFixture()[key]!;
+    expect(bytes.length).toBeLessThan(256 * 1024);
+    const cab = openCab(bytes);
+    expect(cab.folders[0]?.compression).toBe('mszip');
+    expect(cab.files.map((f) => f.name)).toEqual([
+      'MDMDiagHtmlReport.html',
+      'MdmDiagLogMetadata.json',
+      'MDMDiagReport.xml',
+      'MdmDiagReport_RegistryDump.reg',
+      'MdmLogCollectorFootPrint.txt',
+      'microsoft-windows-devicemanagement-enterprise-diagnostics-provider-admin.evtx',
+    ]);
+    const xml = new TextDecoder().decode(cab.extract(cab.files[2]!));
+    expect(xml).toContain('<MDMEnterpriseDiagnosticsReport>');
+    expect(xml).toContain('Multivariant');
   });
 });

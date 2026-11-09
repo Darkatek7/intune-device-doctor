@@ -1,4 +1,4 @@
-import { Stethoscope } from 'lucide-react';
+import { Landmark, Stethoscope } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
@@ -12,12 +12,25 @@ interface Props {
   onModeChange: (mode: DataMode) => void;
   liveAvailable: boolean;
   onHome: () => void;
+  /** Öffnet die Ansicht „Mandant“ (M14/S5); fehlt → Schaltfläche entfällt (z. B. Live ohne Anmeldung) */
+  onOpenTenant?: () => void;
+  /** Die Ansicht „Mandant“ ist gerade offen */
+  tenantActive?: boolean;
   /** Slot für das Konto (M4: AuthGate/Account-Menü) */
   account?: ReactNode;
 }
 
 /** Sticky, transluzent; statt Trennlinie ein weicher Scroll-Edge-Verlauf, sobald gescrollt wird. */
-export function Toolbar({ search, mode, onModeChange, liveAvailable, onHome, account }: Props) {
+export function Toolbar({
+  search,
+  mode,
+  onModeChange,
+  liveAvailable,
+  onHome,
+  onOpenTenant,
+  tenantActive,
+  account,
+}: Props) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -48,6 +61,21 @@ export function Toolbar({ search, mode, onModeChange, liveAvailable, onHome, acc
             </div>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+            {onOpenTenant && (
+              <button
+                type="button"
+                onClick={onOpenTenant}
+                aria-label={de.toolbar.tenant}
+                aria-current={tenantActive ? 'page' : undefined}
+                title={de.toolbar.tenant}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
+                  tenantActive ? 'bg-accent/15 text-accent' : 'bg-fill text-label'
+                }`}
+              >
+                <Landmark aria-hidden="true" size={16} />
+                <span className="hidden sm:inline">{de.toolbar.tenantShort}</span>
+              </button>
+            )}
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />
             <ThemeToggle />
             {account}

@@ -17,6 +17,7 @@ import { sortFindings, worstActionable } from '../helpers';
 import { Docs } from '../knowledge/docs';
 import { INSTALLER_EXIT_CODES } from '../knowledge/errorCodes';
 import { findPrtError } from '../knowledge/prtErrors';
+import { mdmDiagReportTile } from './mdmDiagReport';
 import { mdmEventsTile } from './mdmEvents';
 import { explainCode } from '../knowledge/win32';
 import { certsNetworkTile } from './certsNetwork';
@@ -34,12 +35,14 @@ const HARMLESS_COLLECTION_PATTERNS = [
 
 export function evaluateDiagnosticsTiles(report: DiagnosticsReport, now: Date): Tile[] {
   const certsNetwork = certsNetworkTile(report, now);
+  const mdmDiagReport = mdmDiagReportTile(report);
   return [
     entraJoinTile(report),
     win32AppsTile(report),
     enrollmentTile(report),
     ...(certsNetwork ? [certsNetwork] : []),
     mdmEventsTile(report),
+    ...(mdmDiagReport ? [mdmDiagReport] : []),
     collectionTile(report),
   ];
 }

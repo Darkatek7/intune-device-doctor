@@ -8,6 +8,8 @@
 import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
+  ENTRA_SAME_NAME_SELECT,
+  LICENSE_DETAILS_SELECT,
   LAPS_SELECT,
   USER_DEVICES_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
@@ -52,6 +54,16 @@ export const SIGN_IN_WINDOW_DAYS = 7;
 export const SIGN_IN_PAGE_SIZE = 200;
 /** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
 export const MAX_LIST_PAGES = 5;
+/** Zuweisungen (M14/S2): höchstens so viele Objekte je Gerät nachschlagen, höchstens so viele parallel. */
+export const MAX_ASSIGNMENT_LOOKUPS = 30;
+export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
+/** Gerätelimit (M14/S3): höchstens so viele Limit-Konfigurationen mit Zuweisungen lesen. */
+export const MAX_ENROLLMENT_LIMIT_CONFIGS = 10;
+/** Sicherheitswarnungen (M14/S4): Seitengröße der Abfrage ($top) und höchstens so viele Seiten lesen. */
+export const SECURITY_ALERTS_PAGE_SIZE = 100;
+export const MAX_SECURITY_ALERT_PAGES = 3;
+/** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
+export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
 
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
@@ -181,6 +193,23 @@ export const Endpoints = {
       withQuery('/devices', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
         $select: ENTRA_DEVICE_SELECT.join(','),
+      }),
+  },
+  /**
+   * Gleichnamige Entra-Geräteobjekte (M14/S1, Befund „doppelte Objekte“). `eq` auf displayName ist
+   * Standard-Query (kein ConsistencyLevel). Kein Filter auf registrationDateTime (Advanced Query).
+   */
+  entraDevicesByName: {
+    id: 'entraDevicesByName',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceRead,
+    docsUrl: 'https://learn.microsoft.com/en-us/graph/api/device-list?view=graph-rest-1.0',
+    display: "GET /devices?$filter=displayName eq '{deviceName}'",
+    path: (deviceName: string) =>
+      withQuery('/devices', {
+        $filter: `displayName eq ${odataString(deviceName)}`,
+        $select: ENTRA_SAME_NAME_SELECT.join(','),
       }),
   },
   /** App-Name zu einer Win32-App-ID (z. B. aus einem DiagLogs-ZIP). */
@@ -348,6 +377,130 @@ export const Endpoints = {
       withQuery(`/deviceManagement/managedDevices/${enc(managedDeviceId)}`, {
         $select: 'deviceHealthAttestationState',
       }),
+  },
+  /**
+   * Lizenzdetails des primären Benutzers (M14/S3, Kachel „Registrierung (Benutzer)“): direkt und über
+   * Gruppen zugewiesene Lizenzen mit Serviceplänen. Optionaler Scope LicenseAssignment.Read.All; das
+   * angemeldete Konto braucht laut Doku eine Rolle wie Directory Readers, License Administrator oder
+   * User Administrator.
+   */
+  userLicenseDetails: {
+    id: 'userLicenseDetails',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.LicenseAssignmentRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails?view=graph-rest-1.0',
+    display: 'GET /users/{userId}/licenseDetails',
+    path: (userId: string) =>
+      withQuery(`/users/${enc(userId)}/licenseDetails`, {
+        $select: LICENSE_DETAILS_SELECT.join(','),
+      }),
+  },
+  /**
+   * Registrierungskonfigurationen (M14/S3). Die Liste enthält mehrere Typen; Gerätelimits werden
+   * clientseitig am `@odata.type` erkannt (kein `$filter` dokumentiert).
+   */
+  deviceEnrollmentConfigurations: {
+    id: 'deviceEnrollmentConfigurations',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceEnrollmentConfigurations',
+    path: () => '/deviceManagement/deviceEnrollmentConfigurations',
+  },
+  /** Zuweisungen einer Registrierungskonfiguration (M14/S3). */
+  deviceEnrollmentConfigurationAssignments: {
+    id: 'deviceEnrollmentConfigurationAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-enrollmentconfigurationassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceEnrollmentConfigurations/{id}/assignments',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceEnrollmentConfigurations/${enc(configurationId)}/assignments`,
+  },
+  /**
+   * Apple-VPP-Tokens des Mandanten (M14/S5, Ansicht „Mandant“). Kein $select dokumentiert; die Antwort
+   * enthält `token` und `appleId` – beide werden nie gelesen (siehe dto.ts). Least privileged laut Doku
+   * wäre DeviceManagementApps.Read.All; genutzt wird der bereits optionale Scope
+   * DeviceManagementServiceConfig.Read.All (ebenfalls dokumentiert).
+   */
+  vppTokens: {
+    id: 'vppTokens',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/vppTokens',
+    path: () => '/deviceAppManagement/vppTokens',
+  },
+  /**
+   * Sicherheitswarnungen (M14/S4, Kachel „Sicherheitswarnungen“): Warnungen von Microsoft Defender for
+   * Endpoint, neueste zuerst. Dokumentierte Query-Parameter sind nur $count, $filter, $skip und $top;
+   * gefiltert werden darf u. a. nach serviceSource (Wert `microsoftDefenderForEndpoint` laut
+   * serviceSource-Enum). Ein Filter auf das Gerät ist nicht dokumentiert → Zuordnung clientseitig über die
+   * Geräte-Evidenz. Optionaler Scope SecurityAlert.Read.All; das Konto braucht laut Doku eine Rolle wie
+   * Security Reader, Global Reader, Security Operator oder Security Administrator.
+   */
+  securityAlerts: {
+    id: 'securityAlerts',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.SecurityAlertRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0',
+    display: 'GET /security/alerts_v2',
+    path: () =>
+      withQuery('/security/alerts_v2', {
+        $filter: "serviceSource eq 'microsoftDefenderForEndpoint'",
+        $top: String(SECURITY_ALERTS_PAGE_SIZE),
+      }),
+  },
+  /**
+   * Zuweisungen eines Konfigurationsprofils (M14/S2). Kein `$expand=assignments` (nicht dokumentiert).
+   * Least privileged laut Doku: DeviceManagementConfiguration.Read.All.
+   */
+  deviceConfigurationAssignments: {
+    id: 'deviceConfigurationAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurations/{id}/assignments',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceConfigurations/${enc(configurationId)}/assignments`,
+  },
+  /** Zuweisungen einer Compliance-Richtlinie (M14/S2). */
+  deviceCompliancePolicyAssignments: {
+    id: 'deviceCompliancePolicyAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/assignments',
+    path: (policyId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/assignments`,
+  },
+  /**
+   * Zuweisungen einer App (M14/S2). Least privileged laut Doku: DeviceManagementConfiguration.Read.All
+   * (DeviceManagementApps.Read.All wäre ein weiterer Scope und wird nicht angefragt).
+   */
+  mobileAppAssignments: {
+    id: 'mobileAppAssignments',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/mobileApps/{id}/assignments',
+    path: (appId: string) => `/deviceAppManagement/mobileApps/${enc(appId)}/assignments`,
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

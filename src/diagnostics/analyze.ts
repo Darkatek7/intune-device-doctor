@@ -7,7 +7,8 @@ import { maskUserPaths } from '../domain/format';
 import { de } from '../i18n/de';
 import { THRESHOLDS } from '../rules/thresholds';
 import { loadEventLog, selectEventLogEntries } from './eventLogs';
-import { DEFAULT_MAX_EVTX_BYTES } from './limits';
+import { DEFAULT_MAX_EVTX_BYTES, DEFAULT_MAX_MDM_CAB_BYTES } from './limits';
+import { analyzeMdmCab, selectMdmCabEntry } from './mdmCab';
 import { parseCmTrace } from './parsers/cmtrace';
 import { parseCertutilStore } from './parsers/certutil';
 import { parseDsregcmd } from './parsers/dsregcmd';
@@ -27,12 +28,13 @@ import type {
   DsregStatus,
   EnrollmentInfo,
   NetworkInfo,
+  MdmDiagPackage,
   Win32AppState,
 } from './types';
 import { DEFAULT_MAX_TEXT_BYTES, extensionOf, isBinaryEntry, openZip } from './zip/reader';
 
 export type AnalysisStage =
-  'opening' | 'results' | 'dsregcmd' | 'registry' | 'imeLogs' | 'eventLogs' | 'done';
+  'opening' | 'results' | 'dsregcmd' | 'registry' | 'imeLogs' | 'eventLogs' | 'mdmCab' | 'done';
 
 export interface AnalysisProgress {
   stage: AnalysisStage;
@@ -51,6 +53,8 @@ export interface AnalyzeOptions {
   maxRegBytes?: number;
   /** Größenlimit je Ereignisprotokoll (.evtx, Standard 48 MiB) */
   maxEvtxBytes?: number;
+  /** Größenlimit für das MDM-Diagnosepaket mdmlogs-*.cab (Standard 64 MiB) */
+  maxMdmCabBytes?: number;
 }
 
 export const MAX_IME_ISSUES_PER_FILE = 200;
@@ -175,10 +179,11 @@ export async function analyzeDiagnosticsZip(
   const maxTextBytes = options.maxTextBytes ?? DEFAULT_MAX_TEXT_BYTES;
   const maxRegBytes = options.maxRegBytes ?? DEFAULT_MAX_REG_BYTES;
   const maxEvtxBytes = options.maxEvtxBytes ?? DEFAULT_MAX_EVTX_BYTES;
+  const maxMdmCabBytes = options.maxMdmCabBytes ?? DEFAULT_MAX_MDM_CAB_BYTES;
   const t = de.diagnostics;
   const notes: string[] = [];
 
-  let total = 5;
+  let total = 6;
   let completed = 0;
   const report = (stage: AnalysisStage, message: string): void => {
     signal?.throwIfAborted();
@@ -316,7 +321,7 @@ export async function analyzeDiagnosticsZip(
 
     // --- IME-Logs ---------------------------------------------------------------------------
     const logEntries = selectImeLogEntries(entries);
-    total = 6 + logEntries.length;
+    total = 7 + logEntries.length;
     const imeIssues: CmTraceEntry[] = [];
     let logsDone = 0;
     for (const entry of logEntries) {
@@ -353,6 +358,29 @@ export async function analyzeDiagnosticsZip(
       );
     }
     completed = 5 + logEntries.length;
+
+    // --- MDM-Diagnosepaket (mdmlogs-*.cab, gezielt) -----------------------------------------
+    report('mdmCab', t.progress.mdmCab);
+    let mdmDiag: MdmDiagPackage | undefined;
+    const mdmCabEntry = selectMdmCabEntry(entries);
+    if (mdmCabEntry) {
+      signal?.throwIfAborted();
+      const zipAdminLog = eventLogs.find((log) => log.id === 'mdmAdmin');
+      const result = await analyzeMdmCab(zip, mdmCabEntry, {
+        referenceUtc: collectedAtUtc,
+        windowDays: THRESHOLDS.eventLogWindowDays,
+        // Das Protokoll aus dem Paket nur, wenn das ZIP kein (lesbares) eigenes enthält
+        wantAdminLog: zipAdminLog?.status !== 'ok',
+        maxCabBytes: maxMdmCabBytes,
+      });
+      mdmDiag = result.pkg;
+      if (result.pkg.status === 'ok') evaluated.add(mdmCabEntry.path);
+      if (result.adminLog && (!zipAdminLog || result.adminLog.status === 'ok')) {
+        if (zipAdminLog) eventLogs.splice(eventLogs.indexOf(zipAdminLog), 1);
+        eventLogs.unshift(result.adminLog);
+      }
+    }
+    completed = 6 + logEntries.length;
 
     // --- Hinweise zur Analyse ---------------------------------------------------------------
     const binaries = entries.filter(
@@ -396,6 +424,7 @@ export async function analyzeDiagnosticsZip(
       certificates,
       network,
       eventLogs,
+      ...(mdmDiag ? { mdmDiag } : {}),
       analysisNotes: notes,
     };
   } finally {

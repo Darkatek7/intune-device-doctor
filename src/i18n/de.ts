@@ -2,6 +2,7 @@
  * Alle UI-Texte zentral (Deutsch). Komponenten verwenden ausschließlich diese Konstanten,
  * damit eine spätere Übersetzung nur diese Datei betrifft. Wird in M1–M6 erweitert.
  */
+import { deAnalysis } from './de-analysis';
 import { deRules } from './de-rules';
 
 export const de = {
@@ -39,12 +40,19 @@ export const de = {
     signIns: 'Anmeldungen',
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
+    registration: 'Registrierung (Benutzer)',
+    securityAlerts: 'Sicherheitswarnungen',
+    // Ansicht „Mandant“ (M14/S5)
+    tenantApplePush: 'Apple-MDM-Push-Zertifikat',
+    tenantVpp: 'Apple-VPP-Token',
+    tenantUnavailable: 'Weitere Konnektoren und Token',
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
     certsNetwork: 'Zertifikate & Netzwerk',
     diagCollection: 'Diagnosedaten',
     mdmEvents: 'MDM-Ereignisse',
+    mdmDiagReport: 'MDM-Diagnosebericht',
   },
   severity: {
     ok: 'In Ordnung',
@@ -60,6 +68,8 @@ export const de = {
     source: 'Quelle',
     docs: 'Microsoft-Dokumentation',
     close: 'Schließen',
+    /** Zugänglicher Name der scrollbaren Befund-Tabelle (per Tastatur erreichbar) */
+    table: (title: string) => `Tabelle: ${title}`,
   },
   states: {
     loading: 'Wird geladen …',
@@ -102,6 +112,7 @@ export const de = {
   },
   /** Texte der Regel-Engine – siehe ./de-rules.ts */
   rules: deRules,
+  analysis: deAnalysis,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
   reasons: {
     defenderNotWindows:
@@ -149,6 +160,31 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S5: Mandanten-Status
+    vppTokensNotReported:
+      'Graph meldet HTTP 404 für die VPP-Token – über diese Schnittstelle nicht verfügbar.',
+    // M14/S4: Sicherheitswarnungen
+    securityAlertsNotReported:
+      'Graph meldet HTTP 404 für die Sicherheitswarnungen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S3: Registrierung des Benutzers
+    licenseNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – es gibt keine Lizenz zu prüfen.',
+    licenseNotReported:
+      'Graph meldet HTTP 404 für die Lizenzdetails des Benutzers – über diese Schnittstelle nicht verfügbar.',
+    enrollmentLimitsNoPrimaryUser:
+      'Das Gerät hat keinen primären Benutzer – das Gerätelimit gilt je Benutzer.',
+    enrollmentLimitsNotReported:
+      'Graph meldet HTTP 404 für die Registrierungskonfigurationen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S2: Zuweisungen
+    assignmentsNothingToCheck:
+      'Keine Richtlinien oder Apps aus den Gerätezuständen vorhanden – es gibt nichts abzugleichen.',
+    assignmentsNotReported:
+      'Graph meldet HTTP 404 für die Zuweisungen – über diese Schnittstelle nicht verfügbar.',
+    // M14/S1: gleichnamige Entra-Objekte
+    duplicatesNoName:
+      'Das Gerät hat keinen Namen – gleichnamige Entra-Objekte lassen sich nicht suchen.',
+    duplicatesNotReported:
+      'Graph meldet HTTP 404 für die Suche nach gleichnamigen Entra-Objekten – über diese Schnittstelle nicht verfügbar.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>
@@ -175,6 +211,8 @@ export const de = {
   /** Links ins Intune Admin Center (src/links/intunePortal.ts) */
   links: {
     openApp: 'App im Intune Admin Center öffnen',
+    assignIntuneLicense: 'Intune-Lizenzen zuweisen (Microsoft Learn)',
+    openInDefender: 'Im Defender-Portal öffnen',
     openDevice: 'Gerät im Intune Admin Center öffnen',
     openManagedApps: 'Managed Apps des Geräts im Intune Admin Center',
     openDeviceInventory: 'Geräteinventar im Intune Admin Center',
@@ -201,7 +239,96 @@ export const de = {
     notConfigured: 'Anmeldung nicht möglich: Client-ID und Tenant-ID fehlen (.env.local).',
   },
   /** UI-Shell (M2): Toolbar, Suche, Header, Sheet, Leerzustände */
+  /** Verbindungstest (M14/S6, nur Live) */
+  connectionTest: {
+    open: 'Verbindungstest',
+    openHint: 'Jeden verwendeten Graph-Endpunkt einmal lesend prüfen',
+    title: 'Verbindungstest',
+    subtitle:
+      'Ruft jeden von MDM Doctor verwendeten Graph-Endpunkt genau einmal lesend (GET) auf und zeigt nur Ergebnis, Dauer, Anzahl der Einträge und die Namen der Felder – keine Werte.',
+    deviceHint:
+      'Die Parameter stammen vom gewählten Gerät. Am aussagekräftigsten ist ein Windows-Gerät mit primärem Benutzer.',
+    back: 'Zurück zum Gerät',
+    start: 'Test starten',
+    restart: 'Erneut testen',
+    cancel: 'Abbrechen',
+    running: (done: number, total: number) => `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
+    finished: 'Test abgeschlossen',
+    cancelled: 'Test abgebrochen – die bisherigen Ergebnisse bleiben erhalten.',
+    failedToStart: 'Das Gerät konnte nicht geladen werden.',
+    copy: 'Bericht kopieren (Markdown)',
+    copied: 'Kopiert',
+    copyFallback: 'Die Zwischenablage ist nicht verfügbar – Text bitte manuell kopieren:',
+    reportLabel: 'Bericht als Markdown',
+    privacy:
+      'Der Bericht enthält keine IDs, Namen oder Antwortwerte und kann bedenkenlos in docs/live-verification.md übernommen werden.',
+    betaBadge: 'Beta',
+    betaTitle: 'Freigegebene Beta-Ausnahme (App-Installationsstatus)',
+    tableLabel: 'Ergebnisse des Verbindungstests',
+    columns: {
+      endpoint: 'Endpunkt',
+      version: 'Version',
+      scope: 'Scope',
+      result: 'Ergebnis',
+      duration: 'Dauer',
+      entries: 'Einträge',
+      fields: 'Felder (Namen)',
+    },
+    outcome: {
+      ok: 'OK',
+      forbidden: 'Verweigert (403)',
+      notFound: 'Nicht gefunden (404)',
+      badRequest: 'Ungültige Anfrage (400)',
+      error: 'Fehler',
+      skipped: 'Übersprungen',
+    },
+    summary: (counts: Record<string, number>) =>
+      [
+        counts['ok'] ? `${counts['ok']} OK` : null,
+        counts['forbidden'] ? `${counts['forbidden']} verweigert` : null,
+        counts['notFound'] ? `${counts['notFound']} nicht gefunden` : null,
+        counts['badRequest'] ? `${counts['badRequest']} ungültig` : null,
+        counts['error'] ? `${counts['error']} Fehler` : null,
+        counts['skipped'] ? `${counts['skipped']} übersprungen` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    skip: {
+      noUser: 'Das Gerät hat keinen primären Benutzer.',
+      noAzureAdId: 'Das Gerät hat keine Entra-Geräte-ID.',
+      windowsOnly: 'Nur für Windows-Geräte.',
+      noSource: 'Kein Eintrag in der vorherigen Antwort, aus dem sich die Kennung ableiten ließe.',
+    },
+    report: {
+      title: 'Verbindungstest (MDM Doctor)',
+      date: 'Datum',
+      platform: 'Plattform des Testgeräts',
+      platformNote: 'ohne Namen und IDs',
+      result: 'Ergebnis',
+      partial: 'abgebrochen, unvollständig',
+      note: 'Nur Ergebnis, Dauer, Anzahl der Einträge und Feldnamen – keine Werte, IDs oder Namen.',
+      betaMark: 'beta (freigegebene Ausnahme)',
+      none: '–',
+    },
+    a11y: {
+      running: 'Verbindungstest läuft …',
+      done: (summary: string) => `Verbindungstest abgeschlossen: ${summary}`,
+    },
+  },
+  /** Ansicht „Mandant“ (M14/S5) */
+  tenantView: {
+    title: 'Mandant',
+    subtitle: 'Zertifikate und Token, die für alle Geräte gelten',
+    back: 'Startseite',
+    refresh: 'Aktualisieren',
+    a11y: {
+      loading: 'Mandanten-Status wird geladen …',
+      done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
+    },
+  },
   toolbar: {
+    tenant: 'Mandanten-Status',
+    tenantShort: 'Mandant',
     home: 'MDM Doctor – zur Startseite',
     modeLabel: 'Datenmodus',
     skipToContent: 'Zum Inhalt springen',
@@ -320,6 +447,7 @@ export const de = {
       imeLogs: (done: number, total: number) =>
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
       eventLogs: 'Ereignisprotokolle werden ausgewertet …',
+      mdmCab: 'MDM-Diagnosepaket wird ausgewertet …',
       done: 'Analyse abgeschlossen',
     },
     aborted: 'Analyse abgebrochen.',
@@ -391,6 +519,152 @@ export const de = {
       title: (fileName: string) => `Befunde aus ${fileName}`,
       remove: 'DiagLogs-ZIP entfernen',
     },
+  },
+  /** M12/B: Vorher/Nachher, zwei ZIPs vergleichen, Sammelprüfung, Lesezeichen */
+  compare: {
+    exportButton: 'Stand exportieren',
+    exportHint:
+      'Lädt die ausgewerteten Kacheln als JSON-Datei herunter (ohne Rohdaten, ohne Benutzer- und Seriennummern).',
+    compareButton: 'Mit Stand vergleichen',
+    compareHint:
+      'Eine zuvor exportierte Stand-Datei wählen und mit dem aktuellen Stand vergleichen.',
+    zipButton: 'Mit weiterer ZIP vergleichen',
+    zipHint: 'Eine zweite DiagLogs-ZIP wählen – sie wird ebenfalls nur lokal analysiert.',
+    zipAnalyzing: (fileName: string) => `${fileName} wird analysiert …`,
+    controlsLabel: 'Vergleich',
+    fileLocal: 'Die Datei bleibt auf diesem Gerät.',
+    errors: {
+      tooLarge: 'Die Datei ist zu groß für eine Stand-Datei.',
+      notJson: 'Die Datei ist kein gültiges JSON.',
+      wrongSchema: 'Das ist keine Stand-Datei von MDM Doctor.',
+      wrongVersion: 'Diese Stand-Datei stammt aus einer nicht unterstützten Version.',
+      invalid: 'Die Stand-Datei ist unvollständig oder beschädigt.',
+      readFailed: 'Die Datei konnte nicht gelesen werden.',
+    },
+    dialog: {
+      title: 'Vergleich',
+      close: 'Vergleich schließen',
+      before: 'Vorher',
+      after: 'Nachher',
+      mode: { demo: 'Demo', live: 'Live', zip: 'DiagLogs-ZIP' },
+      exportedAt: (date: string) => `Stand vom ${date}`,
+      collectedAt: (date: string) => `gesammelt am ${date}`,
+      nameMismatch: (before: string, after: string) =>
+        `Achtung: Die Gerätenamen stimmen nicht überein („${before}“ und „${after}“). Der Vergleich ist nur sinnvoll, wenn beide Stände zum selben Gerät gehören.`,
+      unnamed: 'Ohne Namen',
+      summaryLabel: 'Zusammenfassung des Vergleichs',
+      worse: (n: number) => (n === 1 ? '1 schlechter' : `${n} schlechter`),
+      better: (n: number) => (n === 1 ? '1 besser' : `${n} besser`),
+      added: (n: number) => (n === 1 ? '1 neu' : `${n} neu`),
+      removed: (n: number) => (n === 1 ? '1 entfallen' : `${n} entfallen`),
+      same: (n: number) => (n === 1 ? '1 unverändert' : `${n} unverändert`),
+      noChange: 'Keine Unterschiede zwischen den beiden Ständen.',
+      tilesTitle: 'Kacheln',
+      tilesLabel: 'Kacheln im Vergleich',
+      trend: {
+        worse: 'Schlechter',
+        better: 'Besser',
+        added: 'Neu',
+        removed: 'Entfallen',
+        same: 'Unverändert',
+      },
+      valueChanged: 'Wert geändert',
+      absent: 'nicht vorhanden',
+      transition: (from: string, to: string) => `von ${from} zu ${to}`,
+      newFindings: 'Neue Befunde',
+      resolvedFindings: 'Behobene Befunde',
+      noNewFindings: 'Keine neuen Befunde.',
+      noResolvedFindings: 'Keine Befunde behoben.',
+    },
+  },
+  bulk: {
+    openButton: 'Mehrere Geräte prüfen',
+    openHint: 'Viele Gerätenamen auf einmal nachschlagen (Compliance, letzter Check-in).',
+    title: 'Mehrere Geräte prüfen',
+    subtitle:
+      'Pro Name wird genau eine Suche ausgeführt (höchstens zwei gleichzeitig). Vollständig geprüft wird erst beim Öffnen eines Geräts.',
+    back: 'Zurück',
+    inputLabel: 'Gerätenamen (einer pro Zeile)',
+    inputPlaceholder: 'CONTOSO-PC001\nCONTOSO-PC042\nCONTOSO-LT108',
+    fileButton: 'CSV/TXT wählen',
+    fileLabel: 'CSV- oder TXT-Datei mit Gerätenamen',
+    fileLocal: 'Die Datei wird nur lokal gelesen.',
+    fileTooLarge: 'Die Datei ist zu groß.',
+    fileReadFailed: 'Die Datei konnte nicht gelesen werden.',
+    namesCount: (n: number) => (n === 1 ? '1 Name erkannt' : `${n} Namen erkannt`),
+    overLimit: (max: number, ignored: number) =>
+      `Es werden höchstens ${max} Namen geprüft – ${ignored} weitere ${ignored === 1 ? 'wird' : 'werden'} ignoriert.`,
+    start: 'Prüfen',
+    cancel: 'Abbrechen',
+    clear: 'Neue Liste',
+    exportCsv: 'Als CSV exportieren',
+    exportCsvHint: 'Lädt die Tabelle als CSV-Datei herunter (nur lokal).',
+    progress: (done: number, total: number) => `${done} von ${total} geprüft`,
+    finished: (total: number) => `Prüfung abgeschlossen: ${total} Namen.`,
+    cancelled: 'Prüfung abgebrochen.',
+    throttled: (seconds: number) =>
+      `Microsoft Graph drosselt die Anfragen – weiter in ${seconds} s.`,
+    tableLabel: 'Ergebnis der Sammelprüfung',
+    columns: {
+      name: 'Name',
+      matches: 'Treffer',
+      platform: 'Plattform',
+      compliance: 'Compliance',
+      lastSync: 'Letzter Check-in',
+      user: 'Benutzer',
+    },
+    match: {
+      pending: 'Wartet',
+      running: 'Wird geprüft …',
+      none: 'Kein Treffer',
+      one: 'Gefunden',
+      manyShort: 'Mehrere Treffer',
+      many: (n: number) => `${n} Treffer`,
+      error: 'Fehler',
+      cancelled: 'Abgebrochen',
+    },
+    openDevice: (name: string) => `${name} öffnen`,
+    searchName: (name: string) => `Nach „${name}“ suchen (mehrere Treffer)`,
+    noValue: '–',
+    csv: {
+      header: [
+        'Name',
+        'Treffer',
+        'Gerät',
+        'Plattform',
+        'Compliance',
+        'Letzter Check-in',
+        'Bewertung',
+        'Benutzer',
+      ],
+      fileName: (stamp: string) => `mdm-doctor-sammelpruefung-${stamp}.csv`,
+    },
+  },
+  bookmarklet: {
+    openButton: 'Lesezeichen für das Intune Admin Center',
+    openHint: 'Ein Lesezeichen, das das geöffnete Gerät aus dem Admin Center in MDM Doctor öffnet.',
+    title: 'Lesezeichen „In MDM Doctor öffnen“',
+    close: 'Lesezeichen-Hinweise schließen',
+    intro:
+      'Mit diesem Lesezeichen öffnest du ein Gerät, das du im Microsoft Intune Admin Center ansiehst, mit einem Klick in MDM Doctor (Live-Modus).',
+    linkLabel: 'In MDM Doctor öffnen',
+    linkHint: 'Diesen Link in die Lesezeichenleiste ziehen – nicht anklicken.',
+    stepsTitle: 'So geht’s',
+    steps: [
+      'Lesezeichenleiste des Browsers einblenden (Strg+Umschalt+B bzw. ⌘+Umschalt+B).',
+      'Den Link oben mit der Maus in die Leiste ziehen.',
+      'Im Intune Admin Center ein Gerät öffnen und das Lesezeichen anklicken – MDM Doctor öffnet sich in einem neuen Tab.',
+    ],
+    privacy:
+      'Das Lesezeichen liest ausschließlich die Adresse der aktuellen Seite (location.href), um die Geräte-ID zu finden. Es greift nicht auf Inhalte der Seite zu und sendet nichts.',
+    noDeviceMessage:
+      'Keine Geräte-ID gefunden. Bitte zuerst im Intune Admin Center ein Gerät öffnen.',
+    noDragTitle: 'Ziehen funktioniert nicht?',
+    noDragBody: 'Neues Lesezeichen anlegen und den folgenden Code als Adresse (URL) eintragen.',
+    codeLabel: 'Code des Lesezeichens',
+    copy: 'Code kopieren',
+    copied: 'Kopiert',
+    appUrl: (url: string) => `Ziel: ${url}`,
   },
   demo: {
     examplesTitle: 'Beispielgeräte',

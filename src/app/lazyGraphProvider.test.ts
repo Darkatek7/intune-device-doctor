@@ -10,7 +10,8 @@ const getBitLockerKeys = vi.fn(async () => ({
   source: { kind: 'graph' as const, label: 'x' },
   fetchedAt: '2026-01-01T00:00:00Z',
 }));
-const createGraphProvider = vi.fn(() => ({ searchDevices, getBitLockerKeys }));
+const testConnection = vi.fn(async () => []);
+const createGraphProvider = vi.fn(() => ({ searchDevices, getBitLockerKeys, testConnection }));
 
 vi.mock('../providers/graph/GraphProvider', () => ({ createGraphProvider }));
 vi.mock('../auth/token', () => ({ getGraphToken: vi.fn(async () => 'token') }));
@@ -47,5 +48,25 @@ describe('LazyGraphProvider bei Ladefehler', () => {
     const section = await provider.getBitLockerKeys({ id: '1' } as ManagedDeviceInfo);
     expect(section).toMatchObject({ status: 'error', error: { code: 'network' } });
     if (section.status === 'error') expect(section.error.message).toBe(de.errors.network);
+  });
+});
+
+describe('LazyGraphProvider – Verbindungstest', () => {
+  it('reicht testConnection an den echten Provider weiter', async () => {
+    const provider = new LazyGraphProvider();
+    const device = { id: '1' } as ManagedDeviceInfo;
+    const options = { signal: new AbortController().signal };
+    await expect(provider.testConnection(device, options)).resolves.toEqual([]);
+    expect(testConnection).toHaveBeenCalledWith(device, options);
+  });
+
+  it('wirft bei Ladefehler eine ProviderError (Netzwerk)', async () => {
+    createGraphProvider.mockImplementationOnce(() => {
+      throw new Error('chunk load failed');
+    });
+    const provider = new LazyGraphProvider();
+    await expect(provider.testConnection({ id: '1' } as ManagedDeviceInfo)).rejects.toMatchObject({
+      error: { code: 'network' },
+    });
   });
 });

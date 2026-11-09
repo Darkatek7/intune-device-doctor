@@ -20,6 +20,10 @@ export const deRules = {
     forbiddenRoleHints: {
       'AuditLog.Read.All':
         'Das Anmeldeprotokoll erfordert laut Microsoft Entra ID P1/P2 und für das Konto eine Entra-Rolle wie Global Reader, Reports Reader, Security Administrator, Security Operator oder Security Reader.',
+      'LicenseAssignment.Read.All':
+        'Die Lizenzdetails eines Benutzers darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Directory Readers, License Administrator oder User Administrator hat (oder eine benutzerdefinierte Rolle mit microsoft.directory/users/licenseDetails/read).',
+      'SecurityAlert.Read.All':
+        'Sicherheitswarnungen darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Security Reader, Global Reader, Security Operator oder Security Administrator hat.',
       'DeviceLocalCredential.ReadBasic.All':
         'Für die LAPS-Metadaten braucht das Konto laut Microsoft eine Entra-Rolle wie Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Administrator, Security Reader oder Global Reader.',
     } as Record<string, string>,
@@ -107,6 +111,463 @@ export const deRules = {
     unknown: 'Unbekannt',
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
+  },
+  /** M14/S5: Ansicht „Mandant“ – mandantenweite Zertifikate und Token */
+  tenant: {
+    push: {
+      valueValid: 'Gültig',
+      valueExpiring: 'Läuft ab',
+      valueExpired: 'Abgelaufen',
+      summaryValid: (date: string) => `Gültig bis ${date}`,
+      facts: { expires: 'Gültig bis', modified: 'Zuletzt geändert' },
+      noExpiryTitle: 'Ablaufdatum nicht gemeldet',
+      noExpiryDetail: 'applePushNotificationCertificate.expirationDateTime ist leer.',
+      noExpiryCause:
+        'Graph meldet zum Apple-MDM-Push-Zertifikat kein Ablaufdatum. Ohne Datum lässt sich nicht beurteilen, wann es erneuert werden muss.',
+      noExpiryRemediation: [
+        'Das Ablaufdatum im Intune Admin Center unter Geräte › Registrierung › Apple › „Apple MDM Push Certificate“ prüfen.',
+      ],
+    },
+    vpp: {
+      valueNone: 'Keine Token',
+      valueOk: 'Alle Token in Ordnung',
+      valueProblems: (n: number) => (n === 1 ? '1 Token prüfen' : `${n} Token prüfen`),
+      summaryNone: 'Im Mandanten ist kein VPP-Token hinterlegt',
+      summary: (count: number, earliest: string | null) =>
+        `${count === 1 ? '1 Token' : `${count} Token`}${earliest ? ` · frühester Ablauf ${earliest}` : ''}`,
+      tokenLabel: (name: string | null, index: number) => name ?? `VPP-Token ${index + 1}`,
+      facts: { count: 'Token', earliest: 'Frühester Ablauf' },
+      noneTitle: 'Kein VPP-Token hinterlegt',
+      noneDetail: 'GET /deviceAppManagement/vppTokens liefert eine leere Liste.',
+      noneCause:
+        'Im Mandanten ist kein Apple-VPP-Token (Apple Business Manager bzw. Apple School Manager) mit Intune verbunden. Das ist in Ordnung, solange keine per VPP gekauften Apps verteilt werden.',
+      noneRemediation: [
+        'Keine Aktion nötig, wenn keine VPP-Apps genutzt werden.',
+        'Andernfalls im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token prüfen, ob das Token noch vorhanden ist.',
+      ],
+      expiredTitle: (name: string) => `VPP-Token „${name}“ ist abgelaufen`,
+      expiredDetail: (date: string | null) =>
+        `state: expired${date ? `, expirationDateTime: ${date}` : ''}.`,
+      expiredCause:
+        'Das Token ist abgelaufen. Intune zeigt abgelaufene Token – wie auch Token, deren verwaltetes Apple-ID-Konto sich geändert hat – als „ungültig“ an. Das Token wird gebraucht, um per VPP gekaufte Apps zu verwalten.',
+      invalidTitle: (name: string) => `VPP-Token „${name}“ ist ungültig`,
+      invalidDetail: (date: string | null) =>
+        `state: invalid${date ? `, expirationDateTime: ${date}` : ''}.`,
+      invalidCause:
+        'Laut Microsoft zeigt Intune ein Token als ungültig an, wenn sich das verwaltete Apple-ID-Konto des Tokens geändert hat (Domänenwechsel, Kennwort geändert oder abgelaufen, Konto deaktiviert) oder das Token abgelaufen ist.',
+      expiringTitle: (name: string, relative: string) => `VPP-Token „${name}“ läuft ${relative} ab`,
+      expiringDetail: (date: string, days: number) =>
+        `expirationDateTime: ${date} – Warnschwelle ${days} Tage (Richtwert dieser App, keine Microsoft-Vorgabe).`,
+      expiringCause:
+        'VPP-Token sind begrenzt gültig und müssen rechtzeitig erneuert werden. Läuft ein Token ab, wird es von Intune als ungültig angezeigt.',
+      renewRemediation: [
+        'Token im Apple Business Manager bzw. Apple School Manager neu herunterladen (Einstellungen › Zahlungen und Abrechnung › Apps und Bücher › Inhaltstoken › Herunterladen).',
+        'Im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token das vorhandene Token öffnen, bei „Grundlagen“ auf „Bearbeiten“ klicken, das neue Token hochladen und speichern.',
+        'Danach die Seite aktualisieren – das neue Ablaufdatum erscheint in Intune mit etwas Verzögerung.',
+      ],
+      syncFailedTitle: (name: string) => `Synchronisierung des VPP-Tokens „${name}“ fehlgeschlagen`,
+      syncFailedDetail: (date: string | null) =>
+        `lastSyncStatus: failed${date ? `, lastSyncDateTime: ${date}` : ''}.`,
+      syncFailedCause:
+        'Die letzte Synchronisierung der Apps mit Apple ist fehlgeschlagen. Die Dokumentation nennt für den Status „failed“ keine Ursache; ein abgelaufenes oder ungültiges Token lässt sich am Zustand des Tokens ablesen.',
+      syncFailedRemediation: [
+        'Im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token das Token auswählen und „Synchronisieren“ wählen.',
+        'Bleibt der Status „failed“, den Zustand des Tokens prüfen (abgelaufen oder ungültig) und es bei Bedarf erneuern.',
+      ],
+      externalTitle: (name: string) => `VPP-Token „${name}“: Zustand assignedToExternalMDM`,
+      externalDetail: 'state: assignedToExternalMDM.',
+      externalCause:
+        'Intune meldet den Zustand assignedToExternalMDM. Die Dokumentation beschreibt diesen Wert nicht weiter – eine Deutung ist deshalb nicht belegt.',
+      externalRemediation: [
+        'Das Token im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token ansehen und mit dem Apple Business Manager abgleichen.',
+      ],
+      unknownStateTitle: (name: string) => `VPP-Token „${name}“: Zustand unbekannt`,
+      unknownStateDetail: 'state: unknown.',
+      unknownStateCause: 'Intune meldet für das Token keinen bekannten Zustand.',
+      unknownStateRemediation: [
+        'Das Token im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token prüfen.',
+      ],
+      overviewTitle: 'Alle VPP-Token im Überblick',
+      overviewDetail: (count: number) =>
+        count === 1 ? '1 Token im Mandanten.' : `${count} Token im Mandanten.`,
+      overviewCause:
+        'Übersicht der von Graph gemeldeten Token. Das Token selbst und die Apple-ID werden von dieser App nie gelesen.',
+      overviewRemediation: [
+        'Einzelheiten und Erneuerung im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token.',
+      ],
+      columns: {
+        name: 'Organisation',
+        type: 'Art',
+        expires: 'Gültig bis',
+        lastSync: 'Letzte Synchronisierung',
+        state: 'Zustand',
+        apps: 'Apps',
+      },
+      types: { business: 'Business', education: 'Education' } as Record<string, string>,
+      states: {
+        valid: 'gültig',
+        expired: 'abgelaufen',
+        invalid: 'ungültig',
+        assignedToExternalMDM: 'assignedToExternalMDM',
+        unknown: 'unbekannt',
+      } as Record<string, string>,
+      syncStatuses: {
+        none: 'keine',
+        inProgress: 'läuft',
+        completed: 'abgeschlossen',
+        failed: 'fehlgeschlagen',
+      } as Record<string, string>,
+      unknownValue: '–',
+    },
+    unavailable: {
+      value: (n: number) => `${n} Bereiche`,
+      summary: 'Nicht über die dokumentierte v1.0-API abrufbar',
+      facts: { count: 'Bereiche' },
+      sourceLabel: (resource: string) => `GET /beta/${resource} (nicht abgerufen)`,
+      betaOnly: (resource: string) =>
+        `Nur in der Beta-API dokumentiert (${resource}). MDM Doctor liest ausschließlich v1.0-Endpunkte.`,
+      cause:
+        'Für diesen Bereich gibt es in der Microsoft-Dokumentation keinen v1.0-Endpunkt. MDM Doctor verwendet nur dokumentierte v1.0-Endpunkte – einzige Ausnahme ist der App-Installationsstatus – und rät deshalb nicht.',
+      ade: {
+        title: 'Apple-Token für die automatische Geräteregistrierung (ADE/DEP)',
+        resource: 'deviceManagement/depOnboardingSettings',
+        remediation: [
+          'Ablauf und Synchronisierung des Tokens im Intune Admin Center unter Geräte › Registrierung › Apple › „Registrierungsprogramm-Token“ prüfen.',
+        ],
+      },
+      android: {
+        title: 'Android Enterprise (Managed Google Play)',
+        resource: 'deviceManagement/androidManagedStoreAccountEnterpriseSettings',
+        remediation: [
+          'Verbindung und App-Synchronisierung im Intune Admin Center unter Mandantenverwaltung › Connectors und Token prüfen.',
+        ],
+      },
+      autopilot: {
+        title: 'Windows-Autopilot-Synchronisierung',
+        resource: 'deviceManagement/windowsAutopilotSettings',
+        remediation: [
+          'Den Synchronisierungsstatus im Intune Admin Center unter Geräte › Registrierung › Windows prüfen.',
+        ],
+      },
+      ndes: {
+        title: 'Zertifikat-Connectors (NDES)',
+        resource: 'deviceManagement/ndesConnectors',
+        remediation: [
+          'Status und letzte Verbindung der Connectors im Intune Admin Center unter Mandantenverwaltung › Connectors und Token prüfen.',
+        ],
+      },
+    },
+  },
+  /** M14/S4: Kachel „Sicherheitswarnungen“ – offene Defender-for-Endpoint-Warnungen dieses Geräts */
+  securityAlerts: {
+    valueNone: 'Keine offenen Warnungen',
+    valueOpen: (n: number) => (n === 1 ? '1 offene Warnung' : `${n} offene Warnungen`),
+    summaryNone: (evaluated: number, more: boolean) =>
+      `Keine offene Defender-Warnung für dieses Gerät unter ${more ? 'den neuesten ' : ''}${evaluated} Warnungen`,
+    summary: (open: number, high: number, medium: number) =>
+      `${open === 1 ? '1 offene Warnung' : `${open} offene Warnungen`} (${high} hoch, ${medium} mittel)`,
+    facts: {
+      open: 'Offene Warnungen',
+      highMedium: 'Davon hoch / mittel',
+      resolved: 'Behoben (ausgeblendet)',
+      deviceRisk: 'Geräterisiko (Defender)',
+      latest: 'Neueste Warnung',
+      evaluated: 'Geprüfte Warnungen',
+      evaluatedMore: (n: number) => `${n} (nur die neuesten)`,
+    },
+    severity: {
+      high: 'Hoch',
+      medium: 'Mittel',
+      low: 'Niedrig',
+      informational: 'Information',
+      unknown: 'Unbekannt',
+    } as Record<string, string>,
+    status: { new: 'Neu', inProgress: 'In Bearbeitung', unknown: 'Unbekannt' } as Record<
+      string,
+      string
+    >,
+    risk: {
+      none: 'keines',
+      informational: 'Information',
+      low: 'niedrig',
+      medium: 'mittel',
+      high: 'hoch',
+    } as Record<string, string>,
+    untitled: 'Warnung ohne Titel',
+    alertDetail: (p: {
+      severity: string;
+      status: string;
+      created: string | null;
+      categories: string[];
+      byName: boolean;
+    }) =>
+      [
+        `Schweregrad: ${p.severity} · Status: ${p.status}${p.created ? ` · erzeugt ${p.created}` : ''}.`,
+        p.categories.length > 0 ? `Kategorien: ${p.categories.join(', ')}.` : null,
+        p.byName
+          ? 'Zuordnung über den Gerätenamen (die Warnung enthält keine Entra-Geräte-ID).'
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    /** Bedeutung des Schweregrads laut Microsoft Learn (Defender-for-Endpoint-Warnungsliste) */
+    causeBySeverity: {
+      high: 'Microsoft Defender for Endpoint stuft die Warnung als hohes Risiko ein: Solche Warnungen sind typisch für fortgeschrittene Angriffe, z. B. Diebstahl von Anmeldedaten, Ransomware-Aktivität oder Manipulation von Sicherheitssensoren.',
+      medium:
+        'Defender for Endpoint hat Verhalten erkannt, das zu einem fortgeschrittenen Angriff gehören kann (z. B. auffällige Registryänderung oder Ausführung verdächtiger Dateien). Es kann auch von internen Sicherheitstests stammen, erfordert laut Microsoft aber eine Untersuchung.',
+      low: 'Defender for Endpoint hat eine Bedrohung durch weit verbreitete Malware oder Hacking-Werkzeuge erkannt. Das deutet laut Microsoft oft nicht auf einen gezielten Angriff hin und kann auch vom Test eines Sicherheitswerkzeugs stammen.',
+      informational:
+        'Defender for Endpoint meldet einen Hinweis, der nicht zwingend schädlich ist, aber das Sicherheitsbewusstsein fördern soll.',
+      unknown:
+        'Defender for Endpoint hat zu dieser Warnung keinen Schweregrad gemeldet. Was erkannt wurde, steht in der Warnung im Defender-Portal.',
+    } as Record<string, string>,
+    remediation: [
+      'Warnung im Defender-Portal öffnen (Link) und dort Warnungsverlauf, betroffene Objekte und Untersuchungsstatus prüfen.',
+      'Bearbeitung (Zuweisung, Klassifizierung, Behebung) erfolgt im Defender-Portal durch das Security-Team – MDM Doctor ändert nichts.',
+      'Nach der Behebung der Warnung im Defender-Portal verschwindet sie hier (behobene Warnungen werden ausgeblendet).',
+    ],
+    moreTitle: (n: number) =>
+      n === 1 ? '1 weitere offene Warnung' : `${n} weitere offene Warnungen`,
+    moreDetail: (shown: number) =>
+      `Angezeigt werden die ${shown} schwerwiegendsten bzw. neuesten offenen Warnungen.`,
+    moreCause: 'Die Kachel zeigt aus Platzgründen nur eine begrenzte Zahl einzelner Warnungen.',
+    moreRemediation: [
+      'Alle Warnungen des Geräts im Defender-Portal unter „Investigation & response › Incidents & alerts › Alerts“ ansehen.',
+    ],
+    partialTitle: 'Nur die neuesten Warnungen geprüft',
+    partialDetail: (evaluated: number) =>
+      `Gelesen wurden die neuesten ${evaluated} Defender-for-Endpoint-Warnungen des Mandanten; weitere Seiten wurden nicht gelesen.`,
+    partialCause:
+      'Graph liefert die Warnungen seitenweise (neueste zuerst). Für ein Gerät lässt sich laut Dokumentation nicht filtern, deshalb liest MDM Doctor höchstens drei Seiten à 100 Warnungen und ordnet sie clientseitig zu.',
+    partialRemediation: [
+      'Ältere Warnungen dieses Geräts auf der Geräteseite im Defender-Portal („Incidents and alerts“) prüfen.',
+    ],
+    noneTitle: 'Keine offene Warnung für dieses Gerät',
+    noneDetail: (evaluated: number, more: boolean, resolved: number) =>
+      `Unter ${more ? 'den neuesten ' : ''}${evaluated} Defender-for-Endpoint-Warnungen des Mandanten gehört keine offene zu diesem Gerät${resolved > 0 ? ` (${resolved} behobene ausgeblendet)` : ''}.`,
+    noneCause:
+      'Für dieses Gerät ist unter den gelesenen Warnungen keine offene vorhanden. Das schließt nicht aus, dass es ältere Warnungen gibt oder andere Dienste (z. B. Defender for Identity) Warnungen zum Gerät führen – gelesen werden nur Warnungen von Defender for Endpoint.',
+    noneRemediation: [
+      'Keine Aktion nötig. Weitere Warnungen und Vorfälle zum Gerät im Defender-Portal ansehen.',
+    ],
+  },
+  /** M14/S3: Kachel „Registrierung (Benutzer)“ – Lizenz und Gerätelimit des primären Benutzers */
+  registration: {
+    valueLicenseOk: 'Lizenz vorhanden',
+    valueNoLicense: 'Keine Intune-Lizenz',
+    valueLimit: 'Gerätelimit prüfen',
+    summary: (license: string, devices: string | null) =>
+      devices ? `${license} · ${devices}` : license,
+    summaryLicenseOk: 'Intune-Lizenz aktiv',
+    summaryLicenseMissing: 'Kein aktiver Intune-Lizenzplan',
+    summaryLicenseUnknown: 'Lizenz nicht auswertbar',
+    summaryDevices: (n: number) =>
+      n === 1 ? '1 Gerät des Benutzers' : `${n} Geräte des Benutzers`,
+    facts: {
+      licenses: 'Lizenzen des Benutzers',
+      plans: 'Intune-Serviceplan',
+      noPlan: 'keiner',
+      devices: 'Geräte des Benutzers in Intune',
+      devicesNote: 'erste Seite der Abfrage, inkl. dieses Geräts',
+      limitConfigs: 'Gerätelimit-Konfigurationen',
+      smallestLimit: 'Kleinstes Limit',
+    },
+    planStatus: {
+      Success: 'aktiv',
+      Disabled: 'deaktiviert',
+      Error: 'Fehler',
+      PendingInput: 'wartet auf Bestätigung des Dienstes',
+      PendingActivation: 'Aktivierung durch einen Administrator ausstehend',
+      PendingProvisioning: 'Bereitstellung ausstehend',
+    } as Record<string, string>,
+    planStatusUnknown: 'Status unbekannt',
+    mdmO365Name: 'Mobile Device Management for Office 365',
+    noLicenseTitle: 'Kein aktiver Intune-Lizenzplan',
+    noLicenseDetailNone: (count: number) =>
+      count === 0
+        ? 'Dem primären Benutzer ist keine Lizenz zugewiesen.'
+        : `Dem primären Benutzer sind ${count === 1 ? '1 Lizenz' : `${count} Lizenzen`} zugewiesen, aber keine enthält einen Intune-Serviceplan (INTUNE_A, INTUNE_A_VL oder INTUNE_EDU).`,
+    noLicenseDetailInactive: (plans: string) =>
+      `Der Benutzer hat Intune-Serviceplans, aber keiner ist aktiv: ${plans}.`,
+    noLicenseCause:
+      'Laut Microsoft kann ein Gerät nicht registriert werden, wenn dem Benutzer die nötige Lizenz fehlt oder er einen falschen Lizenztyp für die MDM-Instanz hat. Das Gerät erscheint hier zwar verwaltet – für neue Registrierungen und die weitere Verwaltung braucht der Benutzer jedoch eine Lizenz.',
+    noLicenseRemediation: [
+      'Im Microsoft 365 Admin Center oder Entra Admin Center prüfen, ob dem Benutzer eine Lizenz mit Intune-Plan zugewiesen ist (direkt oder über eine Lizenzgruppe).',
+      'Bei gruppenbasierter Lizenzierung den Lizenzstatus der Gruppe auf Fehler prüfen.',
+      'Nach der Zuweisung kann es etwas dauern, bis der Plan den Status „aktiv“ meldet; danach „Erneut laden“.',
+    ],
+    mdmO365Title: 'Nur „Mobile Device Management for Office 365“ zugewiesen',
+    mdmO365Detail: (status: string) =>
+      `Der Serviceplan INTUNE_O365 („Mobile Device Management for Office 365“) ist zugewiesen, Status: ${status}. Er wird hier nicht als Intune-Plan gewertet.`,
+    mdmO365Cause:
+      'Laut Microsoft erfordert dieser Plan eine ausdrückliche Aktivierung durch einen Administrator („Aktivierung ausstehend“), bevor er bereitgestellt ist.',
+    mdmO365Remediation: [
+      'Prüfen, ob für den Mandanten Intune oder die MDM-Funktion von Microsoft 365 als Verwaltung vorgesehen ist, und dem Benutzer entsprechend die passende Lizenz zuweisen.',
+    ],
+    limitsTitle: 'Gerätelimit-Konfigurationen',
+    limitsDetail: (count: number) =>
+      count === 0
+        ? 'Im Mandanten ist keine Gerätelimit-Konfiguration lesbar.'
+        : `Der Mandant hat ${count === 1 ? '1 Gerätelimit-Konfiguration' : `${count} Gerätelimit-Konfigurationen`}. Welche für diesen Benutzer gilt, ist nicht sicher bestimmbar: Benutzergruppen werden nicht gelesen. Laut Microsoft unterliegt ein Benutzer nur der Konfiguration mit dem niedrigsten Prioritätswert, der er zugewiesen ist.`,
+    limitsOmitted: (n: number) =>
+      `${n === 1 ? '1 weitere Konfiguration wurde' : `${n} weitere Konfigurationen wurden`} nicht gelesen (höchstens 10).`,
+    limitsCause:
+      'Das Intune-Gerätelimit begrenzt, wie viele Geräte ein Benutzer registrieren darf. Es gilt laut Microsoft nicht für Co-Management, Registrierung per Gruppenrichtlinie, Microsoft-Entra-Join (auch Massenregistrierung), Windows Autopilot und Geräteregistrierungs-Manager; dafür lässt sich in Microsoft Entra ID ein hartes Limit setzen (Geräteeinstellungen).',
+    limitsRemediation: [
+      'Im Intune Admin Center unter „Geräte › Registrierungseinschränkungen › Gerätelimit-Einschränkungen“ prüfen, welche Konfiguration dem Benutzer zugewiesen ist.',
+      'Unter „Benutzer › Alle Benutzer › Benutzer › Geräte“ die Zahl der registrierten Geräte des Benutzers ansehen.',
+    ],
+    columns: { name: 'Name', priority: 'Priorität', limit: 'Limit', targets: 'Ziele' },
+    unknownValue: '–',
+    targetAllUsers: 'Alle Benutzer',
+    targetAllDevices: 'Alle Geräte',
+    targetGroup: (id: string) => `Gruppe ${id}`,
+    targetExcluded: (id: string) => `ausgenommen: Gruppe ${id}`,
+    targetUnknown: 'unbekannter Zieltyp',
+    targetsUnreadable: 'Ziele nicht lesbar',
+    targetsNone: 'keine Zuweisung',
+    limitReachedTitle: 'Geräteanzahl erreicht das kleinste konfigurierte Limit',
+    limitReachedDetail: (devices: number, limit: number) =>
+      `Der Benutzer hat ${devices === 1 ? '1 Gerät' : `${devices} Geräte`} in Intune (erste Seite der Abfrage, inkl. dieses Geräts); das kleinste konfigurierte Gerätelimit beträgt ${limit}.`,
+    limitReachedCause:
+      'Laut Microsoft zeigt der Fehler „DeviceCapReached“ an, dass ein Benutzer mehr Geräte registrieren will, als das Gerätelimit erlaubt; entspricht die Zahl der registrierten Geräte dem Limit, sind keine weiteren Registrierungen möglich. Ob dieses Limit für den Benutzer gilt, hängt von seiner Zuweisung ab (siehe Tabelle) und davon, ob die Registrierungsart vom Limit ausgenommen ist.',
+    limitReachedRemediation: [
+      'Prüfen, welche Limit-Konfiguration dem Benutzer zugewiesen ist (Priorität beachten) und wie viele Geräte der Benutzer unter „Benutzer › Geräte“ hat.',
+      'Veraltete Geräteeinträge des Benutzers bereinigen oder das Limit unter „Registrierungseinschränkungen“ anpassen – MDM Doctor ändert nichts.',
+    ],
+  },
+  /** M14/S2: Zuweisungen – „Warum gilt diese Richtlinie / diese App?“ (Richtlinien- und Apps-Kachel) */
+  assignments: {
+    factChecked: 'Zuweisungen geprüft',
+    factCheckedValue: (done: number, total: number) => `${done} von ${total}`,
+    policiesTitle: 'Zuweisungen: Warum gelten diese Richtlinien?',
+    appsTitle: 'Zuweisungen: Warum ist diese App zugewiesen?',
+    policiesDetail: (count: number) =>
+      `Zuweisungsziele von ${count === 1 ? '1 Richtlinie bzw. einem Profil' : `${count} Richtlinien und Profilen`}, abgeglichen mit den Gruppen, in denen dieses Gerät Mitglied ist.`,
+    appsDetail: (count: number) =>
+      `Zuweisungsziele von ${count === 1 ? '1 App' : `${count} Apps`}, abgeglichen mit den Gruppen, in denen dieses Gerät Mitglied ist.`,
+    cause:
+      'Laut Microsoft hat ein Ausschluss Vorrang vor einem Einschluss, wenn beide dieselbe Gruppenart betreffen (Geräte- oder Benutzergruppen). Intune verknüpft Benutzer- und Gerätegruppen dabei nicht: Ein Ausschluss über eine Gerätegruppe greift nicht für Zuweisungen an Benutzergruppen.',
+    remediation: [
+      'Zeile mit der gewünschten Richtlinie bzw. App suchen und die Spalte „Zuweisung“ lesen: Sie nennt die Gerätegruppe, über die das Gerät das Ziel erreicht.',
+      'Fehlt die erwartete Gruppe, die Mitgliedschaft des Geräts im Microsoft Entra Admin Center prüfen (dynamische Gerätegruppen werden zeitverzögert berechnet).',
+      '„Vermutlich Benutzergruppe“ heißt: Das Gerät ist nicht Mitglied dieser Gruppe. Gehört die Gruppe dem primären Benutzer, im Entra Admin Center nachsehen – MDM Doctor liest Benutzergruppen nicht.',
+    ],
+    unavailableNote:
+      'Über die dokumentierte v1.0-Schnittstelle nicht verfügbar: Zuweisungsfilter und die Zuweisungen von Settings-Catalog-Richtlinien (nur in der Beta-Schnittstelle). Beides im Intune Admin Center prüfen.',
+    skippedNote: (n: number) =>
+      `${n === 1 ? '1 weiteres Objekt wurde' : `${n} weitere Objekte wurden`} nicht abgefragt (höchstens 30 Abrufe je Gerät).`,
+    columns: { name: 'Name', kind: 'Art', assignment: 'Zuweisung' },
+    kinds: { compliance: 'Compliance', configuration: 'Profil', app: 'App' },
+    intents: {
+      available: 'verfügbar',
+      required: 'erforderlich',
+      uninstall: 'deinstallieren',
+      availableWithoutEnrollment: 'verfügbar ohne Registrierung',
+    },
+    viaDeviceGroup: (name: string) => `zugewiesen über Gerätegruppe „${name}“`,
+    excludedViaDeviceGroup: (name: string) => `ausgeschlossen über Gerätegruppe „${name}“`,
+    allDevices: 'zugewiesen an „Alle Geräte“',
+    allUsers: 'zugewiesen an „Alle Benutzer“',
+    groupNoMembership:
+      'Gruppe ohne Mitgliedschaft des Geräts – vermutlich Benutzergruppe (Benutzergruppen werden nicht gelesen)',
+    groupNoMembershipHidden:
+      'Gruppe ohne bekannte Mitgliedschaft des Geräts – vermutlich Benutzergruppe oder eine Gerätegruppe, deren Name nicht lesbar ist',
+    exclusionNoMembership: 'Ausschluss einer Gruppe ohne Mitgliedschaft des Geräts',
+    groupUnchecked: 'Gruppe (Mitgliedschaft des Geräts nicht prüfbar)',
+    exclusionUnchecked: 'Ausschluss einer Gruppe (Mitgliedschaft des Geräts nicht prüfbar)',
+    unknownTarget: 'unbekannter Zieltyp',
+    noAssignments: 'keine Zuweisung gefunden',
+    notFound:
+      'nicht auswertbar – Graph kennt unter der ID des Gerätezustands kein Objekt dieses Typs (HTTP 404)',
+    notEvaluable: 'nicht auswertbar – die ID des Gerätezustands ist keine Objekt-ID',
+    error: 'nicht auswertbar – der Abruf ist fehlgeschlagen',
+    excludedTitle: (name: string) =>
+      `„${name}“: Ausschluss über Gerätegruppe, Zustand nicht „Nicht zutreffend“`,
+    excludedDetail: (groupName: string, state: string) =>
+      `Die Zuweisung schließt die Gerätegruppe „${groupName}“ aus, in der dieses Gerät Mitglied ist. Der gemeldete Zustand lautet trotzdem „${state}“ statt „Nicht zutreffend“.`,
+    excludedCause:
+      'Laut Microsoft hat ein Ausschluss bei gleicher Gruppenart Vorrang. Dass das Gerät trotzdem einen anderen Zustand meldet, kann an einer weiteren Zuweisung liegen, die das Gerät über eine Benutzergruppe erreicht (Benutzer- und Gerätegruppen werden nicht verknüpft), oder an einer dynamischen Gerätegruppe, deren Mitgliedschaft verzögert berechnet wird.',
+    excludedRemediation: [
+      'Alle Zuweisungen des Objekts im Intune Admin Center ansehen und prüfen, ob das Gerät das Ziel zusätzlich über eine Benutzergruppe oder „Alle Benutzer“ erreicht.',
+      'Bei einer dynamischen Ausschlussgruppe: Zeitpunkt der Aufnahme des Geräts in die Gruppe mit dem Zeitpunkt der Zuweisung vergleichen.',
+    ],
+    stateLabels: {
+      policy: {
+        unknown: 'Unbekannt',
+        notApplicable: 'Nicht zutreffend',
+        compliant: 'Konform',
+        remediated: 'Behoben',
+        nonCompliant: 'Nicht konform',
+        error: 'Fehler',
+        conflict: 'Konflikt',
+        notAssigned: 'Nicht zugewiesen',
+      } as Record<string, string>,
+      app: {
+        installed: 'Installiert',
+        failed: 'Fehlgeschlagen',
+        notInstalled: 'Nicht installiert',
+        uninstallFailed: 'Deinstallation fehlgeschlagen',
+        pendingInstall: 'Ausstehend',
+        unknown: 'Unbekannt',
+        notApplicable: 'Nicht zutreffend',
+      } as Record<string, string>,
+    },
+  },
+  /** M14/S1: gleichnamige Entra-Objekte (Befund in „Gerätestatus“) */
+  duplicates: {
+    factCount: 'Entra-Objekte mit gleichem Namen',
+    factSameNameOtherOs: 'Gleichnamig, anderes Betriebssystem',
+    factMore: 'Weitere Seiten',
+    factMoreValue: 'nicht gelesen (nur die erste Seite)',
+    valueDualState: 'Dual State in Entra',
+    dualStateTitle: 'Dual State: hybrid joined und registriert',
+    duplicateTitle: 'Mehrere Entra-Objekte mit demselben Gerätenamen',
+    detail: (count: number, types: string) =>
+      `In Microsoft Entra ID gibt es ${count} Geräteobjekte mit diesem Namen (${types}). Das aktuelle Objekt ist in der Tabelle markiert.`,
+    dualStateDetail: (count: number) =>
+      `In Microsoft Entra ID gibt es ${count} Geräteobjekte mit diesem Namen, darunter eines „hybrid joined“ (ServerAd) und eines „registriert“ (Workplace). Das aktuelle Objekt ist in der Tabelle markiert.`,
+    moreNote:
+      'Es wurden nur die ersten Treffer gelesen; weitere gleichnamige Objekte sind möglich.',
+    dualStateCause:
+      'Wenn Benutzer auf einem domänenbeigetretenen Gerät „Konto zu Windows hinzufügen“ bestätigen, wird das Gerät zusätzlich in Microsoft Entra ID registriert. Nach dem Hybrid-Join existieren dann zwei Zustände desselben Geräts. Laut Microsoft hat der Hybrid-Join meist Vorrang; manchmal führt dieser Dual State aber zu einer nichtdeterministischen Auswertung des Geräts und zu Zugriffsproblemen.',
+    dualStateRemediation: [
+      'Windows-Version des Geräts prüfen: Ab Windows 10 1803 bereinigt Windows den registrierten Zustand automatisch, sobald sich der betreffende Domänenbenutzer am hybrid-joined Gerät anmeldet (bei mehreren Benutzern je Benutzer einzeln).',
+      'Am Gerät `dsregcmd /status` ausführen und prüfen, ob der registrierte Zustand noch besteht; lokale Konten werden nicht automatisch bereinigt.',
+      'Das Objekt wird in Entra nicht sofort gelöscht, wenn es von Intune verwaltet wird. Vor einem manuellen Entfernen des registrierten Zustands beachten: Laut Microsoft meldet Windows 10 das Gerät dann bei Intune ab, wenn die Registrierung über die automatische Registrierung der Entra-Registrierung erfolgte.',
+      'Vorgehen zum Vermeiden und Bereinigen des Dual State: Abschnitt „Review things you should know“ der Hybrid-Join-Planung (Link unten).',
+    ],
+    duplicateCause:
+      'Laut Microsoft entstehen doppelte Geräteeinträge z. B. durch wiederholtes Trennen und erneutes Beitreten desselben Geräts, durch „Geschäfts- oder Schulkonto hinzufügen“ (jeder Windows-Benutzer erzeugt einen neuen Eintrag mit demselben Namen) oder wenn ein Entra-joined Gerät zurückgesetzt, neu installiert und unter demselben Namen erneut beigetreten ist.',
+    duplicateRemediation: [
+      'Das aktuelle Objekt (Spalte „Hinweis“) mit den übrigen vergleichen: Join-Typ, letzte Anmeldung und Registrierungsdatum zeigen, welche Einträge nicht mehr genutzt werden.',
+      'Veraltete Objekte im Microsoft Entra Admin Center unter „Geräte“ prüfen und nach Rücksprache bereinigen (erfordert z. B. die Rolle Cloud Device Administrator). MDM Doctor ändert nichts.',
+      'Nach dem Aufräumen am Gerät `dsregcmd /status` ausführen, um den Join-Zustand zu bestätigen.',
+    ],
+    sameNameOtherOsTitle: 'Gleichnamiges Entra-Objekt mit anderem Betriebssystem',
+    sameNameOtherOsDetail: (count: number) =>
+      count === 1
+        ? 'Ein weiteres Entra-Objekt trägt denselben Namen, gehört aber zu einem anderen Betriebssystem. Es wird nicht als Duplikat gewertet.'
+        : `${count} weitere Entra-Objekte tragen denselben Namen, gehören aber zu einem anderen Betriebssystem. Sie werden nicht als Duplikate gewertet.`,
+    sameNameOtherOsCause:
+      'Verschiedene Geräte (z. B. ein Mobilgerät und ein Laptop) können denselben Anzeigenamen haben. Der Name allein identifiziert ein Gerät in Entra nicht eindeutig.',
+    sameNameOtherOsRemediation: [
+      'Nur falls es sich um dasselbe Gerät handeln sollte: Objekt anhand der Spalten „Join-Typ“ und „Registriert am“ im Microsoft Entra Admin Center prüfen.',
+    ],
+    columns: {
+      trustType: 'Join-Typ',
+      enabled: 'Aktiviert',
+      lastSignIn: 'Letzte Anmeldung (ca.)',
+      compliant: 'Konform',
+      registered: 'Registriert am',
+      note: 'Hinweis',
+    },
+    linkHybridJoin: 'Dual State bereinigen (Microsoft Learn)',
+    noteCurrent: 'aktuelles Objekt',
+    noteOtherOs: 'gleichnamig, anderes Betriebssystem',
+    yes: 'ja',
+    no: 'nein',
+    unknown: '–',
   },
   deviceStatus: {
     valueActive: 'Aktiv',
@@ -884,6 +1345,8 @@ export const deRules = {
     settingsCatalogRemediation: [
       'Status dieser Profile im Intune Admin Center prüfen: Geräte › <Gerät> › Gerätekonfiguration.',
     ],
+    settingsCatalogMdmDiagHint:
+      'Das geladene DiagLogs-ZIP enthält ein MDM-Diagnosepaket: MDMDiagReport.xml bietet laut Microsoft Learn eine detailliertere Sicht auf die MDM-Konfiguration – Details in der Kachel „MDM-Diagnosebericht“ (Rohdaten, nicht gedeutet).',
     forbiddenProfilesSummary: 'Profile: Berechtigung fehlt',
   },
   zip: {
@@ -1236,6 +1699,142 @@ export const deRules = {
       factLog: (shortName: string) => shortName,
       factLogValue: (scanned: number, errors: number, warnings: number) =>
         `${scanned} geprüft · ${errors} Fehler · ${warnings} Warnungen`,
+    },
+    mdmDiagReport: {
+      valueReport: (sections: number, conditions: number) =>
+        [
+          `${sections} ${sections === 1 ? 'Abschnitt' : 'Abschnitte'}`,
+          conditions > 0
+            ? `${conditions} ${conditions === 1 ? 'Multivariant-Bedingung' : 'Multivariant-Bedingungen'}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      valueFiles: (files: number) => `${files} ${files === 1 ? 'Datei' : 'Dateien'} im Paket`,
+      summaryRaw:
+        'Rohdaten aus MDMDiagReport.xml – der Elementaufbau der Datei ist in Microsoft Learn nicht beschrieben.',
+      unsupported: {
+        lzx: 'LZX-Kompression',
+        quantum: 'Quantum-Kompression',
+        unknown: 'unbekanntes Kompressionsverfahren',
+        multiVolume: 'mehrteiliges Cabinet',
+      } as Record<string, string>,
+      packageReason: {
+        tooLarge: (sizeMiB: number, limitMiB: number) =>
+          `Das MDM-Diagnosepaket wurde nicht gelesen: ${sizeMiB} MiB überschreiten das Größenlimit von ${limitMiB} MiB.`,
+        unreadable: 'Das MDM-Diagnosepaket konnte nicht aus dem Archiv gelesen werden.',
+        invalid: 'Das MDM-Diagnosepaket ist keine gültige Cabinet-Datei oder zu stark beschädigt.',
+      },
+      packageUnavailableTitle: 'MDM-Diagnosepaket nicht ausgewertet',
+      packageUnavailableCause: {
+        tooLarge: 'Das Paket ist größer als das Limit für die Auswertung im Browser.',
+        unreadable: 'Der Eintrag im Archiv ist leer oder beschädigt.',
+        invalid:
+          'Die Datei hat nicht das Format eines Cabinets (Signatur MSCF fehlt oder Struktur defekt).',
+      } as Record<string, string>,
+      packageUnavailableRemediation: [
+        'Das Paket mdmlogs-*.cab aus dem Archiv lokal entpacken (Windows-Befehl expand) und MDMDiagReport.xml dort ansehen.',
+        'Bei defektem Paket die Diagnosedaten bzw. den MDM-Bericht erneut sammeln.',
+      ],
+      reportReason: {
+        missing: 'MDMDiagReport.xml ist im Paket nicht enthalten.',
+        tooLarge: (sizeMiB: number, limitMiB: number) =>
+          `MDMDiagReport.xml wurde nicht gelesen: ${sizeMiB} MiB überschreiten das Größenlimit von ${limitMiB} MiB.`,
+        unreadable: 'MDMDiagReport.xml konnte nicht aus dem Paket gelesen werden.',
+        unsupported: (reason: string) =>
+          `MDMDiagReport.xml wurde nicht gelesen: Das Paket verwendet ${reason}, die im Browser nicht unterstützt wird.`,
+        invalid: 'MDMDiagReport.xml ist kein lesbares XML oder das Paket ist beschädigt.',
+      },
+      reportUnavailableTitle: 'MDMDiagReport.xml nicht ausgewertet',
+      reportUnavailableCause: {
+        missing:
+          'Laut Microsoft Learn gehört MDMDiagReport.xml zur Ausgabe des MdmDiagnosticsTool und die Bereiche („-area“) bestimmen, was gesammelt wird; hier fehlt die Datei (möglicherweise anderer Bereich oder unvollständige Sammlung).',
+        tooLarge: 'Die Datei ist größer als das Limit für die Auswertung im Browser.',
+        unreadable: 'Die Datei im Paket ist beschädigt oder konnte nicht entpackt werden.',
+        unsupported:
+          'Der Browser-Parser entpackt aus Cabinets nur unkomprimierte Ordner und MSZIP; andere Verfahren werden bewusst nicht unterstützt.',
+        invalid: 'Die Datei ist kein XML oder das Cabinet ist an dieser Stelle beschädigt.',
+      } as Record<string, string>,
+      reportUnavailableRemediation: [
+        'Das Paket mdmlogs-*.cab lokal entpacken (Windows-Befehl expand) und MDMDiagReport.xml im Editor öffnen.',
+      ],
+      reportMissingRemediation: [
+        'In der Dateiliste prüfen, was das Paket enthält; bei Bedarf die MDM-Diagnose erneut sammeln (Microsoft Learn: „Collect MDM logs“).',
+      ],
+      packageTitle: (files: number) =>
+        `MDM-Diagnosepaket gelesen: ${files} ${files === 1 ? 'Datei' : 'Dateien'}`,
+      packageDetail: (name: string, files: number, listed: number, fromPackage: boolean) =>
+        [
+          `Das Paket „${name}“ enthält ${files} ${files === 1 ? 'Datei' : 'Dateien'}${listed < files ? ` (${listed} aufgeführt)` : ''}.`,
+          fromPackage
+            ? 'Das MDM-Admin-Ereignisprotokoll stammt aus diesem Paket, weil das Archiv kein lesbares eigenes enthält (Kachel „MDM-Ereignisse“).'
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      packageCause:
+        'Das Paket stammt vom MdmDiagnosticsTool (Ausgabe-Log im DiagLogs-ZIP). Laut Microsoft Learn enthält dessen ZIP-Ausgabe u. a. MDMDiagReport.xml (detaillierte MDM-Konfiguration), MDMDiagHtmlReport.html, MdmDiagReport_RegistryDump.reg und .evtx-Dateien; maßgeblich ist die tatsächliche Dateiliste oben.',
+      packageRemediation: [
+        'Für Details die Dateien lokal entpacken (Windows-Befehl expand) – MDMDiagHtmlReport.html fasst laut Learn Verwaltungs-URL, Zertifikate und Richtlinien zusammen.',
+      ],
+      truncatedTitle: 'MDM-Diagnosepaket unvollständig',
+      truncatedDetail:
+        'Das Cabinet ist kürzer als im Kopf angegeben oder die Dateiliste endet vorzeitig; nur vollständig vorhandene Teile wurden gelesen.',
+      truncatedCause:
+        'Der Eintrag im Archiv ist gekappt (z. B. unterbrochene Sammlung oder Übertragung).',
+      truncatedRemediation: ['Die Diagnosedaten erneut sammeln.'],
+      structureTitle: 'Aufbau von MDMDiagReport.xml (Rohdaten)',
+      structureDetail: (root: string, elements: number, sections: number) =>
+        `Wurzelelement „${root}“ mit ${elements} ${elements === 1 ? 'Element' : 'Elementen'} in ${sections} ${sections === 1 ? 'Abschnitt' : 'Abschnitten'}. Angezeigt werden nur Elementnamen und Anzahl – keine Werte.`,
+      structureLine: (count: number, children: string[]) =>
+        children.length > 0 ? `${count}× · enthält: ${children.join(', ')}` : `${count}×`,
+      structureCause:
+        'Microsoft Learn beschreibt MDMDiagReport.xml nur allgemein („detaillierte Sicht auf die MDM-Konfiguration, z. B. Registrierungsvariablen, Provisioning-Pakete, Multivariant-Bedingungen“) und nicht den Elementaufbau. Deshalb gibt es keine Deutung einzelner Abschnitte.',
+      structureRemediation: [
+        'Die Datei lokal öffnen (nach dem Entpacken mit expand) und die Abschnitte dort lesen; Werte wie Benutzer, IDs und URLs bleiben in dieser Anzeige bewusst ausgeblendet.',
+      ],
+      structureLimited: (truncated: boolean, sectionsTruncated: boolean) =>
+        [
+          truncated ? 'Das Dokument ist sehr groß; nur der Anfang wurde gelesen.' : null,
+          sectionsTruncated ? 'Es werden nicht alle Abschnitte aufgeführt.' : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      multivariantTitle: (n: number) =>
+        `${n} ${n === 1 ? 'Multivariant-Bedingung' : 'Multivariant-Bedingungen'} (Provisioning-Pakete)`,
+      multivariantDetail: (n: number, listed: number) =>
+        `MDMDiagReport.xml enthält ${n} Knoten „Multivariant“ mit Bedingungen${listed < n ? ` (${listed} aufgeführt)` : ''}. Ob sie auf dem Gerät zutrafen, geht aus der Auswertung nicht hervor.`,
+      multivariantCause:
+        'Laut Microsoft Learn (ab Windows 11, Version 22H2) nimmt das MdmDiagnosticsTool die Bedingungen multivariater Provisioning-Pakete auf, damit sich klären lässt, warum ein Paket nicht angewendet wurde.',
+      multivariantRemediation: [
+        'Bedingungen (Name, Wert, ggf. Muster mit „Pattern:“) mit den Eigenschaften des Geräts vergleichen, z. B. Sprache, Region, Architektur.',
+        'Microsoft Learn: Diagnose provisioning packages – Abschnitt „Unable to apply a multivariant provisioning package“.',
+      ],
+      metadataTitle: 'Aufruf des Diagnosetools (MdmDiagLogMetadata.json)',
+      metadataDetail: (n: number) =>
+        `${n} ${n === 1 ? 'Feld' : 'Felder'} der obersten Ebene als Rohdaten (Namen und Werte sind nicht dokumentiert; Benutzerangaben maskiert).`,
+      metadataCause:
+        'Laut Microsoft Learn enthält die Datei die Kommandozeilenargumente, mit denen das MdmDiagnosticsTool ausgeführt wurde.',
+      metadataRemediation: [
+        'Prüfen, welche Bereiche („-area“) gesammelt wurden, wenn Dateien im Paket fehlen.',
+      ],
+      factPackage: 'Paket',
+      factPackageSize: 'Größe',
+      factFiles: 'Dateien im Paket',
+      factReport: 'MDMDiagReport.xml',
+      factReportOk: (elements: number) => `gelesen (${elements} Elemente)`,
+      factReportStatus: {
+        missing: 'nicht im Paket',
+        tooLarge: 'zu groß',
+        unreadable: 'nicht lesbar',
+        unsupported: 'nicht unterstützt',
+        invalid: 'ungültig',
+      } as Record<string, string>,
+      factConditions: 'Multivariant-Bedingungen',
+      factAdminLog: 'MDM-Admin-Ereignisprotokoll',
+      factAdminLogFromPackage: 'aus dem Paket',
+      factAdminLogFromZip: 'direkt aus dem Archiv',
+      factAdminLogMissing: 'nicht vorhanden',
     },
   },
   ticket: {

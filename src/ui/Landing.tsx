@@ -22,6 +22,8 @@ interface Props {
   mode?: DataMode;
   onOpenRecent?: (device: RecentDevice) => void;
   onClearRecent?: () => void;
+  /** Weitere Werkzeuge unter der Drop-Zone (Sammelprüfung, Lesezeichen) */
+  tools?: ReactNode;
 }
 
 /** Leerer Zustand: großes Suchfeld, Beispiel-Chips, Drop-Zone. */
@@ -35,6 +37,7 @@ export function Landing({
   mode = 'demo',
   onOpenRecent,
   onClearRecent,
+  tools,
 }: Props) {
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center gap-9 py-8 sm:py-16">
@@ -92,6 +95,7 @@ export function Landing({
       <div className="w-full max-w-2xl">
         <DropZone onFile={onFile} />
       </div>
+      {tools && <div className="flex flex-wrap justify-center gap-2.5">{tools}</div>}
     </section>
   );
 }

@@ -35,7 +35,12 @@ const SECTION_KEYS = [
   'bitlockerKeys',
 ] as const;
 /** Zusätzlich beim Formvergleich Mock/Graph (für PC001 notApplicable, für MAC07 ok). */
-const SHAPE_KEYS = [...SECTION_KEYS, 'applePushCertificate', 'signIns'] as const;
+const SHAPE_KEYS = [
+  ...SECTION_KEYS,
+  'applePushCertificate',
+  'signIns',
+  'duplicateDevices',
+] as const;
 
 const loadSnapshot = loadFullSnapshot;
 

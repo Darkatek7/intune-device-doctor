@@ -3,8 +3,10 @@
  * Leerzuständen und der Geräteansicht.
  */
 import { ChevronLeft, CloudOff, FileWarning, SearchX } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { DataMode, DeviceSearchResult } from '../domain/types';
+import { useBulkCheck } from '../hooks/useBulkCheck';
 import { useDeviceSearch } from '../hooks/useDeviceSearch';
 import { useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -16,17 +18,22 @@ import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
 import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
+import { BookmarkletDialog } from '../ui/BookmarkletDialog';
+import { BulkView } from '../ui/BulkView';
 import { DropOverlay } from '../ui/DropOverlay';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorState';
 import { ExampleZipChip } from '../ui/ExampleZipChip';
 import { Landing } from '../ui/Landing';
+import { LandingTools } from '../ui/LandingTools';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
 import { Toolbar } from '../ui/Toolbar';
 import { ZipProgress } from '../ui/ZipProgress';
+import { ConnectionTestView } from './ConnectionTestView';
 import { DeviceView } from './DeviceView';
+import { TenantView } from './TenantView';
 import { useProviderContext } from './providerContextValue';
 import { ZipView } from './ZipView';
 
@@ -70,6 +77,12 @@ function Shell({ account, extraChips }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchedAt, setSearchedAt] = useState(() => new Date());
   const [deviceTone, setDeviceTone] = useState<AmbientTone>('accent');
+
+  // Sammelprüfung (M12/B3) und Lesezeichen (M12/B4)
+  const bulk = useBulkCheck(provider);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bookmarkletOpen, setBookmarkletOpen] = useState(false);
+  const bookmarkletButton = useRef<HTMLButtonElement>(null);
 
   // DiagLogs-ZIP: Analyse, Ansicht und optionale Zusammenführung mit einem Gerät.
   const { state: zip, analyze, reset: resetZip } = useDiagnosticsAnalysis();
@@ -149,14 +162,37 @@ function Shell({ account, extraChips }: Props) {
   const submit = useCallback(
     async (value: string) => {
       if (zip.status !== 'idle') discardZip();
+      setBulkOpen(false);
+      // Eine Suche verlässt die Ansicht „Mandant“ bzw. den Verbindungstest, damit die Trefferliste sichtbar wird.
+      if (url.view === 'tenant' || url.view === 'connectionTest') {
+        navigateTo({ device: null, tile: null, mode });
+      }
       const results = await search(value);
       setSearchedAt(new Date());
       if (results?.length === 1) openDevice(results[0]!);
     },
-    [search, openDevice, zip.status, discardZip],
+    [search, openDevice, zip.status, discardZip, url.view, mode],
   );
 
+  const openBulk = () => {
+    discardZip();
+    reset();
+    setQuery('');
+    // Die Sammelprüfung verlässt eine geöffnete Mandanten-Ansicht bzw. ein geöffnetes Gerät.
+    if (url.device || url.view) navigateTo({ device: null, tile: null, mode });
+    setBulkOpen(true);
+  };
+
+  const openTenant = () => {
+    setBulkOpen(false);
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'tenant' });
+  };
+
   const goHome = () => {
+    setBulkOpen(false);
     discardZip();
     reset();
     setQuery('');
@@ -188,16 +224,44 @@ function Shell({ account, extraChips }: Props) {
   );
 
   const liveWithoutProvider = !provider;
-  const showDevice = Boolean(provider && url.device);
-  const showZip = !showDevice && !liveWithoutProvider && zip.status !== 'idle';
-  const showPicker = !showDevice && !showZip && state.status === 'done' && state.results.length > 1;
+  // Verbindungstest (M14/S6): nur Live, d. h. wenn der Provider ihn anbietet; sonst die normale Geräteansicht.
+  const canTestConnection = Boolean(provider && typeof provider.testConnection === 'function');
+  const showConnectionTest = Boolean(
+    provider && url.device && url.view === 'connectionTest' && canTestConnection,
+  );
+  const showDevice = Boolean(provider && url.device) && !showConnectionTest;
+  /** Geräteansicht oder Verbindungstest: beide gehören zu einem geöffneten Gerät */
+  const showDeviceArea = showDevice || showConnectionTest;
+  const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
+  const showZip = !showDeviceArea && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
+  const showBulk = bulkOpen && !showDeviceArea && !showTenant && !showZip && !liveWithoutProvider;
+  const showPicker =
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'done' &&
+    state.results.length > 1;
   const showNotFound =
-    !showDevice && !showZip && state.status === 'done' && state.results.length === 0;
-  const showSearchError = !showDevice && !showZip && state.status === 'error' && state.error;
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'done' &&
+    state.results.length === 0;
+  const showSearchError =
+    !showDeviceArea &&
+    !showTenant &&
+    !showZip &&
+    !showBulk &&
+    state.status === 'error' &&
+    state.error;
   const showHero =
     !liveWithoutProvider &&
-    !showDevice &&
+    !showDeviceArea &&
+    !showTenant &&
     !showZip &&
+    !showBulk &&
     !showPicker &&
     !showNotFound &&
     !showSearchError;
@@ -220,6 +284,17 @@ function Shell({ account, extraChips }: Props) {
         }
       />
     );
+  } else if (showConnectionTest && provider && url.device) {
+    const deviceId = url.device;
+    content = (
+      <ConnectionTestView
+        key={deviceId}
+        provider={provider}
+        deviceId={deviceId}
+        onBack={() => navigateTo({ device: deviceId, tile: null, mode })}
+        onToneChange={setDeviceTone}
+      />
+    );
   } else if (showDevice && provider && url.device) {
     content = (
       <DeviceView
@@ -238,9 +313,31 @@ function Shell({ account, extraChips }: Props) {
         onToneChange={setDeviceTone}
         onDeviceLoaded={recentDevices.remember}
         onOpenDevice={openDevice}
+        {...(canTestConnection
+          ? {
+              onOpenConnectionTest: () =>
+                navigateTo({ device: url.device, tile: null, mode, view: 'connectionTest' }),
+            }
+          : {})}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
+      />
+    );
+  } else if (showTenant && provider) {
+    content = (
+      <TenantView
+        provider={provider}
+        openTileId={url.tile}
+        onOpenTile={(tileId) =>
+          navigateTo({ device: null, tile: tileId, mode, view: 'tenant' }, { tileOpened: true })
+        }
+        onCloseTile={() => {
+          const current = parseUrl(window.location.search);
+          if (current.tile) closeTileInHistory(current);
+        }}
+        onBack={goHome}
+        onToneChange={setDeviceTone}
       />
     );
   } else if (showZip) {
@@ -282,6 +379,21 @@ function Shell({ account, extraChips }: Props) {
         />
       );
     }
+  } else if (showBulk) {
+    content = (
+      <BulkView
+        state={bulk.state}
+        onStart={(names) => void bulk.start(names)}
+        onCancel={bulk.cancel}
+        onReset={bulk.reset}
+        onBack={() => setBulkOpen(false)}
+        onOpenDevice={openDevice}
+        onSearchName={(name) => {
+          setQuery(name);
+          void submit(name);
+        }}
+      />
+    );
   } else if (showPicker) {
     content = (
       <ResultPicker
@@ -323,6 +435,13 @@ function Shell({ account, extraChips }: Props) {
           </>
         }
         onFile={startAnalysis}
+        tools={
+          <LandingTools
+            ref={bookmarkletButton}
+            onOpenBulk={openBulk}
+            onOpenBookmarklet={() => setBookmarkletOpen(true)}
+          />
+        }
         recent={recentDevices.recent}
         mode={mode}
         onOpenRecent={openDevice}
@@ -343,7 +462,13 @@ function Shell({ account, extraChips }: Props) {
 
   return (
     <div className="min-h-dvh bg-canvas text-label">
-      <AmbientGlow tone={showDevice || (showZip && zipReport) ? deviceTone : 'accent'} />
+      <AmbientGlow
+        tone={
+          showDevice || showConnectionTest || showTenant || (showZip && zipReport)
+            ? deviceTone
+            : 'accent'
+        }
+      />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:ring-2 focus:ring-accent"
@@ -356,6 +481,7 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
+        {...(liveWithoutProvider ? {} : { onOpenTenant: openTenant, tenantActive: showTenant })}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}
@@ -365,6 +491,17 @@ function Shell({ account, extraChips }: Props) {
         </p>
         {content}
       </main>
+      <AnimatePresence>
+        {bookmarkletOpen && (
+          <BookmarkletDialog
+            key="bookmarklet-dialog"
+            onClose={() => {
+              setBookmarkletOpen(false);
+              bookmarkletButton.current?.focus();
+            }}
+          />
+        )}
+      </AnimatePresence>
       <DropOverlay visible={dragging} />
     </div>
   );

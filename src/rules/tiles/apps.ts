@@ -24,6 +24,7 @@ import {
   worstActionable,
 } from '../helpers';
 import { Docs } from '../knowledge/docs';
+import { assignmentsContribution } from './assignments';
 
 const t = de.rules.apps;
 const f = de.rules.facts;
@@ -55,6 +56,10 @@ export function evaluateApps(snapshot: DeviceSnapshot, _now: Date): Tile {
     docsUrl: Docs.appIntentAndStatesBeta,
   });
 
+  // M14/S2: Zuweisungen (reine Hinweise; laden nach den Gerätezuständen, blockieren die Kachel nicht)
+  const assignments = assignmentsContribution(snapshot, 'apps');
+  findings.push(...assignments.findings);
+
   const required = apps.filter((a) => a.intent !== null && REQUIRED.has(a.intent));
   const installedRequired = required.filter((a) => a.installState === 'installed').length;
   const available = apps.filter((a) => a.intent !== null && AVAILABLE.has(a.intent)).length;
@@ -70,6 +75,7 @@ export function evaluateApps(snapshot: DeviceSnapshot, _now: Date): Tile {
       value: String(apps.filter((a) => a.installState === 'installed').length),
     },
     { label: f.appsFailed, value: String(failed) },
+    ...assignments.facts,
   ];
 
   const severity: Severity = worstActionable(findings, 'ok');
@@ -90,10 +96,10 @@ export function evaluateApps(snapshot: DeviceSnapshot, _now: Date): Tile {
     value,
     summary: t.summary(installedRequired, required.length, available),
     findings: sortFindings(findings),
-    sources: [section.source],
+    sources: assignments.source ? [section.source, assignments.source] : [section.source],
     facts,
     availability: availabilityOf(section),
-    sections,
+    sections: [...sections, 'assignments'],
   };
 }
 

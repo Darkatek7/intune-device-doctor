@@ -4,7 +4,15 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  EnrollmentLimitsInfo,
+  SecurityAlertsInfo,
+  TenantStatus,
+  VppTokenInfo,
+  UserLicenseInfo,
+  AssignmentLookup,
+  AssignmentsInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
@@ -22,20 +30,32 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
-import { Endpoints, type EndpointId } from '../../graph/endpoints';
+import {
+  ASSIGNMENTS_DISPLAY,
+  Endpoints,
+  MAX_ASSIGNMENT_LOOKUPS,
+  type EndpointId,
+} from '../../graph/endpoints';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
+  defaultAssignments,
+  defaultEnrollmentLimits,
+  defaultSecurityAlerts,
+  defaultTenantApplePush,
+  defaultVppTokens,
+  userLicenseInfo,
   defaultAutopilot,
   defaultDeviceGroups,
+  defaultDuplicateDevices,
   defaultHealthAttestation,
   defaultLocalAdmin,
   defaultSignIns,
 } from './scenarios/helpers';
-import type { MockDeviceFixture, MockScenario, MockSection } from './types';
+import type { MockDeviceFixture, MockScenario, MockSection, MockTenantFixture } from './types';
 
 export interface MockProviderOptions {
   scenarios?: MockScenario[];
@@ -43,15 +63,18 @@ export interface MockProviderOptions {
   /** Künstliche Latenz je Aufruf in ms; false = keine Latenz (Tests) */
   latency?: { min: number; max: number } | false;
   seed?: number;
+  /** Demo-Daten der Ansicht „Mandant“ (M14/S5); ohne Angabe: Standardwerte */
+  tenant?: MockTenantFixture;
 }
 
-type SectionKey = Exclude<keyof MockDeviceFixture, 'device'>;
+type SectionKey = Exclude<keyof MockDeviceFixture, 'device' | 'assignments' | 'assignmentTargets'>;
 
 const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   protection: 'windowsProtectionState',
   compliancePolicies: 'deviceCompliancePolicyStates',
   configurationPolicies: 'deviceConfigurationStates',
   entraDevice: 'entraDeviceByDeviceId',
+  duplicateDevices: 'entraDevicesByName',
   bitlockerKeys: 'bitlockerRecoveryKeys',
   appInstallStates: 'mobileAppIntentAndStates',
   applePushCertificate: 'applePushNotificationCertificate',
@@ -61,6 +84,9 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   deviceGroups: 'deviceTransitiveMemberOf',
   userDevices: 'managedDevicesOfUser',
   healthAttestation: 'managedDeviceHealthAttestation',
+  userLicense: 'userLicenseDetails',
+  enrollmentLimits: 'deviceEnrollmentConfigurations',
+  securityAlerts: 'securityAlerts',
 };
 
 export function abortError(): DOMException {
@@ -124,12 +150,14 @@ export class MockProvider implements DeviceDataProvider {
   private readonly now: () => Date;
   private readonly latency: { min: number; max: number } | false;
   private readonly seed: number;
+  private readonly tenant: MockTenantFixture;
 
   constructor(options: MockProviderOptions = {}) {
     this.scenarios = options.scenarios ?? defaultScenarios;
     this.now = options.now ?? (() => new Date());
     this.latency = options.latency ?? { min: 120, max: 600 };
     this.seed = options.seed ?? 42;
+    this.tenant = options.tenant ?? {};
   }
 
   private delay(key: string, signal?: AbortSignal): Promise<void> {
@@ -238,6 +266,28 @@ export class MockProvider implements DeviceDataProvider {
     if (key === 'deviceGroups') {
       return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
     }
+    if (key === 'userLicense') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.licenseNoPrimaryUser };
+      }
+      return { status: 'ok', data: userLicenseInfo() };
+    }
+    if (key === 'enrollmentLimits') {
+      if (!fixture.device.userId) {
+        return { status: 'notApplicable', reason: de.reasons.enrollmentLimitsNoPrimaryUser };
+      }
+      return { status: 'ok', data: defaultEnrollmentLimits() };
+    }
+    if (key === 'securityAlerts') {
+      return { status: 'ok', data: defaultSecurityAlerts() };
+    }
+    if (key === 'duplicateDevices') {
+      const entra = fixture.entraDevice;
+      if (entra.status !== 'ok') {
+        return { status: 'unavailable', reason: de.reasons.duplicatesNotReported };
+      }
+      return { status: 'ok', data: defaultDuplicateDevices(entra.data, fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -259,6 +309,15 @@ export class MockProvider implements DeviceDataProvider {
       return { status: 'error', error, source };
     }
     const spec = (fixture[key] ?? this.defaultSection(key, fixture)) as MockSection<T>;
+    return this.fromSpec(spec, endpoint, source);
+  }
+
+  /** Übersetzt die Fixture-Angabe einer Section in ein SectionResult. */
+  private fromSpec<T>(
+    spec: MockSection<T>,
+    endpoint: EndpointId,
+    source: DataSource,
+  ): SectionResult<T> {
     switch (spec.status) {
       case 'ok':
         return { status: 'ok', data: spec.data, source, fetchedAt: this.now().toISOString() };
@@ -298,6 +357,10 @@ export class MockProvider implements DeviceDataProvider {
     return this.section<EntraDeviceInfo | null>(device, 'entraDevice', options);
   }
 
+  getDuplicateDevices(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DuplicateDevicesInfo>(device, 'duplicateDevices', options);
+  }
+
   getBitLockerKeys(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<BitLockerKeyInfo[]>(device, 'bitlockerKeys', options);
   }
@@ -332,6 +395,65 @@ export class MockProvider implements DeviceDataProvider {
 
   getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<LocalAdminInfo>(device, 'localAdmin', options);
+  }
+
+  getUserLicense(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<UserLicenseInfo>(device, 'userLicense', options);
+  }
+
+  /** Mandanten-Status: Standard oder `options.tenant` (siehe MockTenantFixture). */
+  async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
+    await this.delay('tenant', options.signal);
+    const now = this.now();
+    return {
+      applePushCertificate: this.fromSpec<ApplePushCertificateInfo>(
+        this.tenant.applePushCertificate ?? { status: 'ok', data: defaultTenantApplePush(now) },
+        'applePushNotificationCertificate',
+        sourceFor('applePushNotificationCertificate'),
+      ),
+      vppTokens: this.fromSpec<VppTokenInfo[]>(
+        this.tenant.vppTokens ?? { status: 'ok', data: defaultVppTokens(now) },
+        'vppTokens',
+        sourceFor('vppTokens'),
+      ),
+    };
+  }
+
+  getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<SecurityAlertsInfo>(device, 'securityAlerts', options);
+  }
+
+  getEnrollmentLimits(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<EnrollmentLimitsInfo>(device, 'enrollmentLimits', options);
+  }
+
+  /** Zuweisungen: Standard oder Szenario-Vorgabe (siehe MockDeviceFixture.assignments/assignmentTargets). */
+  async getAssignments(
+    device: ManagedDeviceInfo,
+    lookups: AssignmentLookup[],
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AssignmentsInfo>> {
+    await this.delay(`assignments:${device.id}`, options.signal);
+    const source: DataSource = {
+      ...sourceFor('deviceConfigurationAssignments'),
+      label: ASSIGNMENTS_DISPLAY,
+    };
+    const fixture = this.fixtureById(device.id);
+    if (!fixture) {
+      return {
+        status: 'error',
+        error: { code: 'notFound', httpStatus: 404, message: de.errors.deviceNotFound },
+        source,
+      };
+    }
+    if (lookups.length === 0) {
+      return { status: 'notApplicable', reason: de.reasons.assignmentsNothingToCheck, source };
+    }
+    const spec: MockSection<AssignmentsInfo> = fixture.assignments ?? {
+      status: 'ok',
+      data: defaultAssignments(lookups.slice(0, MAX_ASSIGNMENT_LOOKUPS), fixture.assignmentTargets),
+    };
+    return this.fromSpec(spec, 'deviceConfigurationAssignments', source);
   }
 
   async getMobileApps(

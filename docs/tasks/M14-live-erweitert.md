@@ -1,0 +1,58 @@
+# M14 – Live: doppelte Entra-Objekte, Zuweisungen, Registrierung, Sicherheitswarnungen, Mandant, Prüfmodus
+
+Recherche gegen Microsoft Learn am 2026-11-09 (Fakten unten mit URL). Vor der Umsetzung jeden Endpunkt in `docs/graph-api-reference.md` übernehmen (Format wie M10). URLs nur in `src/graph/endpoints.ts`, DTOs nur in `src/graph/dto.ts`, Client bleibt GET-only. Muster: M10 (optionale Scopes, `SectionResult`, 403 → forbidden, Mapper akzeptiert `{value:{…}}`).
+
+**Delegation:** ein Subagent (sonnet), Schritte **der Reihe nach** in einem Worktree (gemeinsamer Vertrag). Speicher: Vitest `--maxWorkers=2`, Playwright `--workers=1` mit eigenem `E2E_PORT`, Prüfschritte einzeln.
+
+## S1 – Doppelte Entra-Geräteobjekte (Befund in „Gerätestatus“)
+
+- `GET /devices?$filter=displayName eq '{deviceName}'&$select=id,deviceId,displayName,trustType,accountEnabled,approximateLastSignInDateTime,isCompliant,isManaged,registrationDateTime,profileType,operatingSystem` – `eq` auf `displayName` ist Standard-Query (kein ConsistencyLevel; `registrationDateTime`-Filter wäre Advanced → nicht filtern). Scope `Device.Read.All` (vorhanden). Quellen: https://learn.microsoft.com/en-us/graph/api/device-list?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/resources/device?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/aad-advanced-queries#device-properties
+- `trustType`: `Workplace` (registriert), `AzureAd` (Entra joined), `ServerAd` (hybrid joined). Nicht verwenden: `physicalIds`, `deviceMetadata`.
+- Regel: Mehr als ein Objekt mit gleichem Namen → Befund mit Tabelle (trustType, aktiviert, letzte Anmeldung, konform, registriert am; aktuelles Objekt = `azureADDeviceId` markiert). **Hybrid (`ServerAd`) + `Workplace`** → warning „Dual State“ – Learn: https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-a-duplicate-microsoft-entra-registered-record-for-my-windows-10-11-microsoft-entra-hybrid-joined-device-in-the-microsoft-entra-devices-list (Dual State kann zu nicht deterministischer Auswertung/Zugriffsproblemen führen; ab Windows 10 1803 automatische Bereinigung nach Anmeldung). Andere Duplikate → Hinweis mit Ursachen laut https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-duplicate-device-entries. Gleicher Name, aber anderes Betriebssystem → nur als „gleichnamig“ zeigen, nicht als Duplikat werten.
+
+## S2 – Zuweisungen: Warum gilt eine Richtlinie? (Richtlinien-Kachel + Apps-Kachel)
+
+- `GET /deviceManagement/deviceConfigurations/{id}/assignments`, `GET /deviceManagement/deviceCompliancePolicies/{id}/assignments` (Scope `DeviceManagementConfiguration.Read.All`, vorhanden), `GET /deviceAppManagement/mobileApps/{id}/assignments` (least privileged `DeviceManagementConfiguration.Read.All`). Quellen: https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationassignment-list?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicyassignment-list?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0
+- Nur für Richtlinien/Apps, die bereits in den Gerätezuständen erscheinen (Richtlinien-Kachel, Apps-Kachel) – max. 30 Abrufe, 4 parallel; vorher prüfen, dass die IDs der Zustände die Richtlinien-/App-IDs sind (Doku/Mapper), sonst Schritt ehrlich als nicht auswertbar markieren. `$expand=assignments` ist **nicht** dokumentiert → nicht verwenden.
+- Ziele (v1.0): `#microsoft.graph.groupAssignmentTarget` (`groupId`), `#microsoft.graph.exclusionGroupAssignmentTarget` (`groupId`), `#microsoft.graph.allDevicesAssignmentTarget`, `#microsoft.graph.allLicensedUsersAssignmentTarget`; unbekannte `@odata.type` → „unbekannter Zieltyp“. App-`intent`: `available|required|uninstall|availableWithoutEnrollment`.
+- Abgleich mit den Gerätegruppen aus M10 (`transitiveMemberOf`): „zugewiesen über Gerätegruppe X“, „ausgeschlossen über Gerätegruppe Y“ (Ausschluss + Zustand ≠ notApplicable → Hinweis), „Alle Geräte“, „Alle Benutzer“. Gruppen-IDs ohne Gerätemitgliedschaft → „Gruppe ohne Mitgliedschaft des Geräts – vermutlich Benutzergruppe (Benutzergruppen werden nicht gelesen)“. Kein neuer Scope für Gruppennamen; Namen nur aus der M10-Liste.
+- Nicht verfügbar über dokumentierte v1.0-API: Settings-Catalog-Zuweisungen (`configurationPolicies` nur beta), Zuweisungsfilter (`deviceAndAppManagementAssignmentFilterId` nur beta) → im Sheet als „über dokumentierte API nicht verfügbar“ ausweisen.
+
+## S3 – Registrierung: Lizenz und Gerätelimit (Kachel „Registrierung (Benutzer)“)
+
+- Lizenz: `GET /users/{userId}/licenseDetails` – Scope **`LicenseAssignment.Read.All`** (neu, optional). Felder `skuId`, `skuPartNumber`, `servicePlans[]{servicePlanId, servicePlanName, provisioningStatus (Success|Disabled|Error|PendingInput|PendingActivation|PendingProvisioning), appliesTo}`. Match über `servicePlanId`: `INTUNE_A` c1ec4a95-1f05-45b3-a911-aa3fa01094f5, `INTUNE_A_VL` 3e170737-c728-4eae-bbb9-3f3360f7184c, `INTUNE_EDU` da24caf9-af8e-485c-b7c8-e73336da2693; `INTUNE_O365` 882e1d05-acd1-4ccb-8708-6ee03664b117 = „Mobile Device Management for Office 365“ (eigener Hinweis). Quellen: https://learn.microsoft.com/en-us/graph/api/user-list-licensedetails?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/resources/serviceplaninfo?view=graph-rest-1.0, https://learn.microsoft.com/entra/identity/users/licensing-service-plan-reference. Kein Intune-Plan mit `Success` → warning; Ursache/Lösung laut https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#it-admin-needs-to-assign-license-for-access.
+- Gerätelimit: `GET /deviceManagement/deviceEnrollmentConfigurations` (Einträge mit `@odata.type` `#microsoft.graph.deviceEnrollmentLimitConfiguration`: `displayName`, `priority`, `limit`) + `GET /deviceManagement/deviceEnrollmentConfigurations/{id}/assignments` – Scope `DeviceManagementServiceConfig.Read.All` (vorhanden, optional). Anzahl Geräte des Benutzers aus M10 (`userDevices`). Benutzergruppen werden nicht gelesen → das wirksame Limit ist nicht sicher bestimmbar: Anzeige aller Limit-Konfigurationen (Priorität, Limit, Ziele); Hinweis, wenn die Geräteanzahl ≥ dem kleinsten konfigurierten Limit ist. Ausnahmen laut https://learn.microsoft.com/en-us/mem/intune/enrollment/enrollment-restrictions-set (Gerätelimit gilt nicht für Co-Management, GPO, Entra-Join, Autopilot, DEM) im Text nennen. Fehlerbild „DeviceCapReached“: https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#device-cap-reached.
+- Kachel nur, wenn das Gerät einen primären Benutzer hat.
+
+## S4 – Sicherheitswarnungen (Kachel „Sicherheitswarnungen“)
+
+- `GET /security/alerts_v2?$filter=serviceSource eq 'microsoftDefenderForEndpoint'&$top=100` – nur dokumentierte Filterfelder (`assignedTo, classification, determination, createdDateTime, lastUpdateDateTime, severity, serviceSource, status`), nur `eq` (andere Operatoren nicht belegt); **kein** `$select`/`$orderby`. Höchstens 3 Seiten; Zuordnung zum Gerät clientseitig über `evidence[]` vom Typ `#microsoft.graph.security.deviceEvidence`: `azureAdDeviceId` (= `azureADDeviceId`; laut Doku nur bei Entra joined gefüllt), sonst `deviceDnsName`/`hostName` (case-insensitive, Name vor erstem Punkt). Status `resolved` clientseitig ausblenden.
+- Scope **`SecurityAlert.Read.All`** (neu, optional); Rollen: Security Reader, Global Reader, Security Operator, Security Administrator. Quellen: https://learn.microsoft.com/en-us/graph/api/security-list-alerts_v2?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/resources/security-alert?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/resources/security-deviceevidence?view=graph-rest-1.0
+- Felder: `id, title, severity (unknown|informational|low|medium|high|unknownFutureValue), status (unknown|new|inProgress|resolved|unknownFutureValue), createdDateTime, lastUpdateDateTime, categories, alertWebUrl` (Link „Im Defender-Portal öffnen“), Evidenz nur `azureAdDeviceId, mdeDeviceId, deviceDnsName, riskScore, defenderAvStatus`. **Nicht** übernehmen: `loggedOnUsers`, `ipInterfaces`, `assignedTo`, sonstige personenbezogene Evidenz.
+- Regeln: offene Warnung `high` → critical, `medium` → warning, sonst Hinweis; keine → ok mit Hinweis „nur die neuesten N Warnungen geprüft“ (Seitengrenze ehrlich ausweisen).
+
+## S5 – Mandanten-Status (eigene Ansicht „Mandant“, nur Live + Demo)
+
+- Neue Provider-Methode `getTenantStatus()` (Mock + Graph): Apple-MDM-Push-Zertifikat (vorhanden) und **VPP-Tokens** `GET /deviceAppManagement/vppTokens` (Scope `DeviceManagementServiceConfig.Read.All`, vorhanden). Felder: `id, organizationName, vppTokenAccountType (business|education), expirationDateTime, lastSyncDateTime, state (unknown|valid|expired|invalid|assignedToExternalMDM), lastSyncStatus (none|inProgress|completed|failed), countryOrRegion, lastAppCount`. **Die Antwort enthält `token` und `appleId` (kein dokumentiertes `$select`)** → DTO-Typ ohne diese Felder, Mapper liest nur die Whitelist, nichts davon in State/Logs/Fehlermeldungen; Test prüft, dass das gemappte Ergebnis (JSON) weder `token` noch `appleId` enthält. Quellen: https://learn.microsoft.com/en-us/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0, https://learn.microsoft.com/en-us/graph/api/resources/intune-onboarding-vpptoken?view=graph-rest-1.0
+- Regeln: abgelaufen/`expired`/`invalid` → critical; ≤ 30 Tage → warning (eigener Richtwert); `lastSyncStatus=failed` → warning.
+- Über dokumentierte v1.0-API **nicht** verfügbar (nur beta): ADE/DEP-Tokens (`depOnboardingSettings`), Android Enterprise (`androidManagedStoreAccountEnterpriseSettings`), Autopilot-Sync (`windowsAutopilotSettings`), Zertifikats-Connectors (`ndesConnectors`) → in der Ansicht als Liste „nicht verfügbar“ mit Link ins Admin Center (nur falls Portal-URL wie in `intunePortal.ts` belegt).
+- Erreichbar über Toolbar/Startseite; gleiche Kachel-/Sheet-Komponenten.
+
+## S6 – Prüfmodus (Live)
+
+- Ansicht „Verbindungstest“ (nur Live): Für ein gewähltes Gerät jeden Endpunkt aus `Endpoints` genau einmal aufrufen (Parameter aus dem Gerät ableiten; Endpunkte ohne Parameter wie Gerätesuche mit dem Gerätenamen) und **nur** anzeigen: Endpunkt (`display`), Version, Scope, HTTP-Status/Ergebnis (`ok|forbidden|notFound|badRequest|error`), Dauer, Anzahl Einträge, **Namen** der Felder auf oberster Ebene des ersten Eintrags – **keine Werte**. Bericht als Markdown kopierbar (für `docs/live-verification.md`), ohne IDs/Namen. Läuft sequenziell, abbrechbar.
+- Beta-Endpunkt (App-Status) gekennzeichnet.
+
+## Gemeinsam
+
+- Neue optionale Scopes: `LicenseAssignment.Read.All`, `SecurityAlert.Read.All` (`OPTIONAL_SCOPES`, README-Tabelle, Rollen).
+- Demo: Szenarien erweitern (z. B. PC014: Dual State; PC042: Zuweisung inkl. Ausschluss; IP015/AND21: Lizenz/Limit; PC027: Defender-Warnung high; Mandant: ein VPP-Token läuft in 20 Tagen ab); PC050 zeigt für neue Scopes „Fehlende Berechtigung“.
+- `docs/live-verification.md` und Referenz-Abschnitt „Live zu verifizieren“ ergänzen.
+
+## Akzeptanz
+
+- [x] Referenz, README, Live-Prüfliste ergänzt; jede Deutung mit Learn-URL
+- [x] Read-only-Test grün; Tests: VPP-`token`/`appleId` nie im Ergebnis; Defender-Evidenz ohne Personendaten; LAPS unverändert
+- [x] Jede neue Section unabhängig (403/404/Fehler)
+- [x] Demo zeigt jede neue Kachel/Ansicht mindestens einmal mit Befund (Ausnahme: der Verbindungstest ist per Vorgabe nur Live; im Demo-Modus fehlt sein Einstieg, E2E prüft das)
+- [x] `npm run check` und E2E grün
