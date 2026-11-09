@@ -8,6 +8,7 @@ import type {
   AppliedPolicyInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
+  HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicySettingInfo,
@@ -367,4 +368,33 @@ export function defaultDeviceGroups(device: Pick<DeviceBase, 'osFamily'>): Devic
         ? 'Contoso – macOS-Geräte'
         : 'Contoso – Mobilgeräte';
   return deviceGroupsInfo(['Contoso – Alle Geräte', platform, 'Contoso – Pilot']);
+}
+
+/**
+ * Device Health Attestation (fiktive Demo-Rohwerte). Microsoft dokumentiert für die String-Felder
+ * keine Werte – die Demo-Werte dienen nur der Darstellung.
+ */
+export function healthAttestationInfo(
+  now: Date,
+  overrides: Partial<HealthAttestationInfo> = {},
+): HealthAttestationInfo {
+  return {
+    lastUpdateDateTime: ago(now, { hours: 6 }),
+    issuedDateTime: ago(now, { hours: 6 }),
+    secureBoot: 'enabled',
+    bitLockerStatus: 'enabled',
+    codeIntegrity: 'enabled',
+    earlyLaunchAntiMalwareDriverProtection: 'enabled',
+    bootDebugging: 'disabled',
+    testSigning: 'disabled',
+    tpmVersion: '2.0',
+    healthStatusMismatchInfo: null,
+    healthAttestationSupportedStatus: 'supported',
+    ...overrides,
+  };
+}
+
+/** Standard: unauffällige Rohwerte, keine gemeldete Abweichung. */
+export function defaultHealthAttestation(now: Date): HealthAttestationInfo {
+  return healthAttestationInfo(now);
 }

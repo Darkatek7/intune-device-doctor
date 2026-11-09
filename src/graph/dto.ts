@@ -490,3 +490,29 @@ export interface GraphDirectoryObject {
   id?: string | null;
   displayName?: string | null;
 }
+
+// ---------- Integritätsnachweis (v1.0, managedDevice.deviceHealthAttestationState) ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0
+// Fast alle Felder sind String ohne dokumentierte Werte → nur Rohwerte. `virtualSecureMode` wird nicht
+// verwendet (Support in v1.0 beendet; ersetzt durch virtualizationBasedSecurity).
+
+export interface GraphDeviceHealthAttestationState {
+  /** String (kein DateTimeOffset!) laut Doku */
+  lastUpdateDateTime: string | null;
+  issuedDateTime: string | null;
+  secureBoot: string | null;
+  bitLockerStatus: string | null;
+  codeIntegrity: string | null;
+  earlyLaunchAntiMalwareDriverProtection: string | null;
+  bootDebugging: string | null;
+  testSigning: string | null;
+  tpmVersion: string | null;
+  /** „Erscheint, wenn der DHA-Dienst ein Integritätsproblem erkennt“ (Ressourcenbeschreibung) */
+  healthStatusMismatchInfo: string | null;
+  healthAttestationSupportedStatus: string | null;
+}
+
+export interface GraphManagedDeviceHealthAttestation {
+  id?: string;
+  deviceHealthAttestationState?: Partial<GraphDeviceHealthAttestationState> | null;
+}

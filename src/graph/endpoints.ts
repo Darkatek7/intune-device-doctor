@@ -332,6 +332,23 @@ export const Endpoints = {
         $select: USER_DEVICES_SELECT.join(','),
       }),
   },
+  /**
+   * Integritätsnachweis (Device Health Attestation) des Windows-Geräts: eigener Aufruf mit
+   * `$select=deviceHealthAttestationState`. Die Felder sind fast alle String ohne dokumentierte Werte.
+   */
+  managedDeviceHealthAttestation: {
+    id: 'managedDeviceHealthAttestation',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDevices/{id}?$select=deviceHealthAttestationState',
+    path: (managedDeviceId: string) =>
+      withQuery(`/deviceManagement/managedDevices/${enc(managedDeviceId)}`, {
+        $select: 'deviceHealthAttestationState',
+      }),
+  },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 
 export type EndpointId = keyof typeof Endpoints;

@@ -9,6 +9,7 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  HealthAttestationInfo,
   DeviceGroupsInfo,
   AutopilotInfo,
   AppError,
@@ -123,6 +124,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<DeviceSearchResult[]>>;
+
+  /**
+   * Device Health Attestation (nur Windows): Rohwerte aus managedDevice.deviceHealthAttestationState
+   * (eigener Aufruf mit $select).
+   */
+  getHealthAttestation(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<HealthAttestationInfo>>;
 
   /**
    * App-Namen zu Intune-App-IDs (z. B. Win32-Apps aus einem DiagLogs-ZIP). Unbekannte IDs fehlen im

@@ -4,6 +4,7 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  HealthAttestationInfo,
   DeviceGroupsInfo,
   AutopilotInfo,
   AppInfo,
@@ -129,6 +130,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getUserDevices(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<DeviceSearchResult[]>((p) => p.getUserDevices(device, options));
+  }
+
+  getHealthAttestation(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<HealthAttestationInfo>((p) => p.getHealthAttestation(device, options));
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {

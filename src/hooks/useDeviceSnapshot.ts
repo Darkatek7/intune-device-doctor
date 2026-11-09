@@ -28,6 +28,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'autopilot',
   'deviceGroups',
   'userDevices',
+  'healthAttestation',
 ];
 
 export type SnapshotStatus = 'loading' | 'ready' | 'error';
@@ -74,6 +75,8 @@ export function loadSection(
       return provider.getDeviceGroups(device, { signal });
     case 'userDevices':
       return provider.getUserDevices(device, { signal });
+    case 'healthAttestation':
+      return provider.getHealthAttestation(device, { signal });
   }
 }
 

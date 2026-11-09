@@ -816,6 +816,57 @@ describe('GraphProvider – Windows LAPS', () => {
   });
 });
 
+describe('GraphProvider – Integritätsnachweis', () => {
+  const PATH = `/v1.0/deviceManagement/managedDevices/${PC001_ID}`;
+
+  it('liest per GET mit $select=deviceHealthAttestationState und übernimmt Rohwerte', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getHealthAttestation(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe(PATH);
+    expect(call.parsed.searchParams.get('$select')).toBe('deviceHealthAttestationState');
+    expect(result.source.label).toBe(Endpoints.managedDeviceHealthAttestation.display);
+    expect(result.data.secureBoot).toBe('enabled');
+    expect(result.data.tpmVersion).toBe('2.0');
+    // leere Strings → null; virtualSecureMode (abgekündigt) wird nicht übernommen
+    expect(result.data.healthStatusMismatchInfo).toBeNull();
+    expect(result.data).not.toHaveProperty('virtualSecureMode');
+  });
+
+  it('nicht Windows: notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getHealthAttestation(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(result.reason).toBe(de.reasons.attestationNotWindows);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit Scope DeviceManagementManagedDevices.Read.All; 404 → unavailable; 500 → error', async () => {
+    const forbidden = setup((call) =>
+      call.parsed.searchParams.get('$select') === 'deviceHealthAttestationState'
+        ? graphError(403, 'Forbidden')
+        : contosoHandler()(call),
+    );
+    const denied = expectStatus(
+      await forbidden.provider.getHealthAttestation(windowsDevice()),
+      'forbidden',
+    );
+    expect(denied.error.requiredScope).toBe('DeviceManagementManagedDevices.Read.All');
+    const missing = setup(() => graphError(404, 'ResourceNotFound'));
+    const unavailable = expectStatus(
+      await missing.provider.getHealthAttestation(windowsDevice()),
+      'unavailable',
+    );
+    expect(unavailable.reason).toBe(de.reasons.attestationNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getHealthAttestation(windowsDevice()), 'error');
+  });
+});
+
 describe('GraphProvider – Windows Autopilot', () => {
   const AP_PATH = '/v1.0/deviceManagement/windowsAutopilotDeviceIdentities';
   const pageOf = (n: number, withNext: boolean) =>

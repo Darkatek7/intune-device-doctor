@@ -40,6 +40,7 @@ export const de = {
     laps: 'Lokaler Administrator (LAPS)',
     autopilot: 'Autopilot',
     groups: 'Gruppen',
+    attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
   },
@@ -128,6 +129,10 @@ export const de = {
     // M10: weitere Geräte des Benutzers (Geräte-Header)
     userDevicesNoUser: 'Das Gerät hat keinen primären Benutzer.',
     userDevicesNotReported: 'Graph liefert keine weiteren Geräte des Benutzers (HTTP 404).',
+    // M10: Integritätsnachweis
+    attestationNotWindows: 'Der Integritätsnachweis (Device Health Attestation) gilt nur für Windows.',
+    attestationNotReported:
+      'Graph meldet HTTP 404 für den Integritätsnachweis – über diese Schnittstelle nicht verfügbar.',
     // M10: Gruppen des Geräts
     groupsNotReported:
       'Graph meldet HTTP 404 für das Entra-Gerät – die Gruppen sind über diese Schnittstelle nicht verfügbar.',

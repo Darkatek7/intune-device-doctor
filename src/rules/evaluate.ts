@@ -12,6 +12,7 @@ import { evaluateDefender } from './tiles/defender';
 import { evaluateDeviceStatus } from './tiles/deviceStatus';
 import { evaluateOsVersion } from './tiles/osVersion';
 import { evaluatePolicies } from './tiles/policies';
+import { evaluateAttestation } from './tiles/attestation';
 import { evaluateAutopilot } from './tiles/autopilot';
 import { evaluateGroups } from './tiles/groups';
 import { evaluateLaps } from './tiles/laps';
@@ -34,6 +35,7 @@ export const TILE_ORDER: TileId[] = [
   'laps',
   'autopilot',
   'groups',
+  'attestation',
   'entraJoin',
   'win32Apps',
   'enrollment',
@@ -59,6 +61,7 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
     tiles.push(evaluateLaps(snapshot, now), evaluateAutopilot(snapshot, now));
   }
   tiles.push(evaluateGroups(snapshot, now));
+  if (snapshot.device.osFamily === 'windows') tiles.push(evaluateAttestation(snapshot, now));
   if (snapshot.diagnostics) tiles.push(...evaluateDiagnosticsTiles(snapshot.diagnostics, now));
   return withPortalLinks(tiles, snapshot);
 }

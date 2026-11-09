@@ -112,6 +112,9 @@ export const Docs = {
   // M10: Gruppen des Geräts
   deviceTransitiveMemberOf:
     'https://learn.microsoft.com/graph/api/device-list-transitivememberof?view=graph-rest-1.0',
+  // M10: Integritätsnachweis
+  healthAttestationResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

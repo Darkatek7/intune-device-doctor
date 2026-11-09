@@ -295,6 +295,24 @@ export interface DeviceGroupsInfo {
   truncated: boolean;
 }
 
+/**
+ * Device Health Attestation (nur Windows): Rohwerte laut Graph. Microsoft dokumentiert für die meisten
+ * Felder keine Werte – sie werden unverändert angezeigt, nicht gedeutet.
+ */
+export interface HealthAttestationInfo {
+  lastUpdateDateTime: string | null;
+  issuedDateTime: string | null;
+  secureBoot: string | null;
+  bitLockerStatus: string | null;
+  codeIntegrity: string | null;
+  earlyLaunchAntiMalwareDriverProtection: string | null;
+  bootDebugging: string | null;
+  testSigning: string | null;
+  tpmVersion: string | null;
+  healthStatusMismatchInfo: string | null;
+  healthAttestationSupportedStatus: string | null;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -323,6 +341,8 @@ export interface DeviceSnapshot {
    * oder bei Fehlern entfällt die Zeile still. Enthält das aktuelle Gerät nicht.
    */
   userDevices?: SectionResult<DeviceSearchResult[]>;
+  /** Nur Windows: Device Health Attestation (Integritätsnachweis, Rohwerte) */
+  healthAttestation?: SectionResult<HealthAttestationInfo>;
   /** Optional: Befunde aus einem geladenen DiagLogs-ZIP */
   diagnostics?: DiagnosticsReport;
 }
@@ -342,6 +362,7 @@ export type TileId =
   | 'laps'
   | 'autopilot'
   | 'groups'
+  | 'attestation'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
@@ -393,7 +414,8 @@ export type SnapshotSectionKey =
   | 'localAdmin'
   | 'autopilot'
   | 'deviceGroups'
-  | 'userDevices';
+  | 'userDevices'
+  | 'healthAttestation';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */
 export interface TileFact {

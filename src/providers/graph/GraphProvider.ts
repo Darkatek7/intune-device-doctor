@@ -5,6 +5,7 @@
  */
 import type {
   AppError,
+  HealthAttestationInfo,
   DeviceGroupsInfo,
   AutopilotInfo,
   ApplePushCertificateInfo,
@@ -36,6 +37,7 @@ import type {
   GraphDirectoryObject,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
   GraphMobileAppIntentAndState,
   GraphSignIn,
@@ -58,6 +60,7 @@ import {
   mapUserDevices,
   mapBitlockerKey,
   mapEntraDevice,
+  mapHealthAttestation,
   mapLocalAdmin,
   mapManagedDevice,
   mapMobileApp,
@@ -590,6 +593,28 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(mapUserDevices(page?.value ?? [], device.id), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.userDevicesNotReported, source }),
+    );
+  }
+
+  /** Integritätsnachweis (nur Windows): eigener Aufruf mit $select=deviceHealthAttestationState. */
+  getHealthAttestation(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<HealthAttestationInfo>> {
+    const endpoint = Endpoints.managedDeviceHealthAttestation;
+    return this.run<HealthAttestationInfo>(
+      'managedDeviceHealthAttestation',
+      async (source) => {
+        if (device.osFamily !== 'windows') {
+          return { status: 'notApplicable', reason: de.reasons.attestationNotWindows, source };
+        }
+        const dto = await this.client.get<GraphManagedDeviceHealthAttestation>(
+          endpoint.path(device.id),
+          { signal: options.signal, scope: endpoint.scope },
+        );
+        return this.ok(mapHealthAttestation(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.attestationNotReported, source }),
     );
   }
 

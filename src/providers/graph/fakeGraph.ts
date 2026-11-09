@@ -293,6 +293,26 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
       if (!device) return graphError(404, 'ResourceNotFound');
       switch (match[2]) {
         case undefined:
+          if (call.parsed.searchParams.get('$select') === 'deviceHealthAttestationState') {
+            return jsonResponse({
+              id: device.id,
+              deviceHealthAttestationState: {
+                lastUpdateDateTime: '2026-10-14T06:00:00Z',
+                issuedDateTime: '2026-10-14T06:00:00Z',
+                secureBoot: 'enabled',
+                bitLockerStatus: 'enabled',
+                codeIntegrity: 'enabled',
+                earlyLaunchAntiMalwareDriverProtection: 'enabled',
+                bootDebugging: 'disabled',
+                testSigning: 'disabled',
+                tpmVersion: '2.0',
+                healthStatusMismatchInfo: '',
+                healthAttestationSupportedStatus: 'supported',
+                // nie verwendet (laut Doku abgekündigt) – darf nicht im Ergebnis landen
+                virtualSecureMode: 'notApplicable',
+              },
+            });
+          }
           return jsonResponse(device);
         case '/windowsProtectionState':
           return device.id === PC001_ID

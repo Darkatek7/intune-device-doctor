@@ -656,6 +656,44 @@ export const deRules = {
       'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
     ],
   },
+  /** M10: Kachel „Integritätsnachweis“ (Device Health Attestation, Rohwerte) */
+  attestation: {
+    valueData: 'Daten vorhanden',
+    valueMismatch: 'Abweichung gemeldet',
+    valueNone: 'Keine Daten',
+    summaryData: 'Rohwerte der Device Health Attestation',
+    summaryNone: 'Graph liefert keine Attestierungsdaten',
+    facts: {
+      secureBoot: 'Secure Boot',
+      bitLockerStatus: 'BitLocker-Status',
+      codeIntegrity: 'Code Integrity',
+      elam: 'Early Launch Antimalware (ELAM)',
+      bootDebugging: 'Boot-Debugging',
+      testSigning: 'Test Signing',
+      tpmVersion: 'TPM-Version',
+      lastUpdate: 'Letzte Aktualisierung (Rohwert)',
+      issued: 'Ausgestellt',
+      supported: 'DHA-Unterstützung',
+      mismatch: 'Integritätsabweichung',
+      note: 'Hinweis',
+      noteValue: 'Rohwerte laut Graph – Microsoft dokumentiert dafür keine Bedeutung',
+    },
+    mismatchTitle: 'Integritätsabweichung gemeldet',
+    mismatchDetail: (value: string) =>
+      `Der DHA-Dienst meldet healthStatusMismatchInfo: „${value}“.`,
+    mismatchCause:
+      'Laut Ressourcenbeschreibung erscheint dieses Attribut, wenn der DHA-Dienst ein Integritätsproblem erkennt. Welches Problem gemeint ist, beschreibt die Dokumentation nicht – der Wert wird unverändert angezeigt.',
+    mismatchRemediation: [
+      'Die Rohwerte dieser Kachel (Secure Boot, BitLocker-Status, Code Integrity, ELAM …) mit dem tatsächlichen Gerätezustand vergleichen, z. B. mit den Kacheln „BitLocker“ und „Defender“.',
+      'Zeitpunkte der letzten Aktualisierung und Ausstellung prüfen – die Werte zeigen den Stand der letzten Auswertung.',
+      'Werte nicht ohne Dokumentation deuten – Microsoft beschreibt für die meisten Felder keine möglichen Werte.',
+    ],
+    noneTitle: 'Keine Attestierungsdaten',
+    noneDetail: 'Das Feld deviceHealthAttestationState enthält keine Werte für dieses Gerät.',
+    noneCause:
+      'Graph liefert für dieses Gerät keine Werte; Microsoft nennt dazu keine Ursache. Das Feld healthAttestationSupportedStatus zeigt laut Ressourcenbeschreibung, ob DHA für das Gerät unterstützt wird.',
+    noneRemediation: ['Prüfen, ob das Gerät kürzlich eingecheckt hat (Kachel „Letzter Check-in“).'],
+  },
   /** M10: Kachel „Gruppen“ (Entra-Gruppen des Geräts, informativ) */
   groups: {
     value: (n: number) => (n === 1 ? '1 Gruppe' : `${n} Gruppen`),

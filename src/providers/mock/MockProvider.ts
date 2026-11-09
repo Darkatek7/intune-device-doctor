@@ -14,6 +14,7 @@ import type {
   DataSource,
   DeviceSearchResult,
   EntraDeviceInfo,
+  HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
@@ -30,6 +31,7 @@ import {
   defaultAppStates,
   defaultAutopilot,
   defaultDeviceGroups,
+  defaultHealthAttestation,
   defaultLocalAdmin,
   defaultSignIns,
 } from './scenarios/helpers';
@@ -58,6 +60,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   autopilot: 'windowsAutopilotDeviceIdentities',
   deviceGroups: 'deviceTransitiveMemberOf',
   userDevices: 'managedDevicesOfUser',
+  healthAttestation: 'managedDeviceHealthAttestation',
 };
 
 export function abortError(): DOMException {
@@ -226,6 +229,12 @@ export class MockProvider implements DeviceDataProvider {
         .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
       return { status: 'ok', data: others };
     }
+    if (key === 'healthAttestation') {
+      if (fixture.device.osFamily !== 'windows') {
+        return { status: 'notApplicable', reason: de.reasons.attestationNotWindows };
+      }
+      return { status: 'ok', data: defaultHealthAttestation(this.now()) };
+    }
     if (key === 'deviceGroups') {
       return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
     }
@@ -315,6 +324,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getAutopilot(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<AutopilotInfo | null>(device, 'autopilot', options);
+  }
+
+  getHealthAttestation(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<HealthAttestationInfo>(device, 'healthAttestation', options);
   }
 
   getLocalAdmin(device: ManagedDeviceInfo, options: RequestOptions = {}) {

@@ -11,6 +11,7 @@ import type {
   AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
+  HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
@@ -49,6 +50,8 @@ export interface MockDeviceFixture {
   deviceGroups?: MockSection<DeviceGroupsInfo>;
   /** Optional – ohne Angabe: andere Szenarien mit demselben Benutzer (UPN), ohne das Gerät selbst. */
   userDevices?: MockSection<DeviceSearchResult[]>;
+  /** Optional – ohne Angabe: Windows ok (unauffällige Rohwerte), sonst notApplicable. */
+  healthAttestation?: MockSection<HealthAttestationInfo>;
 }
 
 export interface MockScenario {

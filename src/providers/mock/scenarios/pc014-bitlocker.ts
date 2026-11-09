@@ -4,6 +4,7 @@ import type { MockScenario } from '../types';
 import {
   entraDevice,
   healthyConfigurationPolicies,
+  healthAttestationInfo,
   healthyProtection,
   policy,
   setting,
@@ -56,6 +57,13 @@ export const pc014Bitlocker: MockScenario = {
       configurationPolicies: { status: 'ok', data: healthyConfigurationPolicies() },
       entraDevice: { status: 'ok', data: entraDevice(now, device) },
       bitlockerKeys: { status: 'ok', data: [] },
+      healthAttestation: {
+        status: 'ok',
+        data: healthAttestationInfo(now, {
+          bitLockerStatus: 'disabled',
+          healthStatusMismatchInfo: 'Demo: Integritätsabweichung gemeldet (fiktiver Wert)',
+        }),
+      },
       signIns: {
         status: 'ok',
         data: signInsInfo(

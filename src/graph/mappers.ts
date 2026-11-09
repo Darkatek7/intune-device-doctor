@@ -6,6 +6,7 @@ import type {
   AppliedPolicyInfo,
   AutopilotInfo,
   DeviceGroupsInfo,
+  HealthAttestationInfo,
   LocalAdminInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -33,6 +34,7 @@ import type {
   GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
   GraphDirectoryObject,
+  GraphManagedDeviceHealthAttestation,
   GraphWindowsAutopilotDeviceIdentity,
   GraphBitlockerRecoveryKey,
   GraphDeviceLocalCredentialInfo,
@@ -678,4 +680,31 @@ export function mapUserDevices(
     .filter((entry) => typeof entry?.id === 'string' && entry.id.toLowerCase() !== current)
     .map(mapSearchResult)
     .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
+}
+
+// ---------- Integritätsnachweis ----------
+
+const text = (value: unknown): string | null => {
+  const v = typeof value === 'string' ? value.trim() : '';
+  return v ? v : null;
+};
+
+/** Übernimmt die dokumentierten String-Rohwerte unverändert (leer → null); virtualSecureMode u. a. nie. */
+export function mapHealthAttestation(
+  dto: GraphManagedDeviceHealthAttestation | null | undefined,
+): HealthAttestationInfo {
+  const state = dto?.deviceHealthAttestationState ?? {};
+  return {
+    lastUpdateDateTime: text(state.lastUpdateDateTime),
+    issuedDateTime: text(state.issuedDateTime),
+    secureBoot: text(state.secureBoot),
+    bitLockerStatus: text(state.bitLockerStatus),
+    codeIntegrity: text(state.codeIntegrity),
+    earlyLaunchAntiMalwareDriverProtection: text(state.earlyLaunchAntiMalwareDriverProtection),
+    bootDebugging: text(state.bootDebugging),
+    testSigning: text(state.testSigning),
+    tpmVersion: text(state.tpmVersion),
+    healthStatusMismatchInfo: text(state.healthStatusMismatchInfo),
+    healthAttestationSupportedStatus: text(state.healthAttestationSupportedStatus),
+  };
 }

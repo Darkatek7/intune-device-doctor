@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PC001_ENTRA_ID,
+  PC001_ID,
   bitlockerKey,
   malware,
   pc001Device,
@@ -18,6 +19,7 @@ import {
   mapAutopilot,
   mapDeviceGroups,
   mapEntraDevice,
+  mapHealthAttestation,
   mapLocalAdmin,
   mapManagedDevice,
   mapPolicyState,
@@ -713,5 +715,43 @@ describe('mapUserDevices', () => {
     );
     expect(result.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015', 'CONTOSO-PC014']);
     expect(result[0]).toMatchObject({ operatingSystem: 'iOS', complianceState: 'compliant' });
+  });
+});
+
+describe('mapHealthAttestation', () => {
+  it('übernimmt die dokumentierten String-Felder unverändert (getrimmt, leer → null)', () => {
+    const info = mapHealthAttestation({
+      id: PC001_ID,
+      deviceHealthAttestationState: {
+        lastUpdateDateTime: ' 2026-10-14T06:00:00Z ',
+        secureBoot: 'enabled',
+        bitLockerStatus: '',
+        tpmVersion: '2.0',
+        healthStatusMismatchInfo: '   ',
+      },
+    });
+    expect(info.lastUpdateDateTime).toBe('2026-10-14T06:00:00Z');
+    expect(info.secureBoot).toBe('enabled');
+    expect(info.bitLockerStatus).toBeNull();
+    expect(info.tpmVersion).toBe('2.0');
+    expect(info.healthStatusMismatchInfo).toBeNull();
+    expect(info.codeIntegrity).toBeNull();
+  });
+
+  it('fehlender Block oder null → alle Felder null, nie ein Fehler', () => {
+    for (const dto of [undefined, null, { id: 'x' }, { deviceHealthAttestationState: null }]) {
+      expect(Object.values(mapHealthAttestation(dto)).every((v) => v === null)).toBe(true);
+    }
+  });
+
+  it('übernimmt weder virtualSecureMode noch andere nicht modellierte Felder', () => {
+    const info = mapHealthAttestation({
+      deviceHealthAttestationState: {
+        virtualSecureMode: 'enabled',
+        pcr0: 'abc',
+      } as never,
+    });
+    expect(info).not.toHaveProperty('virtualSecureMode');
+    expect(info).not.toHaveProperty('pcr0');
   });
 });
