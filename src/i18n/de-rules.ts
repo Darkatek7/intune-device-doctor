@@ -108,6 +108,61 @@ export const deRules = {
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
   },
+  /** M14/S1: gleichnamige Entra-Objekte (Befund in „Gerätestatus“) */
+  duplicates: {
+    factCount: 'Entra-Objekte mit gleichem Namen',
+    factSameNameOtherOs: 'Gleichnamig, anderes Betriebssystem',
+    factMore: 'Weitere Seiten',
+    factMoreValue: 'nicht gelesen (nur die erste Seite)',
+    valueDualState: 'Dual State in Entra',
+    dualStateTitle: 'Dual State: hybrid joined und registriert',
+    duplicateTitle: 'Mehrere Entra-Objekte mit demselben Gerätenamen',
+    detail: (count: number, types: string) =>
+      `In Microsoft Entra ID gibt es ${count} Geräteobjekte mit diesem Namen (${types}). Das aktuelle Objekt ist in der Tabelle markiert.`,
+    dualStateDetail: (count: number) =>
+      `In Microsoft Entra ID gibt es ${count} Geräteobjekte mit diesem Namen, darunter eines „hybrid joined“ (ServerAd) und eines „registriert“ (Workplace). Das aktuelle Objekt ist in der Tabelle markiert.`,
+    moreNote:
+      'Es wurden nur die ersten Treffer gelesen; weitere gleichnamige Objekte sind möglich.',
+    dualStateCause:
+      'Wenn Benutzer auf einem domänenbeigetretenen Gerät „Konto zu Windows hinzufügen“ bestätigen, wird das Gerät zusätzlich in Microsoft Entra ID registriert. Nach dem Hybrid-Join existieren dann zwei Zustände desselben Geräts. Laut Microsoft hat der Hybrid-Join meist Vorrang; manchmal führt dieser Dual State aber zu einer nichtdeterministischen Auswertung des Geräts und zu Zugriffsproblemen.',
+    dualStateRemediation: [
+      'Windows-Version des Geräts prüfen: Ab Windows 10 1803 bereinigt Windows den registrierten Zustand automatisch, sobald sich der betreffende Domänenbenutzer am hybrid-joined Gerät anmeldet (bei mehreren Benutzern je Benutzer einzeln).',
+      'Am Gerät `dsregcmd /status` ausführen und prüfen, ob der registrierte Zustand noch besteht; lokale Konten werden nicht automatisch bereinigt.',
+      'Das Objekt wird in Entra nicht sofort gelöscht, wenn es von Intune verwaltet wird. Vor einem manuellen Entfernen des registrierten Zustands beachten: Laut Microsoft meldet Windows 10 das Gerät dann bei Intune ab, wenn die Registrierung über die automatische Registrierung der Entra-Registrierung erfolgte.',
+      'Vorgehen zum Vermeiden und Bereinigen des Dual State: Abschnitt „Review things you should know“ der Hybrid-Join-Planung (Link unten).',
+    ],
+    duplicateCause:
+      'Laut Microsoft entstehen doppelte Geräteeinträge z. B. durch wiederholtes Trennen und erneutes Beitreten desselben Geräts, durch „Geschäfts- oder Schulkonto hinzufügen“ (jeder Windows-Benutzer erzeugt einen neuen Eintrag mit demselben Namen) oder wenn ein Entra-joined Gerät zurückgesetzt, neu installiert und unter demselben Namen erneut beigetreten ist.',
+    duplicateRemediation: [
+      'Das aktuelle Objekt (Spalte „Hinweis“) mit den übrigen vergleichen: Join-Typ, letzte Anmeldung und Registrierungsdatum zeigen, welche Einträge nicht mehr genutzt werden.',
+      'Veraltete Objekte im Microsoft Entra Admin Center unter „Geräte“ prüfen und nach Rücksprache bereinigen (erfordert z. B. die Rolle Cloud Device Administrator). MDM Doctor ändert nichts.',
+      'Nach dem Aufräumen am Gerät `dsregcmd /status` ausführen, um den Join-Zustand zu bestätigen.',
+    ],
+    sameNameOtherOsTitle: 'Gleichnamiges Entra-Objekt mit anderem Betriebssystem',
+    sameNameOtherOsDetail: (count: number) =>
+      count === 1
+        ? 'Ein weiteres Entra-Objekt trägt denselben Namen, gehört aber zu einem anderen Betriebssystem. Es wird nicht als Duplikat gewertet.'
+        : `${count} weitere Entra-Objekte tragen denselben Namen, gehören aber zu einem anderen Betriebssystem. Sie werden nicht als Duplikate gewertet.`,
+    sameNameOtherOsCause:
+      'Verschiedene Geräte (z. B. ein Mobilgerät und ein Laptop) können denselben Anzeigenamen haben. Der Name allein identifiziert ein Gerät in Entra nicht eindeutig.',
+    sameNameOtherOsRemediation: [
+      'Nur falls es sich um dasselbe Gerät handeln sollte: Objekt anhand der Spalten „Join-Typ“ und „Registriert am“ im Microsoft Entra Admin Center prüfen.',
+    ],
+    columns: {
+      trustType: 'Join-Typ',
+      enabled: 'Aktiviert',
+      lastSignIn: 'Letzte Anmeldung (ca.)',
+      compliant: 'Konform',
+      registered: 'Registriert am',
+      note: 'Hinweis',
+    },
+    linkHybridJoin: 'Dual State bereinigen (Microsoft Learn)',
+    noteCurrent: 'aktuelles Objekt',
+    noteOtherOs: 'gleichnamig, anderes Betriebssystem',
+    yes: 'ja',
+    no: 'nein',
+    unknown: '–',
+  },
   deviceStatus: {
     valueActive: 'Aktiv',
     valueDisabled: 'In Entra deaktiviert',

@@ -18,6 +18,7 @@ import {
   PC001_ID,
   PC001_USER_ID,
   pc001Device,
+  pc001Entra,
   signInDto,
   type FakeHandler,
 } from './fakeGraph';
@@ -1041,5 +1042,57 @@ describe('GraphProvider – weitere Geräte des Benutzers', () => {
     expectStatus(await missing.provider.getUserDevices(device), 'unavailable');
     const broken = setup(() => graphError(500, 'InternalServerError'));
     expectStatus(await broken.provider.getUserDevices(device), 'error');
+  });
+});
+
+describe('GraphProvider – gleichnamige Entra-Objekte (M14/S1)', () => {
+  it('liest per GET /devices mit eq-Filter auf displayName, nur die erste Seite, und markiert das aktuelle Objekt', async () => {
+    const duplicate = {
+      ...pc001Entra(),
+      id: 'obj-registered',
+      deviceId: '00000000-0000-4000-9000-0000000000aa',
+      trustType: 'Workplace' as const,
+    };
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname === '/v1.0/devices'
+        ? jsonResponse({
+            value: [pc001Entra(), duplicate],
+            '@odata.nextLink': 'https://graph.microsoft.com/v1.0/devices?$skiptoken=x',
+          })
+        : graphError(404, 'NotFound'),
+    );
+    const result = expectStatus(await provider.getDuplicateDevices(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe('/v1.0/devices');
+    expect(call.parsed.searchParams.get('$filter')).toBe("displayName eq 'CONTOSO-PC001'");
+    expect(result.data.moreAvailable).toBe(true);
+    expect(result.data.devices.map((d) => [d.trustType, d.isCurrent])).toEqual([
+      ['AzureAd', true],
+      ['Workplace', false],
+    ]);
+    expect(result.source.label).toBe(Endpoints.entraDevicesByName.display);
+  });
+
+  it('403 → forbidden mit Scope Device.Read.All; 404 → unavailable; 500 → error – jeweils ohne andere Sections', async () => {
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getDuplicateDevices(windowsDevice()), 'forbidden').error
+        .requiredScope,
+    ).toBe('Device.Read.All');
+    const missing = setup(() => graphError(404, 'ResourceNotFound'));
+    expectStatus(await missing.provider.getDuplicateDevices(windowsDevice()), 'unavailable');
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getDuplicateDevices(windowsDevice()), 'error');
+  });
+
+  it('ohne Gerätenamen: unavailable ohne Request', async () => {
+    const { provider, calls } = setup();
+    expectStatus(
+      await provider.getDuplicateDevices(windowsDevice({ deviceName: '–' })),
+      'unavailable',
+    );
+    expect(calls).toHaveLength(0);
   });
 });

@@ -6,6 +6,7 @@
 import type {
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppInfo,
   ApplePushCertificateInfo,
@@ -100,6 +101,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getEntraDevice(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<EntraDeviceInfo | null>((p) => p.getEntraDevice(device, options));
+  }
+
+  getDuplicateDevices(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<DuplicateDevicesInfo>((p) => p.getDuplicateDevices(device, options));
   }
 
   getAppInstallStates(device: ManagedDeviceInfo, options?: RequestOptions) {

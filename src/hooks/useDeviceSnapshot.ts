@@ -20,6 +20,7 @@ export const SECTION_KEYS: SnapshotSectionKey[] = [
   'compliancePolicies',
   'configurationPolicies',
   'entraDevice',
+  'duplicateDevices',
   'bitlockerKeys',
   'appInstallStates',
   'applePushCertificate',
@@ -59,6 +60,8 @@ export function loadSection(
       return provider.getConfigurationPolicyStates(device, { signal });
     case 'entraDevice':
       return provider.getEntraDevice(device, { signal });
+    case 'duplicateDevices':
+      return provider.getDuplicateDevices(device, { signal });
     case 'bitlockerKeys':
       return provider.getBitLockerKeys(device, { signal });
     case 'appInstallStates':

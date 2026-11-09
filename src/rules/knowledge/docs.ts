@@ -126,6 +126,17 @@ export const Docs = {
   // M10: Integritätsnachweis
   healthAttestationResource:
     'https://learn.microsoft.com/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
+  // M14/S1: doppelte Entra-Geräteobjekte (abgerufen 2026-11-09)
+  entraDeviceListResource: 'https://learn.microsoft.com/graph/api/device-list?view=graph-rest-1.0',
+  /** Dual State (hybrid joined + registriert): nichtdeterministische Auswertung, ab Windows 10 1803 automatische Bereinigung */
+  entraDualStateFaq:
+    'https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-a-duplicate-microsoft-entra-registered-record-for-my-windows-10-11-microsoft-entra-hybrid-joined-device-in-the-microsoft-entra-devices-list',
+  /** Ursachen doppelter Geräteeinträge (Unjoin/Rejoin, „Geschäfts- oder Schulkonto hinzufügen“, Neuinstallation) */
+  entraDuplicateEntriesFaq:
+    'https://learn.microsoft.com/entra/identity/devices/faq#why-do-i-see-duplicate-device-entries',
+  /** Dual State vermeiden/bereinigen; Hinweis: Entfernen des registrierten Zustands kann Intune-Registrierung beenden */
+  hybridJoinReviewThingsToKnow:
+    'https://learn.microsoft.com/entra/identity/devices/hybrid-join-plan#review-things-you-should-know',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

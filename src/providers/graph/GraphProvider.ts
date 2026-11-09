@@ -7,6 +7,7 @@ import type {
   AppError,
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   ApplePushCertificateInfo,
   AppInfo,
@@ -57,6 +58,7 @@ import {
   mapAppInstallStates,
   mapAutopilot,
   mapDeviceGroups,
+  mapDuplicateDevices,
   mapUserDevices,
   mapBitlockerKey,
   mapEntraDevice,
@@ -350,6 +352,35 @@ export class GraphProvider implements DeviceDataProvider {
         return this.ok(first ? mapEntraDevice(first) : null, source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.entraNotReported, source }),
+    );
+  }
+
+  /**
+   * Entra-Objekte mit demselben Namen (nur die erste Seite). `eq` auf displayName ist Standard-Query;
+   * weitere Seiten werden nicht gelesen, aber ausgewiesen.
+   */
+  getDuplicateDevices(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<DuplicateDevicesInfo>> {
+    const endpoint = Endpoints.entraDevicesByName;
+    return this.run<DuplicateDevicesInfo>(
+      'entraDevicesByName',
+      async (source) => {
+        const name = device.deviceName.trim();
+        if (!name || name === '–') {
+          return { status: 'unavailable', reason: de.reasons.duplicatesNoName, source };
+        }
+        const page = await this.client.get<GraphCollection<GraphEntraDevice>>(endpoint.path(name), {
+          signal: options.signal,
+          scope: endpoint.scope,
+        });
+        return this.ok(
+          mapDuplicateDevices(page?.value ?? [], device, Boolean(page?.['@odata.nextLink'])),
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.duplicatesNotReported, source }),
     );
   }
 

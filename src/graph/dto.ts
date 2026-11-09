@@ -288,6 +288,8 @@ export interface GraphEntraDevice {
   operatingSystem: string | null;
   operatingSystemVersion: string | null;
   registrationDateTime: string | null;
+  /** Nur bei der Abfrage gleichnamiger Objekte angefordert: RegisteredDevice | SecureVM | Printer | Shared | IoT */
+  profileType?: string | null;
 }
 
 export const ENTRA_DEVICE_SELECT = [
@@ -302,6 +304,27 @@ export const ENTRA_DEVICE_SELECT = [
   'operatingSystem',
   'operatingSystemVersion',
   'registrationDateTime',
+] as const;
+
+/**
+ * Gleichnamige Entra-Geräteobjekte (M14/S1): `GET /devices?$filter=displayName eq '…'`. `eq` auf
+ * displayName ist ohne ConsistencyLevel-Header möglich (Standard-Query). Nicht angefordert werden
+ * `physicalIds` und `deviceMetadata`.
+ * https://learn.microsoft.com/en-us/graph/api/device-list?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/aad-advanced-queries#device-properties
+ */
+export const ENTRA_SAME_NAME_SELECT = [
+  'id',
+  'deviceId',
+  'displayName',
+  'trustType',
+  'accountEnabled',
+  'approximateLastSignInDateTime',
+  'isCompliant',
+  'isManaged',
+  'registrationDateTime',
+  'profileType',
+  'operatingSystem',
 ] as const;
 
 // ---------- BitLocker-Recovery-Key-Metadaten (v1.0) ----------

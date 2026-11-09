@@ -18,6 +18,7 @@ import {
   mapDetectedMalware,
   mapAutopilot,
   mapDeviceGroups,
+  mapDuplicateDevices,
   mapEntraDevice,
   mapHealthAttestation,
   mapLocalAdmin,
@@ -753,5 +754,71 @@ describe('mapHealthAttestation', () => {
     });
     expect(info).not.toHaveProperty('virtualSecureMode');
     expect(info).not.toHaveProperty('pcr0');
+  });
+});
+
+describe('mapDuplicateDevices (M14/S1)', () => {
+  const device = { azureADDeviceId: PC001_ENTRA_ID, osFamily: 'windows' as const };
+  const hybrid = {
+    ...pc001Entra(),
+    id: 'obj-hybrid',
+    deviceId: PC001_ENTRA_ID.toUpperCase(),
+    trustType: 'ServerAd' as const,
+    registrationDateTime: '2026-03-01T08:00:00Z',
+  };
+  const registered = {
+    ...pc001Entra(),
+    id: 'obj-registered',
+    deviceId: '00000000-0000-4000-9000-0000000000aa',
+    trustType: 'Workplace' as const,
+    registrationDateTime: '2026-09-01T08:00:00Z',
+    profileType: 'RegisteredDevice',
+  };
+
+  it('markiert das aktuelle Objekt (Groß-/Kleinschreibung egal) und stellt es voran', () => {
+    const info = mapDuplicateDevices([registered, hybrid], device, false);
+    expect(info.devices.map((d) => [d.objectId, d.isCurrent])).toEqual([
+      ['obj-hybrid', true],
+      ['obj-registered', false],
+    ]);
+    expect(info.moreAvailable).toBe(false);
+  });
+
+  it('sortiert übrige Objekte nach Registrierung, neueste zuerst', () => {
+    const older = { ...registered, id: 'obj-old', registrationDateTime: '2025-01-01T00:00:00Z' };
+    const info = mapDuplicateDevices([older, registered, hybrid], device, true);
+    expect(info.devices.map((d) => d.objectId)).toEqual([
+      'obj-hybrid',
+      'obj-registered',
+      'obj-old',
+    ]);
+    expect(info.moreAvailable).toBe(true);
+  });
+
+  it('wertet anderes Betriebssystem als differentOs, unbekanntes Betriebssystem nicht', () => {
+    const mac = { ...registered, id: 'obj-mac', operatingSystem: 'MacMDM' };
+    const unknownOs = { ...registered, id: 'obj-unknown', operatingSystem: null };
+    const info = mapDuplicateDevices([hybrid, mac, unknownOs], device, false);
+    const byId = Object.fromEntries(info.devices.map((d) => [d.objectId, d.differentOs]));
+    expect(byId).toEqual({ 'obj-hybrid': false, 'obj-mac': true, 'obj-unknown': false });
+  });
+
+  it('übernimmt nur Whitelist-Felder – nie physicalIds oder deviceMetadata', () => {
+    const raw = {
+      ...hybrid,
+      physicalIds: ['[HWID]:h:123'],
+      deviceMetadata: 'geheim',
+    } as typeof hybrid;
+    const json = JSON.stringify(mapDuplicateDevices([raw], device, false));
+    expect(json).not.toContain('physicalIds');
+    expect(json).not.toContain('deviceMetadata');
+    expect(json).not.toContain('HWID');
+    expect(json).not.toContain('geheim');
+  });
+
+  it('unbekannte trustType-Werte werden null; ohne azureADDeviceId ist kein Objekt aktuell', () => {
+    const odd = { ...hybrid, trustType: 'Other' as never };
+    const info = mapDuplicateDevices([odd], { ...device, azureADDeviceId: null }, false);
+    expect(info.devices[0]).toMatchObject({ trustType: null, isCurrent: false });
   });
 });

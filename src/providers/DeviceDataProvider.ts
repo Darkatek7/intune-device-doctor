@@ -11,6 +11,7 @@
 import type {
   HealthAttestationInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
@@ -59,6 +60,15 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<EntraDeviceInfo | null>>;
+
+  /**
+   * Entra-Objekte mit demselben Namen wie das Gerät (erste Seite, M14/S1). Dient dem Befund „doppelte
+   * Objekte“ (z. B. Dual State hybrid joined + registriert).
+   */
+  getDuplicateDevices(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<DuplicateDevicesInfo>>;
 
   getBitLockerKeys(
     device: ManagedDeviceInfo,

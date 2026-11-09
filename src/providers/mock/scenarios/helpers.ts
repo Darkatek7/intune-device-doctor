@@ -3,6 +3,8 @@
  */
 import type {
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
+  SameNameEntraDevice,
   AutopilotInfo,
   AppInstallStateInfo,
   AppliedPolicyInfo,
@@ -397,4 +399,52 @@ export function healthAttestationInfo(
 /** Standard: unauffällige Rohwerte, keine gemeldete Abweichung. */
 export function defaultHealthAttestation(now: Date): HealthAttestationInfo {
   return healthAttestationInfo(now);
+}
+
+/** Gleichnamiges Entra-Objekt (fiktiv). `isCurrent`/`differentOs` setzen Szenarien selbst. */
+export function sameNameDevice(
+  now: Date,
+  n: number,
+  overrides: Partial<SameNameEntraDevice> = {},
+): SameNameEntraDevice {
+  return {
+    objectId: demoGuid('object', n),
+    deviceId: demoGuid('entra', n),
+    trustType: 'AzureAd',
+    accountEnabled: true,
+    approximateLastSignInDateTime: ago(now, { hours: 5 }),
+    isCompliant: true,
+    isManaged: true,
+    registrationDateTime: ago(now, { days: 210 }),
+    operatingSystem: 'Windows',
+    isCurrent: false,
+    differentOs: false,
+    ...overrides,
+  };
+}
+
+/** Standard: nur das aktuelle Entra-Objekt – kein Duplikat. */
+export function defaultDuplicateDevices(
+  entra: EntraDeviceInfo | null,
+  device: Pick<DeviceBase, 'azureADDeviceId' | 'operatingSystem'>,
+): DuplicateDevicesInfo {
+  if (!entra) return { devices: [], moreAvailable: false };
+  return {
+    devices: [
+      {
+        objectId: entra.objectId,
+        deviceId: entra.deviceId,
+        trustType: entra.trustType,
+        accountEnabled: entra.accountEnabled,
+        approximateLastSignInDateTime: entra.approximateLastSignInDateTime,
+        isCompliant: entra.isCompliant,
+        isManaged: entra.isManaged,
+        registrationDateTime: entra.registrationDateTime,
+        operatingSystem: device.operatingSystem,
+        isCurrent: true,
+        differentOs: false,
+      },
+    ],
+    moreAvailable: false,
+  };
 }

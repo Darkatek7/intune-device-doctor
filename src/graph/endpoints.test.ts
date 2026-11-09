@@ -82,3 +82,42 @@ describe('Endpunkte – Windows LAPS', () => {
     );
   });
 });
+
+describe('Endpunkte – gleichnamige Entra-Objekte (M14/S1)', () => {
+  const def = Endpoints.entraDevicesByName;
+  const url = new URL(`https://graph.microsoft.com/v1.0${def.path("CONTOSO-PC'014")}`);
+
+  it('ist ein v1.0-GET auf /devices mit eq-Filter auf displayName (Standard-Query) und minimalem $select', () => {
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    expect(url.pathname).toBe('/v1.0/devices');
+    expect(url.searchParams.get('$filter')).toBe("displayName eq 'CONTOSO-PC''014'");
+    expect([...url.searchParams.keys()].sort()).toEqual(['$filter', '$select']);
+    expect(url.searchParams.get('$select')?.split(',')).toEqual([
+      'id',
+      'deviceId',
+      'displayName',
+      'trustType',
+      'accountEnabled',
+      'approximateLastSignInDateTime',
+      'isCompliant',
+      'isManaged',
+      'registrationDateTime',
+      'profileType',
+      'operatingSystem',
+    ]);
+  });
+
+  it('fordert weder physicalIds noch deviceMetadata an und filtert nicht auf registrationDateTime (Advanced Query)', () => {
+    const query = decodeURIComponent(url.search).toLowerCase();
+    expect(query).not.toContain('physicalids');
+    expect(query).not.toContain('devicemetadata');
+    expect(url.searchParams.get('$filter')).not.toMatch(/registrationDateTime/i);
+  });
+
+  it('braucht Device.Read.All (bereits beim Login angefragt) und hat einen Learn-Link', () => {
+    expect(def.scope).toBe('Device.Read.All');
+    expect(LOGIN_SCOPES).toContain(def.scope);
+    expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+});

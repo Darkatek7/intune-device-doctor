@@ -5,6 +5,7 @@
  */
 import type {
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
@@ -31,6 +32,7 @@ import {
   defaultAppStates,
   defaultAutopilot,
   defaultDeviceGroups,
+  defaultDuplicateDevices,
   defaultHealthAttestation,
   defaultLocalAdmin,
   defaultSignIns,
@@ -52,6 +54,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   compliancePolicies: 'deviceCompliancePolicyStates',
   configurationPolicies: 'deviceConfigurationStates',
   entraDevice: 'entraDeviceByDeviceId',
+  duplicateDevices: 'entraDevicesByName',
   bitlockerKeys: 'bitlockerRecoveryKeys',
   appInstallStates: 'mobileAppIntentAndStates',
   applePushCertificate: 'applePushNotificationCertificate',
@@ -238,6 +241,13 @@ export class MockProvider implements DeviceDataProvider {
     if (key === 'deviceGroups') {
       return { status: 'ok', data: defaultDeviceGroups(fixture.device) };
     }
+    if (key === 'duplicateDevices') {
+      const entra = fixture.entraDevice;
+      if (entra.status !== 'ok') {
+        return { status: 'unavailable', reason: de.reasons.duplicatesNotReported };
+      }
+      return { status: 'ok', data: defaultDuplicateDevices(entra.data, fixture.device) };
+    }
     throw new Error(`Keine Standardantwort für Section ${key}`);
   }
 
@@ -296,6 +306,10 @@ export class MockProvider implements DeviceDataProvider {
 
   getEntraDevice(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<EntraDeviceInfo | null>(device, 'entraDevice', options);
+  }
+
+  getDuplicateDevices(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<DuplicateDevicesInfo>(device, 'duplicateDevices', options);
   }
 
   getBitLockerKeys(device: ManagedDeviceInfo, options: RequestOptions = {}) {

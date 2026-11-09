@@ -151,6 +151,11 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S1: gleichnamige Entra-Objekte
+    duplicatesNoName:
+      'Das Gerät hat keinen Namen – gleichnamige Entra-Objekte lassen sich nicht suchen.',
+    duplicatesNotReported:
+      'Graph meldet HTTP 404 für die Suche nach gleichnamigen Entra-Objekten – über diese Schnittstelle nicht verfügbar.',
     appsNoEntries:
       'Graph (beta) meldet für den primären Benutzer keinen App-Status – über diese Schnittstelle nicht verfügbar. Status im Intune Admin Center unter „Managed Apps“ prüfen.',
     appsDeviceNotListed: (n: number) =>

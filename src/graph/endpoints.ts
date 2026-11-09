@@ -8,6 +8,7 @@
 import {
   APPLE_PUSH_CERTIFICATE_SELECT,
   ENTRA_DEVICE_SELECT,
+  ENTRA_SAME_NAME_SELECT,
   LAPS_SELECT,
   USER_DEVICES_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
@@ -181,6 +182,23 @@ export const Endpoints = {
       withQuery('/devices', {
         $filter: `deviceId eq ${odataString(azureADDeviceId)}`,
         $select: ENTRA_DEVICE_SELECT.join(','),
+      }),
+  },
+  /**
+   * Gleichnamige Entra-Geräteobjekte (M14/S1, Befund „doppelte Objekte“). `eq` auf displayName ist
+   * Standard-Query (kein ConsistencyLevel). Kein Filter auf registrationDateTime (Advanced Query).
+   */
+  entraDevicesByName: {
+    id: 'entraDevicesByName',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.DeviceRead,
+    docsUrl: 'https://learn.microsoft.com/en-us/graph/api/device-list?view=graph-rest-1.0',
+    display: "GET /devices?$filter=displayName eq '{deviceName}'",
+    path: (deviceName: string) =>
+      withQuery('/devices', {
+        $filter: `displayName eq ${odataString(deviceName)}`,
+        $select: ENTRA_SAME_NAME_SELECT.join(','),
       }),
   },
   /** App-Name zu einer Win32-App-ID (z. B. aus einem DiagLogs-ZIP). */

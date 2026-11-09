@@ -6,6 +6,7 @@ import type {
   AppliedPolicyInfo,
   AutopilotInfo,
   DeviceGroupsInfo,
+  DuplicateDevicesInfo,
   HealthAttestationInfo,
   LocalAdminInfo,
   ApplePushCertificateInfo,
@@ -384,6 +385,49 @@ export function mapEntraDevice(dto: GraphEntraDevice): EntraDeviceInfo {
     operatingSystemVersion: str(dto.operatingSystemVersion),
     registrationDateTime: str(dto.registrationDateTime),
   };
+}
+
+// ---------- Gleichnamige Entra-Objekte (M14/S1) ----------
+
+/**
+ * Gleichnamige Objekte aus `GET /devices?$filter=displayName eq '…'`. `isCurrent` = deviceId ==
+ * azureADDeviceId des Intune-Geräts (Groß-/Kleinschreibung egal). `differentOs` nur, wenn beide
+ * Betriebssystem-Familien bekannt sind und sich unterscheiden. Neueste Registrierung zuerst; das
+ * aktuelle Objekt steht vorn. physicalIds/deviceMetadata werden nie gelesen.
+ */
+export function mapDuplicateDevices(
+  entries: GraphEntraDevice[],
+  device: { azureADDeviceId: string | null; osFamily: ManagedDeviceInfo['osFamily'] },
+  moreAvailable: boolean,
+): DuplicateDevicesInfo {
+  const current = usableId(device.azureADDeviceId)?.toLowerCase() ?? null;
+  const devices = entries
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => {
+      const deviceId = str(entry.deviceId);
+      const family = osFamilyFrom(str(entry.operatingSystem));
+      return {
+        objectId: entry.id,
+        deviceId,
+        trustType: pickOrNull(entry.trustType, TRUST_TYPES),
+        accountEnabled: bool(entry.accountEnabled),
+        approximateLastSignInDateTime: validDate(entry.approximateLastSignInDateTime),
+        isCompliant: bool(entry.isCompliant),
+        isManaged: bool(entry.isManaged),
+        registrationDateTime: validDate(entry.registrationDateTime),
+        operatingSystem: str(entry.operatingSystem),
+        isCurrent: current !== null && deviceId?.toLowerCase() === current,
+        differentOs:
+          family !== 'other' && device.osFamily !== 'other' && family !== device.osFamily,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isCurrent) - Number(a.isCurrent) ||
+        (Date.parse(b.registrationDateTime ?? '') || 0) -
+          (Date.parse(a.registrationDateTime ?? '') || 0),
+    );
+  return { devices, moreAvailable };
 }
 
 // ---------- BitLocker (nur Metadaten) ----------

@@ -191,6 +191,34 @@ export interface EntraDeviceInfo {
   registrationDateTime: string | null;
 }
 
+/**
+ * Ein Entra-Geräteobjekt mit demselben Namen wie das Intune-Gerät (M14/S1). Ohne physicalIds und
+ * deviceMetadata.
+ */
+export interface SameNameEntraDevice {
+  objectId: string;
+  deviceId: string | null;
+  trustType: 'Workplace' | 'AzureAd' | 'ServerAd' | null;
+  accountEnabled: boolean | null;
+  approximateLastSignInDateTime: string | null;
+  isCompliant: boolean | null;
+  isManaged: boolean | null;
+  registrationDateTime: string | null;
+  /** Rohwert laut Graph (z. B. "Windows", "MacMDM") */
+  operatingSystem: string | null;
+  /** deviceId == azureADDeviceId des Intune-Geräts */
+  isCurrent: boolean;
+  /** true = anderes Betriebssystem als das Intune-Gerät → nur „gleichnamig“, kein Duplikat */
+  differentOs: boolean;
+}
+
+/** Entra-Objekte mit dem Gerätenamen (erste Seite). Enthält das aktuelle Objekt, sofern gefunden. */
+export interface DuplicateDevicesInfo {
+  devices: SameNameEntraDevice[];
+  /** true = es gibt weitere Seiten, die nicht gelesen wurden */
+  moreAvailable: boolean;
+}
+
 export type BitLockerVolumeType =
   'operatingSystemVolume' | 'fixedDataVolume' | 'removableDataVolume' | 'unknown';
 
@@ -321,6 +349,8 @@ export interface DeviceSnapshot {
   configurationPolicies?: SectionResult<PolicyStateInfo[]>;
   /** data null = kein Entra-Objekt gefunden */
   entraDevice?: SectionResult<EntraDeviceInfo | null>;
+  /** Entra-Objekte mit demselben Namen (M14/S1, Scope Device.Read.All) */
+  duplicateDevices?: SectionResult<DuplicateDevicesInfo>;
   bitlockerKeys?: SectionResult<BitLockerKeyInfo[]>;
   appInstallStates?: SectionResult<AppInstallStateInfo[]>;
   /** Nur macOS/iOS/iPadOS: Ablauf des Tenant-weiten Apple-MDM-Push-Zertifikats */
@@ -378,6 +408,12 @@ export interface AppInfo {
   publisher: string | null;
 }
 
+/** Kleine Tabelle innerhalb eines Befunds (z. B. gleichnamige Entra-Objekte). Reiner Text. */
+export interface FindingTable {
+  columns: string[];
+  rows: Array<{ cells: string[]; /** z. B. das aktuelle Objekt */ highlight?: boolean }>;
+}
+
 /** Weiterführender Link, z. B. "In Intune öffnen". */
 export interface ResourceLink {
   label: string;
@@ -397,6 +433,8 @@ export interface Finding {
   remediation: string[];
   /** Rohwerte, die den Befund belegen */
   evidence?: Record<string, string | number | boolean | null>;
+  /** Optionale Tabelle (Spalten × Zeilen), z. B. gleichnamige Objekte oder Zuweisungen */
+  table?: FindingTable;
   source: DataSource;
   docsUrl?: string;
   /** Links ins Intune Admin Center (App, Gerät, Richtlinienübersicht) */
@@ -409,6 +447,7 @@ export type SnapshotSectionKey =
   | 'compliancePolicies'
   | 'configurationPolicies'
   | 'entraDevice'
+  | 'duplicateDevices'
   | 'bitlockerKeys'
   | 'appInstallStates'
   | 'applePushCertificate'

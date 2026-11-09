@@ -17,6 +17,7 @@ const BASE_TILES: TileId[] = TILE_ORDER.slice(0, WINDOWS_TILE_COUNT);
 const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
   'CONTOSO-PC001': {},
   'CONTOSO-PC014': {
+    deviceStatus: 'warning', // M14/S1: Dual State (hybrid joined + registriert)
     compliance: 'critical',
     bitlocker: 'critical',
     policies: 'warning',
