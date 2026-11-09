@@ -215,3 +215,15 @@ describe('Endpunkte – Sicherheitswarnungen (M14/S4)', () => {
     expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
   });
 });
+
+describe('Endpunkte – Mandanten-Status (M14/S5)', () => {
+  it('vppTokens: v1.0-GET /deviceAppManagement/vppTokens ohne Query (kein $select dokumentiert), optionaler Scope ServiceConfig.Read', () => {
+    const def = Endpoints.vppTokens;
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    expect(def.path()).toBe('/deviceAppManagement/vppTokens');
+    expect(def.scope).toBe('DeviceManagementServiceConfig.Read.All');
+    expect(OPTIONAL_SCOPES).toContain(def.scope);
+    expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+});

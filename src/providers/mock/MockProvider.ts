@@ -6,6 +6,8 @@
 import type {
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  TenantStatus,
+  VppTokenInfo,
   UserLicenseInfo,
   AssignmentLookup,
   AssignmentsInfo,
@@ -43,6 +45,8 @@ import {
   defaultAssignments,
   defaultEnrollmentLimits,
   defaultSecurityAlerts,
+  defaultTenantApplePush,
+  defaultVppTokens,
   userLicenseInfo,
   defaultAutopilot,
   defaultDeviceGroups,
@@ -51,7 +55,7 @@ import {
   defaultLocalAdmin,
   defaultSignIns,
 } from './scenarios/helpers';
-import type { MockDeviceFixture, MockScenario, MockSection } from './types';
+import type { MockDeviceFixture, MockScenario, MockSection, MockTenantFixture } from './types';
 
 export interface MockProviderOptions {
   scenarios?: MockScenario[];
@@ -59,6 +63,8 @@ export interface MockProviderOptions {
   /** Künstliche Latenz je Aufruf in ms; false = keine Latenz (Tests) */
   latency?: { min: number; max: number } | false;
   seed?: number;
+  /** Demo-Daten der Ansicht „Mandant“ (M14/S5); ohne Angabe: Standardwerte */
+  tenant?: MockTenantFixture;
 }
 
 type SectionKey = Exclude<keyof MockDeviceFixture, 'device' | 'assignments' | 'assignmentTargets'>;
@@ -144,12 +150,14 @@ export class MockProvider implements DeviceDataProvider {
   private readonly now: () => Date;
   private readonly latency: { min: number; max: number } | false;
   private readonly seed: number;
+  private readonly tenant: MockTenantFixture;
 
   constructor(options: MockProviderOptions = {}) {
     this.scenarios = options.scenarios ?? defaultScenarios;
     this.now = options.now ?? (() => new Date());
     this.latency = options.latency ?? { min: 120, max: 600 };
     this.seed = options.seed ?? 42;
+    this.tenant = options.tenant ?? {};
   }
 
   private delay(key: string, signal?: AbortSignal): Promise<void> {
@@ -391,6 +399,24 @@ export class MockProvider implements DeviceDataProvider {
 
   getUserLicense(device: ManagedDeviceInfo, options: RequestOptions = {}) {
     return this.section<UserLicenseInfo>(device, 'userLicense', options);
+  }
+
+  /** Mandanten-Status: Standard oder `options.tenant` (siehe MockTenantFixture). */
+  async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
+    await this.delay('tenant', options.signal);
+    const now = this.now();
+    return {
+      applePushCertificate: this.fromSpec<ApplePushCertificateInfo>(
+        this.tenant.applePushCertificate ?? { status: 'ok', data: defaultTenantApplePush(now) },
+        'applePushNotificationCertificate',
+        sourceFor('applePushNotificationCertificate'),
+      ),
+      vppTokens: this.fromSpec<VppTokenInfo[]>(
+        this.tenant.vppTokens ?? { status: 'ok', data: defaultVppTokens(now) },
+        'vppTokens',
+        sourceFor('vppTokens'),
+      ),
+    };
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {

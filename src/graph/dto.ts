@@ -652,3 +652,32 @@ export interface GraphSecurityAlert {
   /** Gemischte Evidenz-Typen; gelesen werden nur #microsoft.graph.security.deviceEvidence-Einträge. */
   evidence?: GraphSecurityDeviceEvidence[] | null;
 }
+
+// ---------- Apple-VPP-Token (v1.0, deviceAppManagement/vppTokens) – M14/S5 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-onboarding-vpptoken?view=graph-rest-1.0
+// Scope DeviceManagementServiceConfig.Read.All (optional). Die Antwort enthält auch `token` (das
+// VPP-Token selbst) und `appleId`; ein $select ist nicht dokumentiert. Diese beiden Felder sind
+// deshalb ABSICHTLICH NICHT deklariert und werden nie gelesen, gespeichert oder protokolliert – der
+// Mapper übernimmt nur die Whitelist unten (Tests: mappers.test.ts, GraphProvider.test.ts).
+
+/** vppToken.vppTokenAccountType */
+export type VppTokenAccountType = 'business' | 'education';
+
+/** vppToken.state (vppTokenState) */
+export type VppTokenState = 'unknown' | 'valid' | 'expired' | 'invalid' | 'assignedToExternalMDM';
+
+/** vppToken.lastSyncStatus (vppTokenSyncStatus) */
+export type VppTokenSyncStatus = 'none' | 'inProgress' | 'completed' | 'failed';
+
+export interface GraphVppToken {
+  id: string;
+  organizationName?: string | null;
+  vppTokenAccountType?: VppTokenAccountType | null;
+  expirationDateTime?: string | null;
+  lastSyncDateTime?: string | null;
+  state?: VppTokenState | null;
+  lastSyncStatus?: VppTokenSyncStatus | null;
+  countryOrRegion?: string | null;
+  lastAppCount?: number | null;
+}

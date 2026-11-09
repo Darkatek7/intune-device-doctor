@@ -27,6 +27,8 @@ import type {
   SectionResult,
   SecurityAlertsInfo,
   SignInsInfo,
+  TenantStatus,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 import {
@@ -47,6 +49,7 @@ import type {
   GraphEntraDevice,
   GraphLicenseDetails,
   GraphSecurityAlert,
+  GraphVppToken,
   GraphManagedDevice,
   GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
@@ -90,6 +93,7 @@ import {
   mapSignIns,
   mapSecurityAlerts,
   mapUserLicense,
+  mapVppTokens,
   mapWindowsProtection,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
@@ -472,19 +476,59 @@ export class GraphProvider implements DeviceDataProvider {
     device: ManagedDeviceInfo,
     options: RequestOptions = {},
   ): Promise<SectionResult<ApplePushCertificateInfo>> {
+    if (device.osFamily !== 'macos' && device.osFamily !== 'ios') {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.reasons.applePushNotApple,
+        source: graphSource('applePushNotificationCertificate'),
+      });
+    }
+    return this.readApplePushCertificate(options);
+  }
+
+  /** Das Zertifikat gilt für den ganzen Mandanten (Gerät und Ansicht „Mandant“ teilen sich die Abfrage). */
+  private readApplePushCertificate(
+    options: RequestOptions,
+  ): Promise<SectionResult<ApplePushCertificateInfo>> {
     const endpoint = Endpoints.applePushNotificationCertificate;
     return this.run<ApplePushCertificateInfo>(
       'applePushNotificationCertificate',
       async (source) => {
-        if (device.osFamily !== 'macos' && device.osFamily !== 'ios') {
-          return { status: 'notApplicable', reason: de.reasons.applePushNotApple, source };
-        }
         const dto = await this.client.get<
           GraphApplePushNotificationCertificate | { value?: GraphApplePushNotificationCertificate }
         >(endpoint.path(), { signal: options.signal, scope: endpoint.scope });
         return this.ok(mapApplePushCertificate(dto), source);
       },
       (source) => ({ status: 'unavailable', reason: de.reasons.applePushNotReported, source }),
+    );
+  }
+
+  /**
+   * Mandanten-Status (M14/S5): Apple-MDM-Push-Zertifikat und VPP-Tokens, unabhängig voneinander. Die
+   * VPP-Antwort enthält `token` und `appleId`; der Mapper übernimmt nur die Whitelist, das Rohobjekt
+   * verlässt diese Methode nicht.
+   */
+  async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
+    const [applePushCertificate, vppTokens] = await Promise.all([
+      this.readApplePushCertificate(options),
+      this.readVppTokens(options),
+    ]);
+    return { applePushCertificate, vppTokens };
+  }
+
+  private readVppTokens(options: RequestOptions): Promise<SectionResult<VppTokenInfo[]>> {
+    const endpoint = Endpoints.vppTokens;
+    return this.run<VppTokenInfo[]>(
+      'vppTokens',
+      async (source) => {
+        const entries = await this.client.getAllPages<GraphVppToken>(endpoint.path(), {
+          signal: options.signal,
+          scope: endpoint.scope,
+          maxPages: MAX_LIST_PAGES,
+        });
+        return this.ok(mapVppTokens(entries), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.reasons.vppTokensNotReported, source }),
     );
   }
 

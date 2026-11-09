@@ -424,6 +424,22 @@ export const Endpoints = {
       `/deviceManagement/deviceEnrollmentConfigurations/${enc(configurationId)}/assignments`,
   },
   /**
+   * Apple-VPP-Tokens des Mandanten (M14/S5, Ansicht „Mandant“). Kein $select dokumentiert; die Antwort
+   * enthält `token` und `appleId` – beide werden nie gelesen (siehe dto.ts). Least privileged laut Doku
+   * wäre DeviceManagementApps.Read.All; genutzt wird der bereits optionale Scope
+   * DeviceManagementServiceConfig.Read.All (ebenfalls dokumentiert).
+   */
+  vppTokens: {
+    id: 'vppTokens',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceConfigRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/vppTokens',
+    path: () => '/deviceAppManagement/vppTokens',
+  },
+  /**
    * Sicherheitswarnungen (M14/S4, Kachel „Sicherheitswarnungen“): Warnungen von Microsoft Defender for
    * Endpoint, neueste zuerst. Dokumentierte Query-Parameter sind nur $count, $filter, $skip und $top;
    * gefiltert werden darf u. a. nach serviceSource (Wert `microsoftDefenderForEndpoint` laut

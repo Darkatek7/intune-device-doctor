@@ -1527,3 +1527,92 @@ describe('GraphProvider – Sicherheitswarnungen (M14/S4)', () => {
     }
   });
 });
+
+describe('GraphProvider – Mandanten-Status (M14/S5)', () => {
+  const PUSH_PATH = '/v1.0/deviceManagement/applePushNotificationCertificate';
+  const VPP_PATH = '/v1.0/deviceAppManagement/vppTokens';
+  const SECRET_TOKEN = 'sTOKEN-GEHEIM-0123456789abcdef';
+  const APPLE_ID = 'vpp-admin@contoso.com';
+  const vppDto = (id: string) => ({
+    id,
+    organizationName: 'Contoso GmbH',
+    vppTokenAccountType: 'business',
+    appleId: APPLE_ID,
+    expirationDateTime: '2026-12-01T00:00:00Z',
+    lastSyncDateTime: '2026-11-09T08:00:00Z',
+    token: SECRET_TOKEN,
+    state: 'valid',
+    lastSyncStatus: 'completed',
+    countryOrRegion: 'DE',
+    lastAppCount: 12,
+  });
+  const tenantHandler =
+    (overrides: Record<string, () => Response> = {}): FakeHandler =>
+    (call) => {
+      const path = call.parsed.pathname;
+      if (overrides[path]) return overrides[path]!();
+      if (path === PUSH_PATH) {
+        return jsonResponse({
+          expirationDateTime: '2027-05-01T00:00:00Z',
+          lastModifiedDateTime: '2026-05-01T00:00:00Z',
+        });
+      }
+      if (path === VPP_PATH) return collection([vppDto('v1')]);
+      return graphError(404, 'NotFound');
+    };
+
+  it('liest Push-Zertifikat und VPP-Token je mit einem GET (ohne Gerät), die Section-Ergebnisse sind unabhängig', async () => {
+    const { provider, calls } = setup(tenantHandler());
+    const status = await provider.getTenantStatus();
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET']);
+    expect(calls.map((c) => c.parsed.pathname).sort()).toEqual([PUSH_PATH, VPP_PATH].sort());
+    const push = expectStatus(status.applePushCertificate, 'ok');
+    expect(push.data.expirationDateTime).toBe('2027-05-01T00:00:00Z');
+    const vpp = expectStatus(status.vppTokens, 'ok');
+    expect(vpp.data).toHaveLength(1);
+    expect(vpp.source.label).toBe(Endpoints.vppTokens.display);
+  });
+
+  it('das Ergebnis enthält weder token noch appleId – auch nicht in Logs', async () => {
+    const { provider, log } = setup(tenantHandler());
+    const status = await provider.getTenantStatus();
+    const everything = JSON.stringify(status) + JSON.stringify(log.mock.calls);
+    for (const forbidden of [SECRET_TOKEN, APPLE_ID, 'appleId']) {
+      expect(everything, forbidden).not.toContain(forbidden);
+    }
+    expect(JSON.stringify(status)).not.toContain('"token"');
+  });
+
+  it('403 auf den VPP-Token betrifft nur diese Section (Scope im Fehler), das Zertifikat bleibt ok', async () => {
+    const { provider } = setup(
+      tenantHandler({ [VPP_PATH]: () => graphError(403, 'Authorization_RequestDenied') }),
+    );
+    const status = await provider.getTenantStatus();
+    expect(expectStatus(status.vppTokens, 'forbidden').error.requiredScope).toBe(
+      'DeviceManagementServiceConfig.Read.All',
+    );
+    expectStatus(status.applePushCertificate, 'ok');
+  });
+
+  it('404 → unavailable, 500 → error; die jeweils andere Section bleibt unberührt', async () => {
+    const a = await setup(
+      tenantHandler({ [PUSH_PATH]: () => graphError(404, 'NotFound') }),
+    ).provider.getTenantStatus();
+    expectStatus(a.applePushCertificate, 'unavailable');
+    expectStatus(a.vppTokens, 'ok');
+    const b = await setup(
+      tenantHandler({ [VPP_PATH]: () => graphError(500, 'InternalServerError') }),
+    ).provider.getTenantStatus();
+    expectStatus(b.vppTokens, 'error');
+    expectStatus(b.applePushCertificate, 'ok');
+  });
+
+  it('Abbruch wird weitergereicht', async () => {
+    const { provider } = setup(tenantHandler());
+    const controller = new AbortController();
+    controller.abort();
+    await expect(provider.getTenantStatus({ signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+});

@@ -8,6 +8,7 @@ import type {
   AssignmentsInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  TenantStatus,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -148,6 +149,21 @@ export class LazyGraphProvider implements DeviceDataProvider {
 
   getBitLockerKeys(device: ManagedDeviceInfo, options?: RequestOptions) {
     return this.section<BitLockerKeyInfo[]>((p) => p.getBitLockerKeys(device, options));
+  }
+
+  async getTenantStatus(options?: RequestOptions): Promise<TenantStatus> {
+    let provider: DeviceDataProvider;
+    try {
+      provider = await this.load();
+    } catch {
+      const failed = {
+        status: 'error',
+        error: { code: 'network', message: de.errors.network },
+        source: SOURCE,
+      } as const;
+      return { applePushCertificate: failed, vppTokens: failed };
+    }
+    return provider.getTenantStatus(options);
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options?: RequestOptions) {

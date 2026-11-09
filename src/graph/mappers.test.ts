@@ -10,7 +10,12 @@ import {
   policyState,
   signInDto,
 } from '../providers/graph/fakeGraph';
-import type { GraphManagedDevice, GraphSecurityAlert, GraphWindowsProtectionState } from './dto';
+import type {
+  GraphManagedDevice,
+  GraphSecurityAlert,
+  GraphVppToken,
+  GraphWindowsProtectionState,
+} from './dto';
 import {
   graphSource,
   isGuid,
@@ -34,6 +39,7 @@ import {
   mapSignIns,
   mapUserDevices,
   mapVolumeType,
+  mapVppTokens,
   mapWindowsProtection,
   safeAlertWebUrl,
   splitProductStatus,
@@ -1241,5 +1247,76 @@ describe('safeAlertWebUrl (M14/S4)', () => {
     ]) {
       expect(safeAlertWebUrl(bad), String(bad)).toBeNull();
     }
+  });
+});
+
+describe('mapVppTokens (M14/S5)', () => {
+  const SECRET_TOKEN = 'sTOKEN-GEHEIM-0123456789abcdef';
+  const APPLE_ID = 'vpp-admin@contoso.com';
+  const dto = (id: string, extra: Record<string, unknown> = {}): GraphVppToken =>
+    ({
+      id,
+      organizationName: `Contoso ${id}`,
+      vppTokenAccountType: 'business',
+      expirationDateTime: '2026-12-01T00:00:00Z',
+      lastSyncDateTime: '2026-11-09T08:00:00Z',
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 12,
+      // Felder, die die Graph-Antwort mitliefert, die aber nie gelesen werden dürfen
+      token: SECRET_TOKEN,
+      appleId: APPLE_ID,
+      lastModifiedDateTime: '2026-11-01T00:00:00Z',
+      automaticallyUpdateApps: true,
+      ...extra,
+    }) as GraphVppToken;
+
+  it('mappt die Whitelist; frühester Ablauf zuerst, ohne Ablaufdatum zuletzt', () => {
+    const result = mapVppTokens([
+      dto('late', { expirationDateTime: '2027-03-01T00:00:00Z' }),
+      dto('none', { expirationDateTime: null }),
+      dto('soon', { expirationDateTime: '2026-11-20T00:00:00Z' }),
+    ]);
+    expect(result.map((t) => t.id)).toEqual(['soon', 'late', 'none']);
+    expect(result[0]).toEqual({
+      id: 'soon',
+      organizationName: 'Contoso soon',
+      accountType: 'business',
+      expirationDateTime: '2026-11-20T00:00:00Z',
+      lastSyncDateTime: '2026-11-09T08:00:00Z',
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 12,
+    });
+  });
+
+  it('das gemappte Ergebnis enthält weder token noch appleId (Schlüssel und Werte)', () => {
+    const json = JSON.stringify(mapVppTokens([dto('a'), dto('b')]));
+    for (const forbidden of [SECRET_TOKEN, APPLE_ID, 'token', 'appleId', 'vpp-admin']) {
+      expect(json, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it('unbekannte Enum-Werte werden zu null, Einträge ohne ID entfallen, Nicht-Listen sind leer', () => {
+    const result = mapVppTokens([
+      dto('x', { state: 'bogus', lastSyncStatus: 'bogus', vppTokenAccountType: 'bogus' }),
+      { organizationName: 'ohne ID' } as never,
+      null as never,
+      dto('y', { expirationDateTime: '0001-01-01T00:00:00Z', organizationName: '   ' }),
+    ]);
+    expect(result.map((t) => t.id).sort()).toEqual(['x', 'y']);
+    expect(result.find((t) => t.id === 'x')).toMatchObject({
+      state: null,
+      lastSyncStatus: null,
+      accountType: null,
+    });
+    expect(result.find((t) => t.id === 'y')).toMatchObject({
+      expirationDateTime: null,
+      organizationName: null,
+    });
+    expect(mapVppTokens(null)).toEqual([]);
+    expect(mapVppTokens(undefined)).toEqual([]);
   });
 });

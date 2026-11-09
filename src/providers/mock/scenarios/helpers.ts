@@ -2,6 +2,7 @@
  * Bausteine für Demo-Szenarien. Alle Daten sind fiktiv (Contoso), Zeitwerte relativ zu `now`.
  */
 import type {
+  ApplePushCertificateInfo,
   AssignmentEntry,
   EnrollmentLimitInfo,
   EnrollmentLimitsInfo,
@@ -26,6 +27,7 @@ import type {
   SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../../domain/types';
 import { SIGN_IN_WINDOW_DAYS } from '../../../graph/endpoints';
@@ -48,12 +50,18 @@ export function inFuture(now: Date, span: { days?: number; hours?: number }): st
 
 /** Fiktive, eindeutig erkennbare GUIDs: 00000000-0000-4000-8000-0000000000NN */
 export function demoGuid(
-  group: 'device' | 'entra' | 'object' | 'policy' | 'key' | 'user',
+  group: 'device' | 'entra' | 'object' | 'policy' | 'key' | 'user' | 'vpp',
   n: number,
 ): string {
-  const groupDigit = { device: '8', entra: '9', object: 'a', policy: 'b', key: 'c', user: 'd' }[
-    group
-  ];
+  const groupDigit = {
+    device: '8',
+    entra: '9',
+    object: 'a',
+    policy: 'b',
+    key: 'c',
+    user: 'd',
+    vpp: 'e',
+  }[group];
   return `00000000-0000-4000-${groupDigit}000-${n.toString(16).padStart(12, '0')}`;
 }
 
@@ -510,6 +518,42 @@ export function enrollmentLimit(
     targets: [{ kind: 'allUsers' }],
     ...overrides,
   };
+}
+
+/** Demo-Mandant: Apple-MDM-Push-Zertifikat noch 200 Tage gültig (wie auf den Apple-Geräten). */
+export function defaultTenantApplePush(now: Date): ApplePushCertificateInfo {
+  return {
+    expirationDateTime: inFuture(now, { days: 200 }),
+    lastModifiedDateTime: ago(now, { days: 165 }),
+  };
+}
+
+/** Demo-Mandant: ein Business-Token läuft in 20 Tagen ab, das Education-Token ist unauffällig (fiktiv). */
+export function defaultVppTokens(now: Date): VppTokenInfo[] {
+  return [
+    {
+      id: demoGuid('vpp', 1),
+      organizationName: 'Contoso GmbH',
+      accountType: 'business',
+      expirationDateTime: inFuture(now, { days: 20 }),
+      lastSyncDateTime: ago(now, { hours: 3 }),
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 128,
+    },
+    {
+      id: demoGuid('vpp', 2),
+      organizationName: 'Contoso Schulen',
+      accountType: 'education',
+      expirationDateTime: inFuture(now, { days: 210 }),
+      lastSyncDateTime: ago(now, { hours: 5 }),
+      state: 'valid',
+      lastSyncStatus: 'completed',
+      countryOrRegion: 'DE',
+      lastAppCount: 41,
+    },
+  ];
 }
 
 /** Eine offene Defender-Warnung (fiktiv) – Standard: neu, mittlere Schwere, vor 2 Stunden erzeugt. */

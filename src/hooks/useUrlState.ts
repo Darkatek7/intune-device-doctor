@@ -1,5 +1,6 @@
 /**
  * URL-State der App: ?device=<id>&mode=demo|live (+ &tile=<tileId> für ein offenes Detail-Sheet).
+ * Die Ansicht „Mandant“ (M14/S5) ist ?view=tenant (ohne Gerät; &tile=<tileId> öffnet auch dort ein Sheet).
  * Änderungen laufen über history.pushState/replaceState; Browser-Zurück (popstate) wird mitgeführt.
  */
 import { useMemo, useSyncExternalStore } from 'react';
@@ -9,6 +10,8 @@ export interface UrlState {
   device: string | null;
   tile: string | null;
   mode: DataMode | null;
+  /** Ansicht „Mandant“; fehlt/null = Start- bzw. Geräteansicht */
+  view?: 'tenant' | null;
 }
 
 export function parseUrl(search: string): UrlState {
@@ -18,14 +21,16 @@ export function parseUrl(search: string): UrlState {
     device: params.get('device') || null,
     tile: params.get('tile') || null,
     mode: mode === 'demo' || mode === 'live' ? mode : null,
+    view: params.get('view') === 'tenant' ? 'tenant' : null,
   };
 }
 
 export function buildSearch(state: UrlState): string {
   const params = new URLSearchParams();
   if (state.device) params.set('device', state.device);
+  else if (state.view === 'tenant') params.set('view', 'tenant');
   if (state.mode) params.set('mode', state.mode);
-  if (state.device && state.tile) params.set('tile', state.tile);
+  if ((state.device || state.view === 'tenant') && state.tile) params.set('tile', state.tile);
   const s = params.toString();
   return s ? `?${s}` : '';
 }

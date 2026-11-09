@@ -30,6 +30,7 @@ import type {
   SecurityAlertsInfo,
   SignInEntry,
   SignInsInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
@@ -63,6 +64,7 @@ import type {
   GraphSecurityAlert,
   GraphSecurityDeviceEvidence,
   GraphSignIn,
+  GraphVppToken,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
   ManagedDevicePartnerReportedHealthState,
@@ -1016,4 +1018,36 @@ export function mapSecurityAlerts(
     (a, b) => Date.parse(b.createdDateTime ?? '') - Date.parse(a.createdDateTime ?? '') || 0,
   );
   return { alerts, resolvedCount, evaluated: list.length, moreAvailable: meta.moreAvailable };
+}
+
+// ---------- Mandanten-Status: VPP-Tokens (M14/S5) ----------
+
+const VPP_ACCOUNT_TYPES = ['business', 'education'] as const;
+const VPP_STATES = ['unknown', 'valid', 'expired', 'invalid', 'assignedToExternalMDM'] as const;
+const VPP_SYNC_STATUSES = ['none', 'inProgress', 'completed', 'failed'] as const;
+
+/**
+ * VPP-Tokens → Whitelist-Modell, frühester Ablauf zuerst. Die Antwort enthält `token` und `appleId`;
+ * beides wird nie übernommen (jedes Feld wird einzeln gelesen, es gibt kein Durchreichen des Objekts).
+ */
+export function mapVppTokens(entries: GraphVppToken[] | null | undefined): VppTokenInfo[] {
+  const mapped: VppTokenInfo[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const id = entry && typeof entry === 'object' ? str(entry.id) : null;
+    if (!id) continue;
+    mapped.push({
+      id,
+      organizationName: str(entry.organizationName)?.trim() || null,
+      accountType: pickOrNull(entry.vppTokenAccountType, VPP_ACCOUNT_TYPES),
+      expirationDateTime: validDate(entry.expirationDateTime),
+      lastSyncDateTime: validDate(entry.lastSyncDateTime),
+      state: pickOrNull(entry.state, VPP_STATES),
+      lastSyncStatus: pickOrNull(entry.lastSyncStatus, VPP_SYNC_STATUSES),
+      countryOrRegion: str(entry.countryOrRegion)?.trim() || null,
+      lastAppCount: num(entry.lastAppCount),
+    });
+  }
+  const time = (token: VppTokenInfo) =>
+    token.expirationDateTime ? Date.parse(token.expirationDateTime) : Number.MAX_SAFE_INTEGER;
+  return mapped.sort((a, b) => time(a) - time(b));
 }

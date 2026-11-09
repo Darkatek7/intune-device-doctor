@@ -112,6 +112,152 @@ export const deRules = {
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
   },
+  /** M14/S5: Ansicht „Mandant“ – mandantenweite Zertifikate und Token */
+  tenant: {
+    push: {
+      valueValid: 'Gültig',
+      valueExpiring: 'Läuft ab',
+      valueExpired: 'Abgelaufen',
+      summaryValid: (date: string) => `Gültig bis ${date}`,
+      facts: { expires: 'Gültig bis', modified: 'Zuletzt geändert' },
+      noExpiryTitle: 'Ablaufdatum nicht gemeldet',
+      noExpiryDetail: 'applePushNotificationCertificate.expirationDateTime ist leer.',
+      noExpiryCause:
+        'Graph meldet zum Apple-MDM-Push-Zertifikat kein Ablaufdatum. Ohne Datum lässt sich nicht beurteilen, wann es erneuert werden muss.',
+      noExpiryRemediation: [
+        'Das Ablaufdatum im Intune Admin Center unter Geräte › Registrierung › Apple › „Apple MDM Push Certificate“ prüfen.',
+      ],
+    },
+    vpp: {
+      valueNone: 'Keine Token',
+      valueOk: 'Alle Token in Ordnung',
+      valueProblems: (n: number) => (n === 1 ? '1 Token prüfen' : `${n} Token prüfen`),
+      summaryNone: 'Im Mandanten ist kein VPP-Token hinterlegt',
+      summary: (count: number, earliest: string | null) =>
+        `${count === 1 ? '1 Token' : `${count} Token`}${earliest ? ` · frühester Ablauf ${earliest}` : ''}`,
+      tokenLabel: (name: string | null, index: number) => name ?? `VPP-Token ${index + 1}`,
+      facts: { count: 'Token', earliest: 'Frühester Ablauf' },
+      noneTitle: 'Kein VPP-Token hinterlegt',
+      noneDetail: 'GET /deviceAppManagement/vppTokens liefert eine leere Liste.',
+      noneCause:
+        'Im Mandanten ist kein Apple-VPP-Token (Apple Business Manager bzw. Apple School Manager) mit Intune verbunden. Das ist in Ordnung, solange keine per VPP gekauften Apps verteilt werden.',
+      noneRemediation: [
+        'Keine Aktion nötig, wenn keine VPP-Apps genutzt werden.',
+        'Andernfalls im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token prüfen, ob das Token noch vorhanden ist.',
+      ],
+      expiredTitle: (name: string) => `VPP-Token „${name}“ ist abgelaufen`,
+      expiredDetail: (date: string | null) =>
+        `state: expired${date ? `, expirationDateTime: ${date}` : ''}.`,
+      expiredCause:
+        'Das Token ist abgelaufen. Intune zeigt abgelaufene Token – wie auch Token, deren verwaltetes Apple-ID-Konto sich geändert hat – als „ungültig“ an. Das Token wird gebraucht, um per VPP gekaufte Apps zu verwalten.',
+      invalidTitle: (name: string) => `VPP-Token „${name}“ ist ungültig`,
+      invalidDetail: (date: string | null) =>
+        `state: invalid${date ? `, expirationDateTime: ${date}` : ''}.`,
+      invalidCause:
+        'Laut Microsoft zeigt Intune ein Token als ungültig an, wenn sich das verwaltete Apple-ID-Konto des Tokens geändert hat (Domänenwechsel, Kennwort geändert oder abgelaufen, Konto deaktiviert) oder das Token abgelaufen ist.',
+      expiringTitle: (name: string, relative: string) => `VPP-Token „${name}“ läuft ${relative} ab`,
+      expiringDetail: (date: string, days: number) =>
+        `expirationDateTime: ${date} – Warnschwelle ${days} Tage (Richtwert dieser App, keine Microsoft-Vorgabe).`,
+      expiringCause:
+        'VPP-Token sind begrenzt gültig und müssen rechtzeitig erneuert werden. Läuft ein Token ab, wird es von Intune als ungültig angezeigt.',
+      renewRemediation: [
+        'Token im Apple Business Manager bzw. Apple School Manager neu herunterladen (Einstellungen › Zahlungen und Abrechnung › Apps und Bücher › Inhaltstoken › Herunterladen).',
+        'Im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token das vorhandene Token öffnen, bei „Grundlagen“ auf „Bearbeiten“ klicken, das neue Token hochladen und speichern.',
+        'Danach die Seite aktualisieren – das neue Ablaufdatum erscheint in Intune mit etwas Verzögerung.',
+      ],
+      syncFailedTitle: (name: string) => `Synchronisierung des VPP-Tokens „${name}“ fehlgeschlagen`,
+      syncFailedDetail: (date: string | null) =>
+        `lastSyncStatus: failed${date ? `, lastSyncDateTime: ${date}` : ''}.`,
+      syncFailedCause:
+        'Die letzte Synchronisierung der Apps mit Apple ist fehlgeschlagen. Die Dokumentation nennt für den Status „failed“ keine Ursache; ein abgelaufenes oder ungültiges Token lässt sich am Zustand des Tokens ablesen.',
+      syncFailedRemediation: [
+        'Im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token das Token auswählen und „Synchronisieren“ wählen.',
+        'Bleibt der Status „failed“, den Zustand des Tokens prüfen (abgelaufen oder ungültig) und es bei Bedarf erneuern.',
+      ],
+      externalTitle: (name: string) => `VPP-Token „${name}“: Zustand assignedToExternalMDM`,
+      externalDetail: 'state: assignedToExternalMDM.',
+      externalCause:
+        'Intune meldet den Zustand assignedToExternalMDM. Die Dokumentation beschreibt diesen Wert nicht weiter – eine Deutung ist deshalb nicht belegt.',
+      externalRemediation: [
+        'Das Token im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token ansehen und mit dem Apple Business Manager abgleichen.',
+      ],
+      unknownStateTitle: (name: string) => `VPP-Token „${name}“: Zustand unbekannt`,
+      unknownStateDetail: 'state: unknown.',
+      unknownStateCause: 'Intune meldet für das Token keinen bekannten Zustand.',
+      unknownStateRemediation: [
+        'Das Token im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token prüfen.',
+      ],
+      overviewTitle: 'Alle VPP-Token im Überblick',
+      overviewDetail: (count: number) =>
+        count === 1 ? '1 Token im Mandanten.' : `${count} Token im Mandanten.`,
+      overviewCause:
+        'Übersicht der von Graph gemeldeten Token. Das Token selbst und die Apple-ID werden von dieser App nie gelesen.',
+      overviewRemediation: [
+        'Einzelheiten und Erneuerung im Intune Admin Center unter Mandantenverwaltung › Connectors und Token › Apple-VPP-Token.',
+      ],
+      columns: {
+        name: 'Organisation',
+        type: 'Art',
+        expires: 'Gültig bis',
+        lastSync: 'Letzte Synchronisierung',
+        state: 'Zustand',
+        apps: 'Apps',
+      },
+      types: { business: 'Business', education: 'Education' } as Record<string, string>,
+      states: {
+        valid: 'gültig',
+        expired: 'abgelaufen',
+        invalid: 'ungültig',
+        assignedToExternalMDM: 'assignedToExternalMDM',
+        unknown: 'unbekannt',
+      } as Record<string, string>,
+      syncStatuses: {
+        none: 'keine',
+        inProgress: 'läuft',
+        completed: 'abgeschlossen',
+        failed: 'fehlgeschlagen',
+      } as Record<string, string>,
+      unknownValue: '–',
+    },
+    unavailable: {
+      value: (n: number) => `${n} Bereiche`,
+      summary: 'Nicht über die dokumentierte v1.0-API abrufbar',
+      facts: { count: 'Bereiche' },
+      sourceLabel: (resource: string) => `GET /beta/${resource} (nicht abgerufen)`,
+      betaOnly: (resource: string) =>
+        `Nur in der Beta-API dokumentiert (${resource}). MDM Doctor liest ausschließlich v1.0-Endpunkte.`,
+      cause:
+        'Für diesen Bereich gibt es in der Microsoft-Dokumentation keinen v1.0-Endpunkt. MDM Doctor verwendet nur dokumentierte v1.0-Endpunkte – einzige Ausnahme ist der App-Installationsstatus – und rät deshalb nicht.',
+      ade: {
+        title: 'Apple-Token für die automatische Geräteregistrierung (ADE/DEP)',
+        resource: 'deviceManagement/depOnboardingSettings',
+        remediation: [
+          'Ablauf und Synchronisierung des Tokens im Intune Admin Center unter Geräte › Registrierung › Apple › „Registrierungsprogramm-Token“ prüfen.',
+        ],
+      },
+      android: {
+        title: 'Android Enterprise (Managed Google Play)',
+        resource: 'deviceManagement/androidManagedStoreAccountEnterpriseSettings',
+        remediation: [
+          'Verbindung und App-Synchronisierung im Intune Admin Center unter Mandantenverwaltung › Connectors und Token prüfen.',
+        ],
+      },
+      autopilot: {
+        title: 'Windows-Autopilot-Synchronisierung',
+        resource: 'deviceManagement/windowsAutopilotSettings',
+        remediation: [
+          'Den Synchronisierungsstatus im Intune Admin Center unter Geräte › Registrierung › Windows prüfen.',
+        ],
+      },
+      ndes: {
+        title: 'Zertifikat-Connectors (NDES)',
+        resource: 'deviceManagement/ndesConnectors',
+        remediation: [
+          'Status und letzte Verbindung der Connectors im Intune Admin Center unter Mandantenverwaltung › Connectors und Token prüfen.',
+        ],
+      },
+    },
+  },
   /** M14/S4: Kachel „Sicherheitswarnungen“ – offene Defender-for-Endpoint-Warnungen dieses Geräts */
   securityAlerts: {
     valueNone: 'Keine offenen Warnungen',

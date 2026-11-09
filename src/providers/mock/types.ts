@@ -22,6 +22,7 @@ import type {
   SecurityAlertsInfo,
   SignInsInfo,
   UserLicenseInfo,
+  VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 
@@ -83,4 +84,10 @@ export interface MockScenario {
   label: string;
   /** Datumswerte relativ zu now berechnen */
   build: (now: Date) => MockDeviceFixture;
+}
+
+/** Demo-Daten der Ansicht „Mandant“ (M14/S5). Ohne Angabe: gültiges Push-Zertifikat, zwei VPP-Tokens (eines läuft in 20 Tagen ab). */
+export interface MockTenantFixture {
+  applePushCertificate?: MockSection<ApplePushCertificateInfo>;
+  vppTokens?: MockSection<VppTokenInfo[]>;
 }

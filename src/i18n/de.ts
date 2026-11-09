@@ -42,6 +42,10 @@ export const de = {
     autopilot: 'Autopilot',
     registration: 'Registrierung (Benutzer)',
     securityAlerts: 'Sicherheitswarnungen',
+    // Ansicht „Mandant“ (M14/S5)
+    tenantApplePush: 'Apple-MDM-Push-Zertifikat',
+    tenantVpp: 'Apple-VPP-Token',
+    tenantUnavailable: 'Weitere Konnektoren und Token',
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -153,6 +157,9 @@ export const de = {
     lapsNotWindows: 'Windows LAPS gibt es nur unter Windows.',
     lapsNotReported:
       'Graph liefert keinen LAPS-Eintrag für dieses Gerät (HTTP 404) – was das bedeutet, ist in der Dokumentation nicht beschrieben.',
+    // M14/S5: Mandanten-Status
+    vppTokensNotReported:
+      'Graph meldet HTTP 404 für die VPP-Token – über diese Schnittstelle nicht verfügbar.',
     // M14/S4: Sicherheitswarnungen
     securityAlertsNotReported:
       'Graph meldet HTTP 404 für die Sicherheitswarnungen – über diese Schnittstelle nicht verfügbar.',
@@ -229,7 +236,20 @@ export const de = {
     notConfigured: 'Anmeldung nicht möglich: Client-ID und Tenant-ID fehlen (.env.local).',
   },
   /** UI-Shell (M2): Toolbar, Suche, Header, Sheet, Leerzustände */
+  /** Ansicht „Mandant“ (M14/S5) */
+  tenantView: {
+    title: 'Mandant',
+    subtitle: 'Zertifikate und Token, die für alle Geräte gelten',
+    back: 'Startseite',
+    refresh: 'Aktualisieren',
+    a11y: {
+      loading: 'Mandanten-Status wird geladen …',
+      done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
+    },
+  },
   toolbar: {
+    tenant: 'Mandanten-Status',
+    tenantShort: 'Mandant',
     home: 'MDM Doctor – zur Startseite',
     modeLabel: 'Datenmodus',
     skipToContent: 'Zum Inhalt springen',

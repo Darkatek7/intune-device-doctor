@@ -27,6 +27,7 @@ import { SearchField } from '../ui/SearchField';
 import { Toolbar } from '../ui/Toolbar';
 import { ZipProgress } from '../ui/ZipProgress';
 import { DeviceView } from './DeviceView';
+import { TenantView } from './TenantView';
 import { useProviderContext } from './providerContextValue';
 import { ZipView } from './ZipView';
 
@@ -149,12 +150,21 @@ function Shell({ account, extraChips }: Props) {
   const submit = useCallback(
     async (value: string) => {
       if (zip.status !== 'idle') discardZip();
+      // Eine Suche verlässt die Ansicht „Mandant“, damit die Trefferliste sichtbar wird.
+      if (url.view === 'tenant') navigateTo({ device: null, tile: null, mode });
       const results = await search(value);
       setSearchedAt(new Date());
       if (results?.length === 1) openDevice(results[0]!);
     },
-    [search, openDevice, zip.status, discardZip],
+    [search, openDevice, zip.status, discardZip, url.view, mode],
   );
+
+  const openTenant = () => {
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'tenant' });
+  };
 
   const goHome = () => {
     discardZip();
@@ -189,14 +199,18 @@ function Shell({ account, extraChips }: Props) {
 
   const liveWithoutProvider = !provider;
   const showDevice = Boolean(provider && url.device);
-  const showZip = !showDevice && !liveWithoutProvider && zip.status !== 'idle';
-  const showPicker = !showDevice && !showZip && state.status === 'done' && state.results.length > 1;
+  const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
+  const showZip = !showDevice && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
+  const showPicker =
+    !showDevice && !showTenant && !showZip && state.status === 'done' && state.results.length > 1;
   const showNotFound =
-    !showDevice && !showZip && state.status === 'done' && state.results.length === 0;
-  const showSearchError = !showDevice && !showZip && state.status === 'error' && state.error;
+    !showDevice && !showTenant && !showZip && state.status === 'done' && state.results.length === 0;
+  const showSearchError =
+    !showDevice && !showTenant && !showZip && state.status === 'error' && state.error;
   const showHero =
     !liveWithoutProvider &&
     !showDevice &&
+    !showTenant &&
     !showZip &&
     !showPicker &&
     !showNotFound &&
@@ -241,6 +255,22 @@ function Shell({ account, extraChips }: Props) {
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}
+      />
+    );
+  } else if (showTenant && provider) {
+    content = (
+      <TenantView
+        provider={provider}
+        openTileId={url.tile}
+        onOpenTile={(tileId) =>
+          navigateTo({ device: null, tile: tileId, mode, view: 'tenant' }, { tileOpened: true })
+        }
+        onCloseTile={() => {
+          const current = parseUrl(window.location.search);
+          if (current.tile) closeTileInHistory(current);
+        }}
+        onBack={goHome}
+        onToneChange={setDeviceTone}
       />
     );
   } else if (showZip) {
@@ -343,7 +373,9 @@ function Shell({ account, extraChips }: Props) {
 
   return (
     <div className="min-h-dvh bg-canvas text-label">
-      <AmbientGlow tone={showDevice || (showZip && zipReport) ? deviceTone : 'accent'} />
+      <AmbientGlow
+        tone={showDevice || showTenant || (showZip && zipReport) ? deviceTone : 'accent'}
+      />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:ring-2 focus:ring-accent"
@@ -356,6 +388,7 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
+        {...(liveWithoutProvider ? {} : { onOpenTenant: openTenant, tenantActive: showTenant })}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}

@@ -158,6 +158,28 @@ export const Docs = {
     'https://learn.microsoft.com/graph/api/resources/intune-onboarding-deviceenrollmentlimitconfiguration?view=graph-rest-1.0',
   enrollmentConfigurationsList:
     'https://learn.microsoft.com/graph/api/intune-onboarding-deviceenrollmentconfiguration-list?view=graph-rest-1.0',
+  // M14/S5: Mandanten-Status (abgerufen 2026-11-09)
+  vppTokenList:
+    'https://learn.microsoft.com/graph/api/intune-onboarding-vpptoken-list?view=graph-rest-1.0',
+  vppTokenResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-onboarding-vpptoken?view=graph-rest-1.0',
+  /** VPP-Token erneuern/synchronisieren; Status „invalid“ bei Kontoänderung oder Ablauf */
+  vppTokenRenew:
+    'https://learn.microsoft.com/intune/app-management/deployment/manage-vpp-apple#renewing-vpp-tokens-or-apple-business-manager-location-token',
+  vppTokenSync:
+    'https://learn.microsoft.com/intune/app-management/deployment/manage-vpp-apple#synchronize-a-vpp-token',
+  /** Beta-Ressourcen, über die dokumentierte v1.0-API nicht erreichbar */
+  depOnboardingSettingBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-deponboardingsetting?view=graph-rest-beta',
+  androidManagedStoreSettingsBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-androidforwork-androidmanagedstoreaccountenterprisesettings?view=graph-rest-beta',
+  windowsAutopilotSettingsBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-windowsautopilotsettings?view=graph-rest-beta',
+  ndesConnectorBeta:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-ndesconnector?view=graph-rest-beta',
+  /** Apple-ADE-Token erneuern (Registrierungsprogramm-Token) */
+  appleAdeTokens:
+    'https://learn.microsoft.com/intune/device-enrollment/apple/manage-devices-tokens-apple#renew-your-token',
   // M14/S4: Sicherheitswarnungen (abgerufen 2026-11-09)
   securityAlertsList:
     'https://learn.microsoft.com/graph/api/security-list-alerts_v2?view=graph-rest-1.0',

@@ -13,6 +13,7 @@ import type {
   AssignmentsInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  TenantStatus,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -157,6 +158,14 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<UserLicenseInfo>>;
+
+  /**
+   * Status mandantenweiter Zertifikate und Token (M14/S5, Ansicht „Mandant“): Apple-MDM-Push-Zertifikat
+   * und Apple-VPP-Tokens. Unabhängig von einem Gerät; jede Quelle ist ein eigenes SectionResult
+   * (403/404/Fehler betreffen nur ihre Kachel). Die VPP-Antwort enthält `token` und `appleId` – beides
+   * wird nie gelesen. Wirft nur bei Abbruch.
+   */
+  getTenantStatus(options?: RequestOptions): Promise<TenantStatus>;
 
   /**
    * Offene Defender-for-Endpoint-Warnungen dieses Geräts (M14/S4): die neuesten Warnungen des Mandanten

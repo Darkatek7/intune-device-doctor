@@ -460,6 +460,38 @@ export interface SecurityAlertsInfo {
   moreAvailable: boolean;
 }
 
+// ---------- Mandanten-Status (M14/S5) ----------
+
+export type VppTokenStateLevel =
+  'unknown' | 'valid' | 'expired' | 'invalid' | 'assignedToExternalMDM';
+export type VppSyncStatusLevel = 'none' | 'inProgress' | 'completed' | 'failed';
+
+/**
+ * Ein Apple-VPP-Token des Mandanten. Bewusst ohne das Token selbst und ohne Apple-ID (beides liefert
+ * die Graph-Antwort mit, beides wird nie gelesen).
+ */
+export interface VppTokenInfo {
+  id: string;
+  organizationName: string | null;
+  accountType: 'business' | 'education' | null;
+  expirationDateTime: string | null;
+  lastSyncDateTime: string | null;
+  state: VppTokenStateLevel | null;
+  lastSyncStatus: VppSyncStatusLevel | null;
+  countryOrRegion: string | null;
+  /** Anzahl der Apps seit der letzten Synchronisierung */
+  lastAppCount: number | null;
+}
+
+/**
+ * Status mandantenweiter Zertifikate und Token (Ansicht „Mandant“, unabhängig von einem Gerät). Jede
+ * Quelle ist ein eigenes SectionResult – eine fehlende Berechtigung betrifft nur ihre Kachel.
+ */
+export interface TenantStatus {
+  applePushCertificate: SectionResult<ApplePushCertificateInfo>;
+  vppTokens: SectionResult<VppTokenInfo[]>;
+}
+
 /** Alles, was zu einem Gerät geladen wurde. Jede Section lädt unabhängig (undefined = lädt noch). */
 export interface DeviceSnapshot {
   device: ManagedDeviceInfo;
@@ -525,6 +557,10 @@ export type TileId =
   | 'attestation'
   | 'registration'
   | 'securityAlerts'
+  // Ansicht „Mandant“ (M14/S5), kein Gerät:
+  | 'tenantApplePush'
+  | 'tenantVpp'
+  | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
   | 'win32Apps'
