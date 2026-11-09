@@ -1287,7 +1287,7 @@ export const deRules = {
       reportUnavailableTitle: 'MDMDiagReport.xml nicht ausgewertet',
       reportUnavailableCause: {
         missing:
-          'Laut Microsoft Learn gehört MDMDiagReport.xml zum Paket des MdmDiagnosticsTool; hier fehlt die Datei (anderer Bereich gesammelt oder Sammlung unvollständig).',
+          'Laut Microsoft Learn gehört MDMDiagReport.xml zur Ausgabe des MdmDiagnosticsTool und die Bereiche („-area“) bestimmen, was gesammelt wird; hier fehlt die Datei (möglicherweise anderer Bereich oder unvollständige Sammlung).',
         tooLarge: 'Die Datei ist größer als das Limit für die Auswertung im Browser.',
         unreadable: 'Die Datei im Paket ist beschädigt oder konnte nicht entpackt werden.',
         unsupported:
@@ -1296,6 +1296,9 @@ export const deRules = {
       } as Record<string, string>,
       reportUnavailableRemediation: [
         'Das Paket mdmlogs-*.cab lokal entpacken (Windows-Befehl expand) und MDMDiagReport.xml im Editor öffnen.',
+      ],
+      reportMissingRemediation: [
+        'In der Dateiliste prüfen, was das Paket enthält; bei Bedarf die MDM-Diagnose erneut sammeln (Microsoft Learn: „Collect MDM logs“).',
       ],
       packageTitle: (files: number) =>
         `MDM-Diagnosepaket gelesen: ${files} ${files === 1 ? 'Datei' : 'Dateien'}`,
@@ -1309,7 +1312,7 @@ export const deRules = {
           .filter(Boolean)
           .join(' '),
       packageCause:
-        'Das Paket entsteht mit dem MdmDiagnosticsTool. Laut Microsoft Learn enthält es u. a. MDMDiagReport.xml (detaillierte MDM-Konfiguration), MDMDiagHtmlReport.html, MdmDiagReport_RegistryDump.reg und .evtx-Dateien.',
+        'Das Paket stammt vom MdmDiagnosticsTool (Ausgabe-Log im DiagLogs-ZIP). Laut Microsoft Learn enthält dessen ZIP-Ausgabe u. a. MDMDiagReport.xml (detaillierte MDM-Konfiguration), MDMDiagHtmlReport.html, MdmDiagReport_RegistryDump.reg und .evtx-Dateien; maßgeblich ist die tatsächliche Dateiliste oben.',
       packageRemediation: [
         'Für Details die Dateien lokal entpacken (Windows-Befehl expand) – MDMDiagHtmlReport.html fasst laut Learn Verwaltungs-URL, Zertifikate und Richtlinien zusammen.',
       ],

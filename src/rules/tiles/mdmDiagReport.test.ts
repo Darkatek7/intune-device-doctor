@@ -119,6 +119,15 @@ describe('Kachel „MDM-Diagnosebericht“', () => {
     );
     const invalid = tileOf(withPackage({ reportStatus: 'invalid', report: null }));
     expect(findingOf(invalid, 'mdmDiag-report-unavailable').detail).toContain('kein lesbares XML');
+
+    // Quelle passt zur Lösung: fehlende Datei → Paketinhalt (Learn), sonst Befehl expand
+    expect(findingOf(missing, 'mdmDiag-report-unavailable').docsUrl).toBe(Docs.mdmCollectLogs);
+    expect(findingOf(missing, 'mdmDiag-report-unavailable').remediation.join(' ')).not.toContain(
+      'expand',
+    );
+    expect(findingOf(invalid, 'mdmDiag-report-unavailable').docsUrl).toBe(Docs.expandCommand);
+    const unreadable = tileOf(withPackage({ status: 'unreadable', report: null }));
+    expect(findingOf(unreadable, 'mdmDiag-package-unavailable').docsUrl).toBe(Docs.expandCommand);
   });
 
   it('Paket nicht lesbar: Kachel „Nicht verfügbar“ mit Grund', () => {

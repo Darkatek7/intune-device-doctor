@@ -101,7 +101,7 @@ export function mdmDiagReportTile(report: DiagnosticsReport): Tile | null {
           cause: m.packageUnavailableCause[problem.key] ?? '',
           remediation: [...m.packageUnavailableRemediation],
           source: src,
-          docsUrl: Docs.mdmCollectLogs,
+          docsUrl: Docs.expandCommand,
         },
       ],
       sources: [src],
@@ -195,9 +195,19 @@ export function mdmDiagReportTile(report: DiagnosticsReport): Tile | null {
       detail: reason,
       cause:
         m.reportUnavailableCause[pkg.reportStatus] ?? m.reportUnavailableCause['unreadable'] ?? '',
-      remediation: [...m.reportUnavailableRemediation],
+      remediation:
+        pkg.reportStatus === 'missing'
+          ? [...m.reportMissingRemediation]
+          : [...m.reportUnavailableRemediation],
       source: src,
-      docsUrl: pkg.reportStatus === 'unsupported' ? Docs.cabinetFormat : Docs.mdmCollectLogs,
+      // Quelle zur Lösung: Cabinet-Format (Verfahren nicht unterstützt), Paketinhalt (Datei fehlt),
+      // sonst der Windows-Befehl expand
+      docsUrl:
+        pkg.reportStatus === 'unsupported'
+          ? Docs.cabinetFormat
+          : pkg.reportStatus === 'missing'
+            ? Docs.mdmCollectLogs
+            : Docs.expandCommand,
     });
   }
 
