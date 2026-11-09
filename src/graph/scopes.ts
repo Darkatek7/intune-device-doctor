@@ -9,6 +9,13 @@ export const GraphScope = {
   ServiceConfigRead: 'DeviceManagementServiceConfig.Read.All',
   DeviceRead: 'Device.Read.All',
   BitlockerKeyReadBasic: 'BitlockerKey.ReadBasic.All',
+  /** Anmeldeprotokoll (Kachel „Anmeldungen“) – Entra ID P1/P2 und passende Entra-Rolle nötig. */
+  AuditLogRead: 'AuditLog.Read.All',
+  /**
+   * Windows LAPS – nur Metadaten (Zeitpunkte), niemals das Kennwort. Bewusst `…ReadBasic.All`
+   * (least privileged laut Doku), nicht `DeviceLocalCredential.Read.All`.
+   */
+  DeviceLocalCredentialReadBasic: 'DeviceLocalCredential.ReadBasic.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -19,7 +26,11 @@ export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
  * (Entra stellt alle zugestimmten Berechtigungen der Ressource aus); ohne Consent liefert nur der
  * betroffene Endpunkt 403 → „Fehlende Berechtigung“.
  */
-export const OPTIONAL_SCOPES: readonly GraphScope[] = [GraphScope.ServiceConfigRead];
+export const OPTIONAL_SCOPES: readonly GraphScope[] = [
+  GraphScope.ServiceConfigRead,
+  GraphScope.AuditLogRead,
+  GraphScope.DeviceLocalCredentialReadBasic,
+];
 
 /** Scopes, die beim Login angefragt werden. */
 export const LOGIN_SCOPES: GraphScope[] = Object.values(GraphScope).filter(

@@ -3,71 +3,56 @@ import type { DeviceSnapshot, Finding, Severity, Tile, TileId } from '../domain/
 import { de } from '../i18n/de';
 import { MockProvider } from '../providers/mock/MockProvider';
 import { scenarios } from '../providers/mock/scenarios';
+import { WINDOWS_TILE_COUNT } from '../test/fixtures';
+import { loadFullSnapshot } from '../test/snapshot';
 import { TILE_ORDER, evaluateTiles, sortTiles, summarize } from './evaluate';
 
 const NOW = new Date('2026-10-15T12:00:00Z');
 const LEARN_URL = /^https:\/\/learn\.microsoft\.com\//;
 
-/** Die acht Kacheln ohne DiagLogs-ZIP, in Standardreihenfolge. */
-const BASE_TILES: TileId[] = TILE_ORDER.slice(0, 8);
+/** Die Kacheln ohne DiagLogs-ZIP, in Standardreihenfolge (Windows-Gerät). */
+const BASE_TILES: TileId[] = TILE_ORDER.slice(0, WINDOWS_TILE_COUNT);
 
 /** Erwartete Severity je Mock-Szenario. Nicht genannte Kacheln müssen 'ok' sein. */
 const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
   'CONTOSO-PC001': {},
-  'CONTOSO-PC014': { compliance: 'critical', bitlocker: 'critical', policies: 'warning' },
+  'CONTOSO-PC014': {
+    compliance: 'critical',
+    bitlocker: 'critical',
+    policies: 'warning',
+    signIns: 'warning',
+    attestation: 'warning',
+  },
   'CONTOSO-PC027': { defender: 'warning' },
   'CONTOSO-PC033': {
     checkIn: 'critical',
     compliance: 'critical',
     defender: 'warning',
     policies: 'warning',
+    laps: 'warning',
   },
   'CONTOSO-PC042': {
     policies: 'critical',
     compliance: 'warning',
     osVersion: 'warning',
     apps: 'critical',
+    signIns: 'warning',
   },
-  'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning' },
+  'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning', autopilot: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-IP015': { deviceStatus: 'warning', defender: 'unknown', osVersion: 'unknown' },
   'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
-  'CONTOSO-PC050': { policies: 'unknown' },
+  'CONTOSO-PC050': {
+    policies: 'unknown',
+    signIns: 'unknown',
+    laps: 'unknown',
+    autopilot: 'unknown',
+  },
 };
 
 /** Lädt ein Mock-Gerät vollständig (alle Sections) – wie der Provider es in der App liefert. */
 async function loadSnapshot(deviceName: string, now: Date = NOW): Promise<DeviceSnapshot> {
-  const provider = new MockProvider({ latency: false, now: () => now });
-  const [hit] = await provider.searchDevices(deviceName);
-  if (!hit || hit.deviceName !== deviceName) throw new Error(`Szenario ${deviceName} fehlt`);
-  const device = await provider.getDevice(hit.id);
-  const [
-    protection,
-    compliancePolicies,
-    configurationPolicies,
-    entraDevice,
-    bitlockerKeys,
-    appInstallStates,
-    applePushCertificate,
-  ] = await Promise.all([
-    provider.getProtectionState(device),
-    provider.getCompliancePolicyStates(device),
-    provider.getConfigurationPolicyStates(device),
-    provider.getEntraDevice(device),
-    provider.getBitLockerKeys(device),
-    provider.getAppInstallStates(device),
-    provider.getApplePushCertificate(device),
-  ]);
-  return {
-    device,
-    protection,
-    compliancePolicies,
-    configurationPolicies,
-    entraDevice,
-    bitlockerKeys,
-    appInstallStates,
-    applePushCertificate,
-  };
+  return loadFullSnapshot(new MockProvider({ latency: false, now: () => now }), deviceName);
 }
 
 function tileOf(tiles: Tile[], id: TileId): Tile {
@@ -100,7 +85,7 @@ function fakeTile(id: TileId, severity: Severity, state: Tile['state'] = 'ready'
 const SCENARIO_NAMES = scenarios.map((s) => s.deviceName);
 
 describe('evaluateTiles – Mock-Szenarien', () => {
-  it('liefert ohne DiagLogs-ZIP genau die acht Basis-Kacheln in Standardreihenfolge', async () => {
+  it('liefert ohne DiagLogs-ZIP genau die Basis-Kacheln in Standardreihenfolge', async () => {
     const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC001'), NOW);
     expect(tiles.map((t) => t.id)).toEqual(BASE_TILES);
   });
@@ -116,10 +101,10 @@ describe('evaluateTiles – Mock-Szenarien', () => {
 
   it.each(Object.keys(EXPECTED))('%s: erwartete Severity je Kachel', async (name) => {
     const tiles = evaluateTiles(await loadSnapshot(name), NOW);
-    for (const id of BASE_TILES) {
-      const tile = tileOf(tiles, id);
-      expect(tile.state, `${name}/${id}`).toBe('ready');
-      expect(tile.severity, `${name}/${id}`).toBe(EXPECTED[name]?.[id] ?? 'ok');
+    // Windows-spezifische Kacheln (z. B. LAPS) gibt es nur für Windows-Geräte
+    for (const tile of tiles.filter((t) => BASE_TILES.includes(t.id))) {
+      expect(tile.state, `${name}/${tile.id}`).toBe('ready');
+      expect(tile.severity, `${name}/${tile.id}`).toBe(EXPECTED[name]?.[tile.id] ?? 'ok');
     }
   });
 
@@ -161,14 +146,14 @@ describe('evaluateTiles – Mock-Szenarien', () => {
 });
 
 describe('evaluateTiles – Szenario-Details', () => {
-  it('CONTOSO-PC001: alle acht Kacheln ok, Zusammenfassung 8× ok', async () => {
+  it('CONTOSO-PC001: alle Kacheln ok, Zusammenfassung nur ok', async () => {
     const tiles = evaluateTiles(await loadSnapshot('CONTOSO-PC001'), NOW);
-    expect(tiles).toHaveLength(8);
+    expect(tiles).toHaveLength(WINDOWS_TILE_COUNT);
     expect(summarize(tiles)).toEqual({
       critical: 0,
       warning: 0,
       unknown: 0,
-      ok: 8,
+      ok: WINDOWS_TILE_COUNT,
       loading: 0,
       worst: 'ok',
     });
@@ -275,7 +260,7 @@ describe('evaluateTiles – Szenario-Details', () => {
 
 describe('evaluateTiles – Apps-Kachel nur mit Daten', () => {
   it.each(['unavailable', 'notApplicable', 'forbidden', 'error', 'loading'] as const)(
-    'appInstallStates %s → keine Apps-Kachel, die übrigen sieben bleiben',
+    'appInstallStates %s → keine Apps-Kachel, alle übrigen bleiben',
     async (status) => {
       const full = await loadSnapshot('CONTOSO-PC001');
       const source = full.device.source;
@@ -291,7 +276,7 @@ describe('evaluateTiles – Apps-Kachel nur mit Daten', () => {
             : { status, reason: 'x', source };
       const tiles = evaluateTiles({ ...full, appInstallStates: section }, NOW);
       expect(tiles.map((t) => t.id)).not.toContain('apps');
-      expect(tiles).toHaveLength(7);
+      expect(tiles).toHaveLength(WINDOWS_TILE_COUNT - 1);
     },
   );
 
@@ -310,7 +295,18 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
       .map((t) => t.id)
       .sort();
     expect(loading).toEqual(
-      ['bitlocker', 'compliance', 'defender', 'deviceStatus', 'policies'].sort(),
+      [
+        'attestation',
+        'autopilot',
+        'bitlocker',
+        'compliance',
+        'defender',
+        'deviceStatus',
+        'groups',
+        'laps',
+        'policies',
+        'signIns',
+      ].sort(),
     );
     expect(tileOf(tiles, 'checkIn').state).toBe('ready');
     expect(tileOf(tiles, 'osVersion').state).toBe('ready');
@@ -348,7 +344,7 @@ describe('evaluateTiles – Ladezustand (nur device geladen)', () => {
   it('summarize zählt Ladekacheln separat und bewertet nur fertige Kacheln', async () => {
     const { device } = await loadSnapshot('CONTOSO-PC001');
     const summary = summarize(evaluateTiles({ device }, NOW));
-    expect(summary.loading).toBe(5);
+    expect(summary.loading).toBe(10);
     expect(summary.critical + summary.warning + summary.unknown + summary.ok).toBe(2);
     expect(summary.ok).toBe(2);
     expect(summary.worst).toBe('ok');

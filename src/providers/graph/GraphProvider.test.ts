@@ -16,7 +16,9 @@ import {
   malware,
   PC001_ENTRA_ID,
   PC001_ID,
+  PC001_USER_ID,
   pc001Device,
+  signInDto,
   type FakeHandler,
 } from './fakeGraph';
 
@@ -642,5 +644,402 @@ describe('GraphProvider – Apple-MDM-Push-Zertifikat', () => {
       'ok',
     );
     expect(result.data).toEqual({ expirationDateTime: null, lastModifiedDateTime: null });
+  });
+});
+
+describe('GraphProvider – Anmeldungen (Entra-Anmeldeprotokoll)', () => {
+  const SIGN_INS_PATH = '/v1.0/auditLogs/signIns';
+
+  it('fragt per GET mit userId- und Zeitfilter ab (ohne $select), nur die erste Seite', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method ?? 'GET').toBe('GET');
+    expect(call.parsed.pathname).toBe(SIGN_INS_PATH);
+    expect(call.parsed.searchParams.get('$filter')).toBe(
+      `userId eq '${PC001_USER_ID}' and createdDateTime ge 2026-10-08T12:00:00Z`,
+    );
+    expect(call.parsed.searchParams.get('$top')).toBe('200');
+    expect(call.parsed.searchParams.has('$select')).toBe(false);
+    expect(result.source.label).toBe(Endpoints.signIns.display);
+    expect(result.data.windowDays).toBe(7);
+  });
+
+  it('grenzt clientseitig auf das Gerät ein (2 von 3 Einträgen gehören zu PC001)', async () => {
+    const { provider } = setup();
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.totalForUser).toBe(3);
+    expect(result.data.entries.map((e) => e.id)).toEqual(['s-1', 's-3']);
+    expect(result.data.entries[1]).toMatchObject({
+      conditionalAccessStatus: 'failure',
+      errorCode: 53000,
+    });
+    expect(JSON.stringify(result.data)).not.toMatch(/203\.0\.113\.7|ipAddress|location/);
+  });
+
+  it('folgt @odata.nextLink nicht, merkt sich aber, dass es weitere Seiten gibt', async () => {
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [signInDto('s-1', 1)],
+        '@odata.nextLink': 'https://graph.microsoft.com/v1.0/auditLogs/signIns?$skiptoken=abc',
+      }),
+    );
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.moreAvailable).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('ohne primären Benutzer: notApplicable ohne Request; ohne Entra-Geräte-ID: unavailable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const none = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: null })),
+      'notApplicable',
+    );
+    expect(none.reason).toBe(de.reasons.signInsNoPrimaryUser);
+    const noId = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID, azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(noId.reason).toBe(de.reasons.noAzureAdDeviceId);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit requiredScope AuditLog.Read.All, ohne andere Sections zu beeinflussen', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === SIGN_INS_PATH
+        ? graphError(403, 'Authorization_RequestDenied')
+        : contosoHandler()(call),
+    );
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'forbidden',
+    );
+    expect(result.error.requiredScope).toBe('AuditLog.Read.All');
+    expectStatus(await provider.getEntraDevice(windowsDevice()), 'ok');
+  });
+
+  it('404 → unavailable, 500 → error', async () => {
+    const notFound = setup(() => graphError(404, 'ResourceNotFound'));
+    const unavailable = expectStatus(
+      await notFound.provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'unavailable',
+    );
+    expect(unavailable.reason).toBe(de.reasons.signInsNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(
+      await broken.provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'error',
+    );
+  });
+
+  it('Fehlt appliedConditionalAccessPolicies in der Antwort, liefert der Provider appliedPolicies null (kein Fehler)', async () => {
+    const entry = signInDto('s-1', 1);
+    delete entry.appliedConditionalAccessPolicies;
+    const { provider } = setup(() => collection([entry]));
+    const result = expectStatus(
+      await provider.getSignIns(windowsDevice({ userId: PC001_USER_ID })),
+      'ok',
+    );
+    expect(result.data.entries[0]!.appliedPolicies).toBeNull();
+  });
+});
+
+describe('GraphProvider – Windows LAPS', () => {
+  const LAPS_PATH = `/v1.0/directory/deviceLocalCredentials/${PC001_ENTRA_ID}`;
+
+  it('liest per GET nur Metadaten – ohne credentials', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe(LAPS_PATH);
+    expect(call.parsed.searchParams.get('$select')).toBe(
+      'id,deviceName,lastBackupDateTime,refreshDateTime',
+    );
+    // der Pfad heißt …/deviceLocalCredentials – geprüft wird die Abfrage (nie $select=credentials)
+    expect(call.parsed.search.toLowerCase()).not.toContain('credentials');
+    expect(result.source.label).toBe(Endpoints.deviceLocalCredentialInfo.display);
+    expect(result.data).toEqual({
+      deviceName: 'CONTOSO-PC001',
+      lastBackupDateTime: '2026-10-12T08:00:00Z',
+      refreshDateTime: '2026-11-11T08:00:00Z',
+    });
+  });
+
+  it('nicht Windows: notApplicable ohne Request; ohne Entra-Geräte-ID: unavailable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const mac = expectStatus(
+      await provider.getLocalAdmin(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(mac.reason).toBe(de.reasons.lapsNotWindows);
+    const noId = expectStatus(
+      await provider.getLocalAdmin(windowsDevice({ azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(noId.reason).toBe(de.reasons.noAzureAdDeviceId);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit Scope …ReadBasic.All, ohne andere Sections zu beeinflussen', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === LAPS_PATH
+        ? graphError(403, 'Authorization_RequestDenied')
+        : contosoHandler()(call),
+    );
+    const result = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'forbidden');
+    expect(result.error.requiredScope).toBe('DeviceLocalCredential.ReadBasic.All');
+    expectStatus(await provider.getEntraDevice(windowsDevice()), 'ok');
+  });
+
+  it('404 → unavailable mit ehrlichem Text, 500 → error', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === LAPS_PATH
+        ? graphError(404, 'ResourceNotFound')
+        : contosoHandler()(call),
+    );
+    const unavailable = expectStatus(await provider.getLocalAdmin(windowsDevice()), 'unavailable');
+    expect(unavailable.reason).toBe(de.reasons.lapsNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getLocalAdmin(windowsDevice()), 'error');
+  });
+});
+
+describe('GraphProvider – Integritätsnachweis', () => {
+  const PATH = `/v1.0/deviceManagement/managedDevices/${PC001_ID}`;
+
+  it('liest per GET mit $select=deviceHealthAttestationState und übernimmt Rohwerte', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getHealthAttestation(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe(PATH);
+    expect(call.parsed.searchParams.get('$select')).toBe('deviceHealthAttestationState');
+    expect(result.source.label).toBe(Endpoints.managedDeviceHealthAttestation.display);
+    expect(result.data.secureBoot).toBe('enabled');
+    expect(result.data.tpmVersion).toBe('2.0');
+    // leere Strings → null; virtualSecureMode (abgekündigt) wird nicht übernommen
+    expect(result.data.healthStatusMismatchInfo).toBeNull();
+    expect(result.data).not.toHaveProperty('virtualSecureMode');
+  });
+
+  it('nicht Windows: notApplicable ohne Request', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(
+      await provider.getHealthAttestation(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(result.reason).toBe(de.reasons.attestationNotWindows);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('403 → forbidden mit Scope DeviceManagementManagedDevices.Read.All; 404 → unavailable; 500 → error', async () => {
+    const forbidden = setup((call) =>
+      call.parsed.searchParams.get('$select') === 'deviceHealthAttestationState'
+        ? graphError(403, 'Forbidden')
+        : contosoHandler()(call),
+    );
+    const denied = expectStatus(
+      await forbidden.provider.getHealthAttestation(windowsDevice()),
+      'forbidden',
+    );
+    expect(denied.error.requiredScope).toBe('DeviceManagementManagedDevices.Read.All');
+    const missing = setup(() => graphError(404, 'ResourceNotFound'));
+    const unavailable = expectStatus(
+      await missing.provider.getHealthAttestation(windowsDevice()),
+      'unavailable',
+    );
+    expect(unavailable.reason).toBe(de.reasons.attestationNotReported);
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getHealthAttestation(windowsDevice()), 'error');
+  });
+});
+
+describe('GraphProvider – Windows Autopilot', () => {
+  const AP_PATH = '/v1.0/deviceManagement/windowsAutopilotDeviceIdentities';
+  const pageOf = (n: number, withNext: boolean) =>
+    jsonResponse({
+      value: [{ id: `ap-${n}`, serialNumber: `X-${n}`, managedDeviceId: null }],
+      ...(withNext
+        ? { '@odata.nextLink': `https://graph.microsoft.com${AP_PATH}?$skiptoken=${n + 1}` }
+        : {}),
+    });
+
+  it('liest die Liste ohne Query per GET und findet das Gerät über managedDeviceId', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.pathname).toBe(AP_PATH);
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data).toMatchObject({
+      groupTag: 'Contoso-Standard',
+      enrollmentState: 'enrolled',
+      matchedBy: 'managedDeviceId',
+    });
+    expect(JSON.stringify(result.data)).not.toMatch(/AAAAA|anna\.schmidt|productKey/);
+    expect(result.source.label).toBe(Endpoints.windowsAutopilotDeviceIdentities.display);
+  });
+
+  it('nicht gefunden, Liste zu Ende → ok mit null (nicht registriert)', async () => {
+    const { provider } = setup(() => pageOf(1, false));
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(result.data).toBeNull();
+  });
+
+  it('nicht gefunden, weitere Seiten → nach 5 Seiten unavailable mit ehrlichem Grund', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() => pageOf(++n, true));
+    const result = expectStatus(await provider.getAutopilot(windowsDevice()), 'unavailable');
+    expect(calls).toHaveLength(5);
+    expect(result.reason).toBe(de.reasons.autopilotNotFoundInLimit(5));
+  });
+
+  it('bricht beim ersten Treffer ab (Seite 2 von 3)', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() => {
+      n += 1;
+      return n < 2
+        ? pageOf(n, true)
+        : jsonResponse({
+            value: [{ id: 'ap-hit', serialNumber: 'x', managedDeviceId: PC001_ID }],
+            '@odata.nextLink': `https://graph.microsoft.com${AP_PATH}?$skiptoken=9`,
+          });
+    });
+    expectStatus(await provider.getAutopilot(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('nicht Windows → notApplicable ohne Request; 403 → forbidden mit Scope; 404 → unavailable', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getAutopilot(windowsDevice({ osFamily: 'macos' })),
+      'notApplicable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const b = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    const forbidden = expectStatus(await b.provider.getAutopilot(windowsDevice()), 'forbidden');
+    expect(forbidden.error.requiredScope).toBe('DeviceManagementServiceConfig.Read.All');
+    const c = setup(() => graphError(404, 'ResourceNotFound'));
+    expect(expectStatus(await c.provider.getAutopilot(windowsDevice()), 'unavailable').reason).toBe(
+      de.reasons.autopilotNotReported,
+    );
+  });
+});
+
+describe('GraphProvider – Gruppen des Geräts', () => {
+  const PATH = `/v1.0/devices(deviceId='${PC001_ENTRA_ID}')/transitiveMemberOf`;
+
+  it('liest transitiveMemberOf per GET ohne Query-Optionen und mappt Gruppen', async () => {
+    const { provider, calls } = setup();
+    const result = expectStatus(await provider.getDeviceGroups(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(decodeURIComponent(calls[0]!.parsed.pathname)).toBe(PATH);
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data.groups.map((g) => g.displayName)).toEqual([
+      'Contoso – Alle Geräte',
+      'Contoso – Pilot',
+    ]);
+    expect(result.data.hiddenCount).toBe(1);
+    expect(result.data.truncated).toBe(false);
+  });
+
+  it('folgt @odata.nextLink höchstens 5 Seiten und meldet truncated', async () => {
+    let n = 0;
+    const { provider, calls } = setup(() =>
+      jsonResponse({
+        value: [{ '@odata.type': '#microsoft.graph.group', id: `g${++n}`, displayName: `G${n}` }],
+        '@odata.nextLink': `https://graph.microsoft.com${PATH}?$skiptoken=${n}`,
+      }),
+    );
+    const result = expectStatus(await provider.getDeviceGroups(windowsDevice()), 'ok');
+    expect(calls).toHaveLength(5);
+    expect(result.data.truncated).toBe(true);
+    expect(result.data.groups).toHaveLength(5);
+  });
+
+  it('ohne Entra-Geräte-ID: unavailable ohne Request; 403 → forbidden (Device.Read.All); 404 → unavailable', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getDeviceGroups(windowsDevice({ azureADDeviceId: null })),
+      'unavailable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const b = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await b.provider.getDeviceGroups(windowsDevice()), 'forbidden').error
+        .requiredScope,
+    ).toBe('Device.Read.All');
+    const c = setup(() => graphError(404, 'ResourceNotFound'));
+    expect(
+      expectStatus(await c.provider.getDeviceGroups(windowsDevice()), 'unavailable').reason,
+    ).toBe(de.reasons.groupsNotReported);
+  });
+});
+
+describe('GraphProvider – weitere Geräte des Benutzers', () => {
+  it('filtert per dokumentiertem eq-Filter auf userPrincipalName, minimales $select, ohne das aktuelle Gerät', async () => {
+    const { provider, calls } = setup((call) =>
+      jsonResponse({
+        value: [
+          { id: PC001_ID, deviceName: 'CONTOSO-PC001', operatingSystem: 'Windows' },
+          {
+            id: 'other-1',
+            deviceName: 'CONTOSO-IP015',
+            operatingSystem: 'iOS',
+            complianceState: 'noncompliant',
+          },
+        ],
+        _call: call.url,
+      }),
+    );
+    const result = expectStatus(
+      await provider.getUserDevices(windowsDevice({ userPrincipalName: "o'brien@contoso.com" })),
+      'ok',
+    );
+    expect(calls).toHaveLength(1);
+    const call = calls[0]!;
+    expect(call.method).toBe('GET');
+    expect(call.parsed.pathname).toBe('/v1.0/deviceManagement/managedDevices');
+    expect(call.parsed.searchParams.get('$filter')).toBe(
+      "userPrincipalName eq 'o''brien@contoso.com'",
+    );
+    expect(call.parsed.searchParams.get('$select')).toBe(
+      'id,deviceName,operatingSystem,complianceState,lastSyncDateTime',
+    );
+    expect(result.data.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015']);
+    expect(result.data[0]!.complianceState).toBe('noncompliant');
+  });
+
+  it('ohne Benutzer: notApplicable ohne Request; 403/404/500 werden zu Section-Zuständen', async () => {
+    const a = setup();
+    expectStatus(
+      await a.provider.getUserDevices(windowsDevice({ userPrincipalName: null })),
+      'notApplicable',
+    );
+    expect(a.calls).toHaveLength(0);
+    const device = windowsDevice({ userPrincipalName: 'anna.schmidt@contoso.com' });
+    const forbidden = setup(() => graphError(403, 'Authorization_RequestDenied'));
+    expect(
+      expectStatus(await forbidden.provider.getUserDevices(device), 'forbidden').error
+        .requiredScope,
+    ).toBe('DeviceManagementManagedDevices.Read.All');
+    const missing = setup(() => graphError(404, 'ResourceNotFound'));
+    expectStatus(await missing.provider.getUserDevices(device), 'unavailable');
+    const broken = setup(() => graphError(500, 'InternalServerError'));
+    expectStatus(await broken.provider.getUserDevices(device), 'error');
   });
 });

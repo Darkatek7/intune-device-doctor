@@ -7,6 +7,7 @@ import type {
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
+  GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
 } from '../../graph/dto';
@@ -197,6 +198,50 @@ export function bitlockerKey(
   return { id, createdDateTime: iso(24 * 200), deviceId: PC001_ENTRA_ID, volumeType };
 }
 
+/** Anmeldeeintrag; enthält wie die echte Antwort auch IP-Adresse und Standort (dürfen nie ankommen). */
+export function signInDto(
+  id: string,
+  hoursAgo: number,
+  overrides: Partial<GraphSignIn> = {},
+  deviceId: string = PC001_ENTRA_ID,
+): GraphSignIn {
+  return {
+    id,
+    createdDateTime: iso(hoursAgo),
+    appDisplayName: 'Microsoft Teams',
+    resourceDisplayName: 'Microsoft Teams Services',
+    clientAppUsed: 'Mobile Apps and Desktop clients',
+    isInteractive: true,
+    correlationId: `corr-${id}`,
+    conditionalAccessStatus: 'success',
+    status: { errorCode: 0, failureReason: null, additionalDetails: null },
+    deviceDetail: {
+      deviceId,
+      isCompliant: true,
+      isManaged: true,
+      trustType: 'Azure AD joined',
+      operatingSystem: 'Windows 11',
+    },
+    appliedConditionalAccessPolicies: [
+      {
+        id: 'pol-1',
+        displayName: 'Contoso – Kompatibles Gerät erforderlich',
+        enforcedGrantControls: ['Require device to be marked as compliant'],
+        enforcedSessionControls: [],
+        result: 'success',
+      },
+    ],
+    // nur in der echten Antwort vorhanden, nicht im DTO:
+    ...({
+      ipAddress: '203.0.113.7',
+      location: { city: 'Contoso City', countryOrRegion: 'DE' },
+      riskLevelAggregated: 'none',
+      userPrincipalName: 'anna.schmidt@contoso.com',
+    } as object),
+    ...overrides,
+  };
+}
+
 export function malware(): GraphWindowsDeviceMalwareState {
   return {
     id: 'm-1',
@@ -248,6 +293,26 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
       if (!device) return graphError(404, 'ResourceNotFound');
       switch (match[2]) {
         case undefined:
+          if (call.parsed.searchParams.get('$select') === 'deviceHealthAttestationState') {
+            return jsonResponse({
+              id: device.id,
+              deviceHealthAttestationState: {
+                lastUpdateDateTime: '2026-10-14T06:00:00Z',
+                issuedDateTime: '2026-10-14T06:00:00Z',
+                secureBoot: 'enabled',
+                bitLockerStatus: 'enabled',
+                codeIntegrity: 'enabled',
+                earlyLaunchAntiMalwareDriverProtection: 'enabled',
+                bootDebugging: 'disabled',
+                testSigning: 'disabled',
+                tpmVersion: '2.0',
+                healthStatusMismatchInfo: '',
+                healthAttestationSupportedStatus: 'supported',
+                // nie verwendet (laut Doku abgekündigt) – darf nicht im Ergebnis landen
+                virtualSecureMode: 'notApplicable',
+              },
+            });
+          }
           return jsonResponse(device);
         case '/windowsProtectionState':
           return device.id === PC001_ID
@@ -284,6 +349,74 @@ export function contosoHandler(options: ContosoOptions = {}): FakeHandler {
         expirationDateTime: '2027-05-03T12:00:00Z',
         lastModifiedDateTime: '2026-05-03T12:00:00Z',
       });
+    }
+    if (path === '/v1.0/deviceManagement/windowsAutopilotDeviceIdentities') {
+      return collection([
+        { id: 'ap-0', serialNumber: 'OTHER-1', managedDeviceId: null, groupTag: 'Contoso-Andere' },
+        {
+          id: 'ap-1',
+          serialNumber: 'DEMO-000001',
+          managedDeviceId: PC001_ID,
+          groupTag: 'Contoso-Standard',
+          enrollmentState: 'enrolled',
+          lastContactedDateTime: '2026-10-13T08:00:00Z',
+          manufacturer: 'Microsoft Corporation',
+          model: 'Surface Laptop 6',
+          // nur in der echten Antwort, nie übernommen:
+          productKey: 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE',
+          userPrincipalName: 'anna.schmidt@contoso.com',
+        },
+      ]);
+    }
+    const groups = /^\/v1\.0\/devices\(deviceId='([^']+)'\)\/transitiveMemberOf$/.exec(path);
+    if (groups) {
+      return groups[1] === PC001_ENTRA_ID
+        ? collection([
+            { '@odata.type': '#microsoft.graph.group', id: 'g-2', displayName: 'Contoso – Pilot' },
+            {
+              '@odata.type': '#microsoft.graph.group',
+              id: 'g-1',
+              displayName: 'Contoso – Alle Geräte',
+            },
+            { '@odata.type': '#microsoft.graph.group', id: 'g-3' },
+            {
+              '@odata.type': '#microsoft.graph.administrativeUnit',
+              id: 'au-1',
+              displayName: 'Contoso – Berlin',
+            },
+          ])
+        : graphError(404, 'ResourceNotFound');
+    }
+    const laps = /^\/v1\.0\/directory\/deviceLocalCredentials\/([^/]+)$/.exec(path);
+    if (laps) {
+      return laps[1] === PC001_ENTRA_ID
+        ? jsonResponse({
+            id: PC001_ENTRA_ID,
+            deviceName: 'CONTOSO-PC001',
+            lastBackupDateTime: '2026-10-12T08:00:00Z',
+            refreshDateTime: '2026-11-11T08:00:00Z',
+            // Eine echte Antwort mit $select=credentials enthielte hier das Kennwort – nie anfordern.
+          })
+        : graphError(404, 'ResourceNotFound');
+    }
+    if (path === '/v1.0/auditLogs/signIns') {
+      const userId = /^userId eq '([^']*)' and createdDateTime ge /.exec(filter)?.[1];
+      return collection(
+        userId === PC001_USER_ID
+          ? [
+              signInDto('s-1', 2),
+              signInDto('s-2', 5, {}, '00000000-0000-4000-9000-0000000000ff'),
+              signInDto('s-3', 30, {
+                conditionalAccessStatus: 'failure',
+                status: {
+                  errorCode: 53000,
+                  failureReason: 'Device is not compliant.',
+                  additionalDetails: null,
+                },
+              }),
+            ]
+          : [],
+      );
     }
     if (path === '/v1.0/informationProtection/bitlocker/recoveryKeys') {
       const id = /^deviceId eq '(.*)'$/.exec(filter)?.[1];

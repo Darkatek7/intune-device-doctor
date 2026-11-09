@@ -16,6 +16,13 @@ export const deRules = {
       'Prüfen, ob das Konto eine lesende Rolle hat (z. B. Intune „Read Only Operator“ oder Entra „Global Reader“) und das Gerät im zugewiesenen Bereich (Scope-Tag) liegt.',
       'Abmelden und erneut anmelden, damit das Token die neue Berechtigung enthält.',
     ],
+    /** Zusätzlicher Hinweis je Scope: Rollen laut Microsoft Learn (nur dort, wo die Doku sie nennt). */
+    forbiddenRoleHints: {
+      'AuditLog.Read.All':
+        'Das Anmeldeprotokoll erfordert laut Microsoft Entra ID P1/P2 und für das Konto eine Entra-Rolle wie Global Reader, Reports Reader, Security Administrator, Security Operator oder Security Reader.',
+      'DeviceLocalCredential.ReadBasic.All':
+        'Für die LAPS-Metadaten braucht das Konto laut Microsoft eine Entra-Rolle wie Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Administrator, Security Reader oder Global Reader.',
+    } as Record<string, string>,
     notApplicableTitle: 'Für dieses Gerät nicht anwendbar',
     notApplicableCause: 'Die Datenquelle gilt für diese Plattform nicht.',
     notApplicableRemediation:
@@ -580,6 +587,224 @@ export const deRules = {
       notApplicable: 'nicht anwendbar',
     } as Record<string, string>,
     unknownIntent: 'unbekannt',
+  },
+  /** M10: Kachel „Anmeldungen“ (Entra-Anmeldeprotokoll, Conditional Access) */
+  signIns: {
+    valueFailures: (n: number) => (n === 1 ? '1 CA-Fehler' : `${n} CA-Fehler`),
+    valueOk: 'Keine CA-Fehler',
+    valueNone: 'Keine Anmeldungen',
+    summary: (count: number, days: number) =>
+      `${count === 1 ? '1 Anmeldung' : `${count} Anmeldungen`} dieses Geräts in ${days} Tagen`,
+    summaryNone: (days: number) =>
+      `Keine Anmeldung dieses Geräts in den letzten ${days} Tagen gefunden`,
+    facts: {
+      deviceCount: (days: number) => `Anmeldungen dieses Geräts (${days} Tage)`,
+      failures: 'Mit Conditional-Access-Fehler',
+      last: 'Letzte Anmeldung',
+      userCount: 'Ausgewertete Anmeldungen des Benutzers',
+      userCountMore: (n: number) => `${n} (nur die neuesten)`,
+      policyDetails: 'Richtliniendetails',
+      policyVisible: 'sichtbar',
+      policyHidden: 'nicht sichtbar (Rolle)',
+    },
+    failureTitle: (app: string, count: number) =>
+      count === 1
+        ? `Conditional-Access-Fehler bei „${app}“`
+        : `${count}× Conditional-Access-Fehler bei „${app}“`,
+    failureDetail: (p: {
+      when: string;
+      resource: string | null;
+      app: string;
+      client: string | null;
+    }) =>
+      `Zuletzt ${p.when}: Anmeldung mit „${p.app}“${p.resource ? ` an „${p.resource}“` : ''}${p.client ? ` (Client: ${p.client})` : ''} – conditionalAccessStatus: failure.`,
+    failedPolicies: (names: string) => `Fehlgeschlagene Richtlinie(n): ${names}.`,
+    failedPoliciesNone:
+      'Graph nennt zu diesem Eintrag keine als „failure“ ausgewertete Richtlinie.',
+    policiesHiddenShort: 'Richtliniendetails nicht sichtbar (Rolle).',
+    errorLine: (code: number, name: string | null, reason: string | null) =>
+      `Fehlercode ${code}${name ? ` (${name})` : ''}${reason ? `: ${reason}` : ''}.`,
+    unknownCode: (code: number) =>
+      `Unbekannter Code ${code} (AADSTS${code}) – keine Deutung belegt.`,
+    failureCause:
+      'Eine Conditional-Access-Richtlinie hat diese Anmeldung nicht zugelassen bzw. ihre Zugriffssteuerung als nicht erfüllt ausgewertet (conditionalAccessStatus: failure).',
+    hiddenTitle: 'Richtliniendetails nicht sichtbar (Rolle)',
+    hiddenDetail:
+      'Die Anmeldeeinträge enthalten kein Feld appliedConditionalAccessPolicies. Graph lässt es ohne Leserecht auf Conditional-Access-Daten weg – ohne Fehlermeldung.',
+    hiddenCause:
+      'Das angemeldete Konto darf Anmeldeprotokolle lesen, aber keine Conditional-Access-Daten. Welche Richtlinie die Anmeldung abgewiesen hat, lässt sich deshalb hier nicht anzeigen.',
+    hiddenRemediation: [
+      'Mit einem Konto mit einer der Rollen Global Reader, Security Reader, Security Administrator oder Conditional Access Administrator erneut prüfen – nur diese gewähren laut Microsoft Zugriff auf Conditional-Access-Daten im Anmeldeprotokoll.',
+      'Alternativ den Eintrag im Entra Admin Center unter Entra ID › Überwachung & Integrität › Anmeldeprotokolle über die Korrelations-ID öffnen.',
+    ],
+    noneTitle: 'Keine Anmeldungen dieses Geräts gefunden',
+    noneDetail: (days: number, total: number, more: boolean) =>
+      `Unter ${more ? 'den neuesten ' : ''}${total} Anmeldungen des primären Benutzers der letzten ${days} Tage gehört keine zu diesem Gerät${more ? ' (weitere Seiten wurden nicht gelesen)' : ''}.`,
+    noneCause:
+      'Das Anmeldeprotokoll enthält laut Microsoft nur interaktive und erfolgreiche föderierte Anmeldungen; die Geräte-ID ist nur für in Microsoft Entra registrierte Geräte gefüllt. Meldet sich niemand am Gerät an, ist das kein Fehler.',
+    noneRemediation: [
+      'Bei Verdacht auf Anmeldeprobleme im Entra Admin Center unter Anmeldeprotokolle nach Benutzer und Gerät filtern.',
+      'Zeitraum und Anmeldetyp (interaktiv/nicht interaktiv) im Portal ausweiten – diese App liest nur die neuesten interaktiven Einträge.',
+    ],
+    mismatchTitle: 'Anmeldung als „nicht konform“ erfasst, Intune meldet „konform“',
+    mismatchDetail: (when: string) =>
+      `Im Anmeldeeintrag vom ${when} steht deviceDetail.isCompliant = false, Intune meldet das Gerät aktuell als konform.`,
+    mismatchCause:
+      'Der Anmeldeeintrag hält die Geräteangaben fest, die bei dieser Anmeldung erhoben wurden. Der Compliance-Status des Geräts kann sich seitdem geändert haben.',
+    mismatchRemediation: [
+      'Zeitpunkt der Anmeldung mit dem letzten Check-in und der letzten Compliance-Auswertung vergleichen.',
+      'Tritt der Widerspruch bei neuen Anmeldungen weiter auf: den Anmeldeeintrag (Korrelations-ID) im Entra Admin Center öffnen und auf dem Tab „Geräteinfo“ prüfen, welches Gerät erkannt wurde.',
+    ],
+  },
+  /** M10: Kachel „Integritätsnachweis“ (Device Health Attestation, Rohwerte) */
+  attestation: {
+    valueData: 'Daten vorhanden',
+    valueMismatch: 'Abweichung gemeldet',
+    valueNone: 'Keine Daten',
+    summaryData: 'Rohwerte der Device Health Attestation',
+    summaryNone: 'Graph liefert keine Attestierungsdaten',
+    facts: {
+      secureBoot: 'Secure Boot',
+      bitLockerStatus: 'BitLocker-Status',
+      codeIntegrity: 'Code Integrity',
+      elam: 'Early Launch Antimalware (ELAM)',
+      bootDebugging: 'Boot-Debugging',
+      testSigning: 'Test Signing',
+      tpmVersion: 'TPM-Version',
+      lastUpdate: 'Letzte Aktualisierung (Rohwert)',
+      issued: 'Ausgestellt',
+      supported: 'DHA-Unterstützung',
+      mismatch: 'Integritätsabweichung',
+      note: 'Hinweis',
+      noteValue: 'Rohwerte laut Graph – Microsoft dokumentiert dafür keine Bedeutung',
+    },
+    mismatchTitle: 'Integritätsabweichung gemeldet',
+    mismatchDetail: (value: string) =>
+      `Der DHA-Dienst meldet healthStatusMismatchInfo: „${value}“.`,
+    mismatchCause:
+      'Laut Ressourcenbeschreibung erscheint dieses Attribut, wenn der DHA-Dienst ein Integritätsproblem erkennt. Welches Problem gemeint ist, beschreibt die Dokumentation nicht – der Wert wird unverändert angezeigt.',
+    mismatchRemediation: [
+      'Die Rohwerte dieser Kachel (Secure Boot, BitLocker-Status, Code Integrity, ELAM …) mit dem tatsächlichen Gerätezustand vergleichen, z. B. mit den Kacheln „BitLocker“ und „Defender“.',
+      'Zeitpunkte der letzten Aktualisierung und Ausstellung prüfen – die Werte zeigen den Stand der letzten Auswertung.',
+      'Werte nicht ohne Dokumentation deuten – Microsoft beschreibt für die meisten Felder keine möglichen Werte.',
+    ],
+    noneTitle: 'Keine Attestierungsdaten',
+    noneDetail: 'Das Feld deviceHealthAttestationState enthält keine Werte für dieses Gerät.',
+    noneCause:
+      'Graph liefert für dieses Gerät keine Werte; Microsoft nennt dazu keine Ursache. Das Feld healthAttestationSupportedStatus zeigt laut Ressourcenbeschreibung, ob DHA für das Gerät unterstützt wird.',
+    noneRemediation: ['Prüfen, ob das Gerät kürzlich eingecheckt hat (Kachel „Letzter Check-in“).'],
+  },
+  /** M10: Kachel „Gruppen“ (Entra-Gruppen des Geräts, informativ) */
+  groups: {
+    value: (n: number) => (n === 1 ? '1 Gruppe' : `${n} Gruppen`),
+    valueNone: 'Keine Gruppen',
+    summary: 'Mitgliedschaften des Geräts in Entra (direkt und verschachtelt)',
+    facts: {
+      count: 'Gruppen des Geräts',
+      hidden: 'Ausgeblendet (keine Berechtigung)',
+      more: 'Weitere Gruppen',
+      moreValue: 'nicht gelesen (nur die ersten Seiten)',
+      scope: 'Nicht enthalten',
+      scopeValue: 'Gruppen des Benutzers (anderer Scope nötig)',
+    },
+    maxListed: 30,
+    moreListed: (n: number) => `${n} weitere`,
+    hiddenTitle: 'Einige Gruppennamen sind ausgeblendet',
+    hiddenDetail: (n: number) =>
+      `${n === 1 ? 'Bei 1 Gruppe' : `Bei ${n} Gruppen`} liefert Graph nur Typ und ID, keinen Namen.`,
+    hiddenCause:
+      'Hat die App keine Leseberechtigung auf einen Objekttyp, liefert Graph Mitglieder laut Microsoft nur mit @odata.type und id zurück.',
+    hiddenRemediation: [
+      'Das ist nur ein Hinweis, kein Fehler – die Anzahl der Gruppen stimmt, nur die Namen fehlen.',
+    ],
+  },
+  /** M10: Kachel „Autopilot“ (Windows Autopilot, v1.0) */
+  autopilot: {
+    valueRegistered: 'Registriert',
+    valueFailed: 'Fehlgeschlagen',
+    valueNotRegistered: 'Nicht registriert',
+    summaryRegistered: (groupTag: string | null) =>
+      groupTag
+        ? `Autopilot-Eintrag mit Group Tag „${groupTag}“`
+        : 'Autopilot-Eintrag ohne Group Tag',
+    summaryNotRegistered: 'Gerät steht nicht in der Autopilot-Geräteliste',
+    facts: {
+      groupTag: 'Group Tag',
+      groupTagNone: 'keiner',
+      enrollmentState: 'Registrierungsstatus',
+      lastContacted: 'Zuletzt kontaktiert',
+      hardware: 'Hardware',
+      matchedBy: 'Zuordnung',
+      matchedByManagedDeviceId: 'über Intune-Geräte-ID',
+      matchedBySerialNumber: 'über Seriennummer',
+      profile: 'Bereitstellungsprofil',
+      profileUnavailable: 'über dokumentierte API (v1.0) nicht verfügbar',
+    },
+    /** Übersetzung der Enum-Werte von enrollmentState (v1.0) */
+    states: {
+      unknown: 'unbekannt',
+      enrolled: 'registriert',
+      pendingReset: 'Zurücksetzen ausstehend',
+      failed: 'fehlgeschlagen',
+      notContacted: 'noch nicht kontaktiert',
+    } as Record<string, string>,
+    failedTitle: 'Autopilot-Registrierung fehlgeschlagen',
+    failedDetail: 'Der Autopilot-Eintrag des Geräts meldet enrollmentState = failed.',
+    failedCause:
+      'Autopilot meldet für dieses Gerät eine fehlgeschlagene Registrierung. Die Dokumentation beschreibt die Ursache nicht näher; der Wert sagt nur, dass sie nicht abgeschlossen wurde.',
+    failedRemediation: [
+      'Den Eintrag des Geräts in der Autopilot-Geräteliste im Intune Admin Center öffnen und den Status prüfen (Zuordnung des Bereitstellungsprofils, Group Tag).',
+      'Letzten Check-in und Compliance des Geräts in den Kacheln „Letzter Check-in“ und „Compliance“ ansehen.',
+      'Den Bereitstellungsstatus nicht aus dieser Kachel ableiten: Das Bereitstellungsprofil ist über die dokumentierte v1.0-API nicht lesbar.',
+    ],
+    notRegisteredTitle: 'Nicht in Autopilot registriert',
+    notRegisteredDetail:
+      'Die Autopilot-Geräteliste wurde vollständig gelesen; weder die Intune-Geräte-ID noch die Seriennummer des Geräts kommen darin vor.',
+    notRegisteredCause:
+      'Nicht jedes Windows-Gerät wird über Autopilot bereitgestellt (z. B. manuell oder per Imaging registriert) – das ist kein Fehler.',
+    notRegisteredRemediation: [
+      'Nur falls das Gerät über Autopilot bereitgestellt werden sollte: Seriennummer und Hardware-Hash im Intune Admin Center in der Autopilot-Geräteliste prüfen.',
+    ],
+  },
+  /** M10: Kachel „Lokaler Administrator (LAPS)“ (Windows LAPS, nur Metadaten) */
+  laps: {
+    valueOk: 'Kennwort gesichert',
+    valueStale: 'Sicherung veraltet',
+    valueNoBackup: 'Keine Sicherung',
+    valueHint: 'Rotation überfällig',
+    summaryOk: (when: string) => `Letzte Sicherung ${when}`,
+    summaryNoBackup: 'Graph meldet keinen Sicherungszeitpunkt',
+    facts: {
+      lastBackup: 'Letzte Kennwortsicherung',
+      nextRefresh: 'Nächste geplante Aktualisierung',
+      deviceName: 'Gerät laut Entra',
+      passwordNote: 'Kennwort',
+      passwordNever: 'wird nie abgerufen oder angezeigt',
+    },
+    staleTitle: 'Kennwortsicherung veraltet',
+    staleDetail: (when: string, days: number, limit: number) =>
+      `Das lokale Administrator-Kennwort wurde zuletzt ${when} in Entra gesichert (vor ${days} Tagen; Richtwert dieser App: ${limit} Tage).`,
+    staleCause:
+      'Windows LAPS rotiert und sichert das Kennwort nach dem Intervall der Richtlinie (PasswordAgeDays, Standard 30 Tage). Eine ältere Sicherung kann bedeuten, dass das Gerät die Richtlinie nicht verarbeitet, die Sicherung scheitert oder das Gerät lange offline war – oder dass die Richtlinie ein längeres Intervall vorgibt (der Richtwert ist keine Microsoft-Vorgabe).',
+    staleRemediation: [
+      'Im Intune Admin Center unter Endpoint Security › Account Protection prüfen, ob dem Gerät eine Richtlinie „Local admin password solution (Windows LAPS)“ zugewiesen ist und ob dort als Sicherungsverzeichnis Microsoft Entra ID gewählt ist.',
+      'Prüfen, ob LAPS in Entra aktiviert ist (Entra ID › Geräte › Geräteeinstellungen › „Enable Local Administrator Password Solution (LAPS)“) und das Gerät in Entra aktiviert ist – für deaktivierte Geräte rotiert und sichert Windows LAPS laut Microsoft nicht.',
+      'Auf dem Gerät in der Ereignisanzeige unter Anwendungs- und Dienstprotokolle › Microsoft › Windows › LAPS › Betriebsbereit nach den Ereignissen 10003 (Start), 10004 (erfolgreich) bzw. 10005 (fehlgeschlagen, mit Fehlercode) suchen; 10022 zeigt die wirksame Richtlinie mit Sicherung in Entra.',
+    ],
+    noBackupTitle: 'Kein Sicherungszeitpunkt gemeldet',
+    noBackupDetail:
+      'Der LAPS-Eintrag des Geräts enthält keinen Zeitpunkt der letzten Kennwortsicherung (lastBackupDateTime).',
+    noBackupCause:
+      'Für das Gerät wurde noch kein Kennwort in Entra gesichert, oder Graph liefert den Wert nicht. Laut Microsoft stehen die Daten im Intune Admin Center erst, nachdem das Gerät eingecheckt und die LAPS-Richtlinie erfolgreich verarbeitet hat.',
+    hintTitle: 'Geplante Kennwortrotation überfällig',
+    hintDetail: (when: string, days: number) =>
+      `Die nächste Aktualisierung war für ${when} geplant (seit ${days} Tagen überschritten; refreshDateTime).`,
+    hintCause:
+      'Laut Feldbeschreibung nennt refreshDateTime den Zeitpunkt, zu dem das Kennwort aktualisiert und in Entra gesichert wird. Liegt er deutlich in der Vergangenheit, hat das Gerät die Rotation nicht ausgeführt oder nicht gemeldet.',
+    hintRemediation: [
+      'Prüfen, wann das Gerät zuletzt eingecheckt hat (Kachel „Letzter Check-in“) und ob es online war.',
+      'Auf dem Gerät die LAPS-Ereignisse 10003 bis 10005 prüfen (siehe Ereignisprotokoll Windows LAPS).',
+    ],
   },
   policies: {
     valueOk: 'Alle angewendet',

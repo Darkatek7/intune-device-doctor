@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PC001_ENTRA_ID,
+  PC001_ID,
   bitlockerKey,
   malware,
   pc001Device,
   pc001Entra,
   pc001Protection,
   policyState,
+  signInDto,
 } from '../providers/graph/fakeGraph';
 import type { GraphManagedDevice, GraphWindowsProtectionState } from './dto';
 import {
@@ -13,10 +16,16 @@ import {
   mapApplePushCertificate,
   mapBitlockerKey,
   mapDetectedMalware,
+  mapAutopilot,
+  mapDeviceGroups,
   mapEntraDevice,
+  mapHealthAttestation,
+  mapLocalAdmin,
   mapManagedDevice,
   mapPolicyState,
   mapSearchResult,
+  mapSignIns,
+  mapUserDevices,
   mapVolumeType,
   mapWindowsProtection,
   splitProductStatus,
@@ -449,5 +458,300 @@ describe('mapApplePushCertificate', () => {
       expirationDateTime: null,
       lastModifiedDateTime: null,
     });
+  });
+});
+
+describe('mapSignIns', () => {
+  const OTHER_DEVICE = '00000000-0000-4000-9000-0000000000ff';
+  const meta = { windowDays: 7, moreAvailable: false };
+
+  it('grenzt clientseitig auf die Geräte-ID ein (Groß-/Kleinschreibung egal), neueste zuerst', () => {
+    const info = mapSignIns(
+      [
+        signInDto('alt', 30),
+        signInDto('fremd', 1, {}, OTHER_DEVICE),
+        signInDto('neu', 2, {}, PC001_ENTRA_ID.toUpperCase()),
+        signInDto('ohne', 3, { deviceDetail: null }),
+      ],
+      PC001_ENTRA_ID,
+      meta,
+    );
+    expect(info.entries.map((e) => e.id)).toEqual(['neu', 'alt']);
+    expect(info.totalForUser).toBe(4);
+    expect(info.windowDays).toBe(7);
+    expect(info.moreAvailable).toBe(false);
+    expect(mapSignIns([], PC001_ENTRA_ID, { windowDays: 7, moreAvailable: true })).toMatchObject({
+      entries: [],
+      totalForUser: 0,
+      moreAvailable: true,
+    });
+  });
+
+  it('übernimmt weder IP-Adresse noch Standort, Risikoangaben oder UPN', () => {
+    const info = mapSignIns([signInDto('a', 1)], PC001_ENTRA_ID, meta);
+    const json = JSON.stringify(info);
+    for (const forbidden of [
+      '203.0.113.7',
+      'ipAddress',
+      'location',
+      'Contoso City',
+      'riskLevel',
+      'userPrincipalName',
+      'anna.schmidt',
+    ]) {
+      expect(json, forbidden).not.toContain(forbidden);
+    }
+    expect(Object.keys(info.entries[0]!).sort()).toEqual(
+      [
+        'additionalDetails',
+        'appDisplayName',
+        'appliedPolicies',
+        'clientAppUsed',
+        'conditionalAccessStatus',
+        'correlationId',
+        'createdDateTime',
+        'deviceIsCompliant',
+        'deviceIsManaged',
+        'errorCode',
+        'failureReason',
+        'id',
+        'isInteractive',
+        'resourceDisplayName',
+      ].sort(),
+    );
+  });
+
+  it('Fehlt appliedConditionalAccessPolicies (kein Leserecht), ist appliedPolicies null – sonst gemappt', () => {
+    const hidden = signInDto('h', 1);
+    delete hidden.appliedConditionalAccessPolicies;
+    const [entryHidden] = mapSignIns([hidden], PC001_ENTRA_ID, meta).entries;
+    expect(entryHidden!.appliedPolicies).toBeNull();
+
+    const [visible] = mapSignIns([signInDto('v', 1)], PC001_ENTRA_ID, meta).entries;
+    expect(visible!.appliedPolicies).toEqual([
+      {
+        id: 'pol-1',
+        displayName: 'Contoso – Kompatibles Gerät erforderlich',
+        result: 'success',
+        enforcedGrantControls: ['Require device to be marked as compliant'],
+        enforcedSessionControls: [],
+      },
+    ]);
+  });
+
+  it('ist null-sicher und verwirft unbekannte Enum-Werte', () => {
+    const odd = signInDto('o', 1, {
+      conditionalAccessStatus: 'reportOnlyFailure' as never,
+      status: null,
+      createdDateTime: 'kein-datum',
+      appliedConditionalAccessPolicies: [
+        {
+          id: null,
+          displayName: null,
+          enforcedGrantControls: null,
+          enforcedSessionControls: null,
+          result: 'reportOnlySuccess' as never,
+        },
+      ],
+    });
+    const [entry] = mapSignIns([odd], PC001_ENTRA_ID, meta).entries;
+    expect(entry).toMatchObject({
+      conditionalAccessStatus: null,
+      errorCode: null,
+      failureReason: null,
+      createdDateTime: null,
+    });
+    expect(entry!.appliedPolicies![0]).toEqual({
+      id: null,
+      displayName: null,
+      result: null,
+      enforcedGrantControls: [],
+      enforcedSessionControls: [],
+    });
+  });
+});
+
+describe('mapLocalAdmin (Windows LAPS)', () => {
+  const info = {
+    id: PC001_ENTRA_ID,
+    deviceName: 'CONTOSO-PC001',
+    lastBackupDateTime: '2026-10-12T08:00:00Z',
+    refreshDateTime: '2026-11-11T08:00:00Z',
+  };
+
+  it('übernimmt nur Gerätename und Zeitpunkte', () => {
+    expect(mapLocalAdmin(info)).toEqual({
+      deviceName: 'CONTOSO-PC001',
+      lastBackupDateTime: '2026-10-12T08:00:00Z',
+      refreshDateTime: '2026-11-11T08:00:00Z',
+    });
+  });
+
+  it('akzeptiert die Form unter "value" (Doku-Beispiel) wie die direkte Form', () => {
+    expect(mapLocalAdmin({ value: info })).toEqual(mapLocalAdmin(info));
+  });
+
+  it('gibt ein Kennwort aus credentials nie weiter', () => {
+    const leaked = {
+      ...info,
+      credentials: [{ accountName: 'Administrator', passwordBase64: 'U2VjcmV0' }],
+    };
+    expect(JSON.stringify(mapLocalAdmin(leaked as never))).not.toMatch(
+      /credentials|U2VjcmV0|Secret/i,
+    );
+    expect(Object.keys(mapLocalAdmin(leaked as never)).sort()).toEqual([
+      'deviceName',
+      'lastBackupDateTime',
+      'refreshDateTime',
+    ]);
+  });
+
+  it('macht aus leeren Antworten, ungültigen Daten und 0001-01-01 null', () => {
+    const empty = { deviceName: null, lastBackupDateTime: null, refreshDateTime: null };
+    expect(mapLocalAdmin(null)).toEqual(empty);
+    expect(mapLocalAdmin(undefined)).toEqual(empty);
+    expect(
+      mapLocalAdmin({ lastBackupDateTime: 'kaputt', refreshDateTime: '0001-01-01T00:00:00Z' }),
+    ).toEqual(empty);
+  });
+});
+
+describe('mapAutopilot', () => {
+  const device = { id: 'dev-1', serialNumber: 'SN-123' };
+  const entry = (overrides: Record<string, unknown> = {}) =>
+    ({
+      id: 'ap',
+      groupTag: ' Contoso-Standard ',
+      serialNumber: 'sn-123',
+      managedDeviceId: 'DEV-1',
+      enrollmentState: 'enrolled',
+      lastContactedDateTime: '2026-10-13T08:00:00Z',
+      manufacturer: 'Microsoft Corporation',
+      model: 'Surface Laptop 6',
+      productKey: 'AAAAA-BBBBB-CCCCC-DDDDD-EEEEE',
+      userPrincipalName: 'anna.schmidt@contoso.com',
+      ...overrides,
+    }) as never;
+
+  it('ordnet zuerst über managedDeviceId zu (Groß-/Kleinschreibung egal)', () => {
+    const info = mapAutopilot([entry()], device);
+    expect(info).toMatchObject({
+      groupTag: 'Contoso-Standard',
+      enrollmentState: 'enrolled',
+      matchedBy: 'managedDeviceId',
+    });
+  });
+
+  it('fällt auf die Seriennummer zurück, wenn managedDeviceId fehlt oder die Null-GUID ist', () => {
+    const zero = '00000000-0000-0000-0000-000000000000';
+    expect(mapAutopilot([entry({ managedDeviceId: zero })], device)?.matchedBy).toBe(
+      'serialNumber',
+    );
+    expect(mapAutopilot([entry({ managedDeviceId: null })], device)?.matchedBy).toBe(
+      'serialNumber',
+    );
+  });
+
+  it('kein Treffer → null; ohne Seriennummer wird nicht über sie zugeordnet', () => {
+    expect(mapAutopilot([entry({ managedDeviceId: 'x', serialNumber: 'x' })], device)).toBeNull();
+    expect(
+      mapAutopilot([entry({ managedDeviceId: 'x', serialNumber: '' })], {
+        id: 'dev-1',
+        serialNumber: '',
+      }),
+    ).toBeNull();
+  });
+
+  it('übernimmt weder Seriennummer noch Produktschlüssel noch Benutzer; unbekannte Status → null', () => {
+    const info = mapAutopilot([entry({ enrollmentState: 'blocked' })], device)!;
+    expect(info.enrollmentState).toBeNull();
+    expect(JSON.stringify(info)).not.toMatch(/AAAAA|anna\.schmidt|SN-123|productKey|serialNumber/i);
+  });
+});
+
+describe('mapDeviceGroups', () => {
+  const group = (id: string, displayName?: string | null) => ({
+    '@odata.type': '#microsoft.graph.group',
+    id,
+    displayName,
+  });
+
+  it('zeigt nur Gruppen mit Namen (sortiert), zählt Gruppen ohne Namen als ausgeblendet', () => {
+    const info = mapDeviceGroups(
+      [group('2', 'Zebra'), group('1', 'Alpha'), group('3'), group('4', null)],
+      false,
+    );
+    expect(info.groups).toEqual([
+      { id: '1', displayName: 'Alpha' },
+      { id: '2', displayName: 'Zebra' },
+    ]);
+    expect(info.hiddenCount).toBe(2);
+    expect(info.truncated).toBe(false);
+  });
+
+  it('ignoriert andere Objekttypen (z. B. Verwaltungseinheiten) und Einträge ohne Typ', () => {
+    const info = mapDeviceGroups(
+      [
+        { '@odata.type': '#microsoft.graph.administrativeUnit', id: 'au', displayName: 'Berlin' },
+        { id: 'x', displayName: 'ohne Typ' },
+        group('1', 'Alpha'),
+      ],
+      true,
+    );
+    expect(info.groups.map((g) => g.displayName)).toEqual(['Alpha']);
+    expect(info.hiddenCount).toBe(0);
+    expect(info.truncated).toBe(true);
+  });
+});
+
+describe('mapUserDevices', () => {
+  const entry = (id: string, deviceName: string) =>
+    ({ id, deviceName, operatingSystem: 'iOS', complianceState: 'compliant' }) as never;
+
+  it('blendet das aktuelle Gerät aus (Groß-/Kleinschreibung egal) und sortiert nach Name', () => {
+    const result = mapUserDevices(
+      [entry('B', 'CONTOSO-PC014'), entry('a', 'CONTOSO-PC001'), entry('C', 'CONTOSO-IP015')],
+      'A',
+    );
+    expect(result.map((d) => d.deviceName)).toEqual(['CONTOSO-IP015', 'CONTOSO-PC014']);
+    expect(result[0]).toMatchObject({ operatingSystem: 'iOS', complianceState: 'compliant' });
+  });
+});
+
+describe('mapHealthAttestation', () => {
+  it('übernimmt die dokumentierten String-Felder unverändert (getrimmt, leer → null)', () => {
+    const info = mapHealthAttestation({
+      id: PC001_ID,
+      deviceHealthAttestationState: {
+        lastUpdateDateTime: ' 2026-10-14T06:00:00Z ',
+        secureBoot: 'enabled',
+        bitLockerStatus: '',
+        tpmVersion: '2.0',
+        healthStatusMismatchInfo: '   ',
+      },
+    });
+    expect(info.lastUpdateDateTime).toBe('2026-10-14T06:00:00Z');
+    expect(info.secureBoot).toBe('enabled');
+    expect(info.bitLockerStatus).toBeNull();
+    expect(info.tpmVersion).toBe('2.0');
+    expect(info.healthStatusMismatchInfo).toBeNull();
+    expect(info.codeIntegrity).toBeNull();
+  });
+
+  it('fehlender Block oder null → alle Felder null, nie ein Fehler', () => {
+    for (const dto of [undefined, null, { id: 'x' }, { deviceHealthAttestationState: null }]) {
+      expect(Object.values(mapHealthAttestation(dto)).every((v) => v === null)).toBe(true);
+    }
+  });
+
+  it('übernimmt weder virtualSecureMode noch andere nicht modellierte Felder', () => {
+    const info = mapHealthAttestation({
+      deviceHealthAttestationState: {
+        virtualSecureMode: 'enabled',
+        pcr0: 'abc',
+      } as never,
+    });
+    expect(info).not.toHaveProperty('virtualSecureMode');
+    expect(info).not.toHaveProperty('pcr0');
   });
 });

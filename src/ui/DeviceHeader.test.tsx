@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { ManagedDeviceInfo } from '../domain/types';
+import type { DeviceSearchResult, ManagedDeviceInfo } from '../domain/types';
 import { de } from '../i18n/de';
 import { IntunePortal } from '../links/intunePortal';
 import { DeviceHeader } from './DeviceHeader';
@@ -82,5 +82,65 @@ describe('DeviceHeader', () => {
   it('zeigt ohne Gerät keine Portal-Links', () => {
     render(<DeviceHeader device={null} summary={null} totalTiles={0} />);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+});
+
+describe('DeviceHeader – weitere Geräte', () => {
+  const other = (
+    n: number,
+    os = 'iOS',
+    complianceState: DeviceSearchResult['complianceState'] = 'compliant',
+  ) =>
+    ({
+      id: `other-${n}`,
+      deviceName: `CONTOSO-IP0${n}`,
+      userPrincipalName: null,
+      userDisplayName: null,
+      operatingSystem: os,
+      osVersion: null,
+      model: null,
+      complianceState,
+      lastSyncDateTime: null,
+    }) satisfies DeviceSearchResult;
+  const named = { ...device, userDisplayName: 'Jonas Weber' };
+
+  it('zeigt höchstens fünf Geräte mit Compliance im Namen und öffnet sie per Klick', async () => {
+    const user = userEvent.setup();
+    const calls: string[] = [];
+    render(
+      <DeviceHeader
+        device={named}
+        summary={null}
+        totalTiles={9}
+        otherDevices={[1, 2, 3, 4, 5, 6, 7].map((n) => other(n))}
+        onOpenDevice={(d) => calls.push(d.id)}
+      />,
+    );
+    const nav = screen.getByRole('navigation', { name: de.header.otherDevicesLabel });
+    expect(nav).toHaveTextContent(de.header.otherDevices('Jonas Weber'));
+    const buttons = within(nav).getAllByRole('button');
+    expect(buttons).toHaveLength(5);
+    expect(buttons[0]).toHaveAccessibleName(de.header.openOtherDevice('CONTOSO-IP01', 'Konform'));
+    await user.click(buttons[1]!);
+    expect(calls).toEqual(['other-2']);
+  });
+
+  it('entfällt still ohne weitere Geräte, ohne Handler oder ohne Daten', () => {
+    const { rerender } = render(
+      <DeviceHeader
+        device={named}
+        summary={null}
+        totalTiles={9}
+        otherDevices={[]}
+        onOpenDevice={() => {}}
+      />,
+    );
+    expect(screen.queryByTestId('other-devices')).toBeNull();
+    rerender(
+      <DeviceHeader device={named} summary={null} totalTiles={9} otherDevices={[other(1)]} />,
+    );
+    expect(screen.queryByTestId('other-devices')).toBeNull();
+    rerender(<DeviceHeader device={named} summary={null} totalTiles={9} onOpenDevice={() => {}} />);
+    expect(screen.queryByTestId('other-devices')).toBeNull();
   });
 });

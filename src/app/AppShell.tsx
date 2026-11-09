@@ -237,6 +237,7 @@ function Shell({ account, extraChips }: Props) {
         onRetryDevice={() => setRetryKey((k) => k + 1)}
         onToneChange={setDeviceTone}
         onDeviceLoaded={recentDevices.remember}
+        onOpenDevice={openDevice}
         {...(zipReport && mergedDeviceId === url.device
           ? { diagnostics: zipReport, onRemoveDiagnostics: removeMergedZip }
           : {})}

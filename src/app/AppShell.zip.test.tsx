@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildFixtureZip, FIXTURE_FILE_NAME } from '../diagnostics/fixture';
 import { de } from '../i18n/de';
+import { WINDOWS_TILE_COUNT } from '../test/fixtures';
 import { renderApp } from '../test/renderApp';
 
 const fixtureFile = (): File =>
@@ -69,14 +70,14 @@ describe('ZIP-Analyse in der App', () => {
     });
     await user.click(within(offer).getByRole('button', { name: de.zipView.merge.action }));
 
-    await waitFor(() => expect(tileButtons()).toHaveLength(14));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT + 6));
     expect(window.location.search).toMatch(/device=.+&mode=demo/);
     expect(screen.getByRole('heading', { level: 1, name: 'CONTOSO-PC042' })).toBeInTheDocument();
     expect(screen.getByText(de.zipView.chip.label)).toBeInTheDocument();
 
     // Entfernen: nur noch die 7 Standard-Kacheln, kein Chip.
     await user.click(screen.getByRole('button', { name: de.zipView.chip.remove }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     expect(screen.queryByText(de.zipView.chip.label)).not.toBeInTheDocument();
   });
 
@@ -84,14 +85,14 @@ describe('ZIP-Analyse in der App', () => {
     const user = userEvent.setup();
     await openExampleZip(user);
     await user.click(await screen.findByRole('button', { name: de.zipView.merge.action }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(14));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT + 6));
 
     const input = screen.getByRole('combobox', { name: de.field.label });
     await user.clear(input);
     await user.type(input, 'CONTOSO-PC001{Enter}');
 
     await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC001' });
-    await waitFor(() => expect(tileButtons()).toHaveLength(8));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT));
     expect(screen.queryByText(de.zipView.chip.label)).not.toBeInTheDocument();
   });
 
@@ -195,7 +196,7 @@ describe('Ticket-Notiz mit ZIP-Befunden', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await openExampleZip(user);
     await user.click(await screen.findByRole('button', { name: de.zipView.merge.action }));
-    await waitFor(() => expect(tileButtons()).toHaveLength(14));
+    await waitFor(() => expect(tileButtons()).toHaveLength(WINDOWS_TILE_COUNT + 6));
 
     const button = screen.getByRole('button', { name: de.ticket.button });
     await waitFor(() => expect(button).toBeEnabled());

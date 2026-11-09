@@ -55,8 +55,10 @@ Recherche gegen Microsoft Learn am 2026-11-09 (Ergebnisse unten, je mit URL). Vo
 
 ## Akzeptanz
 
-- [ ] `docs/graph-api-reference.md`, README (Scopes, Rollen, Lizenz, Grenzen) und `docs/live-verification.md` (falls vorhanden, sonst Abschnitt in der Referenz) ergänzt
-- [ ] Read-only-Test grün; Test „LAPS-Endpunkt fordert nie `credentials` an“
-- [ ] Jede neue Section unabhängig: 403/404/Fehler bricht nichts anderes
-- [ ] Demo-Szenarien zeigen jede neue Kachel mindestens einmal mit Befund
-- [ ] `npm run check` und `npm run test:e2e` grün
+- [x] `docs/graph-api-reference.md`, README (Scopes, Rollen, Lizenz, Grenzen) und `docs/live-verification.md` (falls vorhanden, sonst Abschnitt in der Referenz) ergänzt
+- [x] Read-only-Test grün; Test „LAPS-Endpunkt fordert nie `credentials` an“
+- [x] Jede neue Section unabhängig: 403/404/Fehler bricht nichts anderes
+- [x] Demo-Szenarien zeigen jede neue Kachel mindestens einmal mit Befund
+- [x] `npm run check` und `npm run test:e2e` grün
+
+> Umsetzungsstand: S1–S6 umgesetzt. Abweichung S6: eigene Kachel „Integritätsnachweis“ (statt Evidenz in „BitLocker“/„Gerätestatus“), damit die Section unabhängig ausfallen kann. Live-Verifikation gegen einen echten Tenant steht noch aus – Checkliste in `docs/graph-api-reference.md` („Live zu verifizieren (M10)“).

@@ -91,6 +91,39 @@ export const Docs = {
   windows10EndOfSupport: 'https://learn.microsoft.com/windows/release-health/release-information',
   windows11Releases:
     'https://learn.microsoft.com/windows/release-health/windows11-release-information',
+  // M10: Anmeldungen / Conditional Access
+  signInResource: 'https://learn.microsoft.com/graph/api/resources/signin?view=graph-rest-1.0',
+  signInDeviceDetail:
+    'https://learn.microsoft.com/graph/api/resources/devicedetail?view=graph-rest-1.0',
+  signInList: 'https://learn.microsoft.com/graph/api/signin-list?view=graph-rest-1.0',
+  conditionalAccessTroubleshoot:
+    'https://learn.microsoft.com/entra/identity/conditional-access/troubleshoot-conditional-access#microsoft-entra-sign-in-events',
+  entraErrorCodes:
+    'https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes',
+  // M10: Windows LAPS
+  lapsGet:
+    'https://learn.microsoft.com/graph/api/devicelocalcredentialinfo-get?view=graph-rest-1.0',
+  lapsResource:
+    'https://learn.microsoft.com/graph/api/resources/devicelocalcredentialinfo?view=graph-rest-1.0',
+  lapsIntuneOverview: 'https://learn.microsoft.com/intune/device-security/laps/overview',
+  lapsIntuneDeploy: 'https://learn.microsoft.com/intune/device-security/laps/deploy-policy',
+  lapsEntraEnable:
+    'https://learn.microsoft.com/entra/identity/devices/howto-manage-local-admin-passwords',
+  lapsPolicySettings:
+    'https://learn.microsoft.com/windows-server/identity/laps/laps-management-policy-settings',
+  lapsEventLog:
+    'https://learn.microsoft.com/windows-server/identity/laps/laps-management-event-log',
+  // M10: Windows Autopilot
+  autopilotList:
+    'https://learn.microsoft.com/graph/api/intune-enrollment-windowsautopilotdeviceidentity-list?view=graph-rest-1.0',
+  autopilotResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-enrollment-windowsautopilotdeviceidentity?view=graph-rest-1.0',
+  // M10: Gruppen des Geräts
+  deviceTransitiveMemberOf:
+    'https://learn.microsoft.com/graph/api/device-list-transitivememberof?view=graph-rest-1.0',
+  // M10: Integritätsnachweis
+  healthAttestationResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-devices-devicehealthattestationstate?view=graph-rest-1.0',
   graphPermissions: 'https://learn.microsoft.com/graph/permissions-reference',
   graphThrottling: 'https://learn.microsoft.com/graph/throttling',
   graphErrors: 'https://learn.microsoft.com/graph/errors',

@@ -3,13 +3,19 @@
  * der MockProvider ergänzt Quelle/Zeitstempel und verpackt alles in SectionResult.
  */
 import type {
+  DeviceSearchResult,
+  DeviceGroupsInfo,
+  AutopilotInfo,
   AppError,
   ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
   EntraDeviceInfo,
+  HealthAttestationInfo,
+  LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
 
@@ -34,6 +40,18 @@ export interface MockDeviceFixture {
   appInstallStates?: MockSection<AppInstallStateInfo[]>;
   /** Optional – ohne Angabe: Apple-Geräte ok (läuft in ~200 Tagen ab), andere notApplicable. */
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
+  /** Optional – ohne Angabe: Geräte mit Benutzer ok (zwei erfolgreiche Anmeldungen), sonst notApplicable. */
+  signIns?: MockSection<SignInsInfo>;
+  /** Optional – ohne Angabe: Windows ok (Sicherung vor wenigen Tagen), sonst notApplicable. */
+  localAdmin?: MockSection<LocalAdminInfo>;
+  /** Optional – ohne Angabe: Windows ok (registriert, Group Tag „Contoso-Standard“), sonst notApplicable. data null = nicht registriert. */
+  autopilot?: MockSection<AutopilotInfo | null>;
+  /** Optional – ohne Angabe: drei Standardgruppen (ok). */
+  deviceGroups?: MockSection<DeviceGroupsInfo>;
+  /** Optional – ohne Angabe: andere Szenarien mit demselben Benutzer (UPN), ohne das Gerät selbst. */
+  userDevices?: MockSection<DeviceSearchResult[]>;
+  /** Optional – ohne Angabe: Windows ok (unauffällige Rohwerte), sonst notApplicable. */
+  healthAttestation?: MockSection<HealthAttestationInfo>;
 }
 
 export interface MockScenario {

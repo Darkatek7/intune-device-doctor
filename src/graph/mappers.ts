@@ -3,6 +3,11 @@
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
 import type {
+  AppliedPolicyInfo,
+  AutopilotInfo,
+  DeviceGroupsInfo,
+  HealthAttestationInfo,
+  LocalAdminInfo,
   ApplePushCertificateInfo,
   AppInfo,
   AppInstallStateInfo,
@@ -14,15 +19,25 @@ import type {
   EntraDeviceInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
+  SignInEntry,
+  SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
+  AppliedConditionalAccessPolicyResult,
+  AutopilotEnrollmentState,
   ComplianceState,
   ComplianceStatus,
+  ConditionalAccessStatus,
   DeviceEnrollmentType,
+  GraphAppliedConditionalAccessPolicy,
   GraphApplePushNotificationCertificate,
+  GraphDirectoryObject,
+  GraphManagedDeviceHealthAttestation,
+  GraphWindowsAutopilotDeviceIdentity,
   GraphBitlockerRecoveryKey,
+  GraphDeviceLocalCredentialInfo,
   GraphDevicePolicyState,
   GraphEntraDevice,
   GraphManagedDevice,
@@ -31,6 +46,7 @@ import type {
   MobileAppIntent,
   ResultantAppState,
   GraphPolicySettingState,
+  GraphSignIn,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
   ManagedDevicePartnerReportedHealthState,
@@ -486,5 +502,209 @@ export function mapApplePushCertificate(
   return {
     expirationDateTime: validDate(cert.expirationDateTime),
     lastModifiedDateTime: validDate(cert.lastModifiedDateTime),
+  };
+}
+
+// ---------- Anmeldeprotokoll ----------
+
+const CA_STATUSES: readonly ConditionalAccessStatus[] = [
+  'success',
+  'failure',
+  'notApplied',
+  'unknownFutureValue',
+];
+
+const CA_POLICY_RESULTS: readonly AppliedConditionalAccessPolicyResult[] = [
+  'success',
+  'failure',
+  'notApplied',
+  'notEnabled',
+  'unknown',
+  'unknownFutureValue',
+];
+
+const strings = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+
+function mapAppliedPolicy(dto: GraphAppliedConditionalAccessPolicy): AppliedPolicyInfo {
+  return {
+    id: str(dto?.id),
+    displayName: str(dto?.displayName),
+    result: pickOrNull(dto?.result, CA_POLICY_RESULTS),
+    enforcedGrantControls: strings(dto?.enforcedGrantControls),
+    enforcedSessionControls: strings(dto?.enforcedSessionControls),
+  };
+}
+
+function mapSignInEntry(dto: GraphSignIn): SignInEntry {
+  return {
+    id: dto.id,
+    createdDateTime: validDate(dto.createdDateTime),
+    appDisplayName: str(dto.appDisplayName),
+    resourceDisplayName: str(dto.resourceDisplayName),
+    clientAppUsed: str(dto.clientAppUsed),
+    isInteractive: bool(dto.isInteractive),
+    correlationId: str(dto.correlationId),
+    conditionalAccessStatus: pickOrNull(dto.conditionalAccessStatus, CA_STATUSES),
+    errorCode: num(dto.status?.errorCode),
+    failureReason: str(dto.status?.failureReason),
+    additionalDetails: str(dto.status?.additionalDetails),
+    deviceIsCompliant: bool(dto.deviceDetail?.isCompliant),
+    deviceIsManaged: bool(dto.deviceDetail?.isManaged),
+    // Fehlt das Feld, darf das Konto Conditional-Access-Daten nicht lesen (kein 403!).
+    appliedPolicies: Array.isArray(dto.appliedConditionalAccessPolicies)
+      ? dto.appliedConditionalAccessPolicies.map(mapAppliedPolicy)
+      : null,
+  };
+}
+
+/**
+ * Die Abfrage filtert nur auf Benutzer und Zeitraum (deviceDetail/deviceId ist laut Doku nicht
+ * filterbar) – hier wird clientseitig auf die Entra-Geräte-ID des Geräts eingegrenzt (ohne
+ * Beachtung der Groß-/Kleinschreibung), neueste zuerst. IP-Adresse, Standort und Risikoangaben
+ * der Antwort werden nie übernommen.
+ */
+export function mapSignIns(
+  entries: GraphSignIn[],
+  azureAdDeviceId: string,
+  meta: { windowDays: number; moreAvailable: boolean },
+): SignInsInfo {
+  const wanted = azureAdDeviceId.trim().toLowerCase();
+  const forDevice = entries
+    .filter((entry) => str(entry?.deviceDetail?.deviceId)?.trim().toLowerCase() === wanted)
+    .map(mapSignInEntry)
+    .sort((a, b) => Date.parse(b.createdDateTime ?? '') - Date.parse(a.createdDateTime ?? '') || 0);
+  return {
+    windowDays: meta.windowDays,
+    totalForUser: entries.length,
+    moreAvailable: meta.moreAvailable,
+    entries: forDevice,
+  };
+}
+
+// ---------- Windows LAPS ----------
+
+/**
+ * Nur Metadaten. Die Antwort kann laut Doku-Beispiel direkt oder unter `value` liegen – beide Formen
+ * werden akzeptiert. Eine Eigenschaft `credentials` wird nie gelesen oder weitergereicht.
+ */
+export function mapLocalAdmin(
+  dto:
+    | Partial<GraphDeviceLocalCredentialInfo>
+    | { value?: Partial<GraphDeviceLocalCredentialInfo> | null }
+    | null
+    | undefined,
+): LocalAdminInfo {
+  const raw = dto && typeof dto === 'object' && 'value' in dto && dto.value ? dto.value : dto;
+  const info = (
+    raw && typeof raw === 'object' ? raw : {}
+  ) as Partial<GraphDeviceLocalCredentialInfo>;
+  return {
+    deviceName: str(info.deviceName),
+    lastBackupDateTime: validDate(info.lastBackupDateTime),
+    refreshDateTime: validDate(info.refreshDateTime),
+  };
+}
+
+// ---------- Windows Autopilot ----------
+
+const AUTOPILOT_STATES: readonly AutopilotEnrollmentState[] = [
+  'unknown',
+  'enrolled',
+  'pendingReset',
+  'failed',
+  'notContacted',
+];
+
+/**
+ * Sucht das Gerät in einer Seite der Autopilot-Liste: zuerst über managedDeviceId (= Intune-Geräte-ID),
+ * sonst über die Seriennummer (ohne Beachtung der Groß-/Kleinschreibung). Kein Treffer → null.
+ * Seriennummer, Benutzer und Produktschlüssel werden nie übernommen.
+ */
+export function mapAutopilot(
+  entries: GraphWindowsAutopilotDeviceIdentity[],
+  device: { id: string; serialNumber: string | null },
+): AutopilotInfo | null {
+  const id = device.id.trim().toLowerCase();
+  const serial = device.serialNumber?.trim().toLowerCase() || null;
+  const byManaged = entries.find((e) => usableId(e?.managedDeviceId)?.toLowerCase() === id);
+  const bySerial =
+    serial === null
+      ? undefined
+      : entries.find((e) => str(e?.serialNumber)?.trim().toLowerCase() === serial);
+  const hit = byManaged ?? bySerial;
+  if (!hit) return null;
+  return {
+    groupTag: str(hit.groupTag)?.trim() || null,
+    enrollmentState: pickOrNull(hit.enrollmentState, AUTOPILOT_STATES),
+    lastContactedDateTime: validDate(hit.lastContactedDateTime),
+    manufacturer: str(hit.manufacturer),
+    model: str(hit.model),
+    matchedBy: byManaged ? 'managedDeviceId' : 'serialNumber',
+  };
+}
+
+// ---------- Gruppen des Geräts ----------
+
+/**
+ * Nur `#microsoft.graph.group` wird angezeigt (Name + ID). Gruppen ohne Namen – so kommen Objekte ohne
+ * Leserecht laut Doku zurück – zählen als „ausgeblendet“. Andere Typen (z. B. Verwaltungseinheiten)
+ * werden ignoriert. Sortiert nach Name.
+ */
+export function mapDeviceGroups(
+  objects: GraphDirectoryObject[],
+  truncated: boolean,
+): DeviceGroupsInfo {
+  const groups: DeviceGroupsInfo['groups'] = [];
+  let hiddenCount = 0;
+  for (const object of objects) {
+    if (object?.['@odata.type'] !== '#microsoft.graph.group') continue;
+    const id = str(object.id)?.trim();
+    const name = str(object.displayName)?.trim();
+    if (id && name) groups.push({ id, displayName: name });
+    else hiddenCount += 1;
+  }
+  groups.sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
+  return { groups, hiddenCount, truncated };
+}
+
+// ---------- Weitere Geräte des Benutzers ----------
+
+/** Geräte des Benutzers ohne das aktuelle Gerät, alphabetisch; nur Name, Plattform, Compliance. */
+export function mapUserDevices(
+  entries: Array<Partial<GraphManagedDevice> & { id: string }>,
+  currentDeviceId: string,
+): DeviceSearchResult[] {
+  const current = currentDeviceId.trim().toLowerCase();
+  return entries
+    .filter((entry) => typeof entry?.id === 'string' && entry.id.toLowerCase() !== current)
+    .map(mapSearchResult)
+    .sort((a, b) => a.deviceName.localeCompare(b.deviceName, 'de'));
+}
+
+// ---------- Integritätsnachweis ----------
+
+const text = (value: unknown): string | null => {
+  const v = typeof value === 'string' ? value.trim() : '';
+  return v ? v : null;
+};
+
+/** Übernimmt die dokumentierten String-Rohwerte unverändert (leer → null); virtualSecureMode u. a. nie. */
+export function mapHealthAttestation(
+  dto: GraphManagedDeviceHealthAttestation | null | undefined,
+): HealthAttestationInfo {
+  const state = dto?.deviceHealthAttestationState ?? {};
+  return {
+    lastUpdateDateTime: text(state.lastUpdateDateTime),
+    issuedDateTime: text(state.issuedDateTime),
+    secureBoot: text(state.secureBoot),
+    bitLockerStatus: text(state.bitLockerStatus),
+    codeIntegrity: text(state.codeIntegrity),
+    earlyLaunchAntiMalwareDriverProtection: text(state.earlyLaunchAntiMalwareDriverProtection),
+    bootDebugging: text(state.bootDebugging),
+    testSigning: text(state.testSigning),
+    tpmVersion: text(state.tpmVersion),
+    healthStatusMismatchInfo: text(state.healthStatusMismatchInfo),
+    healthAttestationSupportedStatus: text(state.healthAttestationSupportedStatus),
   };
 }

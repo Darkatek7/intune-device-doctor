@@ -41,7 +41,14 @@ Einige Graph-Verhalten sind in der offiziellen Dokumentation nicht belegt und ko
 
 ## 3. Neue Endpunkte aus M10
 
-_Wird mit M10 ergänzt._ Für jeden mit M10 neu aufgenommenen Endpunkt kommt hier ein Abschnitt in derselben Form: Schritt in der App, zu beobachtende Anfrage, erwartetes Ergebnis (Status, Feldstruktur), was im Code (`src/graph/endpoints.ts`, `dto.ts`, `mappers.ts`), in `docs/graph-api-reference.md` und im README anzupassen ist.
+Die offenen Fragen je Endpunkt stehen als Checkliste in `docs/graph-api-reference.md` › „Live zu verifizieren (M10)“; dort auch abhaken. Vorgehen in der App:
+
+- **Anmeldungen** (Scope `AuditLog.Read.All` per Admin-Consent erteilen; Tenant mit Entra ID P1/P2; Rolle z. B. Reports Reader): Windows-Gerät mit primärem Benutzer öffnen → `GET …/auditLogs/signIns?$filter=userId eq '…' and createdDateTime ge …&$top=200`. Erwartet 200; Einträge mit `deviceDetail.deviceId` = Entra-Geräte-ID. Bei 400: Filterkombination in `src/graph/endpoints.ts` (`signIns`) anpassen und Referenz/README nachziehen.
+- **Windows LAPS** (Scope `DeviceLocalCredential.ReadBasic.All`): Windows-Gerät mit LAPS öffnen → `GET …/directory/deviceLocalCredentials/{deviceId}?$select=id,deviceName,lastBackupDateTime,refreshDateTime`. Erwartet 200 **ohne** `credentials`. Gerät ohne LAPS: Status notieren (404/leer) und den Mapper/Text in `src/graph/mappers.ts` bzw. `de-rules.ts` daran ausrichten.
+- **Autopilot** (Scope `DeviceManagementServiceConfig.Read.All`): Autopilot-registriertes Windows-Gerät öffnen → `GET …/deviceManagement/windowsAutopilotDeviceIdentities` (+ Folgeseiten über `@odata.nextLink`). Seitengröße und ob `managedDeviceId` gefüllt ist notieren; bei großen Tenants prüfen, ob die 5-Seiten-Grenze (`MAX_LIST_PAGES`) reicht.
+- **Gruppen**: `GET …/devices(deviceId='…')/transitiveMemberOf` – erwartet 200, Gruppen mit `displayName`.
+- **Weitere Geräte**: `GET …/managedDevices?$filter=userPrincipalName eq '…'&$select=…` – erwartet 200.
+- **Integritätsnachweis**: `GET …/managedDevices/{id}?$select=deviceHealthAttestationState` – Feldstruktur und Wertebeispiele (ohne Gerätebezug) notieren.
 
 ## Abschluss
 

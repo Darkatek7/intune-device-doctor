@@ -3,6 +3,7 @@ import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
   ago,
+  autopilotInfo,
   entraDevice,
   healthyCompliancePolicies,
   healthyConfigurationPolicies,
@@ -37,6 +38,18 @@ export const lt108Win10: MockScenario = {
         }),
       },
       bitlockerKeys: { status: 'ok', data: [osVolumeKey(now, 108)] },
+      // Autopilot-Registrierung fehlgeschlagen (Group Tag „Contoso-Vertrieb“)
+      autopilot: {
+        status: 'ok',
+        data: autopilotInfo(now, {
+          groupTag: 'Contoso-Vertrieb',
+          enrollmentState: 'failed',
+          lastContactedDateTime: ago(now, { days: 31 }),
+          manufacturer: 'Dell Inc.',
+          model: 'Latitude 7420',
+          matchedBy: 'serialNumber',
+        }),
+      },
     };
   },
 };

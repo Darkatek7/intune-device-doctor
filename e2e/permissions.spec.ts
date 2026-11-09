@@ -30,6 +30,36 @@ test.describe('Fehlende Berechtigung (CONTOSO-PC050)', () => {
     await expect(dialog).toContainText('BitlockerKey.ReadBasic.All');
   });
 
+  const OPTIONAL_SCOPE_CASES = [
+    { title: 'Anmeldungen', scope: 'AuditLog.Read.All' },
+    { title: 'Lokaler Administrator (LAPS)', scope: 'DeviceLocalCredential.ReadBasic.All' },
+    { title: 'Autopilot', scope: 'DeviceManagementServiceConfig.Read.All' },
+  ] as const;
+
+  for (const { title, scope } of OPTIONAL_SCOPE_CASES) {
+    test(`Kachel „${title}“ zeigt „Fehlende Berechtigung“ mit dem optionalen Scope ${scope}`, async ({
+      page,
+    }) => {
+      await openDevice(page, 'CONTOSO-PC050');
+
+      const card = tile(page, title);
+      await expect(statusBadge(card, T.forbiddenBadge)).toBeVisible();
+
+      const dialog = await openTile(page, title);
+      await settleSheet(page);
+      await expect(dialog).toContainText(scope);
+      await expect(dialog.getByText(T.forbidden, { exact: true }).first()).toBeVisible();
+    });
+  }
+
+  test('Gruppen und Integritätsnachweis brauchen keinen optionalen Scope und bleiben nutzbar', async ({
+    page,
+  }) => {
+    await openDevice(page, 'CONTOSO-PC050');
+    await expect(statusBadge(tile(page, 'Gruppen'), T.ok)).toBeVisible();
+    await expect(statusBadge(tile(page, 'Integritätsnachweis'), T.ok)).toBeVisible();
+  });
+
   test('übrige Kacheln funktionieren normal (Defender in Ordnung, Sheet ohne Befund)', async ({
     page,
   }) => {
