@@ -3,8 +3,10 @@
  * Leerzuständen und der Geräteansicht.
  */
 import { ChevronLeft, CloudOff, FileWarning, SearchX } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { DataMode, DeviceSearchResult } from '../domain/types';
+import { useBulkCheck } from '../hooks/useBulkCheck';
 import { useDeviceSearch } from '../hooks/useDeviceSearch';
 import { useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -16,11 +18,14 @@ import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
 import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
+import { BookmarkletDialog } from '../ui/BookmarkletDialog';
+import { BulkView } from '../ui/BulkView';
 import { DropOverlay } from '../ui/DropOverlay';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorState';
 import { ExampleZipChip } from '../ui/ExampleZipChip';
 import { Landing } from '../ui/Landing';
+import { LandingTools } from '../ui/LandingTools';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
@@ -70,6 +75,12 @@ function Shell({ account, extraChips }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchedAt, setSearchedAt] = useState(() => new Date());
   const [deviceTone, setDeviceTone] = useState<AmbientTone>('accent');
+
+  // Sammelprüfung (M12/B3) und Lesezeichen (M12/B4)
+  const bulk = useBulkCheck(provider);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bookmarkletOpen, setBookmarkletOpen] = useState(false);
+  const bookmarkletButton = useRef<HTMLButtonElement>(null);
 
   // DiagLogs-ZIP: Analyse, Ansicht und optionale Zusammenführung mit einem Gerät.
   const { state: zip, analyze, reset: resetZip } = useDiagnosticsAnalysis();
@@ -149,6 +160,7 @@ function Shell({ account, extraChips }: Props) {
   const submit = useCallback(
     async (value: string) => {
       if (zip.status !== 'idle') discardZip();
+      setBulkOpen(false);
       const results = await search(value);
       setSearchedAt(new Date());
       if (results?.length === 1) openDevice(results[0]!);
@@ -156,7 +168,15 @@ function Shell({ account, extraChips }: Props) {
     [search, openDevice, zip.status, discardZip],
   );
 
+  const openBulk = () => {
+    discardZip();
+    reset();
+    setQuery('');
+    setBulkOpen(true);
+  };
+
   const goHome = () => {
+    setBulkOpen(false);
     discardZip();
     reset();
     setQuery('');
@@ -190,14 +210,18 @@ function Shell({ account, extraChips }: Props) {
   const liveWithoutProvider = !provider;
   const showDevice = Boolean(provider && url.device);
   const showZip = !showDevice && !liveWithoutProvider && zip.status !== 'idle';
-  const showPicker = !showDevice && !showZip && state.status === 'done' && state.results.length > 1;
+  const showBulk = bulkOpen && !showDevice && !showZip && !liveWithoutProvider;
+  const showPicker =
+    !showDevice && !showZip && !showBulk && state.status === 'done' && state.results.length > 1;
   const showNotFound =
-    !showDevice && !showZip && state.status === 'done' && state.results.length === 0;
-  const showSearchError = !showDevice && !showZip && state.status === 'error' && state.error;
+    !showDevice && !showZip && !showBulk && state.status === 'done' && state.results.length === 0;
+  const showSearchError =
+    !showDevice && !showZip && !showBulk && state.status === 'error' && state.error;
   const showHero =
     !liveWithoutProvider &&
     !showDevice &&
     !showZip &&
+    !showBulk &&
     !showPicker &&
     !showNotFound &&
     !showSearchError;
@@ -282,6 +306,21 @@ function Shell({ account, extraChips }: Props) {
         />
       );
     }
+  } else if (showBulk) {
+    content = (
+      <BulkView
+        state={bulk.state}
+        onStart={(names) => void bulk.start(names)}
+        onCancel={bulk.cancel}
+        onReset={bulk.reset}
+        onBack={() => setBulkOpen(false)}
+        onOpenDevice={openDevice}
+        onSearchName={(name) => {
+          setQuery(name);
+          void submit(name);
+        }}
+      />
+    );
   } else if (showPicker) {
     content = (
       <ResultPicker
@@ -323,6 +362,13 @@ function Shell({ account, extraChips }: Props) {
           </>
         }
         onFile={startAnalysis}
+        tools={
+          <LandingTools
+            ref={bookmarkletButton}
+            onOpenBulk={openBulk}
+            onOpenBookmarklet={() => setBookmarkletOpen(true)}
+          />
+        }
         recent={recentDevices.recent}
         mode={mode}
         onOpenRecent={openDevice}
@@ -365,6 +411,17 @@ function Shell({ account, extraChips }: Props) {
         </p>
         {content}
       </main>
+      <AnimatePresence>
+        {bookmarkletOpen && (
+          <BookmarkletDialog
+            key="bookmarklet-dialog"
+            onClose={() => {
+              setBookmarkletOpen(false);
+              bookmarkletButton.current?.focus();
+            }}
+          />
+        )}
+      </AnimatePresence>
       <DropOverlay visible={dragging} />
     </div>
   );

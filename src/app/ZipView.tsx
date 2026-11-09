@@ -15,6 +15,7 @@ import { correlate } from '../rules/correlate';
 import { buildTimeline } from '../rules/timeline';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { CompareZipControls } from '../ui/CompareZipControls';
 import { DetailSheet } from '../ui/DetailSheet';
 import { InsightCard } from '../ui/InsightCard';
 import { MergeOffer } from '../ui/MergeOffer';
@@ -109,6 +110,7 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
               onOpenTile={openTileById}
             />
             <TicketNoteButton getNote={getTicketNote} />
+            <CompareZipControls report={report} tiles={tiles} />
           </div>
         }
       />

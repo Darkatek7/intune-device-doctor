@@ -10,11 +10,13 @@ import { de } from '../i18n/de';
 import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
+import { buildSnapshotFile, type SnapshotFile } from '../rules/snapshotCompare';
 import { buildTicketNote } from '../rules/ticketNote';
 import { correlate } from '../rules/correlate';
 import { buildTimeline } from '../rules/timeline';
 import type { DeviceSearchResult, ManagedDeviceInfo, Tile, TileId } from '../domain/types';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { CompareControls } from '../ui/CompareControls';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
 import { deviceMeta } from '../ui/deviceMeta';
@@ -129,6 +131,17 @@ export function DeviceView({
     });
   }, [snapshot, tiles, provider.mode, insights, timeline]);
 
+  // Stand für Export/Vergleich (M12/B1): nur ausgewertete Kacheln, keine Rohdaten.
+  const getSnapshotFile = useCallback((): SnapshotFile | null => {
+    if (!snapshot || stillLoading) return null;
+    return buildSnapshotFile({
+      tiles,
+      mode: provider.mode,
+      deviceName: snapshot.device.deviceName,
+      now: new Date(),
+    });
+  }, [snapshot, stillLoading, tiles, provider.mode]);
+
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
   // „Zuletzt geöffnet“: erst merken, wenn das Gerät tatsächlich geladen wurde.
@@ -205,6 +218,11 @@ export function DeviceView({
               disabled={!snapshot || stillLoading}
             />
             <TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />
+            <CompareControls
+              getCurrent={getSnapshotFile}
+              disabled={!snapshot || stillLoading}
+              currentLabel={snapshot?.device.deviceName ?? ''}
+            />
           </div>
         }
         badges={
