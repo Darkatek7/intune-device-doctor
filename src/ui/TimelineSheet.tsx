@@ -211,20 +211,20 @@ function EventRow({
             className="text-sm font-medium tabular-nums text-secondary-label"
           >
             {TIME_FORMAT.format(date)}
-          </time>
+          </time>{' '}
           {event.planned && (
             <span className="rounded-full bg-accent/12 px-2 py-0.5 text-xs font-medium text-label">
               {t.planned}
             </span>
-          )}
+          )}{' '}
           <span className="text-xs text-secondary-label">
             {t.kind[event.kind] ?? event.kind} · {t.source[event.source]}
           </span>
-        </span>
+        </span>{' '}
         <span className="mt-0.5 block break-words text-sm font-medium text-label">
-          <span className="sr-only">{de.severity[event.severity]}: </span>
-          {event.title}
+          <span className="sr-only">{de.severity[event.severity]}:</span> {event.title}
         </span>
+        {event.detail && ' '}
         {event.detail && (
           <span className="mt-0.5 block break-words text-sm text-secondary-label">
             {event.detail}
@@ -239,11 +239,10 @@ function EventRow({
       {openable && tileTitle ? (
         <button
           type="button"
-          aria-label={t.open(event.title, tileTitle)}
           onClick={() => event.tileId && onOpen(event.tileId)}
           className={`${base} outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.985]`}
         >
-          {body}
+          {body} <span className="sr-only">{t.open(tileTitle)}</span>
         </button>
       ) : (
         <div className={base}>{body}</div>
