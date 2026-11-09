@@ -244,6 +244,7 @@ export type TileId =
   | 'entraJoin'
   | 'win32Apps'
   | 'enrollment'
+  | 'mdmEvents'
   | 'diagCollection';
 
 /** Name einer Intune-App, aufgelöst über GET /deviceAppManagement/mobileApps/{id} (bzw. Mock-Katalog). */

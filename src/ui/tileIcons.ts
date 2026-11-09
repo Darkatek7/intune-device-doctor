@@ -7,6 +7,7 @@ import {
   Laptop,
   ListChecks,
   Package,
+  ScrollText,
   Shield,
   ShieldCheck,
   UserCheck,
@@ -27,5 +28,6 @@ export const TILE_ICON: Record<TileId, LucideIcon> = {
   entraJoin: UserCheck,
   win32Apps: Package,
   enrollment: UserPlus,
+  mdmEvents: ScrollText,
   diagCollection: FileArchive,
 };

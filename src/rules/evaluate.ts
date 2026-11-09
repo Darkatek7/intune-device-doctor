@@ -29,6 +29,7 @@ export const TILE_ORDER: TileId[] = [
   'entraJoin',
   'win32Apps',
   'enrollment',
+  'mdmEvents',
   'diagCollection',
 ];
 

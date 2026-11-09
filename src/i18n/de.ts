@@ -38,6 +38,7 @@ export const de = {
     apps: 'Apps',
     enrollment: 'Enrollment',
     diagCollection: 'Diagnosedaten',
+    mdmEvents: 'MDM-Ereignisse',
   },
   severity: {
     ok: 'In Ordnung',
@@ -284,6 +285,7 @@ export const de = {
       registry: 'Registry-Exporte werden ausgewertet …',
       imeLogs: (done: number, total: number) =>
         `IME-Logs werden ausgewertet … ${done} von ${total}`,
+      eventLogs: 'Ereignisprotokolle werden ausgewertet …',
       done: 'Analyse abgeschlossen',
     },
     aborted: 'Analyse abgebrochen.',

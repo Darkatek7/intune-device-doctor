@@ -17,6 +17,7 @@ import { sortFindings, worstActionable } from '../helpers';
 import { Docs } from '../knowledge/docs';
 import { INSTALLER_EXIT_CODES } from '../knowledge/errorCodes';
 import { findPrtError } from '../knowledge/prtErrors';
+import { mdmEventsTile } from './mdmEvents';
 import { explainCode } from '../knowledge/win32';
 
 const z = de.rules.zip;
@@ -36,6 +37,7 @@ export function evaluateDiagnosticsTiles(report: DiagnosticsReport, _now: Date):
     entraJoinTile(report),
     win32AppsTile(report),
     enrollmentTile(report),
+    mdmEventsTile(report),
     collectionTile(report),
   ];
 }

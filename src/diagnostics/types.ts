@@ -83,6 +83,43 @@ export interface Win32AppState {
   errorCodeDecimal: number | null;
 }
 
+/** Ausgewertete Ereignisprotokolle (.evtx). */
+export type DiagEventLogId = 'mdmAdmin' | 'aadOperational';
+
+export interface DiagEvent {
+  recordId: number;
+  eventId: number;
+  /** 1 = Kritisch, 2 = Fehler, 3 = Warnung (Information/Ausführlich werden nicht übernommen) */
+  level: 1 | 2 | 3;
+  timeUtc: string | null;
+  provider: string | null;
+  /** EventData bzw. UserData (Name → Wert); Werte sind maskiert (UPN, GUID, Seriennummer …) und gekürzt */
+  data: Record<string, string>;
+}
+
+export interface DiagEventLog {
+  id: DiagEventLogId;
+  /** Eintragsname im ZIP (ohne Präfix/Suffix) */
+  entryName: string;
+  entryPath: string;
+  sizeBytes: number;
+  /** ok = ausgewertet; sonst Grund: zu groß, nicht lesbar oder keine gültige EVTX-Datei */
+  status: 'ok' | 'tooLarge' | 'unreadable' | 'invalid';
+  /** Zeitfenster der Auswertung (ISO, UTC) – Ende = ZIP-Zeitstempel bzw. jüngstes Ereignis */
+  windowStartUtc: string | null;
+  windowEndUtc: string | null;
+  /** Im Fenster dekodierte Ereignisse aller Stufen */
+  scanned: number;
+  counts: { critical: number; error: number; warning: number };
+  /** Kritisch/Fehler/Warnung im Fenster, aufsteigend nach RecordID (begrenzt) */
+  events: DiagEvent[];
+  /** Datei gekappt bzw. Chunks/Datensätze nicht lesbar */
+  incomplete: boolean;
+  skippedRecords: number;
+  /** Mengen- oder Zeitbegrenzung erreicht – ältere Ereignisse im Fenster fehlen */
+  capped: boolean;
+}
+
 export interface DiagnosticsReport {
   fileName: string;
   /** Aus dem Dateinamen DiagLogs-<NAME>-<Zeitstempel>.zip */
@@ -97,6 +134,8 @@ export interface DiagnosticsReport {
   win32Apps: Win32AppState[];
   /** Ausgewählte Fehler-/Warnzeilen aus IME-Logs (begrenzt) */
   imeIssues: CmTraceEntry[];
+  /** Gezielt ausgewertete Ereignisprotokolle (MDM-Admin, optional Entra/AAD Operational) */
+  eventLogs: DiagEventLog[];
   /**
    * App-Namen zu Win32-App-IDs (Schlüssel: ID in Kleinschreibung). Stammt nicht aus dem ZIP, sondern
    * wird nach der Analyse über den aktiven Provider (Graph bzw. Mock-Katalog) nachgeladen.
