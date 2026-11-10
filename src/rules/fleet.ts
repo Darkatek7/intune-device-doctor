@@ -139,7 +139,7 @@ function problemFindings(
       remediation: configuration ? [...s.configurationErrorRemediation] : [...s.errorRemediation],
       evidence: { errorDeviceCount: errors },
       source,
-      docsUrl: configuration ? Docs.policyConflicts : Docs.complianceSettingError,
+      docsUrl: configuration ? Docs.configurationProfileMonitor : Docs.complianceSettingError,
     });
   }
   if (conflicts > 0) {

@@ -344,7 +344,9 @@ function addSnapshotEvents(snapshot: DeviceSnapshot, now: Date, push: Push): voi
       kind: 'remoteAction',
       severity: action.actionState === 'failed' || pendingWipe ? 'warning' : 'ok',
       title: de.fleet.remoteActions.timelineTitle(actionLabel(action)),
-      detail: de.fleet.remoteActions.timelineDetail(stateLabel(action)),
+      detail: pendingWipe
+        ? de.fleet.remoteActions.timelineDetailPending(stateLabel(action))
+        : de.fleet.remoteActions.timelineDetail(stateLabel(action)),
       tileId: 'deviceStatus',
       source: 'intune',
     });

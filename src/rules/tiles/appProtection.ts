@@ -132,7 +132,7 @@ export function evaluateAppProtection(snapshot: DeviceSnapshot, now: Date): Tile
       id: 'appProtection-list',
       severity: 'ok',
       title: t.listTitle(registrations.length),
-      detail: t.listDetail,
+      detail: sure ? `${t.listDetail} ${t.deviceMatchNote}` : t.listDetail,
       cause: t.listCause,
       remediation: [...t.listRemediation],
       table: appProtectionTable(registrations, now),

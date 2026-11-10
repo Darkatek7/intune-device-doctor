@@ -87,8 +87,10 @@ export function PolicyChanges({ provider, policyId, title, problems }: Props) {
           <Info aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-secondary-label" />
           <span>
             {a.changedBeforeProblems(
-              hint.change.activityDateTime ? formatDateTime(hint.change.activityDateTime) : '–',
-              hint.change.activity ?? '–',
+              hint.change.activityDateTime
+                ? formatDateTime(hint.change.activityDateTime)
+                : a.noValue,
+              hint.change.activity ?? a.noValue,
               hint.devices,
             )}{' '}
             <span className="text-secondary-label">

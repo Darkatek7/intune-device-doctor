@@ -82,6 +82,8 @@ describe('App-Schutz – Kachel (M20/S3)', () => {
     expect(list.table!.columnLangs![6]).toBe('en');
     expect(list.table!.rows[0]!.cellLangs![6]).toBeNull();
     expect(list.docsUrl).toBe(Docs.appProtectionMonitor);
+    // Zuordnung über den Gerätenamen ist keine Geräte-ID – der Befund sagt das
+    expect(list.detail).toContain(t.deviceMatchNote);
   });
 
   it('rootedDevice über den Gerätenamen zugeordnet → Problem; nur über den Benutzer → Prüfen', async () => {
@@ -91,6 +93,8 @@ describe('App-Schutz – Kachel (M20/S3)', () => {
     expect(sure.value).toBe(t.valueFlagged(1));
     const finding = sure.findings.find((f) => f.id === 'appProtection-rooted-a')!;
     expect(finding.docsUrl).toBe(Docs.appProtectionConditionalLaunchAndroid);
+    expect(finding.detail).toBe(t.rootedDetail('CONTOSO-AND21', true));
+    expect(finding.detail).toContain('Gerätenamen');
     expect(sure.findings.find((f) => f.id === 'appProtection-list')!.table!.rows[0]).toMatchObject({
       highlight: true,
       cellLangs: [null, null, null, null, null, null, 'en'],
@@ -101,6 +105,9 @@ describe('App-Schutz – Kachel (M20/S3)', () => {
     expect(unsure.findings.map((f) => f.id)).toContain('appProtection-userMatch');
     expect(unsure.findings.find((f) => f.id === 'appProtection-rooted-a')!.detail).toBe(
       t.rootedDetail('CONTOSO-AND21', false),
+    );
+    expect(unsure.findings.find((f) => f.id === 'appProtection-list')!.detail).not.toContain(
+      t.deviceMatchNote,
     );
   });
 

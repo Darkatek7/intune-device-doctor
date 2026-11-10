@@ -95,7 +95,7 @@ export function remoteActionsContribution(
   if (recent.length === 0) return { findings: [], facts: [] };
 
   const findings: Finding[] = [];
-  const values: Array<{ severity: Severity; value: string }> = [];
+  const values: Array<{ severity: Severity; value: string; pendingWipe?: true }> = [];
   const base = { source: device.source };
   const when = (action: DeviceActionResultInfo) => {
     const time = actionTime(action);
@@ -141,7 +141,11 @@ export function remoteActionsContribution(
         evidence: evidence(action, index),
         docsUrl: Docs.deviceActionsTroubleshooting,
       });
-      values.push({ severity: 'warning', value: t.valueWipe });
+      values.push({
+        severity: 'warning',
+        value: t.valuePending(actionLabel(action), stateLabel(action)),
+        pendingWipe: true,
+      });
     }
   });
 
@@ -171,7 +175,11 @@ export function remoteActionsContribution(
       ...(latestTime ? { title: formatDateTime(latestTime) } : {}),
     },
   ];
-  // Zurücksetzen hat Vorrang vor „fehlgeschlagen“ als Kurzwert
-  const value = values.find((v) => v.value === t.valueWipe) ?? values[0];
-  return { findings, facts, ...(value ? { value } : {}) };
+  // Offenes Zurücksetzen/Abkoppeln hat Vorrang vor „fehlgeschlagen“ als Kurzwert
+  const picked = values.find((v) => v.pendingWipe) ?? values[0];
+  return {
+    findings,
+    facts,
+    ...(picked ? { value: { severity: picked.severity, value: picked.value } } : {}),
+  };
 }

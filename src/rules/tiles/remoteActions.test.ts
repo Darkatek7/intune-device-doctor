@@ -116,7 +116,8 @@ describe('Remote-Aktionen im Gerätestatus (M20/S4)', () => {
     const wipe = pending.findings.find((f) => f.id === 'deviceStatus-action-wipe-0')!;
     expect(wipe.severity).toBe('warning');
     expect(wipe.detail).toContain(t.wipeNameNote);
-    expect(pending.value).toBe(t.valueWipe);
+    // Kurzwert nennt Rohwert und Status, keine Deutung
+    expect(pending.value).toBe(t.valuePending('retire', t.state.pending!));
     const done = evaluateDeviceStatus(await withActions([action({ actionName: 'retire' })]), NOW);
     expect(done.findings.some((f) => f.id.startsWith('deviceStatus-action-wipe'))).toBe(false);
   });
@@ -134,6 +135,18 @@ describe('Remote-Aktionen im Gerätestatus (M20/S4)', () => {
       [t.timelineTitle('rebootNow'), 'warning'],
     ]);
     expect(events[0]!.tileId).toBe('deviceStatus');
+    expect(events[0]!.detail).toBe(t.timelineDetail(t.state.done!));
+  });
+
+  it('Zeitachse: offenes Zurücksetzen/Abkoppeln legt die Erkennung am Rohwert offen', async () => {
+    const [event] = buildTimeline({
+      snapshot: await withActions([
+        action({ actionName: 'wipe', actionState: 'pending', actionStateRaw: 'pending' }),
+      ]),
+      now: NOW,
+    }).filter((entry) => entry.kind === 'remoteAction');
+    expect(event!.severity).toBe('warning');
+    expect(event!.detail).toBe(t.timelineDetailPending(t.state.pending!));
   });
 
   it('Demo: PC027 mit fehlgeschlagener Aktion, LT108 mit ausstehendem retire', async () => {

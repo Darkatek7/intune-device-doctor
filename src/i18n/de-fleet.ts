@@ -131,7 +131,7 @@ export const deFleet = {
     topDetail: (shown: number, total: number) =>
       shown === total
         ? `${shown} ${plural(shown, 'Einstellung', 'Einstellungen')} mit nicht konformen Geräten, meiste zuerst.`
-        : `Die ${shown} Einstellungen mit den meisten nicht konformen Geräten (von ${total} mit Verstößen).`,
+        : `Die ${shown} Einstellungen mit den meisten nicht konformen Geräten (von ${total} mit Verstößen). Die Grenze von ${shown} ist ein eigener Richtwert der App.`,
     topNone: 'Keine Einstellung meldet nicht konforme Geräte.',
     topCause:
       'Einstellungen mit den meisten nicht konformen Geräten über alle Compliance-Richtlinien.',
@@ -178,7 +178,7 @@ export const deFleet = {
         ? `${shown} ${plural(shown, 'Eintrag', 'Einträge')} aus dem Intune-Überwachungsprotokoll, neueste zuerst.`
         : `Die neuesten ${shown} von ${total} Einträgen aus dem Intune-Überwachungsprotokoll.`,
     listCause:
-      'Übersicht, kein Befund. Aktivität, Kategorie und Ergebnis stammen unverändert von Microsoft. Angezeigt wird, wer die Änderung ausgelöst hat (Benutzer oder Anwendung) – IP-Adressen und Berechtigungen liest die App nie.',
+      'Übersicht, kein Befund. Das Zeitfenster ist ein eigener Richtwert der App, keine Microsoft-Vorgabe. Aktivität, Kategorie und Ergebnis stammen unverändert von Microsoft. Angezeigt wird, wer die Änderung ausgelöst hat (Benutzer oder Anwendung) – IP-Adressen und Berechtigungen liest die App nie.',
     listRemediation: [
       'Details (geänderte Eigenschaften, alte und neue Werte) im Intune Admin Center unter Mandantenverwaltung › Überwachungsprotokolle öffnen.',
     ],
@@ -210,7 +210,7 @@ export const deFleet = {
       'Das vollständige Protokoll im Intune Admin Center unter Mandantenverwaltung › Überwachungsprotokolle mit Datumsfilter ansehen.',
     ],
     facts: {
-      window: 'Zeitfenster',
+      window: 'Zeitfenster (eigener Richtwert)',
       count: 'Änderungen',
       read: 'Gelesene Einträge',
       pages: 'Gelesene Seiten',
@@ -222,7 +222,7 @@ export const deFleet = {
     policyLoading: 'Änderungsprotokoll wird geladen …',
     policyTableLabel: (policy: string) => `Änderungen an ${policy}`,
     policyMatchNote:
-      'Abgleich über die Ressourcen-ID im Überwachungsprotokoll. Es werden nur die gelesenen Seiten berücksichtigt.',
+      'Abgleich: Ressourcen-ID des Protokolleintrags (auditResource.resourceId) gleich der ID der Richtlinie. Dass beide übereinstimmen, dokumentiert Microsoft nicht ausdrücklich – fehlende Einträge heißen deshalb nicht sicher „keine Änderung“. Es werden nur die gelesenen Seiten berücksichtigt.',
     policyForbidden: (scope: string) =>
       `Änderungen nicht abrufbar: Es fehlt die Berechtigung ${scope} oder eine Intune-Rolle mit „Audit data – Read“.`,
     policyUnavailable: (reason: string) => `Änderungen nicht abrufbar: ${reason}`,
@@ -240,7 +240,7 @@ export const deFleet = {
     valueNone: 'Keine Registrierung',
     summary: (n: number, matchedByDevice: boolean) =>
       matchedByDevice
-        ? `${n} geschützte ${plural(n, 'App ist', 'Apps sind')} auf diesem Gerät registriert.`
+        ? `${n} ${plural(n, 'App-Schutz-Registrierung meldet', 'App-Schutz-Registrierungen melden')} den Namen dieses Geräts.`
         : `${n} ${plural(n, 'Registrierung', 'Registrierungen')} des Benutzers – Zuordnung zum Gerät nicht sicher.`,
     summaryNone: 'Für den primären Benutzer ist keine App-Schutz-Registrierung gemeldet.',
     columns: {
@@ -258,6 +258,9 @@ export const deFleet = {
       `${n} ${plural(n, 'App-Schutz-Registrierung', 'App-Schutz-Registrierungen')}`,
     listDetail:
       'Registrierungen der App-Schutzrichtlinien (MAM) des primären Benutzers, zuletzt synchronisierte zuerst. Bundle-ID bzw. Paketname, Versionen und Markierungen erscheinen unverändert, wie Microsoft sie meldet.',
+    /** Ergänzt listDetail, wenn die Zuordnung über den Gerätenamen gelang */
+    deviceMatchNote:
+      'Zuordnung zum Gerät über den gemeldeten Gerätenamen, nicht über eine Geräte-ID: Tragen mehrere Geräte des Benutzers denselben Namen, erscheinen auch deren Registrierungen.',
     listCause:
       'Jede App mit Intune App SDK, in der sich der Benutzer mit dem Geschäftskonto anmeldet, registriert sich beim Intune-App-Schutzdienst.',
     listRemediation: [
@@ -267,7 +270,7 @@ export const deFleet = {
     rootedDetail: (deviceName: string | null, sure: boolean) =>
       `Die Registrierung ist mit „rootedDevice“ markiert${deviceName ? ` (gemeldeter Gerätename „${deviceName}“)` : ''}.${
         sure
-          ? ''
+          ? ' Zugeordnet über den gleichen Gerätenamen – eine Geräte-ID nennt die Graph-API v1.0 an der Registrierung nicht.'
           : ' Die Zuordnung zu diesem Gerät ist nicht sicher – es kann sich um ein anderes Gerät des Benutzers handeln.'
       }`,
     rootedCause:
@@ -281,7 +284,7 @@ export const deFleet = {
     staleDetail: (relative: string, threshold: number) =>
       `Letzte Synchronisierung ${relative}. Hinweis ab ${threshold} Tagen – eigener Richtwert dieser App, keine Microsoft-Vorgabe.`,
     staleCause:
-      'Laut Microsoft meldet sich eine App bei aktiver Nutzung meist alle 30 Minuten. Bleibt die Synchronisierung aus, wird die App nicht mehr genutzt, der Benutzer ist nicht mehr angemeldet, das Gerät hat keine Verbindung – oder (Android) das Unternehmensportal fehlt bzw. ist veraltet. Richtlinienänderungen erreichen die App dann nicht.',
+      'Warum die Synchronisierung ausbleibt, zeigen die Daten nicht. Laut Microsoft prüft das Intune App SDK regelmäßig auf Richtlinienänderungen; das verzögert sich, wenn sich die App nicht beim Dienst gemeldet hat oder das Unternehmensportal vom Gerät entfernt wurde. Ist der Benutzer in der App nicht mit dem Geschäftskonto angemeldet, kommen Richtlinienänderungen nicht an.',
     staleRemediation: [
       'Mit dem Benutzer klären, ob die App auf diesem Gerät noch genutzt wird und mit dem Geschäftskonto angemeldet ist.',
       'Netzwerkverbindung prüfen; auf Android die aktuelle Version des Unternehmensportals sicherstellen.',
@@ -386,10 +389,14 @@ export const deFleet = {
       latest: 'Letzte Aktion',
     },
     valueFailed: 'Aktion fehlgeschlagen',
-    valueWipe: 'Zurücksetzen läuft',
+    /** Kurzwert der Kachel: Rohwert der Aktion und Status – bewusst ohne Deutung */
+    valuePending: (action: string, state: string) => `${action} · ${state}`,
     timelineTitle: (action: string) => `Remote-Aktion „${action}“`,
     timelineDetail: (state: string) =>
       `Status: ${state}. Ausgelöst in Intune, nicht durch MDM Doctor.`,
+    /** Zeitachse: noch offenes Zurücksetzen/Abkoppeln – Erkennung am Rohwert offenlegen */
+    timelineDetailPending: (state: string) =>
+      `Status: ${state}. Als Zurücksetzen bzw. Abkoppeln am Rohwert des Aktionsnamens erkannt (Microsoft dokumentiert keine Werteliste). Ausgelöst in Intune, nicht durch MDM Doctor.`,
   },
 
   reasons: {

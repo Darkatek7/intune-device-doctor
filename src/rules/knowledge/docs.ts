@@ -256,6 +256,9 @@ export const Docs = {
     'https://learn.microsoft.com/graph/api/intune-deviceconfig-devicecompliancepolicysettingstatesummary-list?view=graph-rest-1.0',
   configurationSummaryGet:
     'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationdevicestatesummary-get?view=graph-rest-1.0',
+  /** Profilstatus „Error: The policy failed to apply“ / „Conflict“ (abgerufen 2026-11-10) */
+  configurationProfileMonitor:
+    'https://learn.microsoft.com/intune/device-configuration/monitor-device-profile#view-details-on-a-policy',
   /** Compliance-Dashboard (Geräte › Compliance › Überwachen), Einstellungs-Compliance */
   complianceDashboard:
     'https://learn.microsoft.com/intune/device-security/compliance/monitor-policy#device-compliance-dashboard',
