@@ -1,10 +1,11 @@
 /**
  * Schmaler, ruhiger Hinweis oberhalb der Gerätekacheln (M18) – nur, wenn Microsoft aktuell einen
  * offenen Vorfall für Intune meldet. Der Titel ist Microsofts Originaltext (englisch, `lang="en"`).
- * Die Schaltfläche öffnet die Kachel „Dienststatus“ in der Ansicht „Mandant“.
+ * Die Schaltfläche öffnet die Kachel „Dienststatus“ in der Ansicht „Mandant“. „Ausblenden“ verbirgt den
+ * Hinweis für die Sitzung, bis Microsoft einen weiteren Vorfall meldet – die Kachel bleibt unverändert.
  */
 import { CloudExclamationPoint } from 'lucide-react';
-import { useServiceHealthNotice } from '../hooks/useServiceHealthNotice';
+import { useNoticeDismissal, useServiceHealthNotice } from '../hooks/useServiceHealthNotice';
 import { de } from '../i18n/de';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 
@@ -17,8 +18,9 @@ interface Props {
 
 export function ServiceHealthNotice({ provider, onOpen }: Props) {
   const incidents = useServiceHealthNotice(provider);
+  const { dismissed, dismiss } = useNoticeDismissal(incidents);
   const first = incidents[0];
-  if (!first) return null;
+  if (!first || dismissed) return null;
   return (
     <aside
       aria-label={n.label}
@@ -39,13 +41,23 @@ export function ServiceHealthNotice({ provider, onOpen }: Props) {
           {incidents.length > 1 && <> {n.more(incidents.length - 1)}</>}
         </span>
       </p>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="shrink-0 self-start rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-accent outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] sm:self-auto"
-      >
-        {n.open}
-      </button>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-accent outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+        >
+          {n.open}
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          title={n.dismissHint}
+          className="rounded-full px-3 py-1.5 text-sm font-medium text-secondary-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+        >
+          {n.dismiss}
+        </button>
+      </div>
     </aside>
   );
 }

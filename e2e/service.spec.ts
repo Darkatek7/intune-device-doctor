@@ -10,6 +10,7 @@ import {
   tile,
   tileButtons,
   test,
+  waitForTilesReady,
 } from './helpers';
 
 /**
@@ -20,6 +21,7 @@ const S = {
   noticeLabel: 'Hinweis von Microsoft',
   noticeText: 'Microsoft meldet aktuell eine Störung bei Intune:',
   noticeOpen: 'Dienststatus ansehen',
+  noticeDismiss: 'Ausblenden',
   serviceTile: 'Dienststatus',
   failuresTile: 'Registrierungsfehler',
   hint: 'Registrierungsfehler im Mandanten ansehen',
@@ -60,6 +62,25 @@ test.describe('Dienststatus und Registrierungsfehler (M18)', () => {
       'en',
     );
     await expect(dialog.getByRole('heading', { name: T.remediation }).first()).toBeVisible();
+  });
+
+  test('Hinweis lässt sich für die Sitzung ausblenden (bleibt nach Neuladen und Gerätewechsel weg)', async ({
+    page,
+  }) => {
+    await openDevice(page, 'CONTOSO-PC001');
+    const notice = page.getByRole('complementary', { name: S.noticeLabel });
+    await expect(notice).toBeVisible();
+    await notice.getByRole('button', { name: S.noticeDismiss }).click();
+    await expect(notice).toHaveCount(0);
+
+    await page.reload();
+    await waitForTilesReady(page);
+    await expect(notice).toHaveCount(0);
+    await openDevice(page, 'CONTOSO-PC014');
+    await expect(notice).toHaveCount(0);
+    // Die Kachel „Dienststatus“ in der Ansicht „Mandant“ bleibt davon unberührt
+    await page.goto('/?view=tenant&mode=demo');
+    await expect(tile(page, S.serviceTile)).toBeVisible();
   });
 
   test('Mandant: Dienststatus „Prüfen“, Registrierungsfehler nach Kategorie mit Ursache und Lösung', async ({
