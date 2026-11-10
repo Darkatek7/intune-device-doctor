@@ -1,6 +1,6 @@
 import { Download, GitCompareArrows } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { useRef, useState } from 'react';
+import { useImperativeHandle, useRef, useState, type Ref, type RefObject } from 'react';
 import { downloadTextFile } from '../lib/download';
 import { de } from '../i18n/de';
 import {
@@ -17,6 +17,17 @@ interface Props {
   disabled?: boolean;
   /** Bezeichnung des aktuellen Stands im Vergleich */
   currentLabel: string;
+  /** Ohne eigene Schaltflächen (Aktionen laufen über `ref` aus einem Menü) */
+  headless?: boolean;
+  /** Fokus nach dem Schließen des Vergleichs, wenn keine eigene Schaltfläche existiert */
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  ref?: Ref<CompareControlsHandle>;
+}
+
+export interface CompareControlsHandle {
+  exportSnapshot: () => void;
+  /** Öffnet die Dateiauswahl für „Mit Stand vergleichen“ */
+  chooseFile: () => void;
 }
 
 const BUTTON_CLASS =
@@ -26,7 +37,14 @@ const BUTTON_CLASS =
  * „Stand exportieren“ und „Mit Stand vergleichen“ (M12/B1). Der Export ist ein reiner Download,
  * die Vergleichsdatei wird nur lokal gelesen. Nichts wird gespeichert oder gesendet.
  */
-export function CompareControls({ getCurrent, disabled = false, currentLabel }: Props) {
+export function CompareControls({
+  getCurrent,
+  disabled = false,
+  currentLabel,
+  headless = false,
+  returnFocusRef,
+  ref,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const compareRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,52 +88,61 @@ export function CompareControls({ getCurrent, disabled = false, currentLabel }: 
     setOpen({ before: parsed.snapshot, fileName: file.name });
   };
 
+  useImperativeHandle(ref, () => ({
+    exportSnapshot,
+    chooseFile: () => inputRef.current?.click(),
+  }));
+
   const close = () => {
     setOpen(null);
-    compareRef.current?.focus();
+    (headless ? returnFocusRef : compareRef)?.current?.focus();
   };
+
+  const buttons = (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={exportSnapshot}
+        title={de.compare.exportHint}
+        className={BUTTON_CLASS}
+      >
+        <Download aria-hidden="true" size={16} />
+        {de.compare.exportButton}
+      </button>
+      <button
+        ref={compareRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        title={`${de.compare.compareHint} ${de.compare.fileLocal}`}
+        className={BUTTON_CLASS}
+      >
+        <GitCompareArrows aria-hidden="true" size={16} />
+        {de.compare.compareButton}
+      </button>
+    </div>
+  );
 
   return (
     <div
-      role="group"
-      aria-label={de.compare.controlsLabel}
-      className="flex flex-col gap-1.5 sm:items-end"
+      role={headless ? undefined : 'group'}
+      aria-label={headless ? undefined : de.compare.controlsLabel}
+      className={headless ? 'contents' : 'flex flex-col gap-1.5 sm:items-end'}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={exportSnapshot}
-          title={de.compare.exportHint}
-          className={BUTTON_CLASS}
-        >
-          <Download aria-hidden="true" size={16} />
-          {de.compare.exportButton}
-        </button>
-        <button
-          ref={compareRef}
-          type="button"
-          disabled={disabled}
-          onClick={() => inputRef.current?.click()}
-          title={`${de.compare.compareHint} ${de.compare.fileLocal}`}
-          className={BUTTON_CLASS}
-        >
-          <GitCompareArrows aria-hidden="true" size={16} />
-          {de.compare.compareButton}
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          data-testid="compare-input"
-          onChange={(event) => {
-            void onFile(event.target.files?.[0]);
-            event.target.value = '';
-          }}
-        />
-      </div>
-      <p role="alert" className="text-sm text-critical empty:hidden">
+      {!headless && buttons}
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        data-testid="compare-input"
+        onChange={(event) => {
+          void onFile(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+      <p role="alert" className="text-sm text-critical empty:hidden max-sm:basis-full">
         {error}
       </p>
       <AnimatePresence>

@@ -364,6 +364,12 @@ export const de = {
     otherDevicesLabel: 'Weitere Geräte des Benutzers',
     openOtherDevice: (name: string, compliance: string) => `${name} öffnen (${compliance})`,
   },
+  /** Aktionsleiste über den Kacheln (Menü „Mehr“) */
+  actions: {
+    label: 'Aktionen',
+    more: 'Mehr',
+    moreHint: 'Weitere Aktionen',
+  },
   grid: {
     label: 'Statuskacheln',
     open: 'Details anzeigen',

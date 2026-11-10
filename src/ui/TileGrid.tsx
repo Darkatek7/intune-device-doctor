@@ -4,6 +4,7 @@ import { Fragment } from 'react';
 import type { Tile } from '../domain/types';
 import { de } from '../i18n/de';
 import { CompactTile } from './CompactTile';
+import { isHealthyTile } from './tileGroups';
 import { fade, spring, STAGGER } from './motion';
 import { StatusTile } from './StatusTile';
 import { TileSkeleton } from './TileSkeleton';
@@ -17,13 +18,6 @@ interface Props {
    * Standard: keine Kachel lädt mehr.
    */
   settled?: boolean;
-}
-
-/** Unauffällig = Severity „ok“ oder „nicht anwendbar“; alles andere bleibt eine große Karte. */
-export function isHealthyTile(tile: Tile): boolean {
-  if (tile.state === 'loading') return false;
-  if (tile.availability) return tile.availability === 'notApplicable';
-  return tile.severity === 'ok';
 }
 
 /**

@@ -15,12 +15,10 @@ import { correlate } from '../rules/correlate';
 import { buildTimeline } from '../rules/timeline';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import type { AmbientTone } from '../ui/AmbientGlow';
-import { CompareZipControls } from '../ui/CompareZipControls';
 import { DetailSheet } from '../ui/DetailSheet';
+import { HeaderActions } from '../ui/HeaderActions';
 import { InsightCard } from '../ui/InsightCard';
 import { MergeOffer } from '../ui/MergeOffer';
-import { TimelineButton } from '../ui/TimelineButton';
-import { TicketNoteButton } from '../ui/TicketNoteButton';
 import { TileGrid } from '../ui/TileGrid';
 import { ZipHeader } from '../ui/ZipHeader';
 import { zipTitle } from '../ui/zipTitle';
@@ -103,15 +101,11 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
         summary={summary}
         onBack={onBack}
         actions={
-          <div className="flex flex-wrap items-start gap-2 sm:justify-end">
-            <TimelineButton
-              events={timeline}
-              openableTiles={openableTiles}
-              onOpenTile={openTileById}
-            />
-            <TicketNoteButton getNote={getTicketNote} />
-            <CompareZipControls report={report} tiles={tiles} />
-          </div>
+          <HeaderActions
+            timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
+            getTicketNote={getTicketNote}
+            compare={{ kind: 'zip', report, tiles }}
+          />
         }
       />
       {offer && <MergeOffer deviceName={offer.deviceName} onMerge={onMerge} />}
