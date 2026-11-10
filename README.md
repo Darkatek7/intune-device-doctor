@@ -33,6 +33,8 @@ npm run docker:up
 
 Baut die App auf dem Host (`dist/`, inklusive der `VITE_*`-Werte aus `.env.local`) und startet sie als nginx-Container unter http://localhost:5173 – derselbe Port wie der Dev-Server, damit die Redirect-URI der Entra-App unverändert passt. Stoppen mit `npm run docker:down`. Der Image-Build selbst braucht keinen npm-Zugriff; das funktioniert damit auch hinter Firmen-Proxys mit TLS-Inspektion, die Container-Traffic nicht durchlassen. Nach Code- oder `.env.local`-Änderungen erneut `npm run docker:up` ausführen.
 
+Der Container setzt die Sicherheits-Header, die als Meta-Tag nicht möglich sind (`docker/nginx.conf`): `Content-Security-Policy: frame-ancestors 'self'` und `X-Frame-Options: SAMEORIGIN` gegen Clickjacking (`'self'`, weil MSAL die eigene Redirect-URI für die stille Token-Erneuerung in einem versteckten iframe lädt), dazu `X-Content-Type-Options: nosniff`, `Referrer-Policy` und `Permissions-Policy`. Die Konfiguration braucht nginx ab 1.29.3 (`add_header_inherit`).
+
 ## Demo-Skript (3 Minuten)
 
 Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten):
