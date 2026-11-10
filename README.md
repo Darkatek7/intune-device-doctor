@@ -143,3 +143,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 - `docs/diaglogs-format.md` – Aufbau der DiagLogs-ZIPs
 - `docs/ui-guidelines.md` – Designregeln
 - `CLAUDE.md` – Arbeitsregeln für Claude Code
+
+## Lizenz
+
+[MIT](LICENSE) – Copyright (c) 2026 Darkatek7.

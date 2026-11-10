@@ -1,6 +1,7 @@
 {
   "name": "mdm-doctor",
   "private": true,
+  "license": "MIT",
   "version": "0.1.0",
   "description": "One-Click Intune Device Troubleshooter – read-only Dashboard für IT-Admins (Demo + Live über Microsoft Graph, Analyse von Intune-DiagLogs-ZIPs).",
   "type": "module",
