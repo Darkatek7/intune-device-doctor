@@ -4,8 +4,9 @@
  * im Zeitfenster vor dem ZIP-Zeitstempel, gruppiert nach Ereignis-ID.
  *
  * Event-IDs werden nur gedeutet, wenn eine Microsoft-Learn-Quelle sie belegt (knowledge/events.ts);
- * HRESULTs in den Ereignisdaten laufen über die vorhandene Wissensbasis (explainCode), unbekannte Codes
- * erscheinen als „Unbekannter Code“ mit Hex/Dezimal. Der Schwellwert „Fehler → Warnung“ ist ein eigener
+ * HRESULTs in den Ereignisdaten laufen über die Fehlercode-Wissensbasis (describeErrorCode; bei
+ * Ereignis 76 „Auto MDM Enroll“ im Registrierungskontext), unbekannte Codes erscheinen als
+ * „Unbekannter Code“ mit Hex/Dezimal. Der Schwellwert „Fehler → Warnung“ ist ein eigener
  * Richtwert (rules/thresholds.ts), keine Microsoft-Aussage.
  */
 import { DEFAULT_MAX_EVTX_BYTES } from '../../diagnostics/limits';
@@ -21,7 +22,9 @@ import type { DataSource, Finding, Severity, Tile, TileFact } from '../../domain
 import { de } from '../../i18n/de';
 import { sortFindings, worstActionable } from '../helpers';
 import { Docs } from '../knowledge/docs';
+import { describeErrorCode } from '../knowledge/errorCodes';
 import { findEventKnowledge } from '../knowledge/events';
+import type { ErrorCodeContext } from '../knowledge/types';
 import { explainCode } from '../knowledge/win32';
 import { THRESHOLDS } from '../thresholds';
 
@@ -60,9 +63,22 @@ function codesOf(data: Record<string, string>): Array<string | number> {
   return found;
 }
 
+/** Ereignis-IDs, deren Codes Registrierungsfehler sind (Microsoft: „Auto MDM Enroll: Failed“). */
+const ENROLLMENT_EVENTS: ReadonlyArray<{ log: DiagEventLogId; eventId: number }> = [
+  { log: 'mdmAdmin', eventId: 76 },
+];
+
+function codeContext(log: DiagEventLogId, eventId: number): ErrorCodeContext | undefined {
+  return ENROLLMENT_EVENTS.some((e) => e.log === log && e.eventId === eventId)
+    ? 'enrollment'
+    : undefined;
+}
+
 /** Deutung nur über die Wissensbasis; sonst „Unbekannter Code“ + Hex/Dezimal. */
-function codeText(code: string | number): string {
-  const ex = explainCode(code);
+function codeText(code: string | number, context: ErrorCodeContext | undefined): string {
+  const description = describeErrorCode(code, '', context);
+  const ex = description.explanation;
+  if (description.intune) return m.codeKnowledge(ex.hex, ex.decimal, description.intune.title);
   if (ex.name && ex.text) return m.codeKnown(ex.hex, ex.name, ex.text);
   if (ex.kind === 'win32' && ex.baseCode !== null)
     return de.rules.policies.codeWin32(ex.hex, ex.baseCode, ex.name);
@@ -130,24 +146,41 @@ function groupFinding(group: Group, entry: DiagEntry | undefined, errorsFlagged:
     .map(([name, value]) => m.sampleField(name, value))
     .join(' · ');
   const codes = codesOf(group.latest.data);
+  const context = codeContext(group.log.id, group.eventId);
   const firstCode = codes[0];
-  const codeDocsUrl = firstCode === undefined ? null : explainCode(firstCode).docsUrl;
+  const codeDocsUrl =
+    firstCode === undefined ? null : describeErrorCode(firstCode, '', context).docsUrl;
+  // Erster Code mit Wissensbasis-Eintrag liefert Ursache, Lösung und Learn-Link
+  const codeKnowledge = codes
+    .map((code) => describeErrorCode(code, '', context).intune)
+    .find((entry) => entry !== undefined);
   const severity: Severity = isError(group) && errorsFlagged ? 'warning' : 'unknown';
+  const baseCause = known?.cause ?? (isError(group) ? m.unknownEventCause : m.warningCause);
 
   return {
     id: `mdmEvents-${group.log.id}-${group.eventId}`,
     severity,
-    title: m.groupTitle(group.eventId, level, group.count, known?.title ?? null),
+    title: m.groupTitle(
+      group.eventId,
+      level,
+      group.count,
+      known?.title ?? codeKnowledge?.title ?? null,
+    ),
     detail: m.groupDetail(
       group.count,
       level,
       logLabel,
       utc(group.lastUtc),
       sample || null,
-      codes.map(codeText),
+      codes.map((code) => codeText(code, context)),
     ),
-    cause: known?.cause ?? (isError(group) ? m.unknownEventCause : m.warningCause),
-    remediation: [...(known?.remediation ?? m.genericRemediation)],
+    cause: codeKnowledge
+      ? [known?.cause, codeKnowledge.cause].filter(Boolean).join(' ')
+      : baseCause,
+    remediation: [
+      ...(codeKnowledge?.remediation ?? []),
+      ...(known?.remediation ?? m.genericRemediation),
+    ],
     evidence: {
       log: logLabel,
       eventId: group.eventId,
@@ -159,7 +192,7 @@ function groupFinding(group: Group, entry: DiagEntry | undefined, errorsFlagged:
       ),
     },
     source: zipSource(entry, group.log.entryName),
-    docsUrl: known?.docsUrl ?? codeDocsUrl ?? Docs.mdmCollectLogs,
+    docsUrl: codeKnowledge?.docsUrl ?? known?.docsUrl ?? codeDocsUrl ?? Docs.mdmCollectLogs,
   };
 }
 

@@ -124,6 +124,7 @@ export const MANAGED_DEVICE_LIST_SELECT = [
   'osVersion',
   'model',
   'manufacturer',
+  'serialNumber',
   'complianceState',
   'lastSyncDateTime',
 ] as const;

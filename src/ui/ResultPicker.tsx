@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import type { DeviceSearchResult } from '../domain/types';
 import { formatDateTime, formatRelativeTime } from '../domain/format';
+import { matchesSerialNumber } from '../domain/search';
 import { de } from '../i18n/de';
 
 interface Props {
@@ -36,6 +37,9 @@ export function ResultPicker({ results, query, now, onSelect }: Props) {
                 </span>
                 <span className="block truncate text-sm text-secondary-label">
                   {[
+                    r.serialNumber && matchesSerialNumber(r.serialNumber, query)
+                      ? de.picker.serial(r.serialNumber)
+                      : null,
                     r.userDisplayName ?? r.userPrincipalName ?? de.picker.noUser,
                     [r.operatingSystem, r.osVersion].filter(Boolean).join(' ') || null,
                   ]

@@ -84,6 +84,8 @@ export interface DeviceSearchResult {
   operatingSystem: string | null;
   osVersion: string | null;
   model: string | null;
+  /** Seriennummer laut Intune (für die Suche per Seriennummer und die Anzeige des Treffers) */
+  serialNumber: string | null;
   complianceState: ComplianceState;
   lastSyncDateTime: string | null;
 }

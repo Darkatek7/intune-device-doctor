@@ -179,9 +179,18 @@ describe('MockProvider – Suche', () => {
       operatingSystem: 'Windows',
       osVersion: '10.0.26200.9711',
       model: 'Surface Laptop 6',
+      serialNumber: 'DEMO-000014',
       complianceState: 'noncompliant',
       lastSyncDateTime: new Date(NOW.getTime() - 2 * 60 * 60_000).toISOString(),
     } satisfies DeviceSearchResult);
+  });
+
+  it('findet ein Gerät per Seriennummer (exakt, Groß-/Kleinschreibung egal)', async () => {
+    const hits = await provider.searchDevices('demo-000014');
+    expect(hits.map((h) => [h.deviceName, h.serialNumber])).toEqual([
+      ['CONTOSO-PC014', 'DEMO-000014'],
+    ]);
+    await expect(provider.searchDevices('000014')).resolves.toEqual([]);
   });
 
   it('bevorzugt den exakten Treffer vor Teilstring-Treffern', async () => {

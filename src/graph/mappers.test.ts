@@ -126,6 +126,7 @@ describe('mapSearchResult', () => {
       operatingSystem: null,
       osVersion: null,
       model: null,
+      serialNumber: null,
       complianceState: 'compliant',
       lastSyncDateTime: null,
     });

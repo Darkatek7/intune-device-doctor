@@ -38,6 +38,7 @@ import type {
   VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
   createGraphClient,
@@ -213,7 +214,8 @@ export class GraphProvider implements DeviceDataProvider {
       if (Array.isArray(contains) && contains.length > 0) return results(contains);
 
       // 3) Clientseitig über die paginierte Liste: Gerätename (falls $filter abgelehnt wurde),
-      //    sonst Benutzer – für userDisplayName ist kein $filter dokumentiert.
+      //    dann Seriennummer, sonst Benutzer – für serialNumber und userDisplayName ist kein
+      //    $filter dokumentiert.
       if (contains === 'badRequest') {
         this.log(
           'Graph lehnt $filter auf deviceName ab (HTTP 400) – Suche läuft clientseitig über die Geräteliste.',
@@ -225,6 +227,8 @@ export class GraphProvider implements DeviceDataProvider {
         const exactHits = hits.filter((d) => (d.deviceName ?? '').toLowerCase() === needle);
         if (hits.length > 0) return results(exactHits.length > 0 ? exactHits : hits);
       }
+      const bySerial = all.filter((d) => matchesSerialNumber(d.serialNumber, name));
+      if (bySerial.length > 0) return results(bySerial);
       return results(all.filter(byUser));
     } catch (error) {
       if (isAbort(error)) throw error;
