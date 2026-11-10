@@ -36,7 +36,7 @@ describe('ActionMenu', () => {
     expect(screen.getAllByRole('menuitem')).toHaveLength(3);
   });
 
-  it('Klick öffnet das Menü mit Fokus auf dem ersten Eintrag; Pfeiltasten wandern zyklisch und überspringen gesperrte', async () => {
+  it('Klick öffnet das Menü mit Fokus auf dem ersten Eintrag; Pfeiltasten wandern zyklisch (gesperrte Einträge bleiben fokussierbar)', async () => {
     const user = userEvent.setup();
     const { trigger } = setup();
     await user.click(trigger);
@@ -44,14 +44,16 @@ describe('ActionMenu', () => {
     await waitFor(() => expect(print).toHaveFocus());
     await user.keyboard('{ArrowDown}');
     expect(exportItem).toHaveFocus();
-    await user.keyboard('{ArrowDown}'); // „Gesperrt“ wird übersprungen
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('menuitem', { name: 'Gesperrt' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
     expect(print).toHaveFocus();
     await user.keyboard('{ArrowUp}');
-    expect(exportItem).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'Gesperrt' })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(print).toHaveFocus();
     await user.keyboard('{End}');
-    expect(exportItem).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'Gesperrt' })).toHaveFocus();
   });
 
   it('Pfeiltaste auf der Schaltfläche öffnet das Menü (runter: erster, hoch: letzter Eintrag)', async () => {
@@ -59,8 +61,7 @@ describe('ActionMenu', () => {
     const { trigger } = setup();
     trigger.focus();
     await user.keyboard('{ArrowUp}');
-    const [, exportItem] = screen.getAllByRole('menuitem');
-    await waitFor(() => expect(exportItem).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Gesperrt' })).toHaveFocus());
   });
 
   it('Enter löst den Eintrag aus, schließt das Menü und gibt den Fokus zurück', async () => {
@@ -118,13 +119,12 @@ describe('ActionMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('Escape schließt auch, wenn alle Einträge gesperrt sind und der Fokus auf der Schaltfläche bleibt', async () => {
+  it('Escape schließt auch bei Fokus auf der Schaltfläche', async () => {
     const user = userEvent.setup();
-    setup([{ id: 'a', label: 'Aus', icon: Printer, disabled: true, onSelect: vi.fn() }]);
-    const trigger = screen.getByRole('button', { name: de.actions.more });
+    const { trigger } = setup();
     await user.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    expect(trigger).toHaveFocus();
+    trigger.focus();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();

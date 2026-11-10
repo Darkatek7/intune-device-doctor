@@ -53,7 +53,8 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
 
   useImperativeHandle(triggerRef, () => ownTriggerRef.current as HTMLButtonElement);
 
-  const enabledIndexes = items.flatMap((item, index) => (item.disabled ? [] : [index]));
+  // Gesperrte Einträge bleiben fokussierbar (WAI-ARIA-Menümuster), lassen sich aber nicht auslösen.
+  const focusIndexes = items.map((_, index) => index);
 
   const close = (returnFocus: boolean) => {
     setOpen(false);
@@ -74,9 +75,9 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
     if (menu && rect && rect.left < VIEWPORT_MARGIN) {
       menu.style.right = `${-(VIEWPORT_MARGIN - rect.left)}px`;
     }
-    const target = initialFocus.current === 'last' ? enabledIndexes.at(-1) : enabledIndexes[0];
+    const target = initialFocus.current === 'last' ? focusIndexes.at(-1) : focusIndexes[0];
     if (target !== undefined) itemRefs.current[target]?.focus();
-    // enabledIndexes ändert sich nur mit `items`; das Fokussieren soll nur beim Öffnen passieren.
+    // focusIndexes ändert sich nur mit `items`; das Fokussieren soll nur beim Öffnen passieren.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -106,16 +107,16 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
   };
 
   const moveFocus = (delta: 1 | -1) => {
-    if (enabledIndexes.length === 0) return;
+    if (focusIndexes.length === 0) return;
     const current = itemRefs.current.findIndex((node) => node === document.activeElement);
-    const position = enabledIndexes.indexOf(current);
+    const position = focusIndexes.indexOf(current);
     const next =
       position === -1
         ? delta === 1
           ? 0
-          : enabledIndexes.length - 1
-        : (position + delta + enabledIndexes.length) % enabledIndexes.length;
-    itemRefs.current[enabledIndexes[next]!]?.focus();
+          : focusIndexes.length - 1
+        : (position + delta + focusIndexes.length) % focusIndexes.length;
+    itemRefs.current[focusIndexes[next]!]?.focus();
   };
 
   const onMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -130,11 +131,11 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
         break;
       case 'Home':
         event.preventDefault();
-        itemRefs.current[enabledIndexes[0] ?? 0]?.focus();
+        itemRefs.current[focusIndexes[0] ?? 0]?.focus();
         break;
       case 'End':
         event.preventDefault();
-        itemRefs.current[enabledIndexes.at(-1) ?? 0]?.focus();
+        itemRefs.current[focusIndexes.at(-1) ?? 0]?.focus();
         break;
       case 'Escape':
         event.preventDefault();
@@ -185,7 +186,7 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
           animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
           transition={reduced ? fade : spring}
           style={{ transformOrigin: 'top right' }}
-          className="material-card hc-edge absolute top-full z-30 mt-2 flex min-w-60 flex-col gap-0.5 rounded-2xl p-1.5"
+          className="material-card hc-edge absolute top-full right-0 z-30 mt-2 flex min-w-60 flex-col gap-0.5 rounded-2xl p-1.5"
         >
           {items.map((item, index) => {
             const Icon = item.icon;
