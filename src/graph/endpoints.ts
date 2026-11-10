@@ -70,6 +70,14 @@ export const MAX_SECURITY_ALERT_PAGES = 3;
 export const MAX_POLICY_OVERVIEWS = 50;
 export const POLICY_OVERVIEW_CONCURRENCY = 4;
 export const MAX_POLICY_STATUS_PAGES = 3;
+/**
+ * Dienststatus (M18): `healthOverviews` ist laut Doku paginiert (100 Objekte je Seite) – höchstens so
+ * viele Seiten lesen. Registrierungsfehler (M18): für `troubleshootingEvents` sind weder Query-Optionen
+ * noch eine Sortierung dokumentiert → höchstens so viele Seiten über `@odata.nextLink`, clientseitig
+ * sortiert („nur die ersten N Seiten geprüft“).
+ */
+export const MAX_SERVICE_HEALTH_PAGES = 2;
+export const MAX_TROUBLESHOOTING_EVENT_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
 
@@ -586,6 +594,39 @@ export const Endpoints = {
     display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/deviceStatuses',
     path: (policyId: string) =>
       `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/deviceStatuses`,
+  },
+  /**
+   * Dienststatus aller abonnierten Dienste mit ihren Vorfällen/Hinweisen (M18, Ansicht „Mandant“ und
+   * Hinweis in der Geräteansicht). `$expand=issues` steht als Beispiel 2 auf der Doku-Seite; so genügt ein
+   * Aufruf statt zusätzlich `GET /admin/serviceAnnouncement/issues`. Optionaler Scope
+   * ServiceHealth.Read.All; das Konto braucht laut Doku eine Admin-Rolle (z. B. Service Support
+   * Administrator).
+   */
+  serviceHealthOverviews: {
+    id: 'serviceHealthOverviews',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ServiceHealthRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/serviceannouncement-list-healthoverviews?view=graph-rest-1.0',
+    display: 'GET /admin/serviceAnnouncement/healthOverviews?$expand=issues',
+    path: () => withQuery('/admin/serviceAnnouncement/healthOverviews', { $expand: 'issues' }),
+  },
+  /**
+   * Registrierungsfehler des Mandanten (M18). Keine Query-Optionen dokumentiert → ohne
+   * $filter/$orderby/$top; Paging über @odata.nextLink (höchstens MAX_TROUBLESHOOTING_EVENT_PAGES).
+   * Ein benutzerbezogener Abruf (`/users/{id}/deviceManagementTroubleshootingEvents`) ist nur als
+   * PowerShell-Cmdlet, nicht als REST-Methode dokumentiert → nicht verwendet.
+   */
+  troubleshootingEvents: {
+    id: 'troubleshootingEvents',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-enrollmenttroubleshootingevent-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/troubleshootingEvents',
+    path: () => '/deviceManagement/troubleshootingEvents',
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

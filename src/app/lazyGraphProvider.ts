@@ -6,8 +6,10 @@
 import type {
   AssignmentLookup,
   AssignmentsInfo,
+  EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
   TenantPolicyKind,
@@ -165,9 +167,22 @@ export class LazyGraphProvider implements DeviceDataProvider {
         error: { code: 'network', message: de.errors.network },
         source: SOURCE,
       } as const;
-      return { applePushCertificate: failed, vppTokens: failed };
+      return {
+        applePushCertificate: failed,
+        vppTokens: failed,
+        serviceHealth: failed,
+        enrollmentFailures: failed,
+      };
     }
     return provider.getTenantStatus(options);
+  }
+
+  getServiceHealth(options?: RequestOptions) {
+    return this.section<ServiceHealthInfo>((p) => p.getServiceHealth(options));
+  }
+
+  getEnrollmentFailures(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<EnrollmentFailuresInfo>((p) => p.getEnrollmentFailures(device, options));
   }
 
   async getTenantPolicies(options?: RequestOptions): Promise<TenantPolicies> {

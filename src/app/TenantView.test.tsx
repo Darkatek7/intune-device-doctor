@@ -15,7 +15,7 @@ async function openTenant(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('Ansicht „Mandant“', () => {
-  it('ist über die Toolbar erreichbar, schreibt ?view=tenant und zeigt die drei Kacheln', async () => {
+  it('ist über die Toolbar erreichbar, schreibt ?view=tenant und zeigt die fünf Kacheln', async () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
@@ -23,10 +23,12 @@ describe('Ansicht „Mandant“', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: de.tenantView.title }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
     expect(window.location.search).toContain('view=tenant');
     expect(window.location.search).not.toContain('device=');
     expect(tenantTiles().map((b) => b.getAttribute('data-tile-id'))).toEqual([
+      'tenantServiceHealth',
+      'tenantEnrollmentFailures',
       'tenantApplePush',
       'tenantVpp',
       'tenantUnavailable',
@@ -37,7 +39,7 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
 
     const vpp = tenantTiles().find((b) => b.getAttribute('data-tile-id') === 'tenantVpp')!;
     expect(vpp).toHaveAttribute('data-severity', 'warning');
@@ -56,7 +58,7 @@ describe('Ansicht „Mandant“', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: de.tenantView.title }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
   });
 
   it('eine fehlende Berechtigung betrifft nur die VPP-Kachel', async () => {
@@ -67,7 +69,7 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp({ provider });
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
 
     const byId = (id: string) => tenantTiles().find((b) => b.getAttribute('data-tile-id') === id)!;
     expect(within(byId('tenantVpp')).getByText(de.availability.forbidden)).toBeInTheDocument();
@@ -105,10 +107,10 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp({ provider });
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
     expect(calls).toBe(1);
     await user.click(screen.getByRole('button', { name: de.tenantView.refresh }));
     await waitFor(() => expect(calls).toBe(2));
-    await waitFor(() => expect(tenantTiles()).toHaveLength(3));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
   });
 });

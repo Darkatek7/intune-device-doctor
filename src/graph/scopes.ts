@@ -20,6 +20,11 @@ export const GraphScope = {
   LicenseAssignmentRead: 'LicenseAssignment.Read.All',
   /** Sicherheitswarnungen (Defender, Kachel „Sicherheitswarnungen“, M14/S4) – optional. */
   SecurityAlertRead: 'SecurityAlert.Read.All',
+  /**
+   * Microsoft-365-Dienststatus (Kachel „Dienststatus“, M18) – optional. Laut Doku zusätzlich eine
+   * Admin-Rolle nötig (z. B. Service Support Administrator).
+   */
+  ServiceHealthRead: 'ServiceHealth.Read.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -36,6 +41,7 @@ export const OPTIONAL_SCOPES: readonly GraphScope[] = [
   GraphScope.DeviceLocalCredentialReadBasic,
   GraphScope.LicenseAssignmentRead,
   GraphScope.SecurityAlertRead,
+  GraphScope.ServiceHealthRead,
 ];
 
 /** Scopes, die beim Login angefragt werden. */

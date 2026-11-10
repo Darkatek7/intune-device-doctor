@@ -95,7 +95,9 @@ export function FindingCard({ finding }: { finding: Finding }) {
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-label">{finding.title}</h3>
+          <h3 lang={finding.titleLang} className="text-base font-semibold text-label">
+            {finding.title}
+          </h3>
           <SeverityBadge
             severity={finding.severity}
             label={isHint ? de.sheet.hint : undefined}
@@ -104,7 +106,7 @@ export function FindingCard({ finding }: { finding: Finding }) {
         </div>
       </header>
       <Section title={de.detail.finding}>
-        <p>{finding.detail}</p>
+        <p lang={finding.detailLang}>{finding.detail}</p>
       </Section>
       {finding.cause && (
         <Section title={de.detail.cause}>

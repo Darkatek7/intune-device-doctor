@@ -22,6 +22,7 @@ import type {
 } from '../domain/types';
 import { de } from '../i18n/de';
 import { sectionIssueFinding, sortFindings, worstActionable } from './helpers';
+import { evaluateEnrollmentFailures, evaluateServiceHealth } from './service';
 import { Docs } from './knowledge/docs';
 import { THRESHOLDS } from './thresholds';
 
@@ -347,9 +348,14 @@ function evaluateUnavailable(): Tile {
   };
 }
 
-/** Kacheln der Ansicht „Mandant“ in fester Reihenfolge: Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche. */
+/**
+ * Kacheln der Ansicht „Mandant“ in fester Reihenfolge: Dienststatus und Registrierungsfehler (M18),
+ * Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche.
+ */
 export function evaluateTenant(status: TenantStatus, now: Date): Tile[] {
   return [
+    evaluateServiceHealth(status.serviceHealth, now),
+    evaluateEnrollmentFailures(status.enrollmentFailures, now),
     evaluatePush(status.applePushCertificate, now),
     evaluateVpp(status.vppTokens, now),
     evaluateUnavailable(),

@@ -285,6 +285,9 @@ export const Probes: Record<EndpointId, Probe> = {
     ),
   },
   securityAlerts: { request: () => ({ path: Endpoints.securityAlerts.path() }) },
+  // M18: Dienststatus (optionaler Scope) und Registrierungsfehler – nur Feldnamen, nie Werte
+  serviceHealthOverviews: { request: () => ({ path: Endpoints.serviceHealthOverviews.path() }) },
+  troubleshootingEvents: { request: () => ({ path: Endpoints.troubleshootingEvents.path() }) },
 };
 
 /** Endpunkte in Testreihenfolge. */

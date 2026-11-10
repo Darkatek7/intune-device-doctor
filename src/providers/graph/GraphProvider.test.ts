@@ -1600,8 +1600,18 @@ describe('GraphProvider – Mandanten-Status (M14/S5)', () => {
   it('liest Push-Zertifikat und VPP-Token je mit einem GET (ohne Gerät), die Section-Ergebnisse sind unabhängig', async () => {
     const { provider, calls } = setup(tenantHandler());
     const status = await provider.getTenantStatus();
-    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET']);
-    expect(calls.map((c) => c.parsed.pathname).sort()).toEqual([PUSH_PATH, VPP_PATH].sort());
+    // M18: Dienststatus und Registrierungsfehler kommen je mit einem weiteren GET dazu (hier 404)
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET', 'GET', 'GET']);
+    expect(calls.map((c) => c.parsed.pathname).sort()).toEqual(
+      [
+        PUSH_PATH,
+        VPP_PATH,
+        '/v1.0/admin/serviceAnnouncement/healthOverviews',
+        '/v1.0/deviceManagement/troubleshootingEvents',
+      ].sort(),
+    );
+    expect(status.serviceHealth.status).toBe('unavailable');
+    expect(status.enrollmentFailures.status).toBe('unavailable');
     const push = expectStatus(status.applePushCertificate, 'ok');
     expect(push.data.expirationDateTime).toBe('2027-05-01T00:00:00Z');
     const vpp = expectStatus(status.vppTokens, 'ok');

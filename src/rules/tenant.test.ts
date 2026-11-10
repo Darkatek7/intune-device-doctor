@@ -38,6 +38,8 @@ function status(overrides: Partial<TenantStatus> = {}): TenantStatus {
   return {
     applePushCertificate: ok({ expirationDateTime: inDays(200), lastModifiedDateTime: null }),
     vppTokens: ok([token('a')]),
+    serviceHealth: ok({ services: [], truncated: false }),
+    enrollmentFailures: ok({ events: [], pagesRead: 1, truncated: false, filteredUserId: null }),
     ...overrides,
   };
 }
@@ -46,9 +48,11 @@ const tileOf = (tiles: ReturnType<typeof evaluateTenant>, id: string) =>
   tiles.find((tile) => tile.id === id)!;
 
 describe('Mandanten-Status – Struktur', () => {
-  it('liefert drei fertige Kacheln in fester Reihenfolge ohne Sections', () => {
+  it('liefert fünf fertige Kacheln in fester Reihenfolge ohne Sections', () => {
     const tiles = evaluateTenant(status(), NOW);
     expect(tiles.map((tile) => tile.id)).toEqual([
+      'tenantServiceHealth',
+      'tenantEnrollmentFailures',
       'tenantApplePush',
       'tenantVpp',
       'tenantUnavailable',

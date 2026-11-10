@@ -35,7 +35,12 @@ describe('Registrierung (Benutzer) – Lizenz', () => {
     const base = await snapshotOf('CONTOSO-PC001');
     const tile = evaluateRegistration({ device: base.device }, NOW);
     expect(tile.state).toBe('loading');
-    expect(tile.sections).toEqual(['userLicense', 'enrollmentLimits', 'userDevices']);
+    expect(tile.sections).toEqual([
+      'userLicense',
+      'enrollmentLimits',
+      'userDevices',
+      'enrollmentFailures',
+    ]);
   });
 
   it('Standard (CONTOSO-PC001): INTUNE_A aktiv → ok, Hinweis-Tabelle der Limits, Severity ok', async () => {

@@ -737,3 +737,129 @@ export interface GraphPolicyDeviceStatus {
   lastReportedDateTime?: string | null;
   userPrincipalName?: string | null;
 }
+
+// ---------- Dienststatus (Service Communications, v1.0) – M18 ----------
+// https://learn.microsoft.com/en-us/graph/api/serviceannouncement-list-healthoverviews?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/servicehealth?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/servicehealthissue?view=graph-rest-1.0
+// Scope ServiceHealth.Read.All (least privileged laut Doku, optional – nicht beim Login).
+
+/**
+ * serviceHealthStatus – vollständige Liste laut Ressource serviceHealthIssue. Die Beispielantworten der
+ * Doku schreiben die Werte mit großem Anfangsbuchstaben („ServiceOperational“) – der Mapper vergleicht
+ * deshalb ohne Rücksicht auf die Schreibweise des ersten Buchstabens.
+ */
+export const SERVICE_HEALTH_STATUSES = [
+  'serviceOperational',
+  'investigating',
+  'restoringService',
+  'verifyingService',
+  'serviceRestored',
+  'postIncidentReviewPublished',
+  'serviceDegradation',
+  'serviceInterruption',
+  'extendedRecovery',
+  'falsePositive',
+  'investigationSuspended',
+  'resolved',
+  'mitigatedExternal',
+  'mitigated',
+  'resolvedExternal',
+  'confirmed',
+  'reported',
+  'unknownFutureValue',
+] as const;
+export type ServiceHealthStatus = (typeof SERVICE_HEALTH_STATUSES)[number];
+
+/** serviceHealthClassificationType laut Ressource serviceHealthIssue. */
+export const SERVICE_HEALTH_CLASSIFICATIONS = [
+  'advisory',
+  'incident',
+  'unknownFutureValue',
+] as const;
+export type ServiceHealthClassificationType = (typeof SERVICE_HEALTH_CLASSIFICATIONS)[number];
+
+/**
+ * serviceHealthIssue – nur gelesene Felder. Nicht gelesen: `posts` (Verlauf als HTML), `details`,
+ * `origin`, `endDateTime`.
+ */
+export interface GraphServiceHealthIssue {
+  id: string;
+  title?: string | null;
+  classification?: string | null;
+  status?: string | null;
+  isResolved?: boolean | null;
+  startDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+  feature?: string | null;
+  featureGroup?: string | null;
+  impactDescription?: string | null;
+}
+
+/** serviceHealth (ein Eintrag aus healthOverviews), mit `$expand=issues` laut Beispiel 2 der Doku. */
+export interface GraphServiceHealth {
+  id: string;
+  service?: string | null;
+  status?: string | null;
+  issues?: GraphServiceHealthIssue[] | null;
+}
+
+// ---------- Registrierungsfehler (Intune Troubleshooting, v1.0) – M18 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-enrollmenttroubleshootingevent-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-enrollmenttroubleshootingevent?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-deviceenrollmentfailurereason?view=graph-rest-1.0
+// Scope DeviceManagementManagedDevices.Read.All (beim Login angefragt).
+
+/** deviceEnrollmentFailureReason – vollständig laut Enum-Seite (Werte 0–11). */
+export const DEVICE_ENROLLMENT_FAILURE_REASONS = [
+  'unknown',
+  'authentication',
+  'authorization',
+  'accountValidation',
+  'userValidation',
+  'deviceNotSupported',
+  'inMaintenance',
+  'badRequest',
+  'featureNotSupported',
+  'enrollmentRestrictionsEnforced',
+  'clientDisconnected',
+  'userAbandonment',
+] as const;
+export type DeviceEnrollmentFailureReason = (typeof DEVICE_ENROLLMENT_FAILURE_REASONS)[number];
+
+/**
+ * deviceEnrollmentType, wie ihn die Ressource enrollmentTroubleshootingEvent aufzählt (10 Werte – weniger
+ * als bei managedDevice).
+ */
+export const TROUBLESHOOTING_ENROLLMENT_TYPES = [
+  'unknown',
+  'userEnrollment',
+  'deviceEnrollmentManager',
+  'appleBulkWithUser',
+  'appleBulkWithoutUser',
+  'windowsAzureADJoin',
+  'windowsBulkUserless',
+  'windowsAutoEnrollment',
+  'windowsBulkAzureDomainJoin',
+  'windowsCoManagement',
+] as const;
+export type TroubleshootingEnrollmentType = (typeof TROUBLESHOOTING_ENROLLMENT_TYPES)[number];
+
+/**
+ * Eintrag aus `/deviceManagement/troubleshootingEvents`. Die Liste ist laut Doku eine Sammlung von
+ * deviceManagementTroubleshootingEvent (Basistyp: nur id, eventDateTime, correlationId); Registrierungs-
+ * fehler kommen als abgeleiteter Typ enrollmentTroubleshootingEvent. Nicht gelesen:
+ * `managedDeviceIdentifier`, `deviceId`.
+ */
+export interface GraphTroubleshootingEvent {
+  '@odata.type'?: string;
+  id: string;
+  eventDateTime?: string | null;
+  correlationId?: string | null;
+  operatingSystem?: string | null;
+  osVersion?: string | null;
+  userId?: string | null;
+  enrollmentType?: string | null;
+  failureCategory?: string | null;
+  failureReason?: string | null;
+}

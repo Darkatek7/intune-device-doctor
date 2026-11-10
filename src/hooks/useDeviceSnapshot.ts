@@ -35,6 +35,7 @@ export const INDEPENDENT_SECTION_KEYS: SnapshotSectionKey[] = [
   'userLicense',
   'enrollmentLimits',
   'securityAlerts',
+  'enrollmentFailures',
 ];
 
 /** Sections, die erst nach den unabhängigen laden, weil sie deren Ergebnis brauchen (M14/S2). */
@@ -110,6 +111,8 @@ export function loadSection(
       return provider.getEnrollmentLimits(device, { signal });
     case 'securityAlerts':
       return provider.getSecurityAlerts(device, { signal });
+    case 'enrollmentFailures':
+      return provider.getEnrollmentFailures(device, { signal });
     case 'assignments':
       return provider.getAssignments(device, assignmentLookups(loaded), { signal });
   }
