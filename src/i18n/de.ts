@@ -367,6 +367,12 @@ export const de = {
   grid: {
     label: 'Statuskacheln',
     open: 'Details anzeigen',
+    /** Abschnitt der unauffälligen Kacheln (kompakt) */
+    healthyTitle: (n: number) => `In Ordnung · ${n}`,
+    /** Positive Aussage, wenn keine Kachel einen Befund hat */
+    allOkTitle: 'Keine Auffälligkeiten',
+    allOkBody: (n: number) =>
+      n === 1 ? 'Die Prüfung ist in Ordnung.' : `Alle ${n} Prüfungen sind in Ordnung.`,
   },
   sheet: {
     loading: 'Wird ausgewertet …',

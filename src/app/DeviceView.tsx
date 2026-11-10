@@ -254,7 +254,7 @@ export function DeviceView({
         <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
       )}
       {snapshot ? (
-        <TileGrid tiles={ordered} onOpen={handleOpen} />
+        <TileGrid tiles={ordered} onOpen={handleOpen} settled={!stillLoading} />
       ) : (
         <ul
           aria-label={de.grid.label}
