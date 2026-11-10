@@ -122,7 +122,7 @@ Alle übrigen `.evtx` bleiben unausgewertet (Hinweis in den Analyse-Notizen). De
 ### Auswertung
 
 - Zeitfenster: **14 Tage vor dem ZIP-Zeitstempel** aus dem Dateinamen (fehlt er: vor dem jüngsten Ereignis). Übernommen werden nur **Kritisch (1), Fehler (2), Warnung (3)**; Information/Ausführlich zählen nur in „geprüfte Ereignisse“.
-- Gruppierung nach Ereignis-ID: Anzahl, letzter Zeitpunkt, Beispieldaten des jüngsten Ereignisses. HRESULTs in den Daten (`0x…` bzw. Zahlen in Feldern wie `Result`) werden über die vorhandene Wissensbasis gedeutet, sonst „Unbekannter Code“ mit Hex/Dezimal.
+- Gruppierung nach Ereignis-ID: Anzahl, letzter Zeitpunkt, Beispieldaten des jüngsten Ereignisses. HRESULTs in den Daten (`0x…` bzw. Zahlen in Feldern wie `Result`) werden über die Fehlercode-Wissensbasis (`describeErrorCode`, `src/rules/knowledge/`) gedeutet – bei Ereignis 76 („Auto MDM Enroll: Failed“) im Registrierungskontext, sodass auch mehrdeutige Win32-Codes wie 0x80070774 die Registrierungsdeutung erhalten –, sonst „Unbekannter Code“ mit Hex/Dezimal.
 - **Event-IDs werden nur mit Microsoft-Learn-Beleg gedeutet** (`src/rules/knowledge/events.ts`: MDM-Admin 76, 1819; AAD-Operational 1081, 1088). Alle anderen zeigen nur ID und Rohdaten. Die Meldungstexte der Provider stehen nicht in der `.evtx`, sondern in den Ressourcen des Providers auf dem Gerät.
 - Severity: Fehlerereignisse im Fenster → _warning_ (eigener Richtwert `THRESHOLDS.eventLogErrorWarningCount`, keine Microsoft-Vorgabe); keine → _ok_; Hauptprotokoll fehlt/ist nicht lesbar → _unavailable_ mit Grund.
 - Privatsphäre: UPN, GUIDs/Tenant-IDs, SIDs, Seriennummern, `ChannelURI` und URL-Queries werden bereits im Worker maskiert bzw. verworfen; Werte werden auf 300 Zeichen und 12 Felder je Ereignis gekürzt.
