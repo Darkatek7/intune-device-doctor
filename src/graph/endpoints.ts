@@ -62,6 +62,14 @@ export const MAX_ENROLLMENT_LIMIT_CONFIGS = 10;
 /** Sicherheitswarnungen (M14/S4): Seitengröße der Abfrage ($top) und höchstens so viele Seiten lesen. */
 export const SECURITY_ALERTS_PAGE_SIZE = 100;
 export const MAX_SECURITY_ALERT_PAGES = 3;
+/**
+ * Richtlinien → Geräte (M15): Übersicht-Zähler höchstens für so viele Richtlinien (die zuletzt geänderten
+ * zuerst), so viele parallel; Gerätestatus einer Richtlinie höchstens so viele Seiten. Für die Listen ist
+ * weder `$top` noch `$filter` dokumentiert → Paging über `@odata.nextLink` (höchstens MAX_LIST_PAGES).
+ */
+export const MAX_POLICY_OVERVIEWS = 50;
+export const POLICY_OVERVIEW_CONCURRENCY = 4;
+export const MAX_POLICY_STATUS_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
 
@@ -501,6 +509,83 @@ export const Endpoints = {
       'https://learn.microsoft.com/en-us/graph/api/intune-apps-mobileappassignment-list?view=graph-rest-1.0',
     display: 'GET /deviceAppManagement/mobileApps/{id}/assignments',
     path: (appId: string) => `/deviceAppManagement/mobileApps/${enc(appId)}/assignments`,
+  },
+  /**
+   * Konfigurationsprofile des Mandanten (M15, Ansicht „Richtlinien“). Keine Query-Optionen
+   * dokumentiert → ohne $select/$filter/$top; Paging über @odata.nextLink. Settings-Catalog-Profile
+   * (`configurationPolicies`) und Endpoint-Security (`intents`) sind nur in beta → nicht enthalten.
+   */
+  deviceConfigurations: {
+    id: 'deviceConfigurations',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfiguration-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurations',
+    path: () => '/deviceManagement/deviceConfigurations',
+  },
+  /** Zähler je Konfigurationsprofil (pending/notApplicable/success/error/failed – kein Konflikt-Zähler in v1.0). */
+  deviceConfigurationDeviceStatusOverview: {
+    id: 'deviceConfigurationDeviceStatusOverview',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationdeviceoverview-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurations/{id}/deviceStatusOverview',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceConfigurations/${enc(configurationId)}/deviceStatusOverview`,
+  },
+  /**
+   * Gerätestatus je Konfigurationsprofil. Keine Query-Optionen dokumentiert; die Ressource
+   * deviceConfigurationDeviceStatus trägt laut Doku den Hinweis „being deprecated starting May 2026“.
+   */
+  deviceConfigurationDeviceStatuses: {
+    id: 'deviceConfigurationDeviceStatuses',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationdevicestatus-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurations/{id}/deviceStatuses',
+    path: (configurationId: string) =>
+      `/deviceManagement/deviceConfigurations/${enc(configurationId)}/deviceStatuses`,
+  },
+  /** Compliance-Richtlinien des Mandanten (M15). Keine Query-Optionen dokumentiert. */
+  deviceCompliancePolicies: {
+    id: 'deviceCompliancePolicies',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicy-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies',
+    path: () => '/deviceManagement/deviceCompliancePolicies',
+  },
+  /** Zähler je Compliance-Richtlinie (gleiche Felder wie bei Konfigurationsprofilen). */
+  deviceCompliancePolicyDeviceStatusOverview: {
+    id: 'deviceCompliancePolicyDeviceStatusOverview',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancedeviceoverview-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/deviceStatusOverview',
+    path: (policyId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/deviceStatusOverview`,
+  },
+  /** Gerätestatus je Compliance-Richtlinie. Keine Query-Optionen dokumentiert. */
+  deviceCompliancePolicyDeviceStatuses: {
+    id: 'deviceCompliancePolicyDeviceStatuses',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancedevicestatus-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/deviceStatuses',
+    path: (policyId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/deviceStatuses`,
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

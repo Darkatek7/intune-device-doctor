@@ -681,3 +681,60 @@ export interface GraphVppToken {
   countryOrRegion?: string | null;
   lastAppCount?: number | null;
 }
+
+// ---------- Richtlinien → Geräte (v1.0) – M15 ----------
+// Konfigurationsprofile:
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfiguration-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-deviceconfiguration?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-deviceconfigurationdeviceoverview?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-deviceconfigurationdevicestatus?view=graph-rest-1.0
+// Compliance-Richtlinien:
+// https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicy-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancepolicy?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancedeviceoverview?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancedevicestatus?view=graph-rest-1.0
+// Scope DeviceManagementConfiguration.Read.All (least privileged laut Doku, beim Login angefragt).
+
+/**
+ * deviceConfiguration bzw. deviceCompliancePolicy (Basistyp). Die Listen liefern abgeleitete Typen
+ * (z. B. #microsoft.graph.windows10GeneralConfiguration); ein Plattform-Feld hat der Basistyp nicht.
+ * `description` wird bewusst nicht gelesen (freier Admin-Text).
+ */
+export interface GraphTenantPolicy {
+  '@odata.type'?: string | null;
+  id: string;
+  displayName?: string | null;
+  lastModifiedDateTime?: string | null;
+  createdDateTime?: string | null;
+  version?: number | null;
+}
+
+/**
+ * deviceConfigurationDeviceOverview / deviceComplianceDeviceOverview (gleiche Felder). Ein Zähler für
+ * Konflikte existiert in v1.0 nicht. Das Doku-Beispiel zeigt die Antwort unter `value` verpackt.
+ */
+export interface GraphPolicyDeviceOverview {
+  id?: string | null;
+  pendingCount?: number | null;
+  notApplicableCount?: number | null;
+  successCount?: number | null;
+  errorCount?: number | null;
+  failedCount?: number | null;
+  lastUpdateDateTime?: string | null;
+  configurationVersion?: number | null;
+}
+
+/**
+ * deviceConfigurationDeviceStatus / deviceComplianceDeviceStatus (gleiche Felder). Die `id` ist laut
+ * Doku nur „Key of the entity“ – dass sie die managedDevice-ID ist, ist NICHT belegt. Ein Plattform-Feld
+ * gibt es nicht (nur deviceModel). `complianceGracePeriodExpirationDateTime` wird nicht gelesen.
+ */
+export interface GraphPolicyDeviceStatus {
+  id: string;
+  deviceDisplayName?: string | null;
+  userName?: string | null;
+  deviceModel?: string | null;
+  status?: ComplianceStatus | null;
+  lastReportedDateTime?: string | null;
+  userPrincipalName?: string | null;
+}
