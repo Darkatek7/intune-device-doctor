@@ -240,7 +240,7 @@ test.describe('Startseite (U3)', () => {
     const label = page.getByText(T.zipChip, { exact: true });
     await expect(label).toBeVisible();
     const clipped = await label.evaluate(
-      (el) => el.scrollWidth > el.clientWidth || getComputedStyle(el).textOverflow === 'ellipsis',
+      '(el) => el.scrollWidth > el.clientWidth || getComputedStyle(el).textOverflow === "ellipsis"',
     );
     expect(clipped).toBe(false);
   });

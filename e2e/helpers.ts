@@ -143,7 +143,18 @@ export async function waitForTilesReady(page: Page): Promise<void> {
   await expect(tileButtons(page).first()).toBeVisible();
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(page.getByText(T.loading, { exact: true })).toHaveCount(0);
+  // Nach dem Laden wandern gesunde Kacheln in den kompakten Abschnitt (Crossfade); axe-Scans und
+  // Screenshots sollen erst nach dem Einblenden laufen, sonst messen sie halbtransparente Texte.
+  await expect
+    .poll(() => page.evaluate(TILE_OPACITY_SCRIPT), { message: 'Kacheln blenden noch ein' })
+    .toBe(true);
 }
+
+/** true, sobald alle Kachel-Listeneinträge und deren Inhalt voll deckend sind (String: kein DOM-Lib im Node-Projekt) */
+const TILE_OPACITY_SCRIPT = `(() => {
+  const nodes = document.querySelectorAll('ul[aria-label="Statuskacheln"] li, ul[aria-label="Statuskacheln"] li > div');
+  return Array.from(nodes).every((el) => getComputedStyle(el).opacity === '1');
+})()`;
 
 /** Öffnet das Detail-Sheet einer Kachel per Klick und liefert den Dialog. */
 export async function openTile(page: Page, title: string): Promise<Locator> {

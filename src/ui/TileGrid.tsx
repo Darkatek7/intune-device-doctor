@@ -53,9 +53,7 @@ export function TileGrid({ tiles, onOpen, settled }: Props) {
               <motion.li
                 key="healthy-intro"
                 layout={reduced ? false : 'position'}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={fade}
+                transition={spring}
                 data-testid="healthy-section"
                 className="col-span-12 flex flex-col gap-3 pt-2"
               >
