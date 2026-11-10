@@ -43,6 +43,7 @@ export const SENSITIVE_KEYS: Readonly<Record<string, SensitiveKind>> = {
   manageddeviceid: 'id',
   entradeviceid: 'id',
   azureaduserid: 'id',
+  filtereduserid: 'id',
 };
 
 /**
@@ -71,4 +72,6 @@ export const VISIBLE_KEYS: readonly string[] = [
   'appid',
   'correlationid',
   'requestid',
+  // Defender-Risikostufe des Geräts (Wert, kein Name)
+  'deviceriskscore',
 ];

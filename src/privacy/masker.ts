@@ -105,7 +105,7 @@ const IPV4_OCTET = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
  * (z. B. „Agent-Version 1.101.103.0“) sind für die Diagnose nötig.
  */
 const EMAIL_RE = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
-const GUID_RE = new RegExp(`(?<![0-9a-f-])${GUID}(?![0-9a-f-])`, 'gi');
+const GUID_RE = new RegExp(`(?<![0-9a-f])${GUID}(?![0-9a-f])`, 'gi');
 const MAC_RE = /(?<![0-9a-f:-])(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}(?![0-9a-f:-])/gi;
 const IPV4_RE = new RegExp(
   `(?<![\\w.-])(?<!\\b(?:version|ver|v|build|agent)[\\s:.-]*)${IPV4_OCTET}(?:\\.${IPV4_OCTET}){3}(?![\\w-]|\\.\\d)`,
