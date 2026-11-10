@@ -69,6 +69,13 @@ Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M15)“. 
 - Toolbar › „Richtlinien“ → `GET …/deviceManagement/deviceConfigurations` und `…/deviceCompliancePolicies`, danach je Richtlinie `…/{id}/deviceStatusOverview` (höchstens 50). Prüfen: 200 ohne Query-Optionen; `@odata.type` vorhanden (Plattform-Spalte); Zähler stimmen mit dem Admin Center (Gerätestatus der Richtlinie) überein – notieren, wie Konflikte/„nicht konform“ gezählt werden.
 - Eine Richtlinie mit bekannten Fehlern öffnen → `…/{id}/deviceStatuses`. Prüfen: Einträge vorhanden (bei Konfigurationsprofilen trotz Abkündigungshinweis ab Mai 2026), `deviceDisplayName` = Intune-Gerätename (Klick findet das Gerät), Form der `id`. Keine Gerätenamen/UPNs in Berichte übernehmen.
 
+## 6. Dienststatus und Registrierungsfehler (M18)
+
+Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M18)“. Der Verbindungstest ruft beide Endpunkte mit auf (nur Feldnamen).
+
+- **Dienststatus** (Scope `ServiceHealth.Read.All` per Admin-Consent; Konto mit einer Admin-Rolle, z. B. Service Support Administrator): Toolbar › „Mandant“ → `GET …/admin/serviceAnnouncement/healthOverviews?$expand=issues`. Prüfen: 200; Schreibweise der Enum-Werte; **wie `service` und `id` für Intune und Entra lauten** (Kachel „Dienststatus“ › „Alle gemeldeten Dienste“) – erkennt die App beide? Ohne Rolle bzw. Consent: Kachel „Fehlende Berechtigung“, in der Geräteansicht erscheint **kein** Hinweis. Mit offenem Intune-Vorfall: Hinweis über den Gerätekacheln, Sprung in die Kachel; Titel/Beschreibung mit dem Microsoft 365 Admin Center vergleichen. Keine Vorfalltexte in Berichte übernehmen (nur Status/Struktur).
+- **Registrierungsfehler** (Scope `DeviceManagementManagedDevices.Read.All`, bereits beim Login): Toolbar › „Mandant“ → `GET …/deviceManagement/troubleshootingEvents`. Prüfen: `@odata.type` der Einträge, Seitengröße und Reihenfolge, Form von `failureReason`; Zahlen mit dem Bericht Geräte › Überwachen › Registrierungsfehler vergleichen. Ein Gerät öffnen, dessen Benutzer kürzlich einen Fehlschlag hatte: erscheint der Befund in „Registrierung (Benutzer)“ (Abgleich über `userId`)? Keine Benutzer-IDs oder Gerätenamen in Berichte übernehmen.
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.

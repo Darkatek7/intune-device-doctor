@@ -43,6 +43,7 @@ import { TenantView } from './TenantView';
 import { PoliciesView } from './PoliciesView';
 import { useProviderContext } from './providerContextValue';
 import { ZipView } from './ZipView';
+import { EnrollmentFailuresHint } from '../ui/EnrollmentFailuresHint';
 
 interface Props {
   /** Slot für das Konto in der Toolbar (M4: AuthGate/Account-Menü) */
@@ -196,6 +197,12 @@ function Shell({ account, extraChips }: Props) {
     reset();
     setQuery('');
     navigateTo({ device: null, tile: null, mode, view: 'tenant' });
+  };
+
+  /** Öffnet eine Kachel der Ansicht „Mandant“ direkt (M18: Dienststatus, Registrierungsfehler). */
+  const openTenantTile = (tileId: 'tenantServiceHealth' | 'tenantEnrollmentFailures') => {
+    openTenant();
+    navigateTo({ device: null, tile: tileId, mode, view: 'tenant' }, { tileOpened: true });
   };
 
   const openPolicies = () => {
@@ -354,6 +361,7 @@ function Shell({ account, extraChips }: Props) {
         onToneChange={setDeviceTone}
         onDeviceLoaded={recentDevices.remember}
         onOpenDevice={openDevice}
+        onOpenServiceHealth={() => openTenantTile('tenantServiceHealth')}
         {...(canTestConnection
           ? {
               onOpenConnectionTest: () =>
@@ -470,6 +478,9 @@ function Shell({ account, extraChips }: Props) {
         icon={SearchX}
         title={de.empty.notFoundTitle}
         description={de.empty.notFoundBody(state.query)}
+        action={
+          <EnrollmentFailuresHint onOpen={() => openTenantTile('tenantEnrollmentFailures')} />
+        }
       />
     );
   } else if (showSearchError && state.error) {

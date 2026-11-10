@@ -292,3 +292,37 @@ describe('Registrierung (Benutzer) – Berechtigung, Fehler, Sichtbarkeit', () =
     expect(userless).not.toContain('registration');
   });
 });
+
+describe('Registrierung (Benutzer) – fehlgeschlagene Registrierungen (M18)', () => {
+  const f = de.service.failures;
+
+  it('CONTOSO-PC042: Fehlschlag des Benutzers (Registrierungsbeschränkung) → warning mit Ursache und Learn-Quelle', async () => {
+    const tile = evaluateRegistration(await snapshotOf('CONTOSO-PC042'), NOW);
+    expect(tile.severity).toBe('warning');
+    expect(tile.value).toBe(f.valueCount(1));
+    const finding = tile.findings.find(
+      (x) => x.id === 'registration-enrollmentFailure-enrollmentRestrictionsEnforced',
+    )!;
+    expect(finding.severity).toBe('warning');
+    expect(finding.cause).toBe(f.causes.enrollmentRestrictionsEnforced);
+    expect(finding.docsUrl).toBe(Docs.enrollmentRestrictions);
+    expect(tile.facts).toContainEqual({ label: f.deviceFact, value: '1' });
+    expect(tile.sources.map((s) => s.label)).toContain(
+      'GET /deviceManagement/troubleshootingEvents',
+    );
+  });
+
+  it('CONTOSO-PC001: keine Fehlschläge → Fakt „keine gefunden“, Severity unverändert ok', async () => {
+    const tile = evaluateRegistration(await snapshotOf('CONTOSO-PC001'), NOW);
+    expect(tile.severity).toBe('ok');
+    expect(tile.facts).toContainEqual({ label: f.deviceFact, value: f.deviceFactNone });
+  });
+
+  it('CONTOSO-IP015: fehlende Lizenz bleibt Hauptwert, die Fehlschläge stehen zusätzlich als Befund', async () => {
+    const tile = evaluateRegistration(await snapshotOf('CONTOSO-IP015'), NOW);
+    expect(tile.value).toBe(t.valueNoLicense);
+    expect(tile.findings.map((x) => x.id)).toContain(
+      'registration-enrollmentFailure-userValidation',
+    );
+  });
+});

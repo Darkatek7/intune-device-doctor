@@ -24,6 +24,7 @@ import { deviceMeta } from '../ui/deviceMeta';
 import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
 import { InsightCard } from '../ui/InsightCard';
+import { ServiceHealthNotice } from '../ui/ServiceHealthNotice';
 import { TimelineButton } from '../ui/TimelineButton';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
@@ -49,6 +50,8 @@ interface Props {
   onOpenDevice?: (device: Pick<DeviceSearchResult, 'id' | 'deviceName'>) => void;
   /** Öffnet den Verbindungstest (M14/S6); nur gesetzt, wenn der Provider ihn anbietet (Live) */
   onOpenConnectionTest?: () => void;
+  /** Öffnet den Dienststatus in der Ansicht „Mandant“ (M18); ohne Angabe kein Hinweis */
+  onOpenServiceHealth?: () => void;
 }
 
 /** Anzahl der Standard-Kacheln (ohne ZIP-Kacheln) – für Platzhalter und Fortschritt. */
@@ -67,6 +70,7 @@ export function DeviceView({
   onDeviceLoaded,
   onOpenDevice,
   onOpenConnectionTest,
+  onOpenServiceHealth,
 }: Props) {
   const namedDiagnostics = useResolvedApps(provider, diagnostics);
   const { status, snapshot, error, now, retrySection } = useDeviceSnapshot(
@@ -250,6 +254,9 @@ export function DeviceView({
           ) : undefined
         }
       />
+      {onOpenServiceHealth && (
+        <ServiceHealthNotice provider={provider} onOpen={onOpenServiceHealth} />
+      )}
       {insights.length > 0 && (
         <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
       )}
