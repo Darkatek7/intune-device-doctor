@@ -1443,6 +1443,8 @@ export const deRules = {
         name
           ? `Fehlercode ${hex} (${decimal}) = Win32 ${base} ${name} („${text}“)`
           : `Fehlercode ${hex} (${decimal}) = Win32-Fehler ${base}`,
+      codeKnowledge: (hex: string, decimal: number, title: string) =>
+        `Fehlercode ${hex} (${decimal}): ${title}`,
       codeUnknown: (hex: string, decimal: number) => `Unbekannter Code ${hex} (${decimal})`,
       codeNone: 'ohne Fehlercode',
       failedCause:
@@ -1582,6 +1584,7 @@ export const deRules = {
       failedDetail: (hresult: string, meaning: string | undefined) =>
         meaning ? `${hresult} – ${meaning}.` : `${hresult}.`,
       codeKnown: (name: string, text: string) => `${name} („${text}“)`,
+      codeKnowledge: (title: string) => title,
       codeUnknown: 'Unbekannter Code',
       harmlessCause:
         'Diese Komponente ist auf vielen Geräten nicht installiert; das Fehlen der Daten ist dann erwartbar.',
@@ -1668,6 +1671,8 @@ export const deRules = {
           .join(' '),
       sampleField: (name: string, value: string) => `${name} = „${value}“`,
       codeKnown: (hex: string, name: string, text: string) => `${hex} = ${name} („${text}“).`,
+      codeKnowledge: (hex: string, decimal: number, title: string) =>
+        `${hex} (${decimal}): ${title}.`,
       unknownEventCause:
         'Für diese Ereignis-ID ist keine Deutung mit Microsoft-Learn-Quelle hinterlegt – angezeigt werden nur die Rohdaten aus dem Ereignis.',
       genericRemediation: [
