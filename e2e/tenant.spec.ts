@@ -11,12 +11,12 @@ import {
 
 /** Ansicht „Mandant“ (M14/S5) und Abgrenzung zum Verbindungstest (M14/S6, nur Live). */
 test.describe('Ansicht „Mandant“', () => {
-  test('Toolbar öffnet die sieben Mandanten-Kacheln; VPP-Token läuft bald ab', async ({ page }) => {
+  test('Toolbar öffnet die acht Mandanten-Kacheln; VPP-Token läuft bald ab', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Mandant', exact: true }).click();
 
     await expect(page.getByRole('heading', { level: 1, name: 'Mandant' })).toBeVisible();
-    await expect(tileButtons(page)).toHaveCount(7);
+    await expect(tileButtons(page)).toHaveCount(8);
     await expect(page).toHaveURL(/view=tenant/);
 
     await expect(statusBadge(tile(page, 'Apple-MDM-Push-Zertifikat'), T.ok)).toBeVisible();
@@ -26,7 +26,7 @@ test.describe('Ansicht „Mandant“', () => {
 
   test('Detail-Sheet der VPP-Kachel zeigt Befund, Ursache, Lösung und Quelle', async ({ page }) => {
     await page.goto('/?view=tenant&mode=demo');
-    await expect(tileButtons(page)).toHaveCount(7);
+    await expect(tileButtons(page)).toHaveCount(8);
     await tile(page, 'Apple-VPP-Token').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
