@@ -140,8 +140,7 @@ export const INSTALLER_EXIT_CODES: Array<{
   {
     code: 1633,
     title: 'Prozessortyp nicht unterstützt (1633)',
-    cause:
-      'Laut Microsoft wird das Installationspaket von diesem Prozessortyp nicht unterstützt.',
+    cause: 'Laut Microsoft wird das Installationspaket von diesem Prozessortyp nicht unterstützt.',
     remediation: [
       'Prüfen, ob die Prozessorarchitektur des Geräts zur Software passt und die Mindestanforderungen erfüllt.',
       'Erfüllt das Gerät die Anforderungen des Herstellers, den Produkthersteller kontaktieren.',
@@ -163,7 +162,9 @@ export const INSTALLER_EXIT_CODES: Array<{
     title: 'Upgrade-Patch nicht anwendbar (1642)',
     cause:
       'Laut Microsoft kann der Windows Installer den Upgrade-Patch nicht installieren: Das zu aktualisierende Programm fehlt möglicherweise, oder der Patch gilt für eine andere Version.',
-    remediation: ['Prüfen, ob das Gerät die Versionsvoraussetzungen des Produkts für die Installation erfüllt.'],
+    remediation: [
+      'Prüfen, ob das Gerät die Versionsvoraussetzungen des Produkts für die Installation erfüllt.',
+    ],
     docsUrl: `${APP_INSTALL_REFERENCE_URL}#1642`,
   },
 ];

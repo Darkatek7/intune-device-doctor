@@ -83,9 +83,7 @@ export const APP_ERROR_CODES: KnowledgeEntry[] = [
   entry('0x8000FFFF', {
     title: 'Unerwarteter Fehler bei der Installation (0x8000FFFF)',
     cause: 'Laut Microsoft ist während der Installation ein unerwarteter Fehler aufgetreten.',
-    remediation: [
-      'Die Installationsprotokolle auf weitere Informationen prüfen.',
-    ],
+    remediation: ['Die Installationsprotokolle auf weitere Informationen prüfen.'],
     docsUrl: APP_ERRORS_URL,
     // 0x8000FFFF ist der generische COM-Fehler E_UNEXPECTED – nur im App-Kontext so deuten.
     context: 'app',

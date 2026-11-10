@@ -15,8 +15,9 @@ const NOW = new Date('2026-10-15T12:00:00Z');
 const LEARN_URL = /^https:\/\/learn\.microsoft\.com\//;
 const PRT_PAGE =
   'https://learn.microsoft.com/entra/identity/devices/troubleshoot-primary-refresh-token';
-const MSI_ERRORS_URL =
-  'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#msi-errors';
+/** Abschnitt je MSI-Code auf "Application installation common error codes reference" (Anker geprüft). */
+const MSI_ERROR_URL = (code: number) =>
+  `https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#${code}`;
 const ZIP_PREFIX = 'DiagLogs-ZIP · ';
 
 let fixture: DiagnosticsReport;
@@ -178,7 +179,7 @@ describe('Fixture-ZIP: Win32-Apps', () => {
     expect(failed?.severity).toBe('warning');
     expect(failed?.detail).toContain('0x80070642');
     expect(failed?.detail).toContain('ERROR_INSTALL_USEREXIT');
-    expect(failed?.docsUrl).toBe(MSI_ERRORS_URL);
+    expect(failed?.docsUrl).toBe(MSI_ERROR_URL(1602));
     expect(failed?.source.label).toBe(
       `${ZIP_PREFIX}(2) RegistryKey HKLM_Software_Microsoft_IntuneManagementExtension export.reg`,
     );
@@ -438,7 +439,7 @@ describe('Synthetisch: Win32-Apps', () => {
     const failed = tile.findings.find((f) => f.id.startsWith('win32-failed-'));
     expect(failed?.detail).toContain('ERROR_INSTALL_FAILURE');
     expect(failed?.remediation[0]).toContain('MSI-Log');
-    expect(failed?.docsUrl).toBe(MSI_ERRORS_URL);
+    expect(failed?.docsUrl).toBe(MSI_ERROR_URL(1603));
   });
 
   it('Status „FAILED“ in Großbuchstaben zählt als fehlgeschlagen', () => {

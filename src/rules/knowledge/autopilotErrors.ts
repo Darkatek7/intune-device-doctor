@@ -55,7 +55,9 @@ export const AUTOPILOT_ERROR_CODES: KnowledgeEntry[] = [
     title: 'TPM-Attestierung: maximale Wiederholungen überschritten (0x81039001)',
     cause:
       'Laut Microsoft (E_AUTOPILOT_CLIENT_TPM_MAX_ATTESTATION_RETRY_EXCEEDED) scheitert die TPM-Attestierung bei manchen Geräten sporadisch im Schritt „Securing your hardware“ – beim Pre-Provisioning (Techniker-Ablauf) oder im Self-Deploying-Modus.',
-    remediation: ['Bereitstellung erneut versuchen – laut Microsoft kann ein weiterer Versuch das Problem lösen.'],
+    remediation: [
+      'Bereitstellung erneut versuchen – laut Microsoft kann ein weiterer Versuch das Problem lösen.',
+    ],
     docsUrl: `${KNOWN_ISSUES_URL}#tpm-attestation-failure-with-error-code-0x81039001`,
   }),
   entry('0x81039023', {
