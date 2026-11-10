@@ -42,4 +42,4 @@ Befunde aus der Doku, die die Umsetzung prägen:
 - [x] „Kein Gerät gefunden“ mit Verweis, der die Kachel „Registrierungsfehler“ öffnet
 - [x] Jede Quelle liefert `SectionResult`; 403/404/429 getestet (GraphProvider), Berechtigungsfall in Komponente und MockProvider
 - [x] Unit-Tests (Mapper, Regeln je Enum/Severity, Provider, Komponenten) und `e2e/service.spec.ts` inkl. axe in allen vier Projekten grün
-- [x] README (Scope-Tabelle, Bekannte Grenzen, Demo-Skript), `docs/live-verification.md` › 6, „Live zu verifizieren (M18)“
+- [x] README (Scope-Tabelle, Bekannte Grenzen, Demo-Skript), `docs/live-verification.md` › 7, „Live zu verifizieren (M18)“

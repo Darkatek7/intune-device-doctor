@@ -295,7 +295,7 @@ Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification
 
 ## Live zu verifizieren (M18)
 
-Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 6):
+Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 7):
 
 - [ ] **Dienstname Intune/Entra:** Wie lauten `service` und `id` für Intune und Entra in `healthOverviews` (Learn nennt keine festen Werte)? Greift die Zuordnung über den Namen („Intune“/„Entra“)? Ggf. die Zuordnung in `serviceHealthKind` (`src/graph/mappers.ts`) auf die echten IDs umstellen und hier eintragen.
 - [ ] **Dienststatus allgemein:** Liefert `$expand=issues` 200 und wie viele (auch alte, behobene) Einträge je Dienst? Kommen Enum-Werte camelCase oder PascalCase? Welche Admin-Rolle reicht dem lesenden Konto real (403 ohne Rolle?)?

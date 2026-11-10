@@ -11,7 +11,9 @@ export const DEVICE_ICON: Record<DeviceIconKind, LucideIcon> = {
 };
 
 /** Geräte-Symbol nach Plattform: iPad → Tablet, iOS/Android → Smartphone, sonst Laptop. */
-export function deviceIconKind(device: ManagedDeviceInfo | null): DeviceIconKind {
+export function deviceIconKind(
+  device: Pick<ManagedDeviceInfo, 'osFamily' | 'model'> | null,
+): DeviceIconKind {
   if (!device) return 'laptop';
   if (device.osFamily === 'ios' && /^ipad/i.test(device.model ?? '')) return 'tablet';
   if (device.osFamily === 'ios' || device.osFamily === 'android') return 'smartphone';

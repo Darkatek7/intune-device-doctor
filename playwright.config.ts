@@ -41,7 +41,7 @@ export default defineConfig({
           cookies: [],
           origins: [
             {
-              origin: 'http://localhost:4173',
+              origin: `http://localhost:${port}`,
               localStorage: [{ name: 'mdm-doctor.theme', value: 'light' }],
             },
           ],

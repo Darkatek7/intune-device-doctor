@@ -4,10 +4,20 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 
 ## Layout
 
-- **Toolbar** (sticky, transluzent: `bg-surface-raised` + `backdrop-blur-xl backdrop-saturate-150`): links App-Name, Mitte Suchfeld (⌘K / `/` fokussiert), rechts Demo/Live-Segmented-Control und Konto. Statt Trennlinie ein weicher Scroll-Edge-Verlauf, nur sobald Inhalt darunter scrollt.
+- **Toolbar** (sticky, transluzent: `bg-surface-raised` + `backdrop-blur-xl backdrop-saturate-150`): links App-Name, danach die **Hauptnavigation**, Mitte Suchfeld (⌘K / `/` fokussiert), rechts Demo/Live-Segmented-Control und Konto. Statt Trennlinie ein weicher Scroll-Edge-Verlauf, nur sobald Inhalt darunter scrollt.
 - **Leerer Zustand**: großes zentriertes Suchfeld, darunter Drop-Zone „oder DiagLogs-ZIP hierher ziehen“ + Datenschutzhinweis; im Demo-Modus 3–4 Chips mit Beispielgeräten (ein Klick = Szenario laden).
-- **Ergebnis**: Geräte-Header (Name groß, darunter Modell · Nutzer · OS · Enrollment-Datum; rechts Zusammenfassung „3 Probleme · 1 Hinweis“ mit Severity-Farbe), darunter Kachel-Grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`, `gap-4`. Kacheln sortiert: critical → warning → unknown → ok (stabile Reihenfolge innerhalb).
+- **Ergebnis**: Geräte-Header (Name groß, darunter Modell · Nutzer · OS · Enrollment-Datum; rechts Zusammenfassung „3 Probleme · 1 Hinweis“ mit Severity-Farbe), darunter Kachel-Grid (12 Spalten, `gap-3 sm:gap-4`; große Karte 1/2/3/4 Spalten). Kacheln sortiert: critical → warning → unknown → ok (stabile Reihenfolge innerhalb).
+- **Aktionsleiste** über den Kacheln: sichtbar nur „Zeitachse“ und „Ticket-Notiz kopieren“, alles Weitere (Drucken / PDF, Stand exportieren, Mit Stand vergleichen, Verbindungstest …) im Menü „Mehr“ (`ActionMenu`/`HeaderActions`). Menü-Muster nach WAI-ARIA: Schaltfläche mit `aria-haspopup="menu"`/`aria-expanded`, Pfeiltasten/Home/End, Escape schließt und gibt den Fokus zurück, Klick außerhalb und Tab schließen, gesperrte Einträge (`aria-disabled`) werden übersprungen. Mobil ragt das Menü nie über den Rand.
+- **Hauptnavigation** (`<nav aria-label="Hauptnavigation">`, `aria-current="page"`): Einträge „Geräte“, „Richtlinien“, „Mandant“ stammen aus **einem Array** (`src/ui/navItems.ts`); eine neue Ansicht = ein Eintrag plus ein Handler in `AppShell` (der Typ `NavId` erzwingt ihn). Jeder Eintrag hat **sichtbaren Text** (Icon + Beschriftung, nie nur Symbol) und keinen abweichenden `aria-label` (WCAG 2.5.3, axe `label-content-name-mismatch`). Ab `lg` steht die Navigation in der Toolbar-Zeile, darunter als eigene Zeile (mobil volle Breite, Einträge gleich breit). Der URL-Zustand (`?view=…`) bleibt unverändert.
 - Max. Inhaltsbreite ~ 80rem, Seitenabstand 1rem mobil / 2rem Desktop. Abstände in rem.
+
+## Gesunde Kacheln kompakt (`CompactTile`, `TileGrid`)
+
+- Priorität statt Gleichbehandlung: Ein Admin sucht die Auffälligkeit. Nach Abschluss des Ladens bleiben Kacheln mit **Befund** (critical, warning, unknown sowie Berechtigungs-, Fehler- und „nicht verfügbar“-Zustände) große Karten; Kacheln mit Severity **ok** und **nicht anwendbar** stehen darunter im Abschnitt „In Ordnung · N“ (`<h2>`) als **kompakte Zeile**: Icon-Squircle, Titel, Hauptwert, Status-Icon (Form + Text im zugänglichen Namen, nie nur Farbe).
+- Kompakt = ein `<button>` mit denselben Bestandteilen im zugänglichen Namen wie die große Kachel (Titel, Status, Wert, Kontext), `aria-haspopup="dialog"`, öffnet dasselbe Sheet (Herauswachsen aus der Kachel). Raster 1/2/3 Spalten, Zeilenhöhe mind. 3rem; lange Titel/Werte brechen um statt abgeschnitten zu werden.
+- Ist **alles** in Ordnung, steht oben eine ruhige positive Aussage („Keine Auffälligkeiten – Alle N Prüfungen sind in Ordnung“), danach die kompakten Zeilen.
+- Während des Ladens bleibt die flache Skeleton-Darstellung (keine Umsortierung, kein Springen). Erst wenn nichts mehr lädt (`settled`), wandern die unauffälligen Kacheln per Layout-Animation (Spring) in den Abschnitt; die Liste ist eine einzige `<ul>` mit stabilen Keys, deshalb bauen sich die Kacheln nicht neu auf. Bei `prefers-reduced-motion` nur Crossfade.
+- Große Karten: Kontextzeile bis zu **zwei** Zeilen (`line-clamp-2`), Kachelhöhen im Raster bleiben bündig.
 
 ## Kachel (`StatusTile`)
 
@@ -48,6 +58,10 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 - Umgebungslicht (`AmbientGlow`): statischer, weicher Schein oben in der Farbe des Gesamtzustands (Startseite: Akzent; Gerät/ZIP: schlechteste Severity). Farbwechsel blendet über eine registrierte CSS-Property weich über. Entfällt bei `prefers-reduced-transparency` und `prefers-contrast: more`.
 - Gruppierte Inhalte im Sheet (Befunde, geprüfte Werte) liegen auf `bg-fill` (iOS „grouped“): im Dunkeln heller als die Sheet-Fläche, nicht dunkler.
 - App-Glyphe: Squircle mit Blau-Indigo-Verlauf (`app-glyph`) in Toolbar und Startseite.
+
+## Nachladen
+
+- Selten gebrauchte Ansichten (Richtlinien samt Detail, Mandant, Verbindungstest, Sammelprüfung, ZIP-Ansicht) laden per `React.lazy` nach (`src/app/lazyViews.ts`). Bis dahin zeigt `ViewFallback` einen ruhigen Platzhalter (`role="status"`, `aria-busy`), der erst nach 200 ms einblendet – bei schnellem Laden erscheint nichts (kein Aufblitzen).
 
 ## Erscheinungsbild
 

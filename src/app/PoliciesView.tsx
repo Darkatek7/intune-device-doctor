@@ -15,7 +15,7 @@ import {
   Search,
   TriangleAlert,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   filterPolicies,
   flattenPolicies,
@@ -41,7 +41,8 @@ import { ErrorState } from '../ui/ErrorState';
 import { fade, spring, STAGGER } from '../ui/motion';
 import { SeverityBadge, SeverityIcon } from '../ui/SeverityBadge';
 import { TONE_CLASS } from '../ui/tone';
-import { PolicyDetailView } from './PolicyDetailView';
+import { ViewFallback } from '../ui/ViewFallback';
+import { PolicyDetailView } from './lazyViews';
 
 const t = de.policies;
 
@@ -134,15 +135,17 @@ export function PoliciesView({
         animate={reduced ? { opacity: 1 } : { opacity: 1, x: 0 }}
         transition={transition}
       >
-        <PolicyDetailView
-          provider={provider}
-          policyKey={openKey}
-          policy={openPolicy ?? null}
-          listLoading={loading}
-          onBack={onClosePolicy}
-          onOpenDeviceByName={onOpenDeviceByName}
-          onToneChange={setDetailTone}
-        />
+        <Suspense fallback={<ViewFallback />}>
+          <PolicyDetailView
+            provider={provider}
+            policyKey={openKey}
+            policy={openPolicy ?? null}
+            listLoading={loading}
+            onBack={onClosePolicy}
+            onOpenDeviceByName={onOpenDeviceByName}
+            onToneChange={setDetailTone}
+          />
+        </Suspense>
       </motion.div>
     );
   }

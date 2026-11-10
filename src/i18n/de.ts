@@ -243,6 +243,14 @@ export const de = {
     failed: 'Anmeldung fehlgeschlagen.',
     account: 'Angemeldetes Konto',
     notConfigured: 'Anmeldung nicht möglich: Client-ID und Tenant-ID fehlen (.env.local).',
+    /** Hinweis auf der Anmelde-Ansicht nach automatischer Abmeldung (M16/S2) */
+    idleSignedOut: (minutes: number) =>
+      `Aus Sicherheitsgründen nach ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} Inaktivität abgemeldet.`,
+    idleWarningTitle: 'Bald abgemeldet',
+    idleWarning:
+      'Aus Sicherheitsgründen wirst du bei weiterer Inaktivität in weniger als einer Minute abgemeldet. Geladene Gerätedaten werden dabei verworfen.',
+    idleSecondsLeft: (seconds: number) => `Noch ${seconds} s`,
+    idleStay: 'Angemeldet bleiben',
   },
   /** UI-Shell (M2): Toolbar, Suche, Header, Sheet, Leerzustände */
   /** Verbindungstest (M14/S6, nur Live) */
@@ -333,6 +341,13 @@ export const de = {
       done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
     },
   },
+  /** Hauptnavigation der Toolbar */
+  nav: {
+    label: 'Hauptnavigation',
+    devices: 'Geräte',
+    policies: 'Richtlinien',
+    tenant: 'Mandant',
+  },
   toolbar: {
     tenant: 'Mandanten-Status',
     tenantShort: 'Mandant',
@@ -352,7 +367,7 @@ export const de = {
   },
   hero: {
     title: 'Intune-Geräte in Sekunden diagnostizieren',
-    subtitle: 'Gerätenamen oder Benutzer eingeben – oder ein Beispielgerät laden.',
+    subtitle: 'Gerätenamen, Benutzer oder Seriennummer eingeben – oder ein Beispielgerät laden.',
   },
   header: {
     loadingDevice: 'Gerät wird geladen …',
@@ -368,9 +383,21 @@ export const de = {
     otherDevicesLabel: 'Weitere Geräte des Benutzers',
     openOtherDevice: (name: string, compliance: string) => `${name} öffnen (${compliance})`,
   },
+  /** Aktionsleiste über den Kacheln (Menü „Mehr“) */
+  actions: {
+    label: 'Aktionen',
+    more: 'Mehr',
+    moreHint: 'Weitere Aktionen',
+  },
   grid: {
     label: 'Statuskacheln',
     open: 'Details anzeigen',
+    /** Abschnitt der unauffälligen Kacheln (kompakt) */
+    healthyTitle: (n: number) => `In Ordnung · ${n}`,
+    /** Positive Aussage, wenn keine Kachel einen Befund hat */
+    allOkTitle: 'Keine Auffälligkeiten',
+    allOkBody: (n: number) =>
+      n === 1 ? 'Die Prüfung ist in Ordnung.' : `Alle ${n} Prüfungen sind in Ordnung.`,
   },
   sheet: {
     loading: 'Wird ausgewertet …',
