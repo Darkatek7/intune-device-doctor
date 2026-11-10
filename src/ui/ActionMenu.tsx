@@ -33,7 +33,7 @@ interface Props {
 export const MENU_BUTTON_CLASS =
   'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
 
-const VIEWPORT_MARGIN = 8;
+const VIEWPORT_MARGIN = 16;
 
 /**
  * Menü-Schaltfläche („Mehr“) nach dem WAI-ARIA-Menübutton-Muster: `aria-haspopup="menu"`,
