@@ -127,7 +127,10 @@ export async function openDevice(page: Page, query: string): Promise<void> {
 
 /** Kachel-Button über den Anfang seines Namens (Titel steht am Anfang des accessible name). */
 export function tile(page: Page, title: string): Locator {
-  return page.getByRole('button', { name: new RegExp(`^${escapeRegExp(title)}`) });
+  // Nur Kachel-Buttons: der Toolbar-Button „Richtlinien“ (M15) beginnt mit demselben Namen.
+  return page
+    .getByRole('button', { name: new RegExp(`^${escapeRegExp(title)}`) })
+    .and(page.locator('[data-tile-id]'));
 }
 
 /** Alle Kachel-Buttons der Ansicht (Skeletons zählen nicht). */
