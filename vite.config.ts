@@ -15,7 +15,10 @@ function cspPlugin(): Plugin {
     [
       "default-src 'self'",
       `script-src 'self' ${scriptHashes.join(' ')}`.trim(),
-      "style-src 'self' 'unsafe-inline'",
+      // Kein <style> zur Laufzeit nötig (die App hat nur die gebaute CSS-Datei). `motion` setzt
+      // Inline-style-Attribute (Animationen) – dafür genügt style-src-attr.
+      "style-src 'self'",
+      "style-src-attr 'unsafe-inline'",
       "img-src 'self' data:",
       "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com",
       "worker-src 'self' blob:",
@@ -23,6 +26,8 @@ function cspPlugin(): Plugin {
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      // Trusted Types: DOM-XSS-Senken nur noch über die Default-Policy (src/security/trustedTypes.ts).
+      "require-trusted-types-for 'script'",
     ].join('; ');
 
   return {
