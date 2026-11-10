@@ -1,4 +1,4 @@
-import { Landmark, Stethoscope } from 'lucide-react';
+import { Landmark, ListChecks, Stethoscope } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
@@ -16,6 +16,10 @@ interface Props {
   onOpenTenant?: () => void;
   /** Die Ansicht „Mandant“ ist gerade offen */
   tenantActive?: boolean;
+  /** Öffnet die Ansicht „Richtlinien“ (M15); fehlt → Schaltfläche entfällt */
+  onOpenPolicies?: () => void;
+  /** Die Ansicht „Richtlinien“ ist gerade offen */
+  policiesActive?: boolean;
   /** Slot für das Konto (M4: AuthGate/Account-Menü) */
   account?: ReactNode;
 }
@@ -29,6 +33,8 @@ export function Toolbar({
   onHome,
   onOpenTenant,
   tenantActive,
+  onOpenPolicies,
+  policiesActive,
   account,
 }: Props) {
   const [scrolled, setScrolled] = useState(false);
@@ -73,6 +79,20 @@ export function Toolbar({
               >
                 <Landmark aria-hidden="true" size={16} />
                 <span className="sr-only sm:not-sr-only">{de.toolbar.tenantShort}</span>
+              </button>
+            )}
+            {onOpenPolicies && (
+              <button
+                type="button"
+                onClick={onOpenPolicies}
+                aria-current={policiesActive ? 'page' : undefined}
+                title={de.toolbar.policies}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
+                  policiesActive ? 'bg-accent/15 text-accent' : 'bg-fill text-label'
+                }`}
+              >
+                <ListChecks aria-hidden="true" size={16} />
+                <span className="sr-only sm:not-sr-only">{de.toolbar.policiesShort}</span>
               </button>
             )}
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />
