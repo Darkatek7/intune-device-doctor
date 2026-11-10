@@ -38,9 +38,12 @@ describe('Dienststatus-Hinweis in der Geräteansicht (M18)', () => {
       await screen.findByRole('heading', { level: 1, name: de.tenantView.title }),
     ).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog');
-    expect(
-      within(dialog).getByRole('heading', { name: de.tiles.tenantServiceHealth }),
-    ).toBeVisible();
+    // Das Sheet blendet ein (Opacity) – erst danach gilt die Überschrift als sichtbar.
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('heading', { name: de.tiles.tenantServiceHealth }),
+      ).toBeVisible(),
+    );
     expect(window.location.search).toContain('tile=tenantServiceHealth');
     // Englischer Originaltitel des Vorfalls im Sheet mit lang="en"
     const issueTitle = within(dialog).getByRole('heading', {
@@ -130,9 +133,11 @@ describe('Suche ohne Treffer → Registrierungsfehler (M18)', () => {
     await user.click(screen.getByRole('button', { name: de.service.failures.searchHint.link }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(
-      within(dialog).getByRole('heading', { name: de.tiles.tenantEnrollmentFailures }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('heading', { name: de.tiles.tenantEnrollmentFailures }),
+      ).toBeVisible(),
+    );
     expect(window.location.search).toContain('view=tenant');
     expect(window.location.search).toContain('tile=tenantEnrollmentFailures');
     expect(
