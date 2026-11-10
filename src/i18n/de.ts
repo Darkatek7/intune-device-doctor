@@ -4,6 +4,7 @@
  */
 import { deAnalysis } from './de-analysis';
 import { dePolicies } from './de-policies';
+import { dePrivacy } from './de-privacy';
 import { deRules } from './de-rules';
 import { deService } from './de-service';
 
@@ -117,6 +118,8 @@ export const de = {
   rules: deRules,
   /** Dienststatus und Registrierungsfehler (M18) – siehe ./de-service.ts */
   service: deService,
+  /** Präsentationsmodus (M19) – siehe ./de-privacy.ts */
+  privacy: dePrivacy,
   analysis: deAnalysis,
   policies: dePolicies,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
