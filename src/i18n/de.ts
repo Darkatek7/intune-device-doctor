@@ -348,7 +348,7 @@ export const de = {
   },
   hero: {
     title: 'Intune-Geräte in Sekunden diagnostizieren',
-    subtitle: 'Gerätenamen oder Benutzer eingeben – oder ein Beispielgerät laden.',
+    subtitle: 'Gerätenamen, Benutzer oder Seriennummer eingeben – oder ein Beispielgerät laden.',
   },
   header: {
     loadingDevice: 'Gerät wird geladen …',
