@@ -468,6 +468,41 @@ export interface SecurityAlertsInfo {
   moreAvailable: boolean;
 }
 
+// ---------- App-Schutz (M20/S3) ----------
+
+/** Eine App-Schutz-Registrierung (managedAppRegistration, v1.0) des primären Benutzers. */
+export interface AppProtectionRegistration {
+  id: string;
+  /** Bundle-ID (iOS) bzw. Paketname (Android) aus appIdentifier; null, wenn nicht geliefert */
+  appIdentifier: string | null;
+  /** Plattform laut appIdentifier-Typ */
+  appPlatform: 'ios' | 'android' | null;
+  applicationVersion: string | null;
+  managementSdkVersion: string | null;
+  platformVersion: string | null;
+  deviceType: string | null;
+  deviceName: string | null;
+  createdDateTime: string | null;
+  lastSyncDateTime: string | null;
+  /** Rohwerte aus flaggedReasons ohne `none` (dokumentiert: rootedDevice) */
+  flaggedReasons: string[];
+}
+
+export interface AppProtectionInfo {
+  /**
+   * Registrierungen, die angezeigt werden: bei `matchedBy = 'deviceName'` nur die mit gleichem Gerätenamen,
+   * bei `'user'` alle des Benutzers (Zuordnung zum Gerät nicht sicher). Zuletzt synchronisierte zuerst.
+   */
+  registrations: AppProtectionRegistration[];
+  /** Wie die Registrierungen dem Gerät zugeordnet wurden (v1.0 kennt keine Geräte-ID) */
+  matchedBy: 'deviceName' | 'user';
+  /** Alle Registrierungen des Benutzers in den gelesenen Seiten */
+  userRegistrationCount: number;
+  pagesRead: number;
+  /** true = weitere Seiten nicht gelesen */
+  truncated: boolean;
+}
+
 // ---------- Mandanten-Status (M14/S5) ----------
 
 export type VppTokenStateLevel =
@@ -797,6 +832,8 @@ export interface DeviceSnapshot {
   enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
   /** Offene Defender-Warnungen dieses Geräts (M14/S4, optionaler Scope SecurityAlert.Read.All) */
   securityAlerts?: SectionResult<SecurityAlertsInfo>;
+  /** Nur iOS/Android: App-Schutz-Registrierungen des primären Benutzers (M20/S3, optionaler Scope DeviceManagementApps.Read.All) */
+  appProtection?: SectionResult<AppProtectionInfo>;
   /** Fehlgeschlagene Registrierungen des primären Benutzers (M18, seitenbegrenzt, Kachel „Registrierung“) */
   enrollmentFailures?: SectionResult<EnrollmentFailuresInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
@@ -828,6 +865,7 @@ export type TileId =
   | 'defender'
   | 'policies'
   | 'apps'
+  | 'appProtection'
   | 'signIns'
   | 'laps'
   | 'autopilot'
@@ -930,6 +968,7 @@ export type SnapshotSectionKey =
   | 'enrollmentLimits'
   | 'securityAlerts'
   | 'enrollmentFailures'
+  | 'appProtection'
   | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */

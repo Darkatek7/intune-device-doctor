@@ -11,8 +11,15 @@
  * Änderung durch eine Anwendung und eine ältere Änderung außerhalb des 7-Tage-Fensters. Aktivitätsnamen
  * folgen dem Muster der Intune-Überwachungsprotokolle („<Vorgang> <Objekttyp>“), die Administratoren sind
  * fiktiv (contoso.com).
+ *
+ * S3 – App-Schutz: CONTOSO-IP015 (iOS) meldet wie ab iOS 16 üblich nur den generischen Gerätenamen
+ * „iPhone“ → Zuordnung nur über den Benutzer, eine App seit 45 Tagen nicht synchronisiert.
+ * CONTOSO-AND21 (Android) meldet den Gerätenamen, Outlook ist mit `rootedDevice` markiert.
+ * Bundle-IDs/Paketnamen sind die öffentlichen der Microsoft-Apps, Versionen erfunden.
  */
 import type {
+  AppProtectionInfo,
+  AppProtectionRegistration,
   AuditEventEntry,
   AuditEventsInfo,
   ComplianceSettingSummariesInfo,
@@ -197,5 +204,94 @@ export function defaultAuditEvents(now: Date): AuditEventsInfo {
         name: ADMIN,
       }),
     ],
+  };
+}
+
+// ---------- S3: App-Schutz ----------
+
+function registration(
+  n: number,
+  platform: 'ios' | 'android',
+  appIdentifier: string,
+  values: Partial<AppProtectionRegistration> & { lastSyncDateTime: string },
+): AppProtectionRegistration {
+  return {
+    id: `00000000-0000-4000-a100-${n.toString().padStart(12, '0')}`,
+    appIdentifier,
+    appPlatform: platform,
+    applicationVersion: null,
+    managementSdkVersion: null,
+    platformVersion: null,
+    deviceType: null,
+    deviceName: null,
+    createdDateTime: null,
+    flaggedReasons: [],
+    ...values,
+  };
+}
+
+/** CONTOSO-IP015: generischer Gerätename (iOS 16+) → alle Registrierungen des Benutzers, eine veraltet. */
+export function ip015AppProtection(now: Date): AppProtectionInfo {
+  const ios = { deviceType: 'iPhone', platformVersion: '18.6.2', deviceName: 'iPhone' };
+  return {
+    matchedBy: 'user',
+    userRegistrationCount: 2,
+    pagesRead: 1,
+    truncated: false,
+    registrations: [
+      registration(1, 'ios', 'com.microsoft.Office.Outlook', {
+        ...ios,
+        applicationVersion: '4.2541.0',
+        managementSdkVersion: '20.3.1',
+        createdDateTime: ago(now, { days: 120 }),
+        lastSyncDateTime: ago(now, { hours: 2 }),
+      }),
+      registration(2, 'ios', 'com.microsoft.skype.teams', {
+        ...ios,
+        applicationVersion: '7.14.1',
+        managementSdkVersion: '19.8.0',
+        createdDateTime: ago(now, { days: 200 }),
+        lastSyncDateTime: ago(now, { days: 45 }),
+      }),
+    ],
+  };
+}
+
+/** CONTOSO-AND21: Gerätename stimmt überein, Outlook ist mit rootedDevice markiert. */
+export function and21AppProtection(now: Date): AppProtectionInfo {
+  const android = { deviceType: 'Pixel 8', platformVersion: '15', deviceName: 'CONTOSO-AND21' };
+  return {
+    matchedBy: 'deviceName',
+    userRegistrationCount: 2,
+    pagesRead: 1,
+    truncated: false,
+    registrations: [
+      registration(3, 'android', 'com.microsoft.office.outlook', {
+        ...android,
+        applicationVersion: '4.2541.1',
+        managementSdkVersion: '11.2.0',
+        createdDateTime: ago(now, { days: 60 }),
+        lastSyncDateTime: ago(now, { hours: 5 }),
+        flaggedReasons: ['rootedDevice'],
+      }),
+      registration(4, 'android', 'com.microsoft.teams', {
+        ...android,
+        applicationVersion: '1416/1.0.0.2025',
+        managementSdkVersion: '11.2.0',
+        createdDateTime: ago(now, { days: 60 }),
+        lastSyncDateTime: ago(now, { days: 1 }),
+      }),
+    ],
+  };
+}
+
+/** Andere iOS/Android-Geräte ohne Angabe: keine Registrierung des Benutzers. */
+export function emptyAppProtection(): AppProtectionInfo {
+  return {
+    matchedBy: 'user',
+    userRegistrationCount: 0,
+    pagesRead: 1,
+    truncated: false,
+    registrations: [],
   };
 }

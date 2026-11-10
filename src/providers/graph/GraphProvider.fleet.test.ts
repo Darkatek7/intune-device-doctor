@@ -3,13 +3,20 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SectionResult } from '../../domain/types';
 import type { SleepFn } from '../../graph/client';
 import { de } from '../../i18n/de';
-import { MAX_AUDIT_EVENT_PAGES, MAX_SETTING_SUMMARY_PAGES } from '../../graph/endpoints';
+import { mapManagedDevice } from '../../graph/mappers';
+import {
+  MAX_APP_REGISTRATION_PAGES,
+  MAX_AUDIT_EVENT_PAGES,
+  MAX_SETTING_SUMMARY_PAGES,
+} from '../../graph/endpoints';
 import { createGraphProvider } from './GraphProvider';
 import {
   collection,
   createFakeFetch,
   graphError,
   jsonResponse,
+  pc001Device,
+  PC001_USER_ID,
   type FakeHandler,
 } from './fakeGraph';
 
@@ -175,5 +182,65 @@ describe('GraphProvider – Änderungsprotokoll (M20/S2)', () => {
     const status = await provider.getTenantStatus();
     expect(status.auditEvents.status).toBe('forbidden');
     expect(status.enrollmentFailures.status).toBe('ok');
+  });
+});
+
+describe('GraphProvider – App-Schutz (M20/S3)', () => {
+  const MAM_PATH = '/v1.0/deviceAppManagement/managedAppRegistrations';
+  const android = mapManagedDevice(
+    pc001Device({ deviceName: 'CONTOSO-AND21', operatingSystem: 'Android', osVersion: '15' }),
+  );
+  const windows = mapManagedDevice(pc001Device());
+
+  it('Windows → notApplicable (Windows-MAM nur beta) ohne Abruf; ohne Benutzer → notApplicable', async () => {
+    const { provider, calls } = setup(() => collection([]));
+    const win = expectStatus(await provider.getAppProtection(windows), 'notApplicable');
+    expect(win.reason).toBe(de.fleet.reasons.appProtectionPlatform);
+    const noUser = expectStatus(
+      await provider.getAppProtection({ ...android, userId: null }),
+      'notApplicable',
+    );
+    expect(noUser.reason).toBe(de.fleet.reasons.appProtectionNoUser);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('nur GET ohne Query-Optionen, seitenbegrenzt, Benutzer und Gerät clientseitig', async () => {
+    let page = 0;
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.pathname === MAM_PATH || call.parsed.pathname.endsWith('/mamNext')) {
+        page += 1;
+        return collection(
+          [{ id: `r${page}`, userId: PC001_USER_ID, deviceName: 'CONTOSO-AND21' }],
+          'https://graph.microsoft.com/v1.0/mamNext',
+        );
+      }
+      return graphError(404, 'NotFound');
+    });
+    const result = expectStatus(await provider.getAppProtection(android), 'ok');
+    expect(new Set(calls.map((c) => c.method))).toEqual(new Set(['GET']));
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data).toMatchObject({
+      pagesRead: MAX_APP_REGISTRATION_PAGES,
+      truncated: true,
+      matchedBy: 'deviceName',
+    });
+    expect(result.data.registrations).toHaveLength(MAX_APP_REGISTRATION_PAGES);
+  });
+
+  it('403 → forbidden mit optionalem Scope; 404 → nicht verfügbar; 429 → Retry-After', async () => {
+    const forbidden = setup(() => graphError(403, 'Forbidden'));
+    const denied = expectStatus(await forbidden.provider.getAppProtection(android), 'forbidden');
+    expect(denied.error.requiredScope).toBe('DeviceManagementApps.Read.All');
+
+    const missing = setup(() => graphError(404, 'NotFound'));
+    const gone = expectStatus(await missing.provider.getAppProtection(android), 'unavailable');
+    expect(gone.reason).toBe(de.fleet.reasons.appProtectionNotReported);
+
+    let n = 0;
+    const throttled = setup(() =>
+      ++n === 1 ? graphError(429, 'TooManyRequests', { 'Retry-After': '3' }) : collection([]),
+    );
+    expectStatus(await throttled.provider.getAppProtection(android), 'ok');
+    expect(throttled.sleep).toHaveBeenCalledWith(3000, undefined);
   });
 });

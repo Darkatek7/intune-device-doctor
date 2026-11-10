@@ -15,6 +15,7 @@ import type {
   EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
@@ -220,6 +221,16 @@ export interface DeviceDataProvider {
    * (höchstens 3 Seiten à 100), clientseitig dem Gerät zugeordnet; behobene ausgeblendet. Optionaler
    * Scope SecurityAlert.Read.All (403 → forbidden).
    */
+  /**
+   * Nur iOS/Android (M20/S3): App-Schutz-Registrierungen des primären Benutzers, über den Gerätenamen dem
+   * Gerät zugeordnet – sonst alle des Benutzers (offen ausgewiesen). Optionaler Scope
+   * DeviceManagementApps.Read.All. Andere Plattformen bzw. ohne Benutzer → notApplicable.
+   */
+  getAppProtection(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AppProtectionInfo>>;
+
   getSecurityAlerts(
     device: ManagedDeviceInfo,
     options?: RequestOptions,

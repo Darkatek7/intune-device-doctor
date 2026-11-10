@@ -89,6 +89,12 @@ export const MAX_SETTING_SUMMARY_PAGES = 3;
  * welcher Reihenfolge Graph die Seiten liefert, ist nicht dokumentiert.
  */
 export const MAX_AUDIT_EVENT_PAGES = 5;
+/**
+ * App-Schutz (M20/S3): Für `managedAppRegistrations` sind weder `$filter` noch `$orderby`/`$top`
+ * dokumentiert, und `/users/{id}/managedAppRegistrations` ist nicht als REST-Methode dokumentiert →
+ * höchstens so viele Seiten der Mandantenliste, der Benutzer wird clientseitig gefiltert.
+ */
+export const MAX_APP_REGISTRATION_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
 
@@ -695,6 +701,21 @@ export const Endpoints = {
       'https://learn.microsoft.com/en-us/graph/api/intune-auditing-auditevent-list?view=graph-rest-1.0',
     display: 'GET /deviceManagement/auditEvents',
     path: () => '/deviceManagement/auditEvents',
+  },
+  /**
+   * App-Schutz-Registrierungen (M20/S3, iOS/Android): Liste des Mandanten, keine Query-Optionen
+   * dokumentiert → höchstens MAX_APP_REGISTRATION_PAGES Seiten, Filter auf den Benutzer clientseitig.
+   * Optionaler Scope DeviceManagementApps.Read.All.
+   */
+  managedAppRegistrations: {
+    id: 'managedAppRegistrations',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagementAppsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-mam-managedappregistration-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/managedAppRegistrations',
+    path: () => '/deviceAppManagement/managedAppRegistrations',
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

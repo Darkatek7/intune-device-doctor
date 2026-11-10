@@ -29,6 +29,7 @@ import type {
   PolicyStateInfo,
   SectionResult,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   SignInsInfo,
   TenantStatus,
   TenantPolicies,
@@ -80,6 +81,7 @@ import type {
   GraphComplianceSettingStateSummary,
   GraphDeviceStateSummary,
   GraphAuditEvent,
+  GraphManagedAppRegistration,
 } from '../../graph/dto';
 import {
   ASSIGNMENTS_DISPLAY,
@@ -96,6 +98,7 @@ import {
   MAX_TROUBLESHOOTING_EVENT_PAGES,
   MAX_SETTING_SUMMARY_PAGES,
   MAX_AUDIT_EVENT_PAGES,
+  MAX_APP_REGISTRATION_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -126,6 +129,7 @@ import {
   mapTenantPolicies,
   mapSignIns,
   mapSecurityAlerts,
+  mapAppProtection,
   mapUserLicense,
   mapVppTokens,
   mapWindowsProtection,
@@ -578,6 +582,59 @@ export class GraphProvider implements DeviceDataProvider {
       configurationSummary,
       auditEvents,
     };
+  }
+
+  // ---------- App-Schutz (M20/S3) ----------
+
+  /**
+   * managedAppRegistrations (Mandantenliste, höchstens MAX_APP_REGISTRATION_PAGES Seiten, keine
+   * Query-Optionen dokumentiert); Benutzer und Gerätename werden clientseitig abgeglichen.
+   */
+  getAppProtection(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AppProtectionInfo>> {
+    const endpoint = Endpoints.managedAppRegistrations;
+    if (device.osFamily !== 'ios' && device.osFamily !== 'android') {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.fleet.reasons.appProtectionPlatform,
+        source: graphSource('managedAppRegistrations'),
+      });
+    }
+    const userId = device.userId;
+    if (!userId) {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.fleet.reasons.appProtectionNoUser,
+        source: graphSource('managedAppRegistrations'),
+      });
+    }
+    return this.run<AppProtectionInfo>(
+      'managedAppRegistrations',
+      async (source) => {
+        const { entries, pagesRead, truncated } = await this.readPages<GraphManagedAppRegistration>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_APP_REGISTRATION_PAGES,
+          options,
+        );
+        return this.ok(
+          mapAppProtection(entries, {
+            userId,
+            deviceName: device.deviceName,
+            pagesRead,
+            truncated,
+          }),
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.fleet.reasons.appProtectionNotReported,
+        source,
+      }),
+    );
   }
 
   // ---------- Änderungsprotokoll (M20/S2) ----------

@@ -1,6 +1,11 @@
 /** M20: Mapper für Übersicht, Änderungsprotokoll, App-Schutz und Remote-Aktionen. */
 import { describe, expect, it } from 'vitest';
-import { mapAuditEvents, mapComplianceSettingSummaries, mapDeviceStateSummary } from './mappers';
+import {
+  mapAppProtection,
+  mapAuditEvents,
+  mapComplianceSettingSummaries,
+  mapDeviceStateSummary,
+} from './mappers';
 
 describe('mapDeviceStateSummary (M20/S1)', () => {
   it('übernimmt genau die dokumentierten Felder je Art; fehlende/ungültige Werte → null', () => {
@@ -112,5 +117,62 @@ describe('mapAuditEvents (M20/S2)', () => {
     expect(info.events[0]!.actor.kind).toBe('application');
     expect(info.events[0]!.activity).toBe('Display');
     expect(info).toMatchObject({ pagesRead: 2, truncated: true });
+  });
+});
+
+describe('mapAppProtection (M20/S3)', () => {
+  const USER = 'user-1';
+  const reg = (id: string, values: Record<string, unknown>) => ({ id, userId: USER, ...values });
+  const options = { userId: 'USER-1', deviceName: 'CONTOSO-AND21', pagesRead: 1, truncated: false };
+
+  it('filtert auf den Benutzer, ordnet über den Gerätenamen zu und liest App-ID je Plattform', () => {
+    const info = mapAppProtection(
+      [
+        reg('a', {
+          deviceName: 'contoso-and21',
+          lastSyncDateTime: '2026-11-09T10:00:00Z',
+          appIdentifier: {
+            '@odata.type': '#microsoft.graph.androidMobileAppIdentifier',
+            packageId: 'com.microsoft.office.outlook',
+          },
+          flaggedReasons: ['none', 'rootedDevice'],
+          deviceTag: 'geheim',
+        }),
+        reg('b', { deviceName: 'Pixel', lastSyncDateTime: '2026-11-10T10:00:00Z' }),
+        { id: 'c', userId: 'someone-else', deviceName: 'CONTOSO-AND21' },
+      ],
+      options,
+    );
+    expect(info.matchedBy).toBe('deviceName');
+    expect(info.userRegistrationCount).toBe(2);
+    expect(info.registrations.map((r) => r.id)).toEqual(['a']);
+    expect(info.registrations[0]).toMatchObject({
+      appIdentifier: 'com.microsoft.office.outlook',
+      appPlatform: 'android',
+      flaggedReasons: ['rootedDevice'],
+    });
+    expect(JSON.stringify(info)).not.toContain('geheim');
+  });
+
+  it('ohne Treffer beim Gerätenamen → alle Registrierungen des Benutzers, zuletzt synchronisierte zuerst', () => {
+    const info = mapAppProtection(
+      [
+        reg('old', {
+          deviceName: 'iPhone',
+          lastSyncDateTime: '2026-09-01T00:00:00Z',
+          appIdentifier: { bundleId: 'com.microsoft.skype.teams' },
+        }),
+        reg('new', { deviceName: 'iPhone', lastSyncDateTime: '2026-11-10T00:00:00Z' }),
+      ],
+      { ...options, deviceName: 'CONTOSO-IP015', truncated: true, pagesRead: 3 },
+    );
+    expect(info.matchedBy).toBe('user');
+    expect(info.registrations.map((r) => r.id)).toEqual(['new', 'old']);
+    expect(info.registrations[1]).toMatchObject({
+      appPlatform: 'ios',
+      appIdentifier: 'com.microsoft.skype.teams',
+    });
+    expect(info).toMatchObject({ pagesRead: 3, truncated: true });
+    expect(mapAppProtection(null, options).registrations).toEqual([]);
   });
 });

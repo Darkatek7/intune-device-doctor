@@ -25,6 +25,7 @@ import type {
   ManagedDeviceInfo,
   PolicyStateInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   SignInsInfo,
   UserLicenseInfo,
   VppTokenInfo,
@@ -79,6 +80,8 @@ export interface MockDeviceFixture {
    * des Geräts; ohne Benutzer notApplicable.
    */
   enrollmentFailures?: MockSection<EnrollmentFailuresInfo>;
+  /** Optional (M20/S3) – ohne Angabe: iOS/Android ok ohne Registrierung, sonst bzw. ohne Benutzer notApplicable. */
+  appProtection?: MockSection<AppProtectionInfo>;
   /**
    * Optional (M14/S2) – ohne Angabe: jedes nachgeschlagene Objekt ist der Gruppe „Contoso – Alle Geräte“
    * zugewiesen. Ein `ok`-Wert ersetzt die abgeleitete Antwort vollständig; die anderen Status simulieren

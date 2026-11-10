@@ -48,6 +48,8 @@ import type {
   DeviceStateSummaryInfo,
   AuditEventEntry,
   AuditEventsInfo,
+  AppProtectionInfo,
+  AppProtectionRegistration,
   AuditResourceInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
@@ -100,6 +102,7 @@ import type {
   GraphComplianceSettingStateSummary,
   GraphDeviceStateSummary,
   GraphAuditEvent,
+  GraphManagedAppRegistration,
 } from './dto';
 import {
   COMPLIANCE_SUMMARY_FIELDS,
@@ -1423,4 +1426,73 @@ export function mapAuditEvents(
     .filter((event): event is AuditEventEntry => event !== null)
     .sort((a, b) => time(b) - time(a));
   return { events, pagesRead: options.pagesRead, truncated: options.truncated };
+}
+
+// ---------- App-Schutz (M20/S3) ----------
+
+function appIdentifierOf(dto: GraphManagedAppRegistration): {
+  id: string | null;
+  platform: AppProtectionRegistration['appPlatform'];
+} {
+  const identifier = dto.appIdentifier;
+  if (!identifier) return { id: null, platform: null };
+  const type = (identifier['@odata.type'] ?? '').toLowerCase();
+  if (type.endsWith('iosmobileappidentifier') || (!type && identifier.bundleId)) {
+    return { id: identifier.bundleId ?? null, platform: 'ios' };
+  }
+  if (type.endsWith('androidmobileappidentifier') || (!type && identifier.packageId)) {
+    return { id: identifier.packageId ?? null, platform: 'android' };
+  }
+  return { id: identifier.bundleId ?? identifier.packageId ?? null, platform: null };
+}
+
+export function mapAppProtectionRegistration(
+  dto: GraphManagedAppRegistration,
+): AppProtectionRegistration | null {
+  if (!dto || typeof dto.id !== 'string') return null;
+  const app = appIdentifierOf(dto);
+  return {
+    id: dto.id,
+    appIdentifier: app.id,
+    appPlatform: app.platform,
+    applicationVersion: dto.applicationVersion ?? null,
+    managementSdkVersion: dto.managementSdkVersion ?? null,
+    platformVersion: dto.platformVersion ?? null,
+    deviceType: dto.deviceType ?? null,
+    deviceName: dto.deviceName ?? null,
+    createdDateTime: dto.createdDateTime ?? null,
+    lastSyncDateTime: dto.lastSyncDateTime ?? null,
+    flaggedReasons: (Array.isArray(dto.flaggedReasons) ? dto.flaggedReasons : []).filter(
+      (reason): reason is string => typeof reason === 'string' && reason !== 'none',
+    ),
+  };
+}
+
+const sameText = (a: string | null | undefined, b: string | null | undefined) =>
+  Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
+/**
+ * managedAppRegistrations → App-Schutz des Geräts. v1.0 dokumentiert keine Geräte-ID an der Registrierung:
+ * Filter auf `userId` (primärer Benutzer), Zuordnung zum Gerät nur über einen gleichen `deviceName`
+ * (ohne Groß-/Kleinschreibung). Gibt es keinen Treffer (z. B. iOS 16+ meldet generische Namen), werden alle
+ * Registrierungen des Benutzers gezeigt (`matchedBy = 'user'`).
+ */
+export function mapAppProtection(
+  entries: GraphManagedAppRegistration[] | null | undefined,
+  options: { userId: string; deviceName: string; pagesRead: number; truncated: boolean },
+): AppProtectionInfo {
+  const time = (entry: AppProtectionRegistration) => Date.parse(entry.lastSyncDateTime ?? '') || 0;
+  const ofUser = (Array.isArray(entries) ? entries : [])
+    .filter((dto) => sameText(dto?.userId, options.userId))
+    .map(mapAppProtectionRegistration)
+    .filter((entry): entry is AppProtectionRegistration => entry !== null)
+    .sort((a, b) => time(b) - time(a));
+  const onDevice = ofUser.filter((entry) => sameText(entry.deviceName, options.deviceName));
+  return {
+    registrations: onDevice.length > 0 ? onDevice : ofUser,
+    matchedBy: onDevice.length > 0 ? 'deviceName' : 'user',
+    userRegistrationCount: ofUser.length,
+    pagesRead: options.pagesRead,
+    truncated: options.truncated,
+  };
 }

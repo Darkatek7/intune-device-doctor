@@ -10,6 +10,7 @@ import type {
   EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
@@ -216,6 +217,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<PolicyDeviceStatusesInfo>((p) =>
       p.getPolicyDeviceStatuses(policy, options),
     );
+  }
+
+  getAppProtection(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<AppProtectionInfo>((p) => p.getAppProtection(device, options));
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options?: RequestOptions) {

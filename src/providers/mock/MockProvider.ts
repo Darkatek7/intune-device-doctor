@@ -8,6 +8,7 @@ import type {
   EnrollmentLimitsInfo,
   ServiceHealthInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   TenantStatus,
   ComplianceSettingSummariesInfo,
   DeviceStateSummaryInfo,
@@ -57,6 +58,7 @@ import {
   defaultComplianceSummary,
   defaultConfigurationSummary,
   defaultAuditEvents,
+  emptyAppProtection,
 } from './fleet';
 import { defaultEnrollmentFailures, defaultServiceHealth } from './service';
 import { scenarios as defaultScenarios } from './scenarios';
@@ -108,6 +110,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   enrollmentLimits: 'deviceEnrollmentConfigurations',
   securityAlerts: 'securityAlerts',
   enrollmentFailures: 'troubleshootingEvents',
+  appProtection: 'managedAppRegistrations',
 };
 
 export function abortError(): DOMException {
@@ -310,6 +313,14 @@ export class MockProvider implements DeviceDataProvider {
     }
     if (key === 'securityAlerts') {
       return { status: 'ok', data: defaultSecurityAlerts() };
+    }
+    if (key === 'appProtection') {
+      const { osFamily, userId } = fixture.device;
+      if (osFamily !== 'ios' && osFamily !== 'android') {
+        return { status: 'notApplicable', reason: de.fleet.reasons.appProtectionPlatform };
+      }
+      if (!userId) return { status: 'notApplicable', reason: de.fleet.reasons.appProtectionNoUser };
+      return { status: 'ok', data: emptyAppProtection() };
     }
     if (key === 'enrollmentFailures') {
       const userId = fixture.device.userId;
@@ -620,6 +631,10 @@ export class MockProvider implements DeviceDataProvider {
       endpoint,
       sourceFor(endpoint),
     );
+  }
+
+  getAppProtection(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AppProtectionInfo>(device, 'appProtection', options);
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {

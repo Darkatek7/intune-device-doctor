@@ -975,3 +975,37 @@ export interface GraphAuditEvent {
   resources?: GraphAuditResource[] | null;
   category?: string | null;
 }
+
+// ---------- App-Schutz (M20/S3) ----------
+
+/** managedAppFlaggedReason (v1.0): dokumentierte Werte. Andere Werte bleiben Rohwerte. */
+export const MANAGED_APP_FLAGGED_REASONS = ['none', 'rootedDevice'] as const;
+
+/**
+ * mobileAppIdentifier (v1.0): `iosMobileAppIdentifier.bundleId` bzw. `androidMobileAppIdentifier.packageId`.
+ * https://learn.microsoft.com/graph/api/resources/intune-mam-mobileappidentifier?view=graph-rest-1.0
+ */
+export interface GraphMobileAppIdentifier {
+  '@odata.type'?: string | null;
+  bundleId?: string | null;
+  packageId?: string | null;
+}
+
+/**
+ * managedAppRegistration (v1.0) – nur gelesene Felder. `deviceTag` und `version` werden nicht gelesen;
+ * `managedDeviceId`/`azureADDeviceId` gibt es nur in beta (nicht verwendet).
+ * https://learn.microsoft.com/graph/api/resources/intune-mam-managedappregistration?view=graph-rest-1.0
+ */
+export interface GraphManagedAppRegistration {
+  id: string;
+  createdDateTime?: string | null;
+  lastSyncDateTime?: string | null;
+  applicationVersion?: string | null;
+  managementSdkVersion?: string | null;
+  platformVersion?: string | null;
+  deviceType?: string | null;
+  deviceName?: string | null;
+  flaggedReasons?: string[] | null;
+  userId?: string | null;
+  appIdentifier?: GraphMobileAppIdentifier | null;
+}

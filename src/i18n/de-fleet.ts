@@ -17,6 +17,7 @@ export const deFleet = {
     tenantCompliance: 'Compliance im Mandanten',
     tenantConfiguration: 'Konfigurationsprofile im Mandanten',
     tenantChanges: 'Letzte Änderungen',
+    appProtection: 'App-Schutz',
   },
 
   /** Abschnitte der Ansicht „Mandant“ */
@@ -232,8 +233,105 @@ export const deFleet = {
       `Eigener Richtwert der App: Änderungen bis ${days} Tage vor der Meldung werden genannt.`,
   },
 
+  // ---------- S3: App-Schutz (MAM) am Gerät ----------
+  appProtection: {
+    value: (n: number) => `${n} ${plural(n, 'App', 'Apps')}`,
+    valueFlagged: (n: number) => `${n} markiert`,
+    valueNone: 'Keine Registrierung',
+    summary: (n: number, matchedByDevice: boolean) =>
+      matchedByDevice
+        ? `${n} geschützte ${plural(n, 'App ist', 'Apps sind')} auf diesem Gerät registriert.`
+        : `${n} ${plural(n, 'Registrierung', 'Registrierungen')} des Benutzers – Zuordnung zum Gerät nicht sicher.`,
+    summaryNone: 'Für den primären Benutzer ist keine App-Schutz-Registrierung gemeldet.',
+    columns: {
+      app: 'App',
+      device: 'Gerätename (gemeldet)',
+      platform: 'Betriebssystem',
+      version: 'App-Version',
+      sdk: 'SDK-Version',
+      lastSync: 'Letzte Synchronisierung',
+      flags: 'Markierung',
+    },
+    noValue: '–',
+    tableLabel: 'App-Schutz-Registrierungen',
+    listTitle: (n: number) =>
+      `${n} ${plural(n, 'App-Schutz-Registrierung', 'App-Schutz-Registrierungen')}`,
+    listDetail:
+      'Registrierungen der App-Schutzrichtlinien (MAM) des primären Benutzers, zuletzt synchronisierte zuerst. Bundle-ID bzw. Paketname, Versionen und Markierungen erscheinen unverändert, wie Microsoft sie meldet.',
+    listCause:
+      'Jede App mit Intune App SDK, in der sich der Benutzer mit dem Geschäftskonto anmeldet, registriert sich beim Intune-App-Schutzdienst.',
+    listRemediation: [
+      'Details im Intune Admin Center unter Apps › Überwachen › App-Schutzstatus › Zugewiesene Benutzer für den Benutzer prüfen (Richtlinie, Status, letzte Synchronisierung).',
+    ],
+    rootedTitle: (app: string) => `${app}: läuft laut Intune auf einem Gerät mit Jailbreak/Root`,
+    rootedDetail: (deviceName: string | null, sure: boolean) =>
+      `Die Registrierung ist mit „rootedDevice“ markiert${deviceName ? ` (gemeldeter Gerätename „${deviceName}“)` : ''}.${
+        sure
+          ? ''
+          : ' Die Zuordnung zu diesem Gerät ist nicht sicher – es kann sich um ein anderes Gerät des Benutzers handeln.'
+      }`,
+    rootedCause:
+      'Der App-Schutzdienst hat erkannt, dass das Gerät per Jailbreak oder Root entsperrt ist. Auf solchen Geräten sind die Schutzmechanismen des Betriebssystems umgangen.',
+    rootedRemediation: [
+      'Mit dem Benutzer klären, ob das Gerät entsperrt (Jailbreak/Root) ist; geschäftliche Daten sollten auf einem solchen Gerät nicht genutzt werden.',
+      'In der App-Schutzrichtlinie unter „Bedingter Start“ die Gerätebedingung „Gerät mit Jailbreak/Rooting“ prüfen – Microsoft sieht dort „Zugriff blockieren“ oder „Daten löschen“ vor.',
+      'Status im Intune Admin Center unter Apps › Überwachen › App-Schutzstatus kontrollieren.',
+    ],
+    staleTitle: (app: string, days: number) => `${app}: seit ${days} Tagen nicht synchronisiert`,
+    staleDetail: (relative: string, threshold: number) =>
+      `Letzte Synchronisierung ${relative}. Hinweis ab ${threshold} Tagen – eigener Richtwert dieser App, keine Microsoft-Vorgabe.`,
+    staleCause:
+      'Laut Microsoft meldet sich eine App bei aktiver Nutzung meist alle 30 Minuten. Bleibt die Synchronisierung aus, wird die App nicht mehr genutzt, der Benutzer ist nicht mehr angemeldet, das Gerät hat keine Verbindung – oder (Android) das Unternehmensportal fehlt bzw. ist veraltet. Richtlinienänderungen erreichen die App dann nicht.',
+    staleRemediation: [
+      'Mit dem Benutzer klären, ob die App auf diesem Gerät noch genutzt wird und mit dem Geschäftskonto angemeldet ist.',
+      'Netzwerkverbindung prüfen; auf Android die aktuelle Version des Unternehmensportals sicherstellen.',
+      'Wird die App nicht mehr genutzt, ist kein Eingriff nötig – die Registrierung bleibt in den Berichten noch eine Zeit lang sichtbar.',
+    ],
+    userMatchTitle: 'Zuordnung zum Gerät nicht sicher',
+    userMatchDetail: (deviceName: string, count: number) =>
+      `Keine Registrierung meldet den Gerätenamen „${deviceName}“. Die Graph-API v1.0 nennt an der Registrierung keine Geräte-ID – deshalb zeigt die Kachel alle ${count} ${plural(count, 'Registrierung', 'Registrierungen')} des Benutzers, möglicherweise auch von anderen Geräten.`,
+    userMatchCause:
+      'Ab iOS 16 melden alle App-Schutz-Berichte laut Microsoft nur einen generischen Gerätenamen (z. B. „iPhone“). Außerdem kann der Benutzer mehrere Geräte nutzen.',
+    userMatchRemediation: [
+      'Im Intune Admin Center unter Apps › Überwachen › App-Schutzstatus den Benutzer öffnen – dort stehen je App-Instanz Gerätetyp, Plattform und ggf. die MDM-Geräte-ID.',
+    ],
+    noneTitle: 'Keine App-Schutz-Registrierung',
+    noneDetail: (pagesRead: number, truncated: boolean) =>
+      truncated
+        ? `In den ersten ${pagesRead} Seiten der Mandantenliste ist für den primären Benutzer keine Registrierung enthalten; weitere Seiten wurden nicht gelesen.`
+        : 'Für den primären Benutzer meldet Intune keine App-Schutz-Registrierung.',
+    noneCause:
+      'Eine Registrierung entsteht erst, wenn sich der Benutzer in einer App mit Intune App SDK mit dem Geschäftskonto anmeldet und eine App-Schutzrichtlinie dem Benutzer zugewiesen ist. App-Schutzrichtlinien gelten nur für Benutzer, nicht für Geräte.',
+    noneRemediation: [
+      'Prüfen, ob dem Benutzer eine App-Schutzrichtlinie zugewiesen ist (Apps › App-Schutzrichtlinien › Zuweisungen).',
+      'Im Intune Admin Center unter Apps › Überwachen › App-Schutzstatus › Zugewiesene Benutzer den Benutzer auswählen.',
+    ],
+    truncatedTitle: (pages: number) => `Nur die ersten ${pages} Seiten geprüft`,
+    truncatedDetail:
+      'Für die Liste der App-Schutz-Registrierungen sind weder Filter noch Sortierung dokumentiert. Die App liest nur die ersten Seiten der Mandantenliste; weitere Registrierungen des Benutzers können fehlen.',
+    truncatedCause: 'Großer Mandant mit vielen App-Instanzen.',
+    truncatedRemediation: [
+      'Vollständige Liste im Intune Admin Center unter Apps › Überwachen › App-Schutzstatus.',
+    ],
+    facts: {
+      registrations: 'Registrierungen',
+      flagged: 'Markiert (Jailbreak/Root)',
+      stale: (days: number) => `Älter als ${days} Tage (eigener Richtwert)`,
+      latest: 'Zuletzt synchronisiert',
+      matchedBy: 'Zuordnung',
+      matchedByDevice: 'über den Gerätenamen',
+      matchedByUser: 'nur über den Benutzer',
+    },
+  },
+
   reasons: {
     summaryNotReported: 'Microsoft meldet für diesen Mandanten keine Zusammenfassung.',
     auditNotReported: 'Das Überwachungsprotokoll ist für diesen Mandanten nicht verfügbar.',
+    appProtectionPlatform:
+      'App-Schutz-Registrierungen werden nur für iOS/iPadOS und Android ausgewertet. Windows-MAM ist nur in der Beta-API dokumentiert und wird nicht abgefragt.',
+    appProtectionNoUser:
+      'Kein primärer Benutzer – App-Schutzrichtlinien gelten je Benutzer, eine Zuordnung ist nicht möglich.',
+    appProtectionNotReported:
+      'Microsoft meldet für diesen Mandanten keine App-Schutz-Registrierungen.',
   },
 } as const;
