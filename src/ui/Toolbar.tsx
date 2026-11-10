@@ -59,7 +59,8 @@ export function Toolbar({
             <span aria-hidden="true" className="squircle app-glyph size-7">
               <Stethoscope size={16} strokeWidth={2.25} />
             </span>
-            {de.app.name}
+            {/* Sehr schmale Displays: nur die Glyphe, damit Mandant/Richtlinien/Modus in eine Zeile passen */}
+            <span className="max-[419px]:sr-only">{de.app.name}</span>
           </button>
           {search && (
             <div className="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-xl sm:flex-1">

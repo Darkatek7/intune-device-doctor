@@ -36,7 +36,10 @@ export function policySeverity(policy: TenantPolicyInfo): Severity {
   if (problems === null) return 'unknown';
   if (problems > 0) return 'critical';
   if (pendingCount(policy) > 0) return 'warning';
-  return 'ok';
+  // Kein Gerät gemeldet (alle Zähler 0) → keine Aussage möglich
+  return policy.overview?.status === 'ok' && (policy.overview.data.successCount ?? 0) > 0
+    ? 'ok'
+    : 'unknown';
 }
 
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, warning: 1, unknown: 2, ok: 3 };
