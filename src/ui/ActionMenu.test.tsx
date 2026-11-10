@@ -117,4 +117,16 @@ describe('ActionMenu', () => {
     await user.click(trigger);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
+
+  it('Escape schließt auch, wenn alle Einträge gesperrt sind und der Fokus auf der Schaltfläche bleibt', async () => {
+    const user = userEvent.setup();
+    setup([{ id: 'a', label: 'Aus', icon: Printer, disabled: true, onSelect: vi.fn() }]);
+    const trigger = screen.getByRole('button', { name: de.actions.more });
+    await user.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
 });

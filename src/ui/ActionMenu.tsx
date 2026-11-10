@@ -91,7 +91,12 @@ export function ActionMenu({ items, label = de.actions.more, triggerRef }: Props
   }, [open]);
 
   const onTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === 'ArrowDown') {
+    // Escape schließt auch, solange der Fokus noch auf der Schaltfläche liegt (z. B. alle Einträge gesperrt).
+    if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      event.stopPropagation();
+      close(true);
+    } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       openMenu('first');
     } else if (event.key === 'ArrowUp') {
