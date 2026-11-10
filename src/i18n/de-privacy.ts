@@ -29,8 +29,7 @@ export const dePrivacy = {
   },
   /** Echo der Sucheingabe entfällt, solange Namen verborgen sind */
   picker: {
-    subtitle: (count: number) =>
-      `${count} Geräte passen zu deiner Suche – bitte eines auswählen.`,
+    subtitle: (count: number) => `${count} Geräte passen zu deiner Suche – bitte eines auswählen.`,
   },
   notFoundBody:
     'Zu deiner Suche gibt es kein Gerät. Prüfe die Schreibweise – es genügt auch ein Teil des Namens.',

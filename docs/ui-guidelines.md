@@ -4,7 +4,7 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 
 ## Layout
 
-- **Toolbar** (sticky, transluzent: `bg-surface-raised` + `backdrop-blur-xl backdrop-saturate-150`): links App-Name, danach die **Hauptnavigation**, Mitte Suchfeld (⌘K / `/` fokussiert), rechts Demo/Live-Segmented-Control und Konto. Statt Trennlinie ein weicher Scroll-Edge-Verlauf, nur sobald Inhalt darunter scrollt.
+- **Toolbar** (sticky, transluzent: `bg-surface-raised` + `backdrop-blur-xl backdrop-saturate-150`): links App-Name, danach die **Hauptnavigation**, Mitte Suchfeld (⌘K / `/` fokussiert), rechts Demo/Live-Segmented-Control, Schalter „Präsentationsmodus“ (Auge, `aria-pressed`), Erscheinungsbild-Schalter und Konto. Statt Trennlinie ein weicher Scroll-Edge-Verlauf, nur sobald Inhalt darunter scrollt.
 - **Leerer Zustand**: großes zentriertes Suchfeld, darunter Drop-Zone „oder DiagLogs-ZIP hierher ziehen“ + Datenschutzhinweis; im Demo-Modus 3–4 Chips mit Beispielgeräten (ein Klick = Szenario laden).
 - **Ergebnis**: Geräte-Header (Name groß, darunter Modell · Nutzer · OS · Enrollment-Datum; rechts Zusammenfassung „3 Probleme · 1 Hinweis“ mit Severity-Farbe), darunter Kachel-Grid (12 Spalten, `gap-3 sm:gap-4`; große Karte 1/2/3/4 Spalten). Kacheln sortiert: critical → warning → unknown → ok (stabile Reihenfolge innerhalb).
 - **Aktionsleiste** über den Kacheln: sichtbar nur „Zeitachse“ und „Ticket-Notiz kopieren“, alles Weitere (Drucken / PDF, Stand exportieren, Mit Stand vergleichen, Verbindungstest …) im Menü „Mehr“ (`ActionMenu`/`HeaderActions`). Menü-Muster nach WAI-ARIA: Schaltfläche mit `aria-haspopup="menu"`/`aria-expanded`, Pfeiltasten/Home/End, Escape schließt und gibt den Fokus zurück, Klick außerhalb und Tab schließen, gesperrte Einträge (`aria-disabled`) werden übersprungen. Mobil ragt das Menü nie über den Rand.
@@ -62,6 +62,13 @@ Ziel: ruhig, klar, schnell – ein Admin erfasst in < 3 Sekunden, ob und wo ein 
 ## Nachladen
 
 - Selten gebrauchte Ansichten (Richtlinien samt Detail, Mandant, Verbindungstest, Sammelprüfung, ZIP-Ansicht) laden per `React.lazy` nach (`src/app/lazyViews.ts`). Bis dahin zeigt `ViewFallback` einen ruhigen Platzhalter (`role="status"`, `aria-busy`), der erst nach 200 ms einblendet – bei schnellem Laden erscheint nichts (kein Aufblitzen).
+
+## Präsentationsmodus
+
+- **Schalter** (`PrivacyToggle`, Toolbar): Symbol-Schaltfläche mit `aria-pressed`, festem zugänglichen Namen „Präsentationsmodus“ (der Zustand steht in `aria-pressed`, nicht im Namen) und `title`, der die Aktion nennt. In Demo, Live und ZIP-Ansicht verfügbar; Standard aus; Zustand in `localStorage` (`mdm-doctor.privacy`).
+- **Hinweis** (`PrivacyNotice`): Solange der Modus an ist, steht unter der Toolbar-Zeile dauerhaft ein ruhiger Streifen (`bg-accent/10`) mit der Pille „Präsentationsmodus · Namen verborgen“ und dem Satz, dass Richtlinien-, Gruppen- und App-Namen sichtbar bleiben und den Firmennamen enthalten können. Er ist Teil der sticky Toolbar und damit auf jedem Screenshot.
+- **Pseudonyme** (`Gerät-7F3A`, `Benutzer-2C9E`, `benutzer-2c9e@beispiel.example`) sind überall gleich; Dialoge, die Text ausgeben (Ticket-Notiz, Druck, Export, CSV, Vergleich, Verbindungstest-Bericht), sagen in einem Satz, dass er maskiert ist.
+- **Anschluss neuer Ansichten:** Anzeige-Modelle (`Tile`, `Finding` …) laufen durch `view.deep(…)` aus `useBuildPrivacyView(quelle)`, Listen und Köpfe geben Pseudonyme je Feld über `usePrivacy().masker` aus, Links mit Kennungen über `PrivateLink`. Kein Feldname gehört in eine Komponente – nur in `src/privacy/keys.ts`.
 
 ## Erscheinungsbild
 

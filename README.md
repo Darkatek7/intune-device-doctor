@@ -131,6 +131,23 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 - **Abmeldung (Live-Modus):** Beim Abmelden – manuell wie nach Inaktivität (Standard 30 Minuten, `VITE_IDLE_TIMEOUT_MINUTES`) – wird die Liste „Zuletzt geöffnet“ des Live-Modus gelöscht, denn sie enthält echte Gerätenamen (`localStorage`, Schlüssel `mdm-doctor.recent.live`). Nach der Inaktivitäts-Abmeldung sind geladene Gerätedaten nicht mehr sichtbar oder im Arbeitsspeicher der App erreichbar; die Demo-Liste bleibt unberührt. Das MSAL-Token liegt nur in `sessionStorage` (endet mit dem Tab).
 - Der Live-Modus liest nur (HTTP GET); BitLocker-Schlüsselwerte werden nie abgefragt (kein `$select=key`), es geht nur um die Frage, ob ein Schlüssel hinterlegt ist.
 - Demo- und Testdaten sind fiktiv (Contoso, `contoso.com`).
+- **Präsentationsmodus** für Screenshots und Bildschirmfreigabe: siehe unten. Er ändert nur, was angezeigt, kopiert, gedruckt und exportiert wird – nichts wird gesendet oder anders gespeichert als der Schalter selbst (`localStorage`, `mdm-doctor.privacy`).
+
+### Präsentationsmodus
+
+Der Schalter (Auge-Symbol in der Toolbar, `aria-pressed`) ersetzt alle personen- und gerätebezogenen Kennungen durch Pseudonyme, in Demo, Live und ZIP-Ansicht. Solange er an ist, steht oben dauerhaft der Hinweis „Präsentationsmodus · Namen verborgen“ – damit niemand Pseudonyme für echte Namen hält. Der Standard ist **aus**; die Wahl bleibt im Browser gespeichert und übersteht ein Neuladen.
+
+- **Verborgen werden:** Gerätenamen (`Gerät-7F3A`), Anzeigenamen von Benutzern (`Benutzer-2C9E`), UPNs und E-Mail-Adressen (`benutzer-2c9e@beispiel.example`), Seriennummern, IMEI/MEID, MAC-Adressen, Telefonnummern, IP-Adressen, Objekt-IDs/GUIDs (Geräte-, Benutzer-, Mandanten-IDs, gekürzt wie `1234…cdef`) sowie Name und UPN des angemeldeten Kontos. Dasselbe Gerät heißt in allen Ansichten gleich; die Pseudonyme entstehen aus einem Hash mit einem **zufälligen Sitzungs-Salt** (nur im Arbeitsspeicher, nie gespeichert) und lassen sich nicht umkehren – nach einem Neuladen heißen dieselben Geräte anders.
+- **Sichtbar bleiben** Richtlinien-, Gruppen- und App-Namen, Modell, Hersteller, Betriebssystem, Fehlercodes und Zeitpunkte – sie sind für die Diagnose nötig. **Achtung:** Solche Namen können den Firmennamen enthalten (z. B. „Contoso – Windows 11 Basis-Compliance“, Organisationsname eines VPP-Tokens). Wer das nicht zeigen will, wählt den Bildausschnitt entsprechend.
+- **Was man sieht, bekommt man:** Ticket-Notiz (Kopieren, Druckansicht/PDF), „Stand exportieren“ (JSON samt Dateiname), kopierte Rohdaten, CSV der Sammelprüfung, der Vergleich mit einem Stand und der Markdown-Bericht des Verbindungstests sind ebenfalls maskiert; die betroffenen Dialoge sagen das in einem Satz.
+- **Funktion bleibt:** Klicks arbeiten mit den echten Werten („weitere Geräte des Benutzers“, Gerät aus der Richtlinien-Ansicht öffnen, Sammelprüfung, ZIP zusammenführen, Vergleich). Maskiert wird erst an der Anzeige- und Ausgabegrenze; Links ins Intune Admin Center zeigen eine maskierte Adresse (Statusleiste, Link kopieren), ein Klick öffnet die echte.
+- **ZIP-Ansicht:** Die Maskierung von UPN, Tenant-ID und GUIDs ist dort immer aktiv; der Präsentationsmodus verbirgt zusätzlich den Gerätenamen (auch im Dateinamen).
+- **Grenzen:**
+  - Was jemand selbst tippt, lässt sich während der Eingabe nicht verbergen. Danach zeigt das Suchfeld das geöffnete Gerät nicht mehr, die Trefferauswahl wiederholt die Eingabe nicht, die Sammelprüfung leert ihre Eingabeliste beim Start.
+  - Die **Adresszeile** trägt weiter `?device=<id>` (Voraussetzung für Neuladen und Teilen) – bei Screenshots des ganzen Browserfensters die Adresszeile ausblenden.
+  - Das Sicherheitsnetz erkennt E-Mail-Adressen, GUIDs, MAC-, IPv4- und IPv6-Adressen in beliebigem Text. Namen ohne bekannten Bezug (z. B. ein Benutzername in einem Freitext der Windows-Ereignisprotokolle) erkennt es nicht; vierteilige Versionsnummern nach „Version“, „v“, „Build“ bleiben bewusst unberührt.
+  - „Zuletzt geöffnet“ speichert weiter echte Gerätenamen im `localStorage` (der Modus ändert nur die Anzeige).
+- Technik und Anschluss neuer Ansichten: `src/privacy/`, `docs/tasks/M19-praesentationsmodus.md`.
 
 ## Bekannte Grenzen
 

@@ -124,7 +124,6 @@ describe('Startseite und Suche', () => {
       '',
     );
     expect(noLeaks('Gerät nach Auswahl')).toEqual([]);
-
   });
 
   it('Leerzustand ohne Echo der Eingabe', async () => {
