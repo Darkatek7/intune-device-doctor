@@ -1,4 +1,4 @@
-import { Landmark, Stethoscope } from 'lucide-react';
+import { Landmark, ListChecks, Stethoscope } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
@@ -16,6 +16,10 @@ interface Props {
   onOpenTenant?: () => void;
   /** Die Ansicht „Mandant“ ist gerade offen */
   tenantActive?: boolean;
+  /** Öffnet die Ansicht „Richtlinien“ (M15); fehlt → Schaltfläche entfällt */
+  onOpenPolicies?: () => void;
+  /** Die Ansicht „Richtlinien“ ist gerade offen */
+  policiesActive?: boolean;
   /** Slot für das Konto (M4: AuthGate/Account-Menü) */
   account?: ReactNode;
 }
@@ -29,6 +33,8 @@ export function Toolbar({
   onHome,
   onOpenTenant,
   tenantActive,
+  onOpenPolicies,
+  policiesActive,
   account,
 }: Props) {
   const [scrolled, setScrolled] = useState(false);
@@ -53,7 +59,8 @@ export function Toolbar({
             <span aria-hidden="true" className="squircle app-glyph size-7">
               <Stethoscope size={16} strokeWidth={2.25} />
             </span>
-            {de.app.name}
+            {/* Sehr schmale Displays: nur die Glyphe, damit Mandant/Richtlinien/Modus in eine Zeile passen */}
+            <span className="max-[419px]:sr-only">{de.app.name}</span>
           </button>
           {search && (
             <div className="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-xl sm:flex-1">
@@ -73,6 +80,20 @@ export function Toolbar({
               >
                 <Landmark aria-hidden="true" size={16} />
                 <span className="sr-only sm:not-sr-only">{de.toolbar.tenantShort}</span>
+              </button>
+            )}
+            {onOpenPolicies && (
+              <button
+                type="button"
+                onClick={onOpenPolicies}
+                aria-current={policiesActive ? 'page' : undefined}
+                title={de.toolbar.policies}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
+                  policiesActive ? 'bg-accent/15 text-accent' : 'bg-fill text-label'
+                }`}
+              >
+                <ListChecks aria-hidden="true" size={16} />
+                <span className="sr-only sm:not-sr-only">{de.toolbar.policiesShort}</span>
               </button>
             )}
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />

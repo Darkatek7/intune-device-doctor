@@ -677,3 +677,70 @@ describe('MockProvider – weitere Geräte des Benutzers', () => {
     expect(none).toMatchObject({ status: 'ok', data: [] });
   });
 });
+
+describe('MockProvider – Richtlinien → Geräte (M15)', () => {
+  const provider = () => new MockProvider({ latency: false, now: () => NOW });
+
+  it('leitet die Richtlinien aus den Demo-Geräten ab: Edge-Baseline mit Konflikt auf CONTOSO-PC042', async () => {
+    const p = provider();
+    const result = await p.getTenantPolicies();
+    expect(result.configurations.status).toBe('ok');
+    if (result.configurations.status !== 'ok') return;
+    const edge = result.configurations.data.policies.find(
+      (policy) => policy.displayName === 'Contoso – Edge Sicherheitsbaseline',
+    )!;
+    expect(edge).toMatchObject({ kind: 'configuration', platform: 'windows' });
+    expect(edge.overview?.status).toBe('ok');
+    expect(edge.overview?.source.label).toBe(
+      Endpoints.deviceConfigurationDeviceStatusOverview.display,
+    );
+    const statuses = await p.getPolicyDeviceStatuses({ kind: 'configuration', id: edge.id });
+    expect(statuses.status).toBe('ok');
+    if (statuses.status !== 'ok') return;
+    expect(statuses.data.entries).toContainEqual(
+      expect.objectContaining({ deviceDisplayName: 'CONTOSO-PC042', status: 'conflict' }),
+    );
+    // Jeder gemeldete Gerätename ist über die Suche auffindbar (Demo konsistent).
+    for (const entry of statuses.data.entries) {
+      const hits = await p.searchDevices(entry.deviceDisplayName!);
+      expect(hits.map((hit) => hit.deviceName)).toContain(entry.deviceDisplayName);
+    }
+  });
+
+  it('VPN Always On meldet den Fehler von CONTOSO-PC042 und zählt ihn als Fehler', async () => {
+    const result = await provider().getTenantPolicies();
+    if (result.configurations.status !== 'ok') throw new Error('erwartet ok');
+    const vpn = result.configurations.data.policies.find((p) => p.displayName.includes('VPN'))!;
+    expect(vpn.overview?.status === 'ok' && vpn.overview.data.errorCount).toBe(1);
+  });
+
+  it('beachtet die Zähler-Grenze und Vorgaben aus options.tenant (z. B. fehlende Berechtigung)', async () => {
+    const p = new MockProvider({
+      latency: false,
+      now: () => NOW,
+      tenant: { policyOverviewLimit: 2, compliancePolicies: { status: 'forbidden' } },
+    });
+    const result = await p.getTenantPolicies();
+    expect(result.overviewLimit).toBe(2);
+    expect(result.compliancePolicies.status).toBe('forbidden');
+    if (result.compliancePolicies.status === 'forbidden') {
+      expect(result.compliancePolicies.error.requiredScope).toBe(
+        'DeviceManagementConfiguration.Read.All',
+      );
+    }
+    if (result.configurations.status !== 'ok') throw new Error('erwartet ok');
+    const withCounts = result.configurations.data.policies.filter((x) => x.overview !== null);
+    expect(withCounts).toHaveLength(2);
+  });
+
+  it('unbekannte Richtlinie → unavailable; Abbruch wird weitergereicht', async () => {
+    const p = provider();
+    const missing = await p.getPolicyDeviceStatuses({ kind: 'compliance', id: 'unbekannt' });
+    expect(missing.status).toBe('unavailable');
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      new MockProvider({ now: () => NOW }).getTenantPolicies({ signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});

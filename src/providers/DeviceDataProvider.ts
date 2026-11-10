@@ -14,6 +14,9 @@ import type {
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
   TenantStatus,
+  TenantPolicies,
+  TenantPolicyKind,
+  PolicyDeviceStatusesInfo,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -167,6 +170,23 @@ export interface DeviceDataProvider {
    * wird nie gelesen. Wirft nur bei Abbruch.
    */
   getTenantStatus(options?: RequestOptions): Promise<TenantStatus>;
+
+  /**
+   * Richtlinien des Mandanten (M15, Ansicht „Richtlinien“): Konfigurationsprofile und
+   * Compliance-Richtlinien (je ein SectionResult) mit den Zählern aus `deviceStatusOverview` – höchstens
+   * für MAX_POLICY_OVERVIEWS Richtlinien (zuletzt geänderte zuerst), der Rest `overview: null` („nicht
+   * abgefragt“). Settings-Catalog/Endpoint-Security fehlen (nur beta). Wirft nur bei Abbruch.
+   */
+  getTenantPolicies(options?: RequestOptions): Promise<TenantPolicies>;
+
+  /**
+   * Gerätestatus einer Richtlinie (M15): `…/{id}/deviceStatuses`, höchstens MAX_POLICY_STATUS_PAGES
+   * Seiten (danach `truncated`). Die Einträge tragen keine dokumentierte managedDevice-ID.
+   */
+  getPolicyDeviceStatuses(
+    policy: { kind: TenantPolicyKind; id: string },
+    options?: RequestOptions,
+  ): Promise<SectionResult<PolicyDeviceStatusesInfo>>;
 
   /**
    * Offene Defender-for-Endpoint-Warnungen dieses Geräts (M14/S4): die neuesten Warnungen des Mandanten

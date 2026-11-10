@@ -38,6 +38,9 @@ interface Derived {
   configurationId?: string;
   compliancePolicyId?: string;
   appId?: string;
+  /** Erste ID aus den Mandanten-Listen (M15) */
+  tenantConfigurationId?: string;
+  tenantCompliancePolicyId?: string;
 }
 
 interface ProbeContext {
@@ -249,6 +252,38 @@ export const Probes: Record<EndpointId, Probe> = {
     request: () => ({ path: Endpoints.applePushNotificationCertificate.path() }),
   },
   vppTokens: { request: () => ({ path: Endpoints.vppTokens.path() }) },
+  deviceConfigurations: {
+    request: () => ({ path: Endpoints.deviceConfigurations.path() }),
+    capture: (entries, derived) => {
+      derived.tenantConfigurationId = firstId(entries);
+    },
+  },
+  deviceConfigurationDeviceStatusOverview: {
+    request: needsDerived('tenantConfigurationId', (id) =>
+      Endpoints.deviceConfigurationDeviceStatusOverview.path(id),
+    ),
+  },
+  deviceConfigurationDeviceStatuses: {
+    request: needsDerived('tenantConfigurationId', (id) =>
+      Endpoints.deviceConfigurationDeviceStatuses.path(id),
+    ),
+  },
+  deviceCompliancePolicies: {
+    request: () => ({ path: Endpoints.deviceCompliancePolicies.path() }),
+    capture: (entries, derived) => {
+      derived.tenantCompliancePolicyId = firstId(entries);
+    },
+  },
+  deviceCompliancePolicyDeviceStatusOverview: {
+    request: needsDerived('tenantCompliancePolicyId', (id) =>
+      Endpoints.deviceCompliancePolicyDeviceStatusOverview.path(id),
+    ),
+  },
+  deviceCompliancePolicyDeviceStatuses: {
+    request: needsDerived('tenantCompliancePolicyId', (id) =>
+      Endpoints.deviceCompliancePolicyDeviceStatuses.path(id),
+    ),
+  },
   securityAlerts: { request: () => ({ path: Endpoints.securityAlerts.path() }) },
 };
 

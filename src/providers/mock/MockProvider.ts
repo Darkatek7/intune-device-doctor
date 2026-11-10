@@ -7,6 +7,11 @@ import type {
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
   TenantStatus,
+  TenantPolicies,
+  TenantPolicyInfo,
+  TenantPolicyKind,
+  TenantPolicyList,
+  PolicyDeviceStatusesInfo,
   VppTokenInfo,
   UserLicenseInfo,
   AssignmentLookup,
@@ -34,12 +39,14 @@ import {
   ASSIGNMENTS_DISPLAY,
   Endpoints,
   MAX_ASSIGNMENT_LOOKUPS,
+  MAX_POLICY_OVERVIEWS,
   type EndpointId,
 } from '../../graph/endpoints';
 import { matchesSerialNumber } from '../../domain/search';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
+import { buildMockPolicies, policyKey } from './policies';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
@@ -427,6 +434,98 @@ export class MockProvider implements DeviceDataProvider {
         sourceFor('vppTokens'),
       ),
     };
+  }
+
+  /**
+   * Richtlinien (M15): aus den Demo-Geräten abgeleitet (siehe policies.ts) oder `options.tenant`. Wie
+   * live: Zähler nur für die `policyOverviewLimit` zuletzt geänderten Richtlinien, der Rest null.
+   */
+  async getTenantPolicies(options: RequestOptions = {}): Promise<TenantPolicies> {
+    await this.delay('policies', options.signal);
+    const now = this.now();
+    const derived = buildMockPolicies(this.fixtures(), now);
+    const limit = this.tenant.policyOverviewLimit ?? MAX_POLICY_OVERVIEWS;
+    const listOf = (kind: TenantPolicyKind): TenantPolicyList => ({
+      policies: [...derived.values()]
+        .filter((entry) => entry.policy.kind === kind)
+        .map((entry) => ({ ...entry.policy, overview: null })),
+      truncated: false,
+    });
+    const configurations = this.fromSpec<TenantPolicyList>(
+      this.tenant.configurations ?? { status: 'ok', data: listOf('configuration') },
+      'deviceConfigurations',
+      sourceFor('deviceConfigurations'),
+    );
+    const compliancePolicies = this.fromSpec<TenantPolicyList>(
+      this.tenant.compliancePolicies ?? { status: 'ok', data: listOf('compliance') },
+      'deviceCompliancePolicies',
+      sourceFor('deviceCompliancePolicies'),
+    );
+    const all = [configurations, compliancePolicies].flatMap((list) =>
+      list.status === 'ok' ? list.data.policies : [],
+    );
+    const time = (policy: TenantPolicyInfo) =>
+      policy.lastModifiedDateTime ? Date.parse(policy.lastModifiedDateTime) : 0;
+    const chosen = new Set([...all].sort((a, b) => time(b) - time(a)).slice(0, limit));
+    const fetchedAt = now.toISOString();
+    const withOverviews = (
+      list: SectionResult<TenantPolicyList>,
+    ): SectionResult<TenantPolicyList> => {
+      if (list.status !== 'ok') return list;
+      const policies = list.data.policies.map((policy): TenantPolicyInfo => {
+        if (!chosen.has(policy)) return { ...policy, overview: null };
+        if (policy.overview) return policy;
+        const data = derived.get(policyKey(policy.kind, policy.id))?.overview;
+        const endpoint: EndpointId =
+          policy.kind === 'configuration'
+            ? 'deviceConfigurationDeviceStatusOverview'
+            : 'deviceCompliancePolicyDeviceStatusOverview';
+        return {
+          ...policy,
+          overview: data
+            ? { status: 'ok', data, source: sourceFor(endpoint), fetchedAt }
+            : {
+                status: 'unavailable',
+                reason: de.policies.reasons.overviewNotFound,
+                source: sourceFor(endpoint),
+              },
+        };
+      });
+      return { ...list, data: { ...list.data, policies } };
+    };
+    return {
+      configurations: withOverviews(configurations),
+      compliancePolicies: withOverviews(compliancePolicies),
+      overviewLimit: limit,
+    };
+  }
+
+  /** Gerätestatus einer Demo-Richtlinie; unbekannte Richtlinie → unavailable (wie 404 live). */
+  async getPolicyDeviceStatuses(
+    policy: { kind: TenantPolicyKind; id: string },
+    options: RequestOptions = {},
+  ): Promise<SectionResult<PolicyDeviceStatusesInfo>> {
+    await this.delay(`policyStatuses:${policy.kind}:${policy.id}`, options.signal);
+    const endpoint: EndpointId =
+      policy.kind === 'configuration'
+        ? 'deviceConfigurationDeviceStatuses'
+        : 'deviceCompliancePolicyDeviceStatuses';
+    const key = policyKey(policy.kind, policy.id);
+    const override = this.tenant.policyStatuses?.[key];
+    if (override) return this.fromSpec(override, endpoint, sourceFor(endpoint));
+    const entry = buildMockPolicies(this.fixtures(), this.now()).get(key);
+    if (!entry) {
+      return {
+        status: 'unavailable',
+        reason: de.policies.reasons.statusesNotFound,
+        source: sourceFor(endpoint),
+      };
+    }
+    return this.fromSpec<PolicyDeviceStatusesInfo>(
+      { status: 'ok', data: { entries: entry.statuses, truncated: false, pagesRead: 1 } },
+      endpoint,
+      sourceFor(endpoint),
+    );
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {

@@ -62,6 +62,13 @@ Die offenen Fragen stehen als Checkliste in `docs/graph-api-reference.md` › �
 - **Sicherheitswarnungen** (Scope `SecurityAlert.Read.All` per Admin-Consent; Konto mit z. B. Security Reader / Global Reader): Gerät öffnen → `GET …/security/alerts_v2?$filter=serviceSource eq 'microsoftDefenderForEndpoint'&$top=100`. Erwartet 200 mit `evidence[]`; notieren, ob Filter und `$top` zusammen akzeptiert werden, ob `deviceEvidence` die `azureAdDeviceId` trägt und ob `@odata.nextLink` folgt. Ein bekanntes Gerät mit offener Warnung muss in der Kachel erscheinen; im Verbindungstest nur die Feldnamen notieren (keine Titel, IDs oder Benutzer).
 - **Mandant** (Scope `DeviceManagementServiceConfig.Read.All`): Toolbar › „Mandant“ → `GET …/deviceAppManagement/vppTokens` und `GET …/deviceManagement/applePushNotificationCertificate`. Erwartet 200; notieren, ob der Scope für die VPP-Token ausreicht (die Doku nennt außerdem `DeviceManagementApps.Read.All`), welche Werte `state`/`lastSyncStatus` liefern und ob Ablaufdaten mit dem Admin Center übereinstimmen. Wichtig: Die Antwort enthält `token` und `appleId` – nie in Berichte, Tickets oder Screenshots übernehmen.
 
+## 5. Ansicht „Richtlinien“ (M15)
+
+Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M15)“. Scope `DeviceManagementConfiguration.Read.All` (bereits beim Login). Der Verbindungstest ruft die sechs neuen Endpunkte mit auf (Liste → erste Richtlinie → Übersicht und Gerätestatus).
+
+- Toolbar › „Richtlinien“ → `GET …/deviceManagement/deviceConfigurations` und `…/deviceCompliancePolicies`, danach je Richtlinie `…/{id}/deviceStatusOverview` (höchstens 50). Prüfen: 200 ohne Query-Optionen; `@odata.type` vorhanden (Plattform-Spalte); Zähler stimmen mit dem Admin Center (Gerätestatus der Richtlinie) überein – notieren, wie Konflikte/„nicht konform“ gezählt werden.
+- Eine Richtlinie mit bekannten Fehlern öffnen → `…/{id}/deviceStatuses`. Prüfen: Einträge vorhanden (bei Konfigurationsprofilen trotz Abkündigungshinweis ab Mai 2026), `deviceDisplayName` = Intune-Gerätename (Klick findet das Gerät), Form der `id`. Keine Gerätenamen/UPNs in Berichte übernehmen.
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.

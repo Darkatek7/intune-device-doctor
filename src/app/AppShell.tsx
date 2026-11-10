@@ -12,7 +12,13 @@ import { useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useExampleDevices } from '../hooks/useExampleDevices';
 import { usePageFileDrop } from '../hooks/usePageFileDrop';
-import { closeTileInHistory, navigateTo, parseUrl, useUrlState } from '../hooks/useUrlState';
+import {
+  closePolicyInHistory,
+  closeTileInHistory,
+  navigateTo,
+  parseUrl,
+  useUrlState,
+} from '../hooks/useUrlState';
 import { useRecentDevices } from '../hooks/useRecentDevices';
 import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
@@ -34,6 +40,7 @@ import { ZipProgress } from '../ui/ZipProgress';
 import { ConnectionTestView } from './ConnectionTestView';
 import { DeviceView } from './DeviceView';
 import { TenantView } from './TenantView';
+import { PoliciesView } from './PoliciesView';
 import { useProviderContext } from './providerContextValue';
 import { ZipView } from './ZipView';
 
@@ -164,7 +171,7 @@ function Shell({ account, extraChips }: Props) {
       if (zip.status !== 'idle') discardZip();
       setBulkOpen(false);
       // Eine Suche verlässt die Ansicht „Mandant“ bzw. den Verbindungstest, damit die Trefferliste sichtbar wird.
-      if (url.view === 'tenant' || url.view === 'connectionTest') {
+      if (url.view === 'tenant' || url.view === 'connectionTest' || url.view === 'policies') {
         navigateTo({ device: null, tile: null, mode });
       }
       const results = await search(value);
@@ -190,6 +197,35 @@ function Shell({ account, extraChips }: Props) {
     setQuery('');
     navigateTo({ device: null, tile: null, mode, view: 'tenant' });
   };
+
+  const openPolicies = () => {
+    setBulkOpen(false);
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'policies' });
+  };
+
+  /**
+   * Gerät aus dem Gerätestatus einer Richtlinie öffnen (M15): Der Status trägt keine dokumentierte
+   * Geräte-ID, deshalb über die normale Suche nach dem Namen. Genau ein Treffer (bzw. genau ein exakter
+   * Name) → Gerät öffnen; sonst Startansicht mit Trefferauswahl bzw. „nicht gefunden“.
+   */
+  const openDeviceByName = useCallback(
+    async (name: string) => {
+      setQuery(name);
+      const results = await search(name);
+      setSearchedAt(new Date());
+      if (!results) return;
+      const exact = results.filter(
+        (result) => result.deviceName.toLowerCase() === name.trim().toLowerCase(),
+      );
+      const single = results.length === 1 ? results[0] : exact.length === 1 ? exact[0] : undefined;
+      if (single) openDevice(single);
+      else navigateTo({ device: null, tile: null, mode });
+    },
+    [search, openDevice, mode],
+  );
 
   const goHome = () => {
     setBulkOpen(false);
@@ -233,25 +269,30 @@ function Shell({ account, extraChips }: Props) {
   /** Geräteansicht oder Verbindungstest: beide gehören zu einem geöffneten Gerät */
   const showDeviceArea = showDevice || showConnectionTest;
   const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
-  const showZip = !showDeviceArea && !showTenant && !liveWithoutProvider && zip.status !== 'idle';
-  const showBulk = bulkOpen && !showDeviceArea && !showTenant && !showZip && !liveWithoutProvider;
+  // Ansicht „Richtlinien“ (M15) teilt sich mit „Mandant“ die Ausschlüsse der übrigen Ansichten.
+  const showPolicies = Boolean(provider && !url.device && url.view === 'policies');
+  const showTenantLike = showTenant || showPolicies;
+  const showZip =
+    !showDeviceArea && !showTenantLike && !liveWithoutProvider && zip.status !== 'idle';
+  const showBulk =
+    bulkOpen && !showDeviceArea && !showTenantLike && !showZip && !liveWithoutProvider;
   const showPicker =
     !showDeviceArea &&
-    !showTenant &&
+    !showTenantLike &&
     !showZip &&
     !showBulk &&
     state.status === 'done' &&
     state.results.length > 1;
   const showNotFound =
     !showDeviceArea &&
-    !showTenant &&
+    !showTenantLike &&
     !showZip &&
     !showBulk &&
     state.status === 'done' &&
     state.results.length === 0;
   const showSearchError =
     !showDeviceArea &&
-    !showTenant &&
+    !showTenantLike &&
     !showZip &&
     !showBulk &&
     state.status === 'error' &&
@@ -259,7 +300,7 @@ function Shell({ account, extraChips }: Props) {
   const showHero =
     !liveWithoutProvider &&
     !showDeviceArea &&
-    !showTenant &&
+    !showTenantLike &&
     !showZip &&
     !showBulk &&
     !showPicker &&
@@ -337,6 +378,26 @@ function Shell({ account, extraChips }: Props) {
           if (current.tile) closeTileInHistory(current);
         }}
         onBack={goHome}
+        onToneChange={setDeviceTone}
+      />
+    );
+  } else if (showPolicies && provider) {
+    content = (
+      <PoliciesView
+        provider={provider}
+        openPolicyKey={url.policy ?? null}
+        onOpenPolicy={(key) =>
+          navigateTo(
+            { device: null, tile: null, mode, view: 'policies', policy: key },
+            { policyOpened: true },
+          )
+        }
+        onClosePolicy={() => {
+          const current = parseUrl(window.location.search);
+          if (current.policy) closePolicyInHistory(current);
+        }}
+        onBack={goHome}
+        onOpenDeviceByName={(name) => void openDeviceByName(name)}
         onToneChange={setDeviceTone}
       />
     );
@@ -464,7 +525,7 @@ function Shell({ account, extraChips }: Props) {
     <div className="min-h-dvh bg-canvas text-label">
       <AmbientGlow
         tone={
-          showDevice || showConnectionTest || showTenant || (showZip && zipReport)
+          showDevice || showConnectionTest || showTenantLike || (showZip && zipReport)
             ? deviceTone
             : 'accent'
         }
@@ -481,7 +542,14 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
-        {...(liveWithoutProvider ? {} : { onOpenTenant: openTenant, tenantActive: showTenant })}
+        {...(liveWithoutProvider
+          ? {}
+          : {
+              onOpenTenant: openTenant,
+              tenantActive: showTenant,
+              onOpenPolicies: openPolicies,
+              policiesActive: showPolicies,
+            })}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}
