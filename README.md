@@ -24,6 +24,17 @@ npm run dev
 
 Öffnen: http://localhost:5173 (Demo-Modus).
 
+### Mit Docker / Rancher Desktop
+
+```bash
+npm install
+npm run docker:up
+```
+
+Baut die App auf dem Host (`dist/`, inklusive der `VITE_*`-Werte aus `.env.local`) und startet sie als nginx-Container unter http://localhost:5173 – derselbe Port wie der Dev-Server, damit die Redirect-URI der Entra-App unverändert passt. Stoppen mit `npm run docker:down`. Der Image-Build selbst braucht keinen npm-Zugriff; das funktioniert damit auch hinter Firmen-Proxys mit TLS-Inspektion, die Container-Traffic nicht durchlassen. Nach Code- oder `.env.local`-Änderungen erneut `npm run docker:up` ausführen.
+
+Der Container setzt die Sicherheits-Header, die als Meta-Tag nicht möglich sind (`docker/nginx.conf`): `Content-Security-Policy: frame-ancestors 'self'` und `X-Frame-Options: SAMEORIGIN` gegen Clickjacking (`'self'`, weil MSAL die eigene Redirect-URI für die stille Token-Erneuerung in einem versteckten iframe lädt), dazu `X-Content-Type-Options: nosniff`, `Referrer-Policy` und `Permissions-Policy`. Die Konfiguration braucht nginx ab 1.29.3 (`add_header_inherit`).
+
 ## Demo-Skript (3 Minuten)
 
 Für die Präsentation im Demo-Modus (keine Anmeldung, nur fiktive Contoso-Daten):
@@ -68,10 +79,10 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
    | `Device.Read.All`                         | Entra-Geräteobjekt                                                                              |
    | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst)                        |
    | `DeviceManagementServiceConfig.Read.All`  | Ablauf des Apple-MDM-Push-Zertifikats (nur Datum, keine Apple-ID), Autopilot-Eintrag des Geräts; VPP-Token der Ansicht „Mandant“ |
-   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)                                |
-   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)                           |
-   | `LicenseAssignment.Read.All`              | Kachel „Registrierung (Benutzer)“: nur ob der primäre Benutzer einen Intune-Lizenzplan hat (optional) |
-   | `SecurityAlert.Read.All`                  | Kachel „Sicherheitswarnungen“: offene Defender-for-Endpoint-Warnungen dieses Geräts (optional) |
+   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)                                                                 |
+   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)                                                            |
+   | `LicenseAssignment.Read.All`              | Kachel „Registrierung (Benutzer)“: nur ob der primäre Benutzer einen Intune-Lizenzplan hat (optional)                            |
+   | `SecurityAlert.Read.All`                  | Kachel „Sicherheitswarnungen“: offene Defender-for-Endpoint-Warnungen dieses Geräts (optional)                                   |
 
    Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn). **Nach einem Update der App, das einen neuen Scope ergänzt** (zuletzt `DeviceManagementServiceConfig.Read.All` für die Autopilot-Kachel), muss der Admin-Consent erneut erteilt werden – bis dahin zeigt die betroffene Prüfung „Fehlende Berechtigung“ mit dem Scope, der Rest funktioniert weiter.
 
@@ -97,13 +108,15 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 
 ## Befehle
 
-| Befehl               | Zweck                                                      |
-| -------------------- | ---------------------------------------------------------- |
-| `npm run dev`        | Entwicklungsserver                                         |
-| `npm run check`      | Lint, Typecheck, Tests, Build (Definition of Done)         |
-| `npm run fixture`    | Synthetisches DiagLogs-Test-ZIP erzeugen                   |
-| `npm run test:e2e`   | Playwright-E2E inkl. axe-Scan und Screenshots (4 Projekte) |
-| `npm run check:full` | `check` + E2E                                              |
+| Befehl                | Zweck                                                       |
+| --------------------- | ----------------------------------------------------------- |
+| `npm run dev`         | Entwicklungsserver                                          |
+| `npm run check`       | Lint, Typecheck, Tests, Build (Definition of Done)          |
+| `npm run fixture`     | Synthetisches DiagLogs-Test-ZIP erzeugen                    |
+| `npm run test:e2e`    | Playwright-E2E inkl. axe-Scan und Screenshots (4 Projekte)  |
+| `npm run check:full`  | `check` + E2E                                               |
+| `npm run docker:up`   | Host-Build + nginx-Container auf Port 5173 (Docker/Rancher) |
+| `npm run docker:down` | Container stoppen und entfernen                             |
 
 ## Datenschutz
 

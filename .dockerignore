@@ -1,0 +1,4 @@
+# Nur dist/ und die nginx-Konfiguration gehören in den Build-Kontext.
+*
+!dist/
+!docker/nginx.conf
