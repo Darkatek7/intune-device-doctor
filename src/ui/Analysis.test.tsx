@@ -93,7 +93,9 @@ describe('TimelineSheet', () => {
     // Kachel „deviceStatus“ existiert in der Ansicht nicht → ebenfalls kein Knopf
     expect(within(dialog).queryByRole('button', { name: /läuft ab/ })).not.toBeInTheDocument();
     await user.click(
-      within(dialog).getByRole('button', { name: t.open('Anmeldung blockiert', 'Anmeldungen') }),
+      within(dialog).getByRole('button', {
+        name: /Prüfen: Anmeldung blockiert – Kachel „Anmeldungen“ öffnen$/,
+      }),
     );
     expect(onOpenTile).toHaveBeenCalledWith('signIns');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

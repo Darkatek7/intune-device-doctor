@@ -24,6 +24,8 @@ import type {
   UserLicenseInfo,
   VppTokenInfo,
   WindowsProtectionInfo,
+  PolicyDeviceStatusesInfo,
+  TenantPolicyList,
 } from '../../domain/types';
 
 /** Wie eine Section im Demo-Modus antwortet. */
@@ -90,4 +92,11 @@ export interface MockScenario {
 export interface MockTenantFixture {
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
   vppTokens?: MockSection<VppTokenInfo[]>;
+  /** Ansicht „Richtlinien“ (M15): ersetzt die aus den Demo-Geräten abgeleitete Liste (z. B. forbidden in Tests). */
+  configurations?: MockSection<TenantPolicyList>;
+  compliancePolicies?: MockSection<TenantPolicyList>;
+  /** Gerätestatus einzelner Richtlinien (Schlüssel `kind:id`) statt der abgeleiteten Werte. */
+  policyStatuses?: Record<string, MockSection<PolicyDeviceStatusesInfo>>;
+  /** Höchstzahl abgefragter Zähler (Standard MAX_POLICY_OVERVIEWS) – für Tests der Grenze. */
+  policyOverviewLimit?: number;
 }

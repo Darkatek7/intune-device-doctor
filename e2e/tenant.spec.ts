@@ -1,10 +1,19 @@
-import { T, expect, openDevice, settleSheet, statusBadge, tile, tileButtons, test } from './helpers';
+import {
+  T,
+  expect,
+  openDevice,
+  settleSheet,
+  statusBadge,
+  tile,
+  tileButtons,
+  test,
+} from './helpers';
 
 /** Ansicht „Mandant“ (M14/S5) und Abgrenzung zum Verbindungstest (M14/S6, nur Live). */
 test.describe('Ansicht „Mandant“', () => {
   test('Toolbar öffnet die drei Mandanten-Kacheln; VPP-Token läuft bald ab', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Mandanten-Status' }).click();
+    await page.getByRole('button', { name: 'Mandant', exact: true }).click();
 
     await expect(page.getByRole('heading', { level: 1, name: 'Mandant' })).toBeVisible();
     await expect(tileButtons(page)).toHaveCount(3);

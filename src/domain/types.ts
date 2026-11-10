@@ -84,6 +84,8 @@ export interface DeviceSearchResult {
   operatingSystem: string | null;
   osVersion: string | null;
   model: string | null;
+  /** Seriennummer laut Intune (für die Suche per Seriennummer und die Anzeige des Treffers) */
+  serialNumber: string | null;
   complianceState: ComplianceState;
   lastSyncDateTime: string | null;
 }
@@ -490,6 +492,75 @@ export interface VppTokenInfo {
 export interface TenantStatus {
   applePushCertificate: SectionResult<ApplePushCertificateInfo>;
   vppTokens: SectionResult<VppTokenInfo[]>;
+}
+
+// ---------- Richtlinien → Geräte (M15, Ansicht „Richtlinien“) ----------
+
+export type TenantPolicyKind = 'configuration' | 'compliance';
+
+/**
+ * Zähler einer Richtlinie (deviceStatusOverview, v1.0). Die Doku beschreibt die Zähler nur knapp
+ * („Number of error/failed/pending … devices“); einen Konflikt-Zähler gibt es in v1.0 nicht.
+ */
+export interface PolicyDeviceOverview {
+  pendingCount: number | null;
+  notApplicableCount: number | null;
+  successCount: number | null;
+  errorCount: number | null;
+  failedCount: number | null;
+  lastUpdateDateTime: string | null;
+  configurationVersion: number | null;
+}
+
+/** Eine Richtlinie des Mandanten (Konfigurationsprofil oder Compliance-Richtlinie). */
+export interface TenantPolicyInfo {
+  id: string;
+  kind: TenantPolicyKind;
+  displayName: string;
+  /** Aus dem abgeleiteten Typ (`@odata.type`) – null, wenn der Typ keine Plattform erkennen lässt */
+  platform: OsFamily | null;
+  version: number | null;
+  lastModifiedDateTime: string | null;
+  /** null = Zähler nicht abgefragt (Grenze MAX_POLICY_OVERVIEWS) */
+  overview: SectionResult<PolicyDeviceOverview> | null;
+}
+
+export interface TenantPolicyList {
+  policies: TenantPolicyInfo[];
+  /** Die Liste hat mehr Seiten als gelesen wurden */
+  truncated: boolean;
+}
+
+/**
+ * Richtlinien des Mandanten (M15). Beide Listen sind eigene SectionResults – eine fehlende
+ * Berechtigung oder ein Fehler betrifft nur ihre Liste; die Zähler je Richtlinie ebenso.
+ */
+export interface TenantPolicies {
+  configurations: SectionResult<TenantPolicyList>;
+  compliancePolicies: SectionResult<TenantPolicyList>;
+  /** Höchstzahl der Richtlinien, deren Zähler abgefragt werden */
+  overviewLimit: number;
+}
+
+/**
+ * Status einer Richtlinie auf einem Gerät (deviceStatuses, v1.0). `id` ist laut Doku nur der Schlüssel
+ * des Eintrags – nicht als managedDevice-ID belegt; das Gerät wird deshalb über den Namen gesucht.
+ */
+export interface PolicyDeviceStatusEntry {
+  id: string;
+  deviceDisplayName: string | null;
+  userPrincipalName: string | null;
+  userName: string | null;
+  deviceModel: string | null;
+  status: ComplianceStatus;
+  lastReportedDateTime: string | null;
+}
+
+export interface PolicyDeviceStatusesInfo {
+  entries: PolicyDeviceStatusEntry[];
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_POLICY_STATUS_PAGES) */
+  truncated: boolean;
+  pagesRead: number;
 }
 
 // ---------- Verbindungstest (M14/S6) ----------

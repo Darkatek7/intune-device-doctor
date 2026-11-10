@@ -33,7 +33,11 @@ import {
   mapHealthAttestation,
   mapLocalAdmin,
   mapManagedDevice,
+  mapPolicyDeviceStatuses,
+  mapPolicyOverview,
   mapPolicyState,
+  mapTenantPolicies,
+  policyPlatformFromODataType,
   mapSearchResult,
   mapSecurityAlerts,
   mapSignIns,
@@ -122,6 +126,7 @@ describe('mapSearchResult', () => {
       operatingSystem: null,
       osVersion: null,
       model: null,
+      serialNumber: null,
       complianceState: 'compliant',
       lastSyncDateTime: null,
     });
@@ -1318,5 +1323,130 @@ describe('mapVppTokens (M14/S5)', () => {
     });
     expect(mapVppTokens(null)).toEqual([]);
     expect(mapVppTokens(undefined)).toEqual([]);
+  });
+});
+
+describe('Mapper – Richtlinien → Geräte (M15)', () => {
+  it('policyPlatformFromODataType: nur Präfixe dokumentierter abgeleiteter Typen, sonst null', () => {
+    expect(policyPlatformFromODataType('#microsoft.graph.windows10GeneralConfiguration')).toBe(
+      'windows',
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.windows10CompliancePolicy')).toBe(
+      'windows',
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.iosCompliancePolicy')).toBe('ios');
+    expect(policyPlatformFromODataType('microsoft.graph.macOSGeneralDeviceConfiguration')).toBe(
+      'macos',
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.androidWorkProfileCompliancePolicy')).toBe(
+      'android',
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.aospDeviceOwnerCompliancePolicy')).toBe(
+      'android',
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.windowsPhone81CompliancePolicy')).toBe(
+      null,
+    );
+    expect(policyPlatformFromODataType('#microsoft.graph.sharedPCConfiguration')).toBe(null);
+    expect(policyPlatformFromODataType('#microsoft.graph.deviceConfiguration')).toBe(null);
+    expect(policyPlatformFromODataType(undefined)).toBe(null);
+  });
+
+  it('mapTenantPolicies: Whitelist ohne description, Name-Fallback auf ID, Einträge ohne ID verworfen', () => {
+    const mapped = mapTenantPolicies(
+      [
+        {
+          '@odata.type': '#microsoft.graph.windows10GeneralConfiguration',
+          id: 'p1',
+          displayName: ' Contoso – WLAN ',
+          lastModifiedDateTime: '2026-10-01T00:00:00Z',
+          version: 2,
+          description: 'GEHEIM',
+        } as never,
+        { id: 'p2', displayName: null, lastModifiedDateTime: '0001-01-01T00:00:00Z' },
+        { id: '' } as never,
+        null as never,
+      ],
+      'configuration',
+    );
+    expect(mapped).toEqual([
+      {
+        id: 'p1',
+        kind: 'configuration',
+        displayName: 'Contoso – WLAN',
+        platform: 'windows',
+        version: 2,
+        lastModifiedDateTime: '2026-10-01T00:00:00Z',
+        overview: null,
+      },
+      {
+        id: 'p2',
+        kind: 'configuration',
+        displayName: 'p2',
+        platform: null,
+        version: null,
+        lastModifiedDateTime: null,
+        overview: null,
+      },
+    ]);
+    expect(JSON.stringify(mapped)).not.toContain('GEHEIM');
+  });
+
+  it('mapPolicyOverview: Objekt direkt oder unter value (Doku-Beispiel); ungültige Zähler → null', () => {
+    const wrapped = mapPolicyOverview({
+      value: {
+        pendingCount: 12,
+        notApplicableCount: 2,
+        successCount: 12,
+        errorCount: 10,
+        failedCount: 11,
+        lastUpdateDateTime: '2026-10-14T23:58:21Z',
+        configurationVersion: 4,
+      },
+    });
+    expect(wrapped).toEqual({
+      pendingCount: 12,
+      notApplicableCount: 2,
+      successCount: 12,
+      errorCount: 10,
+      failedCount: 11,
+      lastUpdateDateTime: '2026-10-14T23:58:21Z',
+      configurationVersion: 4,
+    });
+    expect(
+      mapPolicyOverview({ errorCount: 3, failedCount: -1, pendingCount: 'x' as never }),
+    ).toMatchObject({
+      errorCount: 3,
+      failedCount: null,
+      pendingCount: null,
+    });
+    expect(mapPolicyOverview(null).errorCount).toBeNull();
+  });
+
+  it('mapPolicyDeviceStatuses: Status nach complianceStatus-Enum, unbekannt → unknown', () => {
+    const mapped = mapPolicyDeviceStatuses([
+      {
+        id: 's1',
+        deviceDisplayName: 'CONTOSO-PC042',
+        userName: 'Sophie Hartmann',
+        userPrincipalName: 'sophie.hartmann@contoso.com',
+        deviceModel: 'Surface Laptop 6',
+        status: 'conflict',
+        lastReportedDateTime: '2026-10-14T10:00:00Z',
+      },
+      { id: 's2', status: 'somethingNew' as never },
+      { deviceDisplayName: 'ohne ID' } as never,
+    ]);
+    expect(mapped).toHaveLength(2);
+    expect(mapped[0]).toEqual({
+      id: 's1',
+      deviceDisplayName: 'CONTOSO-PC042',
+      userPrincipalName: 'sophie.hartmann@contoso.com',
+      userName: 'Sophie Hartmann',
+      deviceModel: 'Surface Laptop 6',
+      status: 'conflict',
+      lastReportedDateTime: '2026-10-14T10:00:00Z',
+    });
+    expect(mapped[1]).toMatchObject({ status: 'unknown', deviceDisplayName: null });
   });
 });

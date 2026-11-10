@@ -8,6 +8,8 @@ import type {
   Win32AppState,
 } from '../../diagnostics/types';
 import type { Finding, Tile, TileId } from '../../domain/types';
+import { hexToSignedDecimal } from '../../domain/format';
+import { de } from '../../i18n/de';
 import { Docs } from '../knowledge/docs';
 import { evaluateDiagnosticsTiles } from './diagnostics';
 
@@ -15,8 +17,9 @@ const NOW = new Date('2026-10-15T12:00:00Z');
 const LEARN_URL = /^https:\/\/learn\.microsoft\.com\//;
 const PRT_PAGE =
   'https://learn.microsoft.com/entra/identity/devices/troubleshoot-primary-refresh-token';
-const MSI_ERRORS_URL =
-  'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#msi-errors';
+/** Abschnitt je MSI-Code auf "Application installation common error codes reference" (Anker geprüft). */
+const MSI_ERROR_URL = (code: number) =>
+  `https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#${code}`;
 const ZIP_PREFIX = 'DiagLogs-ZIP · ';
 
 let fixture: DiagnosticsReport;
@@ -178,7 +181,7 @@ describe('Fixture-ZIP: Win32-Apps', () => {
     expect(failed?.severity).toBe('warning');
     expect(failed?.detail).toContain('0x80070642');
     expect(failed?.detail).toContain('ERROR_INSTALL_USEREXIT');
-    expect(failed?.docsUrl).toBe(MSI_ERRORS_URL);
+    expect(failed?.docsUrl).toBe(MSI_ERROR_URL(1602));
     expect(failed?.source.label).toBe(
       `${ZIP_PREFIX}(2) RegistryKey HKLM_Software_Microsoft_IntuneManagementExtension export.reg`,
     );
@@ -416,6 +419,56 @@ describe('Synthetisch: Win32-Apps', () => {
     expect(tile.severity).toBe('warning');
   });
 
+  it('Failed mit 0x87D1041C → Titel, Ursache, Lösung und Learn-Link aus der Wissensbasis', () => {
+    const tile = tileOf(
+      evaluate({
+        win32Apps: [
+          win32App({ status: 'Failed', errorCodeHex: '0x87D1041C', errorCodeDecimal: -2016345060 }),
+        ],
+        imeIssues: [],
+      }),
+      'win32Apps',
+    );
+    const failed = tile.findings.find((f) => f.id.startsWith('win32-failed-'))!;
+    expect(failed.detail).toContain('Fehlercode 0x87D1041C (-2016345060)');
+    expect(failed.detail).toContain('nicht erkannt');
+    expect(failed.cause).toContain('deinstalliert');
+    expect(failed.remediation[0]).toContain('Unternehmensportal');
+    expect(failed.remediation).toContain(de.rules.zip.win32.failedRemediation[0]);
+    expect(failed.docsUrl).toBe(
+      'https://learn.microsoft.com/troubleshoot/mem/intune/app-management/app-install-error-codes#other-installation-errors',
+    );
+  });
+
+  it('Failed mit App-Kontext-Code 0x80073CFB → wird im App-Kontext gedeutet', () => {
+    const tile = tileOf(
+      evaluate({
+        win32Apps: [
+          win32App({ status: 'Failed', errorCodeDecimal: hexToSignedDecimal('0x80073CFB') }),
+        ],
+        imeIssues: [],
+      }),
+      'win32Apps',
+    );
+    const failed = tile.findings.find((f) => f.id.startsWith('win32-failed-'))!;
+    expect(failed.detail).toContain('Neuinstallation blockiert');
+  });
+
+  it('Registrierungscode 0x800705B4 wird bei Apps nicht als TPM-Problem gedeutet', () => {
+    const tile = tileOf(
+      evaluate({
+        win32Apps: [
+          win32App({ status: 'Failed', errorCodeDecimal: hexToSignedDecimal('0x800705B4') }),
+        ],
+        imeIssues: [],
+      }),
+      'win32Apps',
+    );
+    const failed = tile.findings.find((f) => f.id.startsWith('win32-failed-'))!;
+    expect(failed.detail).toContain('Win32-Fehler 1460');
+    expect(failed.cause).not.toContain('TPM');
+  });
+
   it('Failed ohne Fehlercode → Hinweis „ohne Fehlercode“', () => {
     const tile = tileOf(
       evaluate({ win32Apps: [win32App({ status: 'Failed' })], imeIssues: [] }),
@@ -438,7 +491,7 @@ describe('Synthetisch: Win32-Apps', () => {
     const failed = tile.findings.find((f) => f.id.startsWith('win32-failed-'));
     expect(failed?.detail).toContain('ERROR_INSTALL_FAILURE');
     expect(failed?.remediation[0]).toContain('MSI-Log');
-    expect(failed?.docsUrl).toBe(MSI_ERRORS_URL);
+    expect(failed?.docsUrl).toBe(MSI_ERROR_URL(1603));
   });
 
   it('Status „FAILED“ in Großbuchstaben zählt als fehlgeschlagen', () => {
@@ -538,6 +591,37 @@ describe('Synthetisch: Diagnose-Sammlung', () => {
     expect(finding.detail).toContain('0x80070001');
     expect(finding.detail).toContain('Schlüssel fehlt');
     expect(finding.remediation.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Code mit Wissensbasis-Eintrag → Titel, Ursache und Learn-Link aus der Wissensbasis', () => {
+    const tile = tileOf(
+      evaluate({
+        collectionFailures: [
+          { kind: 'Command', target: '%windir%\\system32\\Contoso.exe', hresult: '0x801C03EA' },
+        ],
+        analysisNotes: [],
+      }),
+      'diagCollection',
+    );
+    const finding = tile.findings[0]!;
+    expect(finding.detail).toContain('0x801C03EA – Registrierung für die Mobilgeräteverwaltung');
+    expect(finding.cause).toContain('TPM');
+    expect(finding.docsUrl).toContain(
+      '#registering-your-device-for-mobile-management-failed-3-0x801c03ea',
+    );
+  });
+
+  it('unbekannter Code → „Unbekannter Code“, keine Deutung', () => {
+    const tile = tileOf(
+      evaluate({
+        collectionFailures: [
+          { kind: 'Command', target: '%windir%\\system32\\Contoso.exe', hresult: '0x8000FFFF' },
+        ],
+        analysisNotes: [],
+      }),
+      'diagCollection',
+    );
+    expect(tile.findings[0]?.detail).toBe('0x8000FFFF – Unbekannter Code.');
   });
 
   it('Befund ohne passenden ZIP-Eintrag → Quelle results.xml', () => {

@@ -18,6 +18,7 @@ const device: DeviceSearchResult = {
   operatingSystem: 'Windows',
   osVersion: '10.0',
   model: null,
+  serialNumber: null,
   complianceState: 'compliant',
   lastSyncDateTime: '2026-11-09T10:00:00Z',
 };

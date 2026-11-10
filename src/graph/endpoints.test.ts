@@ -227,3 +227,52 @@ describe('Endpunkte – Mandanten-Status (M14/S5)', () => {
     expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
   });
 });
+
+describe('Endpunkte – Richtlinien → Geräte (M15)', () => {
+  const ids = [
+    'deviceConfigurations',
+    'deviceConfigurationDeviceStatusOverview',
+    'deviceConfigurationDeviceStatuses',
+    'deviceCompliancePolicies',
+    'deviceCompliancePolicyDeviceStatusOverview',
+    'deviceCompliancePolicyDeviceStatuses',
+  ] as const;
+
+  it('alle sechs: v1.0-GET mit Learn-Link und dem beim Login angefragten Scope DeviceManagementConfiguration.Read.All', () => {
+    for (const id of ids) {
+      const def = Endpoints[id];
+      expect(def.method).toBe('GET');
+      expect(def.version).toBe('v1.0');
+      expect(def.scope).toBe('DeviceManagementConfiguration.Read.All');
+      expect(LOGIN_SCOPES).toContain(def.scope);
+      expect(def.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\/.*view=graph-rest-1\.0$/);
+    }
+  });
+
+  it('Pfade ohne Query-Optionen (keine dokumentiert), IDs encodiert', () => {
+    expect(Endpoints.deviceConfigurations.path()).toBe('/deviceManagement/deviceConfigurations');
+    expect(Endpoints.deviceCompliancePolicies.path()).toBe(
+      '/deviceManagement/deviceCompliancePolicies',
+    );
+    expect(Endpoints.deviceConfigurationDeviceStatusOverview.path('a/b')).toBe(
+      '/deviceManagement/deviceConfigurations/a%2Fb/deviceStatusOverview',
+    );
+    expect(Endpoints.deviceConfigurationDeviceStatuses.path('p1')).toBe(
+      '/deviceManagement/deviceConfigurations/p1/deviceStatuses',
+    );
+    expect(Endpoints.deviceCompliancePolicyDeviceStatusOverview.path('p2')).toBe(
+      '/deviceManagement/deviceCompliancePolicies/p2/deviceStatusOverview',
+    );
+    expect(Endpoints.deviceCompliancePolicyDeviceStatuses.path('p2')).toBe(
+      '/deviceManagement/deviceCompliancePolicies/p2/deviceStatuses',
+    );
+    for (const id of ids) expect(Endpoints[id].path('x')).not.toContain('?');
+  });
+
+  it('keine Beta-Endpunkte (Settings-Katalog/Endpunktsicherheit)', () => {
+    for (const def of Object.values(Endpoints)) {
+      const path = (def.path as (...args: string[]) => string)('x', '2026-10-08T12:00:00Z');
+      expect(path).not.toMatch(/configurationPolicies|\/intents/);
+    }
+  });
+});

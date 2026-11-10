@@ -32,6 +32,11 @@ import type {
   SignInsInfo,
   VppTokenInfo,
   WindowsProtectionInfo,
+  OsFamily,
+  PolicyDeviceOverview,
+  PolicyDeviceStatusEntry,
+  TenantPolicyInfo,
+  TenantPolicyKind,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
@@ -65,6 +70,9 @@ import type {
   GraphSecurityDeviceEvidence,
   GraphSignIn,
   GraphVppToken,
+  GraphPolicyDeviceOverview,
+  GraphPolicyDeviceStatus,
+  GraphTenantPolicy,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
   ManagedDevicePartnerReportedHealthState,
@@ -291,6 +299,7 @@ export function mapSearchResult(
     operatingSystem: str(dto.operatingSystem),
     osVersion: str(dto.osVersion),
     model: str(dto.model),
+    serialNumber: str(dto.serialNumber)?.trim() || null,
     complianceState: pick(dto.complianceState, COMPLIANCE_STATES, 'unknown'),
     lastSyncDateTime: str(dto.lastSyncDateTime),
   };
@@ -1050,4 +1059,91 @@ export function mapVppTokens(entries: GraphVppToken[] | null | undefined): VppTo
   const time = (token: VppTokenInfo) =>
     token.expirationDateTime ? Date.parse(token.expirationDateTime) : Number.MAX_SAFE_INTEGER;
   return mapped.sort((a, b) => time(a) - time(b));
+}
+
+// ---------- Richtlinien → Geräte (M15) ----------
+
+/**
+ * Plattform aus dem abgeleiteten Typ einer Richtlinie. Der Basistyp hat kein Plattform-Feld; die
+ * dokumentierten abgeleiteten Typen tragen die Plattform am Anfang des Namens (z. B.
+ * windows10GeneralConfiguration, iosCompliancePolicy, macOSGeneralDeviceConfiguration,
+ * androidWorkProfileCompliancePolicy, aospDeviceOwnerCompliancePolicy). Alles andere (auch
+ * windowsPhone81…) → null, nichts wird geraten.
+ */
+export function policyPlatformFromODataType(odataType: unknown): OsFamily | null {
+  const name = str(odataType)?.replace(/^#?microsoft\.graph\./, '') ?? '';
+  if (!name) return null;
+  if (name.startsWith('windowsPhone')) return null;
+  if (name.startsWith('windows')) return 'windows';
+  if (name.startsWith('ios')) return 'ios';
+  if (name.startsWith('macOS')) return 'macos';
+  if (name.startsWith('android') || name.startsWith('aosp')) return 'android';
+  return null;
+}
+
+/** Richtlinien-Liste → Domain (ohne Zähler). Einträge ohne ID werden verworfen; description nie. */
+export function mapTenantPolicies(
+  entries: GraphTenantPolicy[] | null | undefined,
+  kind: TenantPolicyKind,
+): TenantPolicyInfo[] {
+  const mapped: TenantPolicyInfo[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const id = entry && typeof entry === 'object' ? str(entry.id)?.trim() : null;
+    if (!id) continue;
+    mapped.push({
+      id,
+      kind,
+      displayName: str(entry.displayName)?.trim() || id,
+      platform: policyPlatformFromODataType(entry['@odata.type']),
+      version: num(entry.version),
+      lastModifiedDateTime: validDate(entry.lastModifiedDateTime),
+      overview: null,
+    });
+  }
+  return mapped;
+}
+
+const count = (value: unknown): number | null => {
+  const n = num(value);
+  return n !== null && n >= 0 ? Math.trunc(n) : null;
+};
+
+/** deviceStatusOverview → Zähler. Akzeptiert das Objekt direkt oder unter `value` (Doku-Beispiel). */
+export function mapPolicyOverview(
+  dto: GraphPolicyDeviceOverview | { value?: GraphPolicyDeviceOverview } | null | undefined,
+): PolicyDeviceOverview {
+  const raw: GraphPolicyDeviceOverview =
+    dto && typeof dto === 'object' && 'value' in dto && dto.value && typeof dto.value === 'object'
+      ? dto.value
+      : ((dto as GraphPolicyDeviceOverview | null | undefined) ?? {});
+  return {
+    pendingCount: count(raw.pendingCount),
+    notApplicableCount: count(raw.notApplicableCount),
+    successCount: count(raw.successCount),
+    errorCount: count(raw.errorCount),
+    failedCount: count(raw.failedCount),
+    lastUpdateDateTime: validDate(raw.lastUpdateDateTime),
+    configurationVersion: num(raw.configurationVersion),
+  };
+}
+
+/** deviceStatuses → Einträge (nur die Whitelist; unbekannter Status → unknown). */
+export function mapPolicyDeviceStatuses(
+  entries: GraphPolicyDeviceStatus[] | null | undefined,
+): PolicyDeviceStatusEntry[] {
+  const mapped: PolicyDeviceStatusEntry[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const id = entry && typeof entry === 'object' ? str(entry.id) : null;
+    if (!id) continue;
+    mapped.push({
+      id,
+      deviceDisplayName: str(entry.deviceDisplayName)?.trim() || null,
+      userPrincipalName: str(entry.userPrincipalName)?.trim() || null,
+      userName: str(entry.userName)?.trim() || null,
+      deviceModel: str(entry.deviceModel)?.trim() || null,
+      status: pick(entry.status, COMPLIANCE_STATUSES, 'unknown'),
+      lastReportedDateTime: validDate(entry.lastReportedDateTime),
+    });
+  }
+  return mapped;
 }

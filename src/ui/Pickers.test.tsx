@@ -16,6 +16,7 @@ const result = (over: Partial<DeviceSearchResult>): DeviceSearchResult => ({
   operatingSystem: 'Windows',
   osVersion: '10.0.26100',
   model: null,
+  serialNumber: null,
   complianceState: 'noncompliant',
   lastSyncDateTime: '2026-10-15T09:00:00Z',
   ...over,
@@ -39,6 +40,20 @@ describe('ResultPicker', () => {
 
     await user.click(screen.getByRole('button', { name: de.picker.select('CONTOSO-PC014') }));
     expect(onSelect).toHaveBeenCalledWith(items[1]);
+  });
+
+  it('nennt die Seriennummer nur beim Treffer über die Seriennummer', () => {
+    const items = [
+      result({ serialNumber: 'DEMO-000001' }),
+      result({ id: '2', deviceName: 'CONTOSO-PC002', serialNumber: 'DEMO-000002' }),
+    ];
+    render(<ResultPicker results={items} query="demo-000002" now={now} onSelect={vi.fn()} />);
+    expect(
+      screen.getByRole('button', { name: de.picker.select('CONTOSO-PC002') }),
+    ).toHaveTextContent(de.picker.serial('DEMO-000002'));
+    expect(
+      screen.getByRole('button', { name: de.picker.select('CONTOSO-PC001') }),
+    ).not.toHaveTextContent('DEMO-000001');
   });
 });
 

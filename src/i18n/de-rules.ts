@@ -358,8 +358,8 @@ export const deRules = {
     valueLimit: 'Gerätelimit prüfen',
     summary: (license: string, devices: string | null) =>
       devices ? `${license} · ${devices}` : license,
-    summaryLicenseOk: 'Intune-Lizenz aktiv',
-    summaryLicenseMissing: 'Kein aktiver Intune-Lizenzplan',
+    summaryLicenseOk: 'Intune-Lizenz zugewiesen',
+    summaryLicenseMissing: 'Kein Intune-Lizenzplan',
     summaryLicenseUnknown: 'Lizenz nicht auswertbar',
     summaryDevices: (n: number) =>
       n === 1 ? '1 Gerät des Benutzers' : `${n} Geräte des Benutzers`,
@@ -367,6 +367,8 @@ export const deRules = {
       licenses: 'Lizenzen des Benutzers',
       plans: 'Intune-Serviceplan',
       noPlan: 'keiner',
+      plansNote:
+        'Bereitstellungsstatus laut Microsoft Graph. Nur „deaktiviert“ wird als fehlende Lizenz gewertet – andere Werte als „aktiv“ meldet Graph für Intune-Pläne auch bei aktiver Lizenz.',
       devices: 'Geräte des Benutzers in Intune',
       devicesNote: 'erste Seite der Abfrage, inkl. dieses Geräts',
       limitConfigs: 'Gerätelimit-Konfigurationen',
@@ -382,19 +384,19 @@ export const deRules = {
     } as Record<string, string>,
     planStatusUnknown: 'Status unbekannt',
     mdmO365Name: 'Mobile Device Management for Office 365',
-    noLicenseTitle: 'Kein aktiver Intune-Lizenzplan',
+    noLicenseTitle: 'Kein Intune-Lizenzplan',
     noLicenseDetailNone: (count: number) =>
       count === 0
         ? 'Dem primären Benutzer ist keine Lizenz zugewiesen.'
         : `Dem primären Benutzer sind ${count === 1 ? '1 Lizenz' : `${count} Lizenzen`} zugewiesen, aber keine enthält einen Intune-Serviceplan (INTUNE_A, INTUNE_A_VL oder INTUNE_EDU).`,
-    noLicenseDetailInactive: (plans: string) =>
-      `Der Benutzer hat Intune-Serviceplans, aber keiner ist aktiv: ${plans}.`,
+    noLicenseDetailDisabled: (plans: string) =>
+      `Der Benutzer hat Intune-Serviceplans, aber alle sind in der Lizenzzuweisung deaktiviert: ${plans}.`,
     noLicenseCause:
       'Laut Microsoft kann ein Gerät nicht registriert werden, wenn dem Benutzer die nötige Lizenz fehlt oder er einen falschen Lizenztyp für die MDM-Instanz hat. Das Gerät erscheint hier zwar verwaltet – für neue Registrierungen und die weitere Verwaltung braucht der Benutzer jedoch eine Lizenz.',
     noLicenseRemediation: [
       'Im Microsoft 365 Admin Center oder Entra Admin Center prüfen, ob dem Benutzer eine Lizenz mit Intune-Plan zugewiesen ist (direkt oder über eine Lizenzgruppe).',
       'Bei gruppenbasierter Lizenzierung den Lizenzstatus der Gruppe auf Fehler prüfen.',
-      'Nach der Zuweisung kann es etwas dauern, bis der Plan den Status „aktiv“ meldet; danach „Erneut laden“.',
+      'Ist „Microsoft Intune“ in der Lizenz als Dienst abgeschaltet, ihn in der Lizenzzuweisung (bzw. der Lizenzgruppe) wieder aktivieren; danach „Erneut laden“.',
     ],
     mdmO365Title: 'Nur „Mobile Device Management for Office 365“ zugewiesen',
     mdmO365Detail: (status: string) =>
@@ -1441,6 +1443,8 @@ export const deRules = {
         name
           ? `Fehlercode ${hex} (${decimal}) = Win32 ${base} ${name} („${text}“)`
           : `Fehlercode ${hex} (${decimal}) = Win32-Fehler ${base}`,
+      codeKnowledge: (hex: string, decimal: number, title: string) =>
+        `Fehlercode ${hex} (${decimal}): ${title}`,
       codeUnknown: (hex: string, decimal: number) => `Unbekannter Code ${hex} (${decimal})`,
       codeNone: 'ohne Fehlercode',
       failedCause:
@@ -1580,6 +1584,7 @@ export const deRules = {
       failedDetail: (hresult: string, meaning: string | undefined) =>
         meaning ? `${hresult} – ${meaning}.` : `${hresult}.`,
       codeKnown: (name: string, text: string) => `${name} („${text}“)`,
+      codeKnowledge: (title: string) => title,
       codeUnknown: 'Unbekannter Code',
       harmlessCause:
         'Diese Komponente ist auf vielen Geräten nicht installiert; das Fehlen der Daten ist dann erwartbar.',
@@ -1666,6 +1671,8 @@ export const deRules = {
           .join(' '),
       sampleField: (name: string, value: string) => `${name} = „${value}“`,
       codeKnown: (hex: string, name: string, text: string) => `${hex} = ${name} („${text}“).`,
+      codeKnowledge: (hex: string, decimal: number, title: string) =>
+        `${hex} (${decimal}): ${title}.`,
       unknownEventCause:
         'Für diese Ereignis-ID ist keine Deutung mit Microsoft-Learn-Quelle hinterlegt – angezeigt werden nur die Rohdaten aus dem Ereignis.',
       genericRemediation: [

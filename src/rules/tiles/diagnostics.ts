@@ -15,7 +15,7 @@ import type {
 import { de } from '../../i18n/de';
 import { sortFindings, worstActionable } from '../helpers';
 import { Docs } from '../knowledge/docs';
-import { INSTALLER_EXIT_CODES } from '../knowledge/errorCodes';
+import { describeErrorCode } from '../knowledge/errorCodes';
 import { findPrtError } from '../knowledge/prtErrors';
 import { mdmDiagReportTile } from './mdmDiagReport';
 import { mdmEventsTile } from './mdmEvents';
@@ -276,21 +276,33 @@ function entraJoinTile(report: DiagnosticsReport): Tile {
 
 // ---------- Win32-Apps ----------
 
+/** Deutung eines Codes über die Wissensbasis: Titel, Ursache und Lösung (falls belegt). */
+interface CodeKnowledge {
+  cause: string;
+  remediation: string[];
+}
+
 function codeDescription(app: Win32AppState): {
   text: string;
   docsUrl: string | null;
-  installer?: (typeof INSTALLER_EXIT_CODES)[number];
+  knowledge?: CodeKnowledge;
 } {
   const w = z.win32;
   if (app.errorCodeDecimal === null || app.errorCodeDecimal === 0)
     return { text: w.codeNone, docsUrl: null };
-  const ex = explainCode(app.errorCodeDecimal);
+  const description = describeErrorCode(app.errorCodeDecimal, '', 'app');
+  const ex = description.explanation;
+  if (description.intune)
+    return {
+      text: w.codeKnowledge(ex.hex, ex.decimal, description.intune.title),
+      docsUrl: description.intune.docsUrl,
+      knowledge: description.intune,
+    };
   if (ex.kind === 'win32' && ex.baseCode !== null) {
-    const installer = INSTALLER_EXIT_CODES.find((c) => c.code === ex.baseCode);
     return {
       text: w.codeWin32(ex.hex, ex.decimal, ex.baseCode, ex.name, ex.text),
-      docsUrl: installer?.docsUrl ?? ex.docsUrl,
-      installer,
+      docsUrl: description.installer?.docsUrl ?? ex.docsUrl,
+      knowledge: description.installer,
     };
   }
   return { text: w.codeUnknown(ex.hex, ex.decimal), docsUrl: null };
@@ -332,8 +344,8 @@ function win32AppsTile(report: DiagnosticsReport): Tile {
       severity: 'warning',
       title: info ? w.failedTitleNamed(info.displayName) : w.failedTitle(app.appId),
       detail: w.failedDetail(code.text),
-      cause: [w.failedCause, code.installer?.cause].filter(Boolean).join(' '),
-      remediation: [...(code.installer?.remediation ?? []), ...w.failedRemediation],
+      cause: [w.failedCause, code.knowledge?.cause].filter(Boolean).join(' '),
+      remediation: [...(code.knowledge?.remediation ?? []), ...w.failedRemediation],
       evidence: {
         ...appEvidence(app.appId),
         appId: app.appId,
@@ -492,11 +504,23 @@ function enrollmentTile(report: DiagnosticsReport): Tile {
 
 // ---------- Diagnose-Sammlung ----------
 
-/** Generische Deutung über die Wissensbasis (Win32/NTSTATUS), sonst "Unbekannter Code". */
-function genericCodeText(hresult: string): string {
-  const ex = explainCode(hresult);
-  if (ex.name && ex.text) return z.collection.codeKnown(ex.name, ex.text);
-  return z.collection.codeUnknown;
+/** Deutung über die Wissensbasis (eindeutige Codes, Win32/NTSTATUS), sonst "Unbekannter Code". */
+function collectionCode(hresult: string): {
+  text: string;
+  docsUrl: string | null;
+  knowledge?: CodeKnowledge;
+} {
+  const description = describeErrorCode(hresult, '');
+  const ex = description.explanation;
+  if (description.intune)
+    return {
+      text: z.collection.codeKnowledge(description.intune.title),
+      docsUrl: description.intune.docsUrl,
+      knowledge: description.intune,
+    };
+  if (ex.name && ex.text)
+    return { text: z.collection.codeKnown(ex.name, ex.text), docsUrl: ex.docsUrl };
+  return { text: z.collection.codeUnknown, docsUrl: ex.docsUrl };
 }
 
 function collectionTile(report: DiagnosticsReport): Tile {
@@ -511,16 +535,22 @@ function collectionTile(report: DiagnosticsReport): Tile {
     else real++;
     const entry = findEntry(report, (e) => e.failedHresult !== null && e.name === failure.target);
     const target = maskUserPaths(failure.target);
+    const code = collectionCode(failure.hresult);
     findings.push({
       id: `collection-${failure.kind}-${target}`,
       severity: isHarmless ? 'unknown' : 'warning',
       title: t.failedTitle(t.kind[failure.kind] ?? failure.kind, target),
-      detail: t.failedDetail(failure.hresult, failure.meaning ?? genericCodeText(failure.hresult)),
-      cause: isHarmless ? t.harmlessCause : t.failedCause,
-      remediation: isHarmless ? [...t.harmlessRemediation] : [...t.failedRemediation],
+      detail: t.failedDetail(failure.hresult, failure.meaning ?? code.text),
+      cause: [isHarmless ? t.harmlessCause : t.failedCause, code.knowledge?.cause]
+        .filter(Boolean)
+        .join(' '),
+      remediation: [
+        ...(code.knowledge?.remediation ?? []),
+        ...(isHarmless ? t.harmlessRemediation : t.failedRemediation),
+      ],
       evidence: { kind: failure.kind, target, hresult: failure.hresult },
       source: zipSource(report, entry, 'results.xml'),
-      docsUrl: explainCode(failure.hresult).docsUrl ?? undefined,
+      docsUrl: code.docsUrl ?? undefined,
     });
   }
   if (report.analysisNotes.length > 0) {

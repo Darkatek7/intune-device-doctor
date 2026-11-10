@@ -144,6 +144,42 @@ describe('GraphProvider – Suche', () => {
     ]);
   });
 
+  it('findet Geräte per Seriennummer clientseitig über die Geräteliste (kein $filter auf serialNumber dokumentiert)', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ serialNumber: 'DEMO-000001' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', serialNumber: 'DEMO-000042' }),
+        pc001Device({ id: 'c', deviceName: 'CONTOSO-PC003', serialNumber: 'DEMO-0000421' }),
+      ]);
+    });
+    const hits = await provider.searchDevices(' demo-000042 ');
+    expect(hits.map((d) => [d.deviceName, d.serialNumber])).toEqual([
+      ['CONTOSO-PC002', 'DEMO-000042'],
+    ]);
+    const filters = calls.map((c) => c.parsed.searchParams.get('$filter'));
+    expect(filters).toEqual([
+      "deviceName eq 'demo-000042'",
+      "contains(deviceName,'demo-000042')",
+      null,
+    ]);
+    expect(filters.some((f) => f?.includes('serialNumber'))).toBe(false);
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET', 'GET']);
+    expect(calls[2]!.parsed.searchParams.get('$select')?.split(',')).toContain('serialNumber');
+  });
+
+  it('bevorzugt den Treffer per Seriennummer vor Treffern im Benutzernamen', async () => {
+    const { provider } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ userDisplayName: 'Demo Benutzer', serialNumber: 'X1' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', serialNumber: 'DEMO' }),
+      ]);
+    });
+    const hits = await provider.searchDevices('demo');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC002']);
+  });
+
   it('liefert für leere Eingabe eine leere Liste ohne Request', async () => {
     const { provider, calls } = setup();
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);
@@ -1659,5 +1695,200 @@ describe('GraphProvider – testConnection (M14/S6)', () => {
       provider.testConnection(windowsDevice(), { signal: controller.signal }),
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('GraphProvider – Richtlinien → Geräte (M15)', () => {
+  const CONFIG_LIST = '/v1.0/deviceManagement/deviceConfigurations';
+  const COMPLIANCE_LIST = '/v1.0/deviceManagement/deviceCompliancePolicies';
+  const guid = (n: number) => `00000000-0000-4000-b000-${n.toString(16).padStart(12, '0')}`;
+  const daysAgo = (days: number) =>
+    new Date(Date.parse('2026-10-15T12:00:00Z') - days * 86_400_000).toISOString();
+
+  function policiesHandler(
+    overrides: Record<string, FakeHandler> = {},
+    configs: Array<Record<string, unknown>> = [
+      {
+        '@odata.type': '#microsoft.graph.windows10GeneralConfiguration',
+        id: guid(21),
+        displayName: 'Contoso – Edge Sicherheitsbaseline',
+        description: 'FREITEXT-NICHT-LESEN',
+        preSharedKey: 'GEHEIMER-SCHLUESSEL',
+        lastModifiedDateTime: daysAgo(2),
+        version: 3,
+      },
+    ],
+  ): FakeHandler {
+    return (call) => {
+      const path = call.parsed.pathname;
+      const override = overrides[path];
+      if (override) return override(call);
+      if (path === CONFIG_LIST) return collection(configs);
+      if (path === COMPLIANCE_LIST) {
+        return collection([
+          {
+            '@odata.type': '#microsoft.graph.iosCompliancePolicy',
+            id: guid(61),
+            displayName: 'Contoso – iOS Compliance',
+            lastModifiedDateTime: daysAgo(40),
+            version: 1,
+          },
+        ]);
+      }
+      if (path.endsWith('/deviceStatusOverview')) {
+        return jsonResponse({
+          value: { id: 'o', pendingCount: 1, errorCount: 2, failedCount: 0, successCount: 5 },
+        });
+      }
+      if (path.endsWith('/deviceStatuses')) {
+        return collection([
+          {
+            id: 's1',
+            deviceDisplayName: 'CONTOSO-PC042',
+            userPrincipalName: 'sophie.hartmann@contoso.com',
+            deviceModel: 'Surface Laptop 6',
+            status: 'conflict',
+            lastReportedDateTime: daysAgo(1),
+          },
+        ]);
+      }
+      return graphError(404, 'NotFound');
+    };
+  }
+
+  it('liest beide Listen und je Richtlinie die Übersicht – nur GET, nur dokumentierte Pfade ohne Query', async () => {
+    const { provider, calls } = setup(policiesHandler());
+    const result = await provider.getTenantPolicies();
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    expect(calls.every((c) => c.parsed.search === '')).toBe(true);
+    expect(calls.map((c) => c.parsed.pathname).sort()).toEqual(
+      [
+        CONFIG_LIST,
+        COMPLIANCE_LIST,
+        `${CONFIG_LIST}/${guid(21)}/deviceStatusOverview`,
+        `${COMPLIANCE_LIST}/${guid(61)}/deviceStatusOverview`,
+      ].sort(),
+    );
+    const configs = expectStatus(result.configurations, 'ok');
+    const edge = configs.data.policies[0]!;
+    expect(edge).toMatchObject({ kind: 'configuration', platform: 'windows', version: 3 });
+    expect(expectStatus(edge.overview!, 'ok').data).toMatchObject({
+      errorCount: 2,
+      pendingCount: 1,
+    });
+    expect(JSON.stringify(result)).not.toContain('FREITEXT-NICHT-LESEN');
+    // Einstellungen abgeleiteter Typen (kein $select dokumentiert) werden nie übernommen
+    expect(JSON.stringify(result)).not.toContain('GEHEIMER-SCHLUESSEL');
+    const compliance = expectStatus(result.compliancePolicies, 'ok');
+    expect(compliance.data.policies[0]!.platform).toBe('ios');
+  });
+
+  it('403 auf eine Liste betrifft nur diese Liste (Scope im Fehler)', async () => {
+    const { provider } = setup(
+      policiesHandler({ [COMPLIANCE_LIST]: () => graphError(403, 'Forbidden') }),
+    );
+    const result = await provider.getTenantPolicies();
+    expect(expectStatus(result.compliancePolicies, 'forbidden').error.requiredScope).toBe(
+      'DeviceManagementConfiguration.Read.All',
+    );
+    expectStatus(result.configurations, 'ok');
+  });
+
+  it('404/500 auf eine Übersicht betrifft nur diese Richtlinie', async () => {
+    const { provider } = setup(
+      policiesHandler({
+        [`${CONFIG_LIST}/${guid(21)}/deviceStatusOverview`]: () => graphError(404, 'NotFound'),
+        [`${COMPLIANCE_LIST}/${guid(61)}/deviceStatusOverview`]: () =>
+          graphError(500, 'InternalServerError'),
+      }),
+    );
+    const result = await provider.getTenantPolicies();
+    const config = expectStatus(result.configurations, 'ok').data.policies[0]!;
+    expectStatus(config.overview!, 'unavailable');
+    const compliance = expectStatus(result.compliancePolicies, 'ok').data.policies[0]!;
+    expectStatus(compliance.overview!, 'error');
+  });
+
+  it('fragt Zähler höchstens für 50 Richtlinien ab (zuletzt geänderte zuerst), der Rest bleibt „nicht abgefragt“', async () => {
+    const many = Array.from({ length: 52 }, (_, i) => ({
+      id: guid(100 + i),
+      displayName: `Profil ${i}`,
+      lastModifiedDateTime: daysAgo(i + 1),
+    }));
+    const { provider, calls } = setup(policiesHandler({}, many));
+    const result = await provider.getTenantPolicies();
+    expect(result.overviewLimit).toBe(50);
+    const policies = expectStatus(result.configurations, 'ok').data.policies;
+    const notRequested = policies.filter((p) => p.overview === null).map((p) => p.displayName);
+    // 52 Profile + 1 Compliance-Richtlinie (vor 40 Tagen) → die drei ältesten Profile fallen heraus
+    expect(notRequested.sort()).toEqual(['Profil 49', 'Profil 50', 'Profil 51']);
+    expect(calls.filter((c) => c.parsed.pathname.endsWith('/deviceStatusOverview'))).toHaveLength(
+      50,
+    );
+  });
+
+  it('liest höchstens 5 Seiten der Liste und meldet „truncated“', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname === CONFIG_LIST || call.url.includes('skiptoken')
+        ? collection(
+            [],
+            'https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations?$skiptoken=x',
+          )
+        : collection([]),
+    );
+    const result = await provider.getTenantPolicies();
+    expect(expectStatus(result.configurations, 'ok').data.truncated).toBe(true);
+    expect(calls.filter((c) => c.url.includes('deviceConfigurations'))).toHaveLength(5);
+  });
+
+  it('Gerätestatus: GET auf …/deviceStatuses, höchstens 3 Seiten, danach truncated', async () => {
+    const next = `https://graph.microsoft.com/v1.0${CONFIG_LIST}/${guid(21)}/deviceStatuses?$skiptoken=1`;
+    const { provider, calls } = setup(() =>
+      collection(
+        [{ id: `s${calls.length}`, deviceDisplayName: 'CONTOSO-PC042', status: 'error' }],
+        next,
+      ),
+    );
+    const result = await provider.getPolicyDeviceStatuses({ kind: 'configuration', id: guid(21) });
+    const data = expectStatus(result, 'ok').data;
+    expect(data).toMatchObject({ truncated: true, pagesRead: 3 });
+    expect(data.entries).toHaveLength(3);
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    expect(calls[0]!.parsed.pathname).toBe(`${CONFIG_LIST}/${guid(21)}/deviceStatuses`);
+  });
+
+  it('Gerätestatus: Compliance-Pfad, 403 → forbidden, 404 → unavailable', async () => {
+    const ok = await setup(policiesHandler()).provider.getPolicyDeviceStatuses({
+      kind: 'compliance',
+      id: guid(61),
+    });
+    expect(expectStatus(ok, 'ok').data.entries[0]).toMatchObject({
+      deviceDisplayName: 'CONTOSO-PC042',
+      status: 'conflict',
+      deviceModel: 'Surface Laptop 6',
+    });
+    expect(ok.source.label).toBe(Endpoints.deviceCompliancePolicyDeviceStatuses.display);
+    const forbidden = await setup(() =>
+      graphError(403, 'Forbidden'),
+    ).provider.getPolicyDeviceStatuses({ kind: 'compliance', id: guid(61) });
+    expect(expectStatus(forbidden, 'forbidden').error.requiredScope).toBe(
+      'DeviceManagementConfiguration.Read.All',
+    );
+    const missing = await setup(() => graphError(404, 'NotFound')).provider.getPolicyDeviceStatuses(
+      {
+        kind: 'configuration',
+        id: guid(99),
+      },
+    );
+    expect(expectStatus(missing, 'unavailable').reason).toBe(de.policies.reasons.statusesNotFound);
+  });
+
+  it('Abbruch wird weitergereicht', async () => {
+    const { provider } = setup(policiesHandler());
+    const controller = new AbortController();
+    controller.abort();
+    await expect(provider.getTenantPolicies({ signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
   });
 });

@@ -29,9 +29,16 @@ import type {
   SecurityAlertsInfo,
   SignInsInfo,
   TenantStatus,
+  TenantPolicies,
+  TenantPolicyInfo,
+  TenantPolicyKind,
+  TenantPolicyList,
+  PolicyDeviceOverview,
+  PolicyDeviceStatusesInfo,
   VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
   createGraphClient,
@@ -52,6 +59,9 @@ import type {
   GraphLicenseDetails,
   GraphSecurityAlert,
   GraphVppToken,
+  GraphPolicyDeviceOverview,
+  GraphPolicyDeviceStatus,
+  GraphTenantPolicy,
   GraphManagedDevice,
   GraphManagedDeviceHealthAttestation,
   GraphMobileApp,
@@ -68,6 +78,9 @@ import {
   MAX_ASSIGNMENT_LOOKUPS,
   MAX_ENROLLMENT_LIMIT_CONFIGS,
   MAX_LIST_PAGES,
+  MAX_POLICY_OVERVIEWS,
+  MAX_POLICY_STATUS_PAGES,
+  POLICY_OVERVIEW_CONCURRENCY,
   MAX_SECURITY_ALERT_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
@@ -90,8 +103,11 @@ import {
   mapLocalAdmin,
   mapManagedDevice,
   mapMobileApp,
+  mapPolicyDeviceStatuses,
+  mapPolicyOverview,
   mapPolicyState,
   mapSearchResult,
+  mapTenantPolicies,
   mapSignIns,
   mapSecurityAlerts,
   mapUserLicense,
@@ -198,7 +214,8 @@ export class GraphProvider implements DeviceDataProvider {
       if (Array.isArray(contains) && contains.length > 0) return results(contains);
 
       // 3) Clientseitig über die paginierte Liste: Gerätename (falls $filter abgelehnt wurde),
-      //    sonst Benutzer – für userDisplayName ist kein $filter dokumentiert.
+      //    dann Seriennummer, sonst Benutzer – für serialNumber und userDisplayName ist kein
+      //    $filter dokumentiert.
       if (contains === 'badRequest') {
         this.log(
           'Graph lehnt $filter auf deviceName ab (HTTP 400) – Suche läuft clientseitig über die Geräteliste.',
@@ -210,6 +227,8 @@ export class GraphProvider implements DeviceDataProvider {
         const exactHits = hits.filter((d) => (d.deviceName ?? '').toLowerCase() === needle);
         if (hits.length > 0) return results(exactHits.length > 0 ? exactHits : hits);
       }
+      const bySerial = all.filter((d) => matchesSerialNumber(d.serialNumber, name));
+      if (bySerial.length > 0) return results(bySerial);
       return results(all.filter(byUser));
     } catch (error) {
       if (isAbort(error)) throw error;
@@ -516,6 +535,136 @@ export class GraphProvider implements DeviceDataProvider {
       this.readVppTokens(options),
     ]);
     return { applePushCertificate, vppTokens };
+  }
+
+  // ---------- Richtlinien → Geräte (M15) ----------
+
+  /**
+   * Richtlinien des Mandanten mit Zählern. Beide Listen unabhängig (403/Fehler betreffen nur ihre
+   * Liste). Zähler nur für die MAX_POLICY_OVERVIEWS zuletzt geänderten Richtlinien, je
+   * POLICY_OVERVIEW_CONCURRENCY parallel; jeder Zähler ist ein eigenes SectionResult.
+   */
+  async getTenantPolicies(options: RequestOptions = {}): Promise<TenantPolicies> {
+    const [configurations, compliancePolicies] = await Promise.all([
+      this.readPolicyList('configuration', options),
+      this.readPolicyList('compliance', options),
+    ]);
+    const all = [configurations, compliancePolicies].flatMap((list) =>
+      list.status === 'ok' ? list.data.policies : [],
+    );
+    const time = (policy: TenantPolicyInfo) =>
+      policy.lastModifiedDateTime ? Date.parse(policy.lastModifiedDateTime) : 0;
+    const chosen = [...all].sort((a, b) => time(b) - time(a)).slice(0, MAX_POLICY_OVERVIEWS);
+    const overviews = new Map<TenantPolicyInfo, SectionResult<PolicyDeviceOverview>>();
+    for (let i = 0; i < chosen.length; i += POLICY_OVERVIEW_CONCURRENCY) {
+      const batch = chosen.slice(i, i + POLICY_OVERVIEW_CONCURRENCY);
+      const results = await Promise.all(batch.map((policy) => this.readOverview(policy, options)));
+      batch.forEach((policy, index) => overviews.set(policy, results[index]!));
+    }
+    const withOverviews = (
+      list: SectionResult<TenantPolicyList>,
+    ): SectionResult<TenantPolicyList> =>
+      list.status === 'ok'
+        ? {
+            ...list,
+            data: {
+              ...list.data,
+              policies: list.data.policies.map((policy) => ({
+                ...policy,
+                overview: overviews.get(policy) ?? null,
+              })),
+            },
+          }
+        : list;
+    return {
+      configurations: withOverviews(configurations),
+      compliancePolicies: withOverviews(compliancePolicies),
+      overviewLimit: MAX_POLICY_OVERVIEWS,
+    };
+  }
+
+  private readPolicyList(
+    kind: TenantPolicyKind,
+    options: RequestOptions,
+  ): Promise<SectionResult<TenantPolicyList>> {
+    const id: EndpointId =
+      kind === 'configuration' ? 'deviceConfigurations' : 'deviceCompliancePolicies';
+    const endpoint = Endpoints[id];
+    return this.run<TenantPolicyList>(
+      id,
+      async (source) => {
+        const entries: GraphTenantPolicy[] = [];
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_LIST_PAGES) {
+          const page: GraphCollection<GraphTenantPolicy> | undefined = await this.client.get<
+            GraphCollection<GraphTenantPolicy>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          entries.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(
+          { policies: mapTenantPolicies(entries, kind), truncated: Boolean(next) },
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.policies.reasons.listNotFound, source }),
+    );
+  }
+
+  private readOverview(
+    policy: TenantPolicyInfo,
+    options: RequestOptions,
+  ): Promise<SectionResult<PolicyDeviceOverview>> {
+    const id: EndpointId =
+      policy.kind === 'configuration'
+        ? 'deviceConfigurationDeviceStatusOverview'
+        : 'deviceCompliancePolicyDeviceStatusOverview';
+    const endpoint = Endpoints[id];
+    return this.run<PolicyDeviceOverview>(
+      id,
+      async (source) => {
+        const dto = await this.client.get<
+          GraphPolicyDeviceOverview | { value?: GraphPolicyDeviceOverview }
+        >(endpoint.path(policy.id), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapPolicyOverview(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.policies.reasons.overviewNotFound, source }),
+    );
+  }
+
+  /** Gerätestatus einer Richtlinie: höchstens MAX_POLICY_STATUS_PAGES Seiten, danach `truncated`. */
+  getPolicyDeviceStatuses(
+    policy: { kind: TenantPolicyKind; id: string },
+    options: RequestOptions = {},
+  ): Promise<SectionResult<PolicyDeviceStatusesInfo>> {
+    const id: EndpointId =
+      policy.kind === 'configuration'
+        ? 'deviceConfigurationDeviceStatuses'
+        : 'deviceCompliancePolicyDeviceStatuses';
+    const endpoint = Endpoints[id];
+    return this.run<PolicyDeviceStatusesInfo>(
+      id,
+      async (source) => {
+        const entries: GraphPolicyDeviceStatus[] = [];
+        let next: string | undefined = endpoint.path(policy.id);
+        let pages = 0;
+        while (next && pages < MAX_POLICY_STATUS_PAGES) {
+          const page: GraphCollection<GraphPolicyDeviceStatus> | undefined = await this.client.get<
+            GraphCollection<GraphPolicyDeviceStatus>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          entries.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(
+          { entries: mapPolicyDeviceStatuses(entries), truncated: Boolean(next), pagesRead: pages },
+          source,
+        );
+      },
+      (source) => ({ status: 'unavailable', reason: de.policies.reasons.statusesNotFound, source }),
+    );
   }
 
   private readVppTokens(options: RequestOptions): Promise<SectionResult<VppTokenInfo[]>> {

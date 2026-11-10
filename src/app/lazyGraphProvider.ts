@@ -9,6 +9,9 @@ import type {
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
   TenantStatus,
+  TenantPolicies,
+  TenantPolicyKind,
+  PolicyDeviceStatusesInfo,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -165,6 +168,30 @@ export class LazyGraphProvider implements DeviceDataProvider {
       return { applePushCertificate: failed, vppTokens: failed };
     }
     return provider.getTenantStatus(options);
+  }
+
+  async getTenantPolicies(options?: RequestOptions): Promise<TenantPolicies> {
+    let provider: DeviceDataProvider;
+    try {
+      provider = await this.load();
+    } catch {
+      const failed = {
+        status: 'error',
+        error: { code: 'network', message: de.errors.network },
+        source: SOURCE,
+      } as const;
+      return { configurations: failed, compliancePolicies: failed, overviewLimit: 0 };
+    }
+    return provider.getTenantPolicies(options);
+  }
+
+  getPolicyDeviceStatuses(
+    policy: { kind: TenantPolicyKind; id: string },
+    options?: RequestOptions,
+  ) {
+    return this.section<PolicyDeviceStatusesInfo>((p) =>
+      p.getPolicyDeviceStatuses(policy, options),
+    );
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options?: RequestOptions) {

@@ -75,6 +75,7 @@ describe.each(factories)('DeviceDataProvider-Vertrag: %s', (_name, create) => {
         'model',
         'operatingSystem',
         'osVersion',
+        'serialNumber',
         'userDisplayName',
         'userPrincipalName',
       ].sort(),

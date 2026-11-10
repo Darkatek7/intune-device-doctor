@@ -3,6 +3,7 @@
  * damit eine spätere Übersetzung nur diese Datei betrifft. Wird in M1–M6 erweitert.
  */
 import { deAnalysis } from './de-analysis';
+import { dePolicies } from './de-policies';
 import { deRules } from './de-rules';
 
 export const de = {
@@ -17,9 +18,9 @@ export const de = {
       'Live-Modus nicht konfiguriert – Client-ID und Tenant-ID in .env.local setzen.',
   },
   search: {
-    placeholder: 'Gerätename oder Benutzer eingeben …',
+    placeholder: 'Gerätename, Benutzer oder Seriennummer …',
     button: 'Prüfen',
-    noResults: 'Kein Gerät mit diesem Namen oder Benutzer gefunden.',
+    noResults: 'Kein Gerät mit diesem Namen, Benutzer oder dieser Seriennummer gefunden.',
     multipleResults: 'Mehrere Geräte gefunden – bitte auswählen.',
   },
   dropZone: {
@@ -113,6 +114,7 @@ export const de = {
   /** Texte der Regel-Engine – siehe ./de-rules.ts */
   rules: deRules,
   analysis: deAnalysis,
+  policies: dePolicies,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
   reasons: {
     defenderNotWindows:
@@ -252,7 +254,8 @@ export const de = {
     start: 'Test starten',
     restart: 'Erneut testen',
     cancel: 'Abbrechen',
-    running: (done: number, total: number) => `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
+    running: (done: number, total: number) =>
+      `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
     finished: 'Test abgeschlossen',
     cancelled: 'Test abgebrochen – die bisherigen Ergebnisse bleiben erhalten.',
     failedToStart: 'Das Gerät konnte nicht geladen werden.',
@@ -329,12 +332,15 @@ export const de = {
   toolbar: {
     tenant: 'Mandanten-Status',
     tenantShort: 'Mandant',
+    /** Ansicht „Richtlinien“ (M15) – sichtbarer Text = Vorlesename (WCAG 2.5.3) */
+    policies: 'Richtlinien und betroffene Geräte',
+    policiesShort: 'Richtlinien',
     home: 'MDM Doctor – zur Startseite',
     modeLabel: 'Datenmodus',
     skipToContent: 'Zum Inhalt springen',
   },
   field: {
-    label: 'Gerätename oder Benutzer',
+    label: 'Gerätename, Benutzer oder Seriennummer',
     shortcutHint: 'Zum Suchen ⌘K, Strg+K oder / drücken',
     suggestions: 'Vorschläge',
     clear: 'Eingabe löschen',
@@ -387,6 +393,8 @@ export const de = {
       `${count} Geräte passen zu „${query}“ – bitte eines auswählen.`,
     list: 'Gefundene Geräte',
     noUser: 'Kein Nutzer zugeordnet',
+    /** Nur angezeigt, wenn die Suche über die Seriennummer getroffen hat */
+    serial: (serialNumber: string) => `Seriennummer ${serialNumber}`,
     lastSync: 'Letzter Check-in',
     select: (name: string) => `${name} auswählen`,
     compliance: {
@@ -579,15 +587,16 @@ export const de = {
   },
   bulk: {
     openButton: 'Mehrere Geräte prüfen',
-    openHint: 'Viele Gerätenamen auf einmal nachschlagen (Compliance, letzter Check-in).',
+    openHint:
+      'Viele Gerätenamen oder Seriennummern auf einmal nachschlagen (Compliance, letzter Check-in).',
     title: 'Mehrere Geräte prüfen',
     subtitle:
       'Pro Name wird genau eine Suche ausgeführt (höchstens zwei gleichzeitig). Vollständig geprüft wird erst beim Öffnen eines Geräts.',
     back: 'Zurück',
-    inputLabel: 'Gerätenamen (einer pro Zeile)',
+    inputLabel: 'Gerätenamen oder Seriennummern (einer pro Zeile)',
     inputPlaceholder: 'CONTOSO-PC001\nCONTOSO-PC042\nCONTOSO-LT108',
     fileButton: 'CSV/TXT wählen',
-    fileLabel: 'CSV- oder TXT-Datei mit Gerätenamen',
+    fileLabel: 'CSV- oder TXT-Datei mit Gerätenamen oder Seriennummern',
     fileLocal: 'Die Datei wird nur lokal gelesen.',
     fileTooLarge: 'Die Datei ist zu groß.',
     fileReadFailed: 'Die Datei konnte nicht gelesen werden.',

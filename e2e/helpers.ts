@@ -15,7 +15,7 @@ export { expect };
 
 /** Texte der Oberfläche (src/i18n/de.ts) */
 export const T = {
-  searchLabel: 'Gerätename oder Benutzer',
+  searchLabel: 'Gerätename, Benutzer oder Seriennummer',
   notFoundTitle: 'Kein Gerät gefunden',
   pickerTitle: 'Mehrere Geräte gefunden',
   pickerList: 'Gefundene Geräte',
@@ -111,7 +111,7 @@ export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename oder Benutzer“) und bestätigt mit Enter. */
+/** Sucht über das Suchfeld (Rolle combobox, Name „Gerätename, Benutzer oder Seriennummer“) und bestätigt mit Enter. */
 export async function searchDevice(page: Page, query: string): Promise<void> {
   const field = page.getByRole('combobox', { name: T.searchLabel });
   await field.fill(query);
@@ -127,7 +127,10 @@ export async function openDevice(page: Page, query: string): Promise<void> {
 
 /** Kachel-Button über den Anfang seines Namens (Titel steht am Anfang des accessible name). */
 export function tile(page: Page, title: string): Locator {
-  return page.getByRole('button', { name: new RegExp(`^${escapeRegExp(title)}`) });
+  // Nur Kachel-Buttons: der Toolbar-Button „Richtlinien“ (M15) beginnt mit demselben Namen.
+  return page
+    .getByRole('button', { name: new RegExp(`^${escapeRegExp(title)}`) })
+    .and(page.locator('[data-tile-id]'));
 }
 
 /** Alle Kachel-Buttons der Ansicht (Skeletons zählen nicht). */
