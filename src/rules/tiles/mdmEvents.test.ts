@@ -197,6 +197,47 @@ describe('Kachel „MDM-Ereignisse“ (Zustände)', () => {
     expect(t.findings[0]?.detail).toMatch(/Unbekannter Code/);
   });
 
+  it('Ereignis 76 mit 0x8018002B (Fixture) → Ursache, Lösung und Learn-Link aus der Wissensbasis', () => {
+    const f76 = tile.findings.find((f) => f.id === 'mdmEvents-mdmAdmin-76')!;
+    expect(f76.detail).toContain('0x8018002B (-2145910741): Automatische MDM-Registrierung');
+    expect(f76.cause).toContain('UPN');
+    expect(f76.cause).toContain('Ereignis 76');
+    expect(f76.remediation[0]).toContain('UPN-Suffix');
+    expect(f76.docsUrl).toBe(
+      'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-windows-enrollment-errors#auto-mdm-enroll-failed',
+    );
+  });
+
+  it('Win32-Code 0x80070774: bei Ereignis 76 Registrierungsdeutung, bei anderen Ereignissen generisch', () => {
+    const t = tileFor(
+      logWith({
+        scanned: 2,
+        events: [
+          event({ eventId: 76, recordId: 1, data: { Result: '0x80070774' } }),
+          event({ eventId: 404, recordId: 2, data: { Result: '0x80070774' } }),
+        ],
+      }),
+    );
+    const f76 = t.findings.find((f) => f.id === 'mdmEvents-mdmAdmin-76')!;
+    expect(f76.detail).toContain('Domänencontroller nicht erreichbar');
+    expect(f76.docsUrl).toContain('#something-went-wrong-error-code-80070774');
+    const f404 = t.findings.find((f) => f.id === 'mdmEvents-mdmAdmin-404')!;
+    expect(f404.detail).not.toContain('Domänencontroller');
+    expect(f404.detail).toContain('Win32-Fehler 1908');
+    expect(f404.cause).toBe(de.rules.zip.mdmEvents.unknownEventCause);
+  });
+
+  it('eindeutiger Code ohne bekannte Ereignis-ID → Titel aus der Wissensbasis', () => {
+    const t = tileFor(
+      logWith({ scanned: 1, events: [event({ eventId: 4711, data: { HResult: '0x81039024' } })] }),
+    );
+    const f = t.findings[0]!;
+    expect(f.title).toContain('TPM-Attestierung');
+    expect(f.docsUrl).toBe(
+      'https://learn.microsoft.com/autopilot/known-issues#tpm-attestation-failure-on-windows-11-error-code-0x81039024',
+    );
+  });
+
   it('AAD-Operational: Ereignis 1081 wird gedeutet (Learn-Beleg), andere nur als Rohdaten', () => {
     const t = tileFor(
       logWith({ scanned: 1 }),

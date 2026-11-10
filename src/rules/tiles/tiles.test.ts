@@ -792,6 +792,38 @@ describe('Richtlinien (policies)', () => {
     expect(finding.docsUrl).toMatch(/^https:\/\/learn\.microsoft\.com\//);
   });
 
+  it('Wissensbasis-Treffer (0x801C03F3) → Titel, Ursache, Lösung und Learn-Link aus der Wissensbasis', () => {
+    const errorCode = hexToSignedDecimal('0x801C03F3') ?? 0;
+    const snapshot = withConfiguration(
+      base,
+      okOf([configPolicy('error', [setting({ settingName: 'Contoso-Einstellung', errorCode })])]),
+    );
+    const finding = findingWithId(
+      evaluatePolicies(snapshot, NOW),
+      'policies-configuration-test-policy-1',
+    );
+    expect(finding.detail).toContain('Entra-Geräteobjekt nicht gefunden');
+    expect(finding.cause).toContain('Geräteobjekt');
+    expect(finding.remediation[0]).toContain('erneut bei Windows Autopilot registrieren');
+    expect(finding.docsUrl).toBe(
+      'https://learn.microsoft.com/autopilot/known-issues#pre-provisioning-gives-an-error-screen-and-the-microsoft-windows-user-device-registrationadmin-event-log-displays-hresult-error-code-0x801c03f3',
+    );
+  });
+
+  it('kontextgebundener App-Code (0x8000FFFF) wird bei Richtlinien nicht gedeutet', () => {
+    const errorCode = hexToSignedDecimal('0x8000FFFF') ?? 0;
+    const snapshot = withConfiguration(
+      base,
+      okOf([configPolicy('error', [setting({ settingName: 'Contoso-Einstellung', errorCode })])]),
+    );
+    const finding = findingWithId(
+      evaluatePolicies(snapshot, NOW),
+      'policies-configuration-test-policy-1',
+    );
+    expect(finding.detail).toContain('Unbekannter Code 0x8000FFFF (-2147418113)');
+    expect(finding.cause).toBe(de.rules.policies.errorCause);
+  });
+
   it('Profil im Status conflict → critical mit Konfliktlink und beteiligten Richtlinien', () => {
     const snapshot = withConfiguration(
       base,

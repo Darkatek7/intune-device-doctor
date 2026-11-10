@@ -6,7 +6,7 @@
  * Quelle: Intune app installation error reference – Abschnitt „Other installation errors“
  * https://learn.microsoft.com/troubleshoot/mem/intune/app-management/app-install-error-codes#other-installation-errors
  *
- * Die Dezimalwerte auf der Seite sind teils fehlerhaft (z. B. 0x80073CF0 mit dem Wert von 0x80073CF3);
+ * Die Dezimalwerte auf der Seite sind teils fehlerhaft (z. B. 0x80073CF3 mit dem Wert von 0x80073CF0);
  * knowledgeEntry() berechnet sie deshalb aus der Hex-Form.
  */
 import { knowledgeEntry as entry } from './knowledgeEntry';

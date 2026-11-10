@@ -4,6 +4,7 @@ import { de } from '../../i18n/de';
 import { Docs } from './docs';
 import { ENTRA_SIGN_IN_ERRORS, findEntraSignInError } from './entraSignInErrors';
 import {
+  ALL_ERROR_CODES,
   INSTALLER_EXIT_CODES,
   INTUNE_ERROR_CODES,
   describeErrorCode,
@@ -49,6 +50,44 @@ const PRODUCT_STATUS_VALUES = [
   'signatureOrPlatformEndOfLifeIsPastOrIsImpending',
   'windowsSModeSignaturesInUseOnNonWin10SInstall',
 ];
+
+describe('Quellenpflicht: Fehlercode-Wissensbasis (alle Gruppen)', () => {
+  it.each(ALL_ERROR_CODES.map((e) => [e.hex, e] as const))(
+    '%s: Microsoft-Learn-URL, Titel mit Hex-Code, Ursache und Lösung',
+    (_hex, entry) => {
+      expect(entry.docsUrl).toMatch(LEARN_URL);
+      expect(entry.title.toUpperCase()).toContain(entry.hex.slice(2));
+      expect(entry.cause.trim().length).toBeGreaterThan(20);
+      expect(entry.remediation.length).toBeGreaterThanOrEqual(1);
+      for (const step of entry.remediation) expect(step.trim()).not.toBe('');
+    },
+  );
+
+  it.each(ALL_ERROR_CODES.map((e) => [e.hex, e] as const))(
+    '%s: Hex normalisiert, signierte Dezimalform passt',
+    (_hex, entry) => {
+      expect(entry.hex).toMatch(/^0x[0-9A-F]{8}$/);
+      expect(hresultToHex(entry.decimal)).toBe(entry.hex);
+      expect(hexToSignedDecimal(entry.hex)).toBe(entry.decimal);
+    },
+  );
+
+  it('keine doppelten Hex-Werte über alle Gruppen', () => {
+    const hexes = ALL_ERROR_CODES.map((e) => e.hex);
+    expect(new Set(hexes).size).toBe(hexes.length);
+  });
+
+  it('mehrdeutige Win32-/COM-Codes (0x8007xxxx, 0x8000xxxx) sind auf einen Kontext beschränkt', () => {
+    for (const entry of ALL_ERROR_CODES) {
+      if (/^0x800[07]/.test(entry.hex)) expect(entry.context, entry.hex).toBeDefined();
+    }
+  });
+
+  it('Installer-Exitcodes verlinken auf den Abschnitt ihres Codes', () => {
+    for (const entry of INSTALLER_EXIT_CODES)
+      expect(entry.docsUrl).toMatch(new RegExp(`#${entry.code}$`));
+  });
+});
 
 describe('Quellenpflicht: Intune-Fehlercodes', () => {
   it.each(INTUNE_ERROR_CODES.map((e) => [e.hex, e] as const))(
