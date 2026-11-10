@@ -4,10 +4,10 @@
  */
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { de } from '../i18n/de';
 import { MockProvider } from '../providers/mock/MockProvider';
-import { healthyServiceHealth } from '../providers/mock/service';
+import { defaultServiceHealth, healthyServiceHealth } from '../providers/mock/service';
 import type { MockTenantFixture } from '../providers/mock/types';
 import { renderApp } from '../test/renderApp';
 
@@ -20,6 +20,8 @@ async function search(user: ReturnType<typeof userEvent.setup>, query: string) {
 }
 
 const provider = (tenant: MockTenantFixture = {}) => new MockProvider({ latency: false, tenant });
+
+afterEach(() => window.sessionStorage.clear());
 
 describe('Dienststatus-Hinweis in der Geräteansicht (M18)', () => {
   it('Demo: zeigt den offenen Intune-Vorfall (Originaltitel lang="en") und springt zum Dienststatus', async () => {
@@ -74,6 +76,47 @@ describe('Dienststatus-Hinweis in der Geräteansicht (M18)', () => {
     await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC014' });
     await screen.findByRole('complementary', { name: n.label });
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('„Ausblenden“ gilt für die Sitzung, auch nach Gerätewechsel und Neuladen', async () => {
+    const user = userEvent.setup();
+    const first = renderApp({ provider: provider() });
+    await search(user, 'CONTOSO-PC001');
+    const notice = await screen.findByRole('complementary', { name: n.label });
+    await user.click(within(notice).getByRole('button', { name: n.dismiss }));
+    expect(screen.queryByRole('complementary', { name: n.label })).not.toBeInTheDocument();
+
+    await search(user, 'CONTOSO-PC014');
+    await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC014' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('complementary', { name: n.label })).not.toBeInTheDocument();
+    first.unmount();
+
+    // „Neuladen“: neue App-Instanz, neuer Provider – sessionStorage bleibt
+    renderApp({ provider: provider() });
+    await search(user, 'CONTOSO-PC001');
+    await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC001' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('complementary', { name: n.label })).not.toBeInTheDocument();
+  });
+
+  it('ein weiterer Vorfall bringt den ausgeblendeten Hinweis zurück', async () => {
+    const user = userEvent.setup();
+    const first = renderApp({ provider: provider() });
+    await search(user, 'CONTOSO-PC001');
+    const notice = await screen.findByRole('complementary', { name: n.label });
+    await user.click(within(notice).getByRole('button', { name: n.dismiss }));
+    first.unmount();
+
+    const health = defaultServiceHealth(new Date());
+    const intune = health.services.find(
+      (service) => service.kind === 'intune' && service.openIssues.length > 0,
+    )!;
+    const incident = intune.openIssues.find((issue) => issue.classification === 'incident')!;
+    intune.openIssues.push({ ...incident, id: 'IT999999' });
+    renderApp({ provider: provider({ serviceHealth: { status: 'ok', data: health } }) });
+    await search(user, 'CONTOSO-PC001');
+    expect(await screen.findByRole('complementary', { name: n.label })).toBeInTheDocument();
   });
 });
 

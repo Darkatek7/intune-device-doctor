@@ -118,6 +118,9 @@ export const deService = {
       text: 'Microsoft meldet aktuell eine Störung bei Intune:',
       more: (n: number) => `und ${n} ${plural(n, 'weiterer Vorfall', 'weitere Vorfälle')}`,
       open: 'Dienststatus ansehen',
+      dismiss: 'Ausblenden',
+      dismissHint:
+        'Für diese Sitzung ausblenden – erscheint wieder, wenn Microsoft einen weiteren Vorfall meldet',
     },
   },
 
