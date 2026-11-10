@@ -47,7 +47,7 @@ export function CompactTile({ tile, onOpen, ref }: Props) {
       </span>
       <span
         data-tile-title=""
-        className="min-w-0 flex-1 text-sm leading-tight font-medium tracking-[0.005em] text-secondary-label"
+        className="min-w-min flex-1 text-sm leading-tight font-medium tracking-[0.005em] text-secondary-label"
       >
         {tile.title}
       </span>
@@ -65,7 +65,7 @@ export function CompactTile({ tile, onOpen, ref }: Props) {
         <span className="sr-only">{statusText}</span>
       </span>
       <span
-        className={`max-w-[50%] shrink-0 text-right text-sm leading-tight font-semibold tabular-nums ${
+        className={`min-w-min shrink text-right text-sm leading-tight font-semibold tabular-nums ${
           muted ? 'text-secondary-label' : 'text-label'
         }`}
       >
