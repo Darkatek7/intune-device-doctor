@@ -288,6 +288,16 @@ export const Probes: Record<EndpointId, Probe> = {
   // M18: Dienststatus (optionaler Scope) und Registrierungsfehler – nur Feldnamen, nie Werte
   serviceHealthOverviews: { request: () => ({ path: Endpoints.serviceHealthOverviews.path() }) },
   troubleshootingEvents: { request: () => ({ path: Endpoints.troubleshootingEvents.path() }) },
+  deviceCompliancePolicyDeviceStateSummary: {
+    request: () => ({ path: Endpoints.deviceCompliancePolicyDeviceStateSummary.path() }),
+  },
+  deviceCompliancePolicySettingStateSummaries: {
+    request: () => ({ path: Endpoints.deviceCompliancePolicySettingStateSummaries.path() }),
+  },
+  deviceConfigurationDeviceStateSummaries: {
+    request: () => ({ path: Endpoints.deviceConfigurationDeviceStateSummaries.path() }),
+  },
+  auditEvents: { request: () => ({ path: Endpoints.auditEvents.path() }) },
 };
 
 /** Endpunkte in Testreihenfolge. */

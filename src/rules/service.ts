@@ -146,7 +146,7 @@ function serviceFindings(entry: ServiceHealthEntry, source: DataSource): Finding
   return findings;
 }
 
-function issueTile(
+export function issueTile(
   base: Pick<Tile, 'id' | 'title' | 'state' | 'sections'>,
   section: Exclude<SectionResult<unknown>, { status: 'ok' }>,
 ): Tile {

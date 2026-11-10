@@ -8,6 +8,7 @@ import type {
   ComplianceState,
   ComplianceStatus,
   ConditionalAccessStatus,
+  DeviceStateCountField,
   DeviceEnrollmentFailureReason,
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
@@ -19,6 +20,7 @@ import type {
   ServiceHealthClassificationType,
   ServiceHealthStatus,
   ServicePlanProvisioningStatus,
+  SettingSummaryPlatformType,
   TroubleshootingEnrollmentType,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
@@ -500,6 +502,46 @@ export interface TenantStatus {
   serviceHealth: SectionResult<ServiceHealthInfo>;
   /** Fehlgeschlagene Registrierungen im Mandanten (M18, seitenbegrenzt) */
   enrollmentFailures: SectionResult<EnrollmentFailuresInfo>;
+  /** Gerätezähler aller Compliance-Richtlinien (M20/S1) */
+  complianceSummary: SectionResult<DeviceStateSummaryInfo>;
+  /** Zähler je Compliance-Einstellung (M20/S1, „Häufigste Verstöße“, seitenbegrenzt) */
+  complianceSettings: SectionResult<ComplianceSettingSummariesInfo>;
+  /** Gerätezähler aller Konfigurationsprofile (M20/S1) */
+  configurationSummary: SectionResult<DeviceStateSummaryInfo>;
+}
+
+// ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+/**
+ * Gerätezähler eines Summary-Endpunkts. `counts` enthält genau die für diese Art dokumentierten Felder
+ * (Compliance: 9, Konfiguration: 7); null = Wert fehlt in der Antwort. Ob sich die Zähler überschneiden,
+ * dokumentiert Microsoft nicht.
+ */
+export interface DeviceStateSummaryInfo {
+  kind: TenantPolicyKind;
+  counts: Partial<Record<DeviceStateCountField, number | null>>;
+}
+
+/** Zähler einer Compliance-Einstellung über alle Richtlinien des Mandanten. */
+export interface ComplianceSettingSummaryInfo {
+  id: string;
+  /** settingName, sonst setting (Klassen- und Eigenschaftsname) */
+  name: string;
+  setting: string | null;
+  /** null = Wert fehlt oder ist nicht dokumentiert; Rohwert in platformRaw */
+  platform: SettingSummaryPlatformType | null;
+  platformRaw: string | null;
+  nonCompliantDeviceCount: number | null;
+  errorDeviceCount: number | null;
+  conflictDeviceCount: number | null;
+  compliantDeviceCount: number | null;
+}
+
+export interface ComplianceSettingSummariesInfo {
+  settings: ComplianceSettingSummaryInfo[];
+  pagesRead: number;
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_SETTING_SUMMARY_PAGES) */
+  truncated: boolean;
 }
 
 // ---------- Dienststatus (M18) ----------
@@ -750,6 +792,8 @@ export type TileId =
   | 'tenantVpp'
   | 'tenantServiceHealth'
   | 'tenantEnrollmentFailures'
+  | 'tenantCompliance'
+  | 'tenantConfiguration'
   | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'

@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import { TENANT_SECTIONS } from '../rules/tenant';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { de } from '../i18n/de';
@@ -14,8 +15,10 @@ async function openTenant(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: de.toolbar.tenantShort }));
 }
 
+const TENANT_TILE_COUNT = TENANT_SECTIONS.flatMap((section) => section.tiles).length;
+
 describe('Ansicht „Mandant“', () => {
-  it('ist über die Toolbar erreichbar, schreibt ?view=tenant und zeigt die fünf Kacheln', async () => {
+  it('ist über die Toolbar erreichbar, schreibt ?view=tenant und zeigt alle Kacheln', async () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
@@ -23,23 +26,25 @@ describe('Ansicht „Mandant“', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: de.tenantView.title }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
     expect(window.location.search).toContain('view=tenant');
     expect(window.location.search).not.toContain('device=');
-    expect(tenantTiles().map((b) => b.getAttribute('data-tile-id'))).toEqual([
-      'tenantServiceHealth',
-      'tenantEnrollmentFailures',
-      'tenantApplePush',
-      'tenantVpp',
-      'tenantUnavailable',
-    ]);
+    // M20: Kacheln in beschrifteten Abschnitten, Reihenfolge laut TENANT_SECTIONS
+    expect(tenantTiles().map((b) => b.getAttribute('data-tile-id'))).toEqual(
+      TENANT_SECTIONS.flatMap((section) => section.tiles),
+    );
+    for (const section of TENANT_SECTIONS) {
+      expect(
+        screen.getByRole('heading', { level: 2, name: de.fleet.sections[section.key] }),
+      ).toBeInTheDocument();
+    }
   });
 
   it('Demo: VPP-Tokens zeigen „1 Token prüfen“ (Ablauf in 20 Tagen), Detail-Sheet mit Befund und Tabelle', async () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
 
     const vpp = tenantTiles().find((b) => b.getAttribute('data-tile-id') === 'tenantVpp')!;
     expect(vpp).toHaveAttribute('data-severity', 'warning');
@@ -58,7 +63,7 @@ describe('Ansicht „Mandant“', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: de.tenantView.title }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
   });
 
   it('eine fehlende Berechtigung betrifft nur die VPP-Kachel', async () => {
@@ -69,7 +74,7 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp({ provider });
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
 
     const byId = (id: string) => tenantTiles().find((b) => b.getAttribute('data-tile-id') === id)!;
     expect(within(byId('tenantVpp')).getByText(de.availability.forbidden)).toBeInTheDocument();
@@ -107,10 +112,57 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp({ provider });
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
     expect(calls).toBe(1);
     await user.click(screen.getByRole('button', { name: de.tenantView.refresh }));
     await waitFor(() => expect(calls).toBe(2));
-    await waitFor(() => expect(tenantTiles()).toHaveLength(5));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
+  });
+
+  it('gliedert die Ansicht in beschriftete Abschnitte und zeigt Anteilsbalken (M20/S1)', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openTenant(user);
+    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+
+    for (const heading of [
+      de.fleet.sections.overview,
+      de.fleet.sections.service,
+      de.fleet.sections.certificates,
+    ]) {
+      expect(screen.getByRole('heading', { level: 2, name: heading })).toBeInTheDocument();
+    }
+    expect(screen.getByTestId('share-bar-compliance')).toBeInTheDocument();
+    expect(screen.getByTestId('share-bar-configuration')).toBeInTheDocument();
+  });
+
+  it('Demo: „Häufigste Verstöße“ im Detail der Compliance-Kachel (M20/S1)', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openTenant(user);
+    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+
+    const compliance = tenantTiles().find((b) => b.getAttribute('data-tile-id') === 'tenantCompliance')!;
+    expect(compliance).toHaveAttribute('data-severity', 'warning');
+    await user.click(compliance);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(de.fleet.summary.topTitle)).toBeInTheDocument();
+    expect(within(dialog).getByText('osMinimumVersion')).toBeInTheDocument();
+  });
+
+  it('Compliance-Zähler ohne Berechtigung betreffen nur ihre Kachel (M20/S1)', async () => {
+    const provider = new MockProvider({
+      latency: false,
+      tenant: { complianceSummary: { status: 'forbidden' } },
+    });
+    const user = userEvent.setup();
+    renderApp({ provider });
+    await openTenant(user);
+    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+    const byId = (id: string) => tenantTiles().find((b) => b.getAttribute('data-tile-id') === id)!;
+    expect(within(byId('tenantCompliance')).getByText(de.availability.forbidden)).toBeInTheDocument();
+    expect(byId('tenantConfiguration')).toHaveAttribute('data-severity', 'warning');
+    expect(screen.queryByTestId('share-bar-compliance')).not.toBeInTheDocument();
+    expect(screen.getByTestId('share-bar-configuration')).toBeInTheDocument();
   });
 });

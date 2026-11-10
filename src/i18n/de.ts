@@ -5,6 +5,7 @@
 import { deAnalysis } from './de-analysis';
 import { dePolicies } from './de-policies';
 import { deRules } from './de-rules';
+import { deFleet } from './de-fleet';
 import { deService } from './de-service';
 
 export const de = {
@@ -49,6 +50,7 @@ export const de = {
     tenantVpp: 'Apple-VPP-Token',
     tenantUnavailable: 'Weitere Konnektoren und Token',
     ...deService.tiles,
+    ...deFleet.tiles,
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -117,6 +119,8 @@ export const de = {
   rules: deRules,
   /** Dienststatus und Registrierungsfehler (M18) – siehe ./de-service.ts */
   service: deService,
+  /** Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen (M20) – siehe ./de-fleet.ts */
+  fleet: deFleet,
   analysis: deAnalysis,
   policies: dePolicies,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */

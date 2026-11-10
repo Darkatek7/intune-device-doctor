@@ -43,6 +43,9 @@ import type {
   ServiceHealthInfo,
   ServiceHealthIssueInfo,
   ServiceHealthKind,
+  ComplianceSettingSummariesInfo,
+  ComplianceSettingSummaryInfo,
+  DeviceStateSummaryInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
@@ -91,8 +94,13 @@ import type {
   GraphServiceHealth,
   GraphServiceHealthIssue,
   GraphTroubleshootingEvent,
+  GraphComplianceSettingStateSummary,
+  GraphDeviceStateSummary,
 } from './dto';
 import {
+  COMPLIANCE_SUMMARY_FIELDS,
+  CONFIGURATION_SUMMARY_FIELDS,
+  SETTING_SUMMARY_PLATFORM_TYPES,
   DEVICE_ENROLLMENT_FAILURE_REASONS,
   SERVICE_HEALTH_CLASSIFICATIONS,
   SERVICE_HEALTH_STATUSES,
@@ -1298,4 +1306,64 @@ export function mapEnrollmentFailures(
     truncated: options.truncated,
     filteredUserId: options.filterUserId ?? null,
   };
+}
+
+// ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+/**
+ * Summary-Objekt → Zähler. Übernimmt genau die für diese Art dokumentierten Felder; akzeptiert das Objekt
+ * direkt oder unter `value` (so zeigt es das Beispiel der Doku).
+ */
+export function mapDeviceStateSummary(
+  dto: GraphDeviceStateSummary | { value?: GraphDeviceStateSummary } | null | undefined,
+  kind: TenantPolicyKind,
+): DeviceStateSummaryInfo {
+  const raw: GraphDeviceStateSummary =
+    dto && typeof dto === 'object' && 'value' in dto && dto.value && typeof dto.value === 'object'
+      ? dto.value
+      : ((dto as GraphDeviceStateSummary | null | undefined) ?? {});
+  const fields = kind === 'compliance' ? COMPLIANCE_SUMMARY_FIELDS : CONFIGURATION_SUMMARY_FIELDS;
+  const counts: DeviceStateSummaryInfo['counts'] = {};
+  for (const field of fields) counts[field] = count(raw[field]);
+  return { kind, counts };
+}
+
+function mapSettingSummary(
+  dto: GraphComplianceSettingStateSummary,
+): ComplianceSettingSummaryInfo | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id) return null;
+  const setting = str(dto.setting)?.trim() || null;
+  return {
+    id,
+    name: str(dto.settingName)?.trim() || setting || id,
+    setting,
+    platform: pickOrNull(dto.platformType, SETTING_SUMMARY_PLATFORM_TYPES),
+    platformRaw: str(dto.platformType)?.trim() || null,
+    nonCompliantDeviceCount: count(dto.nonCompliantDeviceCount),
+    errorDeviceCount: count(dto.errorDeviceCount),
+    conflictDeviceCount: count(dto.conflictDeviceCount),
+    compliantDeviceCount: count(dto.compliantDeviceCount),
+  };
+}
+
+/**
+ * Einstellungs-Zähler → Domain, sortiert nach nicht konformen Geräten (dann Fehler, Konflikte, Name). Eine
+ * Sortierung ist serverseitig nicht dokumentiert – deshalb clientseitig.
+ */
+export function mapComplianceSettingSummaries(
+  entries: GraphComplianceSettingStateSummary[] | null | undefined,
+  options: { pagesRead: number; truncated: boolean },
+): ComplianceSettingSummariesInfo {
+  const settings = (Array.isArray(entries) ? entries : [])
+    .map(mapSettingSummary)
+    .filter((entry): entry is ComplianceSettingSummaryInfo => entry !== null)
+    .sort(
+      (a, b) =>
+        (b.nonCompliantDeviceCount ?? 0) - (a.nonCompliantDeviceCount ?? 0) ||
+        (b.errorDeviceCount ?? 0) - (a.errorDeviceCount ?? 0) ||
+        (b.conflictDeviceCount ?? 0) - (a.conflictDeviceCount ?? 0) ||
+        a.name.localeCompare(b.name, 'de'),
+    );
+  return { settings, pagesRead: options.pagesRead, truncated: options.truncated };
 }

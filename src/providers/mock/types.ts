@@ -14,6 +14,8 @@ import type {
   AppInstallStateInfo,
   BitLockerKeyInfo,
   EnrollmentFailuresInfo,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
   EnrollmentLimitsInfo,
   ServiceHealthInfo,
   EntraDeviceInfo,
@@ -103,6 +105,12 @@ export interface MockTenantFixture {
   serviceHealth?: MockSection<ServiceHealthInfo>;
   /** M18: Registrierungsfehler des Mandanten (Standard: sieben Fehlschläge in fünf Kategorien) */
   enrollmentFailures?: MockSection<EnrollmentFailuresInfo>;
+  /** M20/S1: Compliance-Zähler (Standard: 265 Geräte, 31 nicht konform, siehe ../mock/fleet.ts) */
+  complianceSummary?: MockSection<DeviceStateSummaryInfo>;
+  /** M20/S1: Zähler je Compliance-Einstellung (Standard: sechs Einstellungen) */
+  complianceSettings?: MockSection<ComplianceSettingSummariesInfo>;
+  /** M20/S1: Zähler der Konfigurationsprofile */
+  configurationSummary?: MockSection<DeviceStateSummaryInfo>;
   /** Ansicht „Richtlinien“ (M15): ersetzt die aus den Demo-Geräten abgeleitete Liste (z. B. forbidden in Tests). */
   configurations?: MockSection<TenantPolicyList>;
   compliancePolicies?: MockSection<TenantPolicyList>;

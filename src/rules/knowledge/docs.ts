@@ -249,4 +249,50 @@ export const Docs = {
   enrollmentErrorCodes:
     'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#enrollment-error-codes',
   enrollmentRestrictions: 'https://learn.microsoft.com/intune/device-enrollment/restrictions',
+  // M20/S1: Compliance-Übersicht (abgerufen 2026-11-10)
+  complianceSummaryGet:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-devicecompliancepolicydevicestatesummary-get?view=graph-rest-1.0',
+  complianceSettingSummariesList:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-devicecompliancepolicysettingstatesummary-list?view=graph-rest-1.0',
+  configurationSummaryGet:
+    'https://learn.microsoft.com/graph/api/intune-deviceconfig-deviceconfigurationdevicestatesummary-get?view=graph-rest-1.0',
+  /** Compliance-Dashboard (Geräte › Compliance › Überwachen), Einstellungs-Compliance */
+  complianceDashboard:
+    'https://learn.microsoft.com/intune/device-security/compliance/monitor-policy#device-compliance-dashboard',
+  /** „When a setting … returns a value of Error, the compliance state … remains unchanged for up to seven days“ */
+  complianceSettingError:
+    'https://learn.microsoft.com/intune/device-security/compliance/monitor-policy#device-behavior-with-a-compliance-setting-in-error-state',
+  // M20/S2: Änderungsprotokoll (abgerufen 2026-11-10)
+  auditEventsList:
+    'https://learn.microsoft.com/graph/api/intune-auditing-auditevent-list?view=graph-rest-1.0',
+  auditEventResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-auditing-auditevent?view=graph-rest-1.0',
+  /** Intune-Überwachungsprotokolle: Mandantenverwaltung › Überwachungsprotokolle; Rollen */
+  intuneAuditLogs: 'https://learn.microsoft.com/intune/governance/monitor-audit-logs',
+  // M20/S3: App-Schutz (abgerufen 2026-11-10)
+  managedAppRegistrationsList:
+    'https://learn.microsoft.com/graph/api/intune-mam-managedappregistration-list?view=graph-rest-1.0',
+  managedAppRegistrationResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-mam-managedappregistration?view=graph-rest-1.0',
+  managedAppFlaggedReason:
+    'https://learn.microsoft.com/graph/api/resources/intune-mam-managedappflaggedreason?view=graph-rest-1.0',
+  /** Bericht „App-Schutzstatus“, letzte Synchronisierung; iOS 16+: generischer Gerätename */
+  appProtectionMonitor:
+    'https://learn.microsoft.com/intune/app-management/protection/monitor-policies',
+  /** „Policy changes are not applying“: App hat nicht eingecheckt, Company Portal entfernt */
+  appProtectionTroubleshooting:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/app-protection-policies/troubleshoot-app-protection-policy-deployment#additional-troubleshooting-scenarios',
+  /** Bedingter Start „Jailbroken/rooted devices“ (Zugriff blockieren / Daten löschen) */
+  appProtectionConditionalLaunch:
+    'https://learn.microsoft.com/intune/app-management/protection/configure-conditional-launch',
+  appProtectionConditionalLaunchAndroid:
+    'https://learn.microsoft.com/intune/app-management/protection/ref-settings-android#conditional-launch',
+  // M20/S4: Remote-Aktionen (abgerufen 2026-11-10)
+  deviceActionResultResource:
+    'https://learn.microsoft.com/graph/api/resources/intune-devices-deviceactionresult?view=graph-rest-1.0',
+  /** Geräteaktionen; Status unter Geräte › Geräteaktionen; Retire/Wipe/Delete haben Vorrang */
+  deviceActions: 'https://learn.microsoft.com/intune/device-management/actions/',
+  /** „Why does Wipe or Retire sometimes show as Pending indefinitely?“ */
+  deviceActionsTroubleshooting:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-management/troubleshoot-device-actions#wipe-and-retire-actions',
 } as const;

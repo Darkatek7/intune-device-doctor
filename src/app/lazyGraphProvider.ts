@@ -172,6 +172,9 @@ export class LazyGraphProvider implements DeviceDataProvider {
         vppTokens: failed,
         serviceHealth: failed,
         enrollmentFailures: failed,
+        complianceSummary: failed,
+        complianceSettings: failed,
+        configurationSummary: failed,
       };
     }
     return provider.getTenantStatus(options);

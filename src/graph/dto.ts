@@ -863,3 +863,115 @@ export interface GraphTroubleshootingEvent {
   failureCategory?: string | null;
   failureReason?: string | null;
 }
+
+// ---------- Compliance-/Konfigurations-Übersicht des Mandanten (v1.0) – M20/S1 ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancepolicydevicestatesummary?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-deviceconfigurationdevicestatesummary?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancepolicysettingstatesummary?view=graph-rest-1.0
+// Scope DeviceManagementConfiguration.Read.All (beim Login angefragt).
+
+/** Zähler von deviceCompliancePolicyDeviceStateSummary – exakt die dokumentierten Int32-Felder. */
+export const COMPLIANCE_SUMMARY_FIELDS = [
+  'compliantDeviceCount',
+  'nonCompliantDeviceCount',
+  'inGracePeriodCount',
+  'errorDeviceCount',
+  'conflictDeviceCount',
+  'unknownDeviceCount',
+  'notApplicableDeviceCount',
+  'remediatedDeviceCount',
+  'configManagerCount',
+] as const;
+
+/** Zähler von deviceConfigurationDeviceStateSummary (ohne Schonfrist und Configuration Manager). */
+export const CONFIGURATION_SUMMARY_FIELDS = [
+  'compliantDeviceCount',
+  'nonCompliantDeviceCount',
+  'errorDeviceCount',
+  'conflictDeviceCount',
+  'unknownDeviceCount',
+  'notApplicableDeviceCount',
+  'remediatedDeviceCount',
+] as const;
+
+export type DeviceStateCountField = (typeof COMPLIANCE_SUMMARY_FIELDS)[number];
+
+/**
+ * Antwort der beiden Summary-Endpunkte (ein Objekt). Die Beispielantwort der Doku verpackt das Objekt in
+ * `value` – der Mapper akzeptiert beide Formen (live zu verifizieren, M20).
+ */
+export type GraphDeviceStateSummary = Partial<Record<DeviceStateCountField, number | null>> & {
+  id?: string | null;
+};
+
+/** policyPlatformType laut Ressource deviceCompliancePolicySettingStateSummary (9 Werte). */
+export const SETTING_SUMMARY_PLATFORM_TYPES = [
+  'android',
+  'iOS',
+  'macOS',
+  'windowsPhone81',
+  'windows81AndLater',
+  'windows10AndLater',
+  'androidWorkProfile',
+  'linux',
+  'all',
+] as const;
+export type SettingSummaryPlatformType = (typeof SETTING_SUMMARY_PLATFORM_TYPES)[number];
+
+/** deviceCompliancePolicySettingStateSummary – nur gelesene Felder (Beziehung deviceComplianceSettingStates nicht). */
+export interface GraphComplianceSettingStateSummary {
+  id: string;
+  setting?: string | null;
+  settingName?: string | null;
+  platformType?: string | null;
+  compliantDeviceCount?: number | null;
+  nonCompliantDeviceCount?: number | null;
+  errorDeviceCount?: number | null;
+  conflictDeviceCount?: number | null;
+  unknownDeviceCount?: number | null;
+  notApplicableDeviceCount?: number | null;
+  remediatedDeviceCount?: number | null;
+}
+
+// ---------- Änderungsprotokoll (Intune-Überwachung, v1.0) – M20/S2 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-auditing-auditevent-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditevent?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditactor?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditresource?view=graph-rest-1.0
+// Scope DeviceManagementApps.Read.All (optional – nicht beim Login).
+
+/**
+ * auditActor – NUR die Felder, die die App liest. Bewusst nie gelesen (Datensparsamkeit): `ipAddress`,
+ * `userPermissions`, `userId`, `applicationId`, `servicePrincipalName`. Graph liefert sie mit; der Mapper
+ * übernimmt sie nicht, sie verlassen den Mapper nie.
+ */
+export interface GraphAuditActor {
+  type?: string | null;
+  auditActorType?: string | null;
+  userPrincipalName?: string | null;
+  applicationDisplayName?: string | null;
+}
+
+/** auditResource – ohne `modifiedProperties` (alte/neue Werte werden nicht gelesen). */
+export interface GraphAuditResource {
+  displayName?: string | null;
+  type?: string | null;
+  auditResourceType?: string | null;
+  resourceId?: string | null;
+}
+
+/** auditEvent – nur gelesene Felder. Alle Texte sind freie Zeichenketten (keine Enums dokumentiert). */
+export interface GraphAuditEvent {
+  id: string;
+  displayName?: string | null;
+  componentName?: string | null;
+  actor?: GraphAuditActor | null;
+  activity?: string | null;
+  activityDateTime?: string | null;
+  activityType?: string | null;
+  activityOperationType?: string | null;
+  activityResult?: string | null;
+  correlationId?: string | null;
+  resources?: GraphAuditResource[] | null;
+  category?: string | null;
+}

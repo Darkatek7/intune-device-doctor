@@ -9,6 +9,8 @@ import type {
   ServiceHealthInfo,
   SecurityAlertsInfo,
   TenantStatus,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
   TenantPolicies,
   TenantPolicyInfo,
   TenantPolicyKind,
@@ -49,6 +51,11 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { buildMockPolicies, policyKey } from './policies';
+import {
+  defaultComplianceSettings,
+  defaultComplianceSummary,
+  defaultConfigurationSummary,
+} from './fleet';
 import { defaultEnrollmentFailures, defaultServiceHealth } from './service';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
@@ -487,6 +494,21 @@ export class MockProvider implements DeviceDataProvider {
         this.tenant.vppTokens ?? { status: 'ok', data: defaultVppTokens(now) },
         'vppTokens',
         sourceFor('vppTokens'),
+      ),
+      complianceSummary: this.fromSpec<DeviceStateSummaryInfo>(
+        this.tenant.complianceSummary ?? { status: 'ok', data: defaultComplianceSummary() },
+        'deviceCompliancePolicyDeviceStateSummary',
+        sourceFor('deviceCompliancePolicyDeviceStateSummary'),
+      ),
+      complianceSettings: this.fromSpec<ComplianceSettingSummariesInfo>(
+        this.tenant.complianceSettings ?? { status: 'ok', data: defaultComplianceSettings() },
+        'deviceCompliancePolicySettingStateSummaries',
+        sourceFor('deviceCompliancePolicySettingStateSummaries'),
+      ),
+      configurationSummary: this.fromSpec<DeviceStateSummaryInfo>(
+        this.tenant.configurationSummary ?? { status: 'ok', data: defaultConfigurationSummary() },
+        'deviceConfigurationDeviceStateSummaries',
+        sourceFor('deviceConfigurationDeviceStateSummaries'),
       ),
     };
   }

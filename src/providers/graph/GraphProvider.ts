@@ -34,6 +34,8 @@ import type {
   TenantPolicies,
   TenantPolicyInfo,
   TenantPolicyKind,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
   TenantPolicyList,
   PolicyDeviceOverview,
   PolicyDeviceStatusesInfo,
@@ -74,6 +76,8 @@ import type {
   GraphWindowsAutopilotDeviceIdentity,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
+  GraphComplianceSettingStateSummary,
+  GraphDeviceStateSummary,
 } from '../../graph/dto';
 import {
   ASSIGNMENTS_DISPLAY,
@@ -88,6 +92,7 @@ import {
   MAX_SECURITY_ALERT_PAGES,
   MAX_SERVICE_HEALTH_PAGES,
   MAX_TROUBLESHOOTING_EVENT_PAGES,
+  MAX_SETTING_SUMMARY_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -121,6 +126,8 @@ import {
   mapUserLicense,
   mapVppTokens,
   mapWindowsProtection,
+  mapComplianceSettingSummaries,
+  mapDeviceStateSummary,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
@@ -538,13 +545,100 @@ export class GraphProvider implements DeviceDataProvider {
    * verlässt diese Methode nicht.
    */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
-    const [applePushCertificate, vppTokens, serviceHealth, enrollmentFailures] = await Promise.all([
+    const [
+      applePushCertificate,
+      vppTokens,
+      serviceHealth,
+      enrollmentFailures,
+      complianceSummary,
+      complianceSettings,
+      configurationSummary,
+    ] = await Promise.all([
       this.readApplePushCertificate(options),
       this.readVppTokens(options),
       this.getServiceHealth(options),
       this.readEnrollmentFailures(null, options),
+      this.readDeviceStateSummary('compliance', options),
+      this.readComplianceSettings(options),
+      this.readDeviceStateSummary('configuration', options),
     ]);
-    return { applePushCertificate, vppTokens, serviceHealth, enrollmentFailures };
+    return {
+      applePushCertificate,
+      vppTokens,
+      serviceHealth,
+      enrollmentFailures,
+      complianceSummary,
+      complianceSettings,
+      configurationSummary,
+    };
+  }
+
+  /**
+   * Liest höchstens `maxPages` Seiten über `@odata.nextLink` (nur GET). Für die Listen dieser Datei sind
+   * keine Query-Optionen dokumentiert – deshalb immer ohne $filter/$top.
+   */
+  private async readPages<T>(
+    firstPath: string,
+    scope: string,
+    maxPages: number,
+    options: RequestOptions,
+  ): Promise<{ entries: T[]; pagesRead: number; truncated: boolean }> {
+    const entries: T[] = [];
+    let next: string | undefined = firstPath;
+    let pagesRead = 0;
+    while (next && pagesRead < maxPages) {
+      const page: GraphCollection<T> | undefined = await this.client.get<GraphCollection<T>>(next, {
+        signal: options.signal,
+        scope,
+      });
+      pagesRead += 1;
+      entries.push(...(page?.value ?? []));
+      next = page?.['@odata.nextLink'] ?? undefined;
+    }
+    return { entries, pagesRead, truncated: Boolean(next) };
+  }
+
+  // ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+  private readDeviceStateSummary(
+    kind: TenantPolicyKind,
+    options: RequestOptions,
+  ): Promise<SectionResult<DeviceStateSummaryInfo>> {
+    const id =
+      kind === 'compliance'
+        ? ('deviceCompliancePolicyDeviceStateSummary' as const)
+        : ('deviceConfigurationDeviceStateSummaries' as const);
+    const endpoint = Endpoints[id];
+    return this.run<DeviceStateSummaryInfo>(
+      id,
+      async (source) => {
+        const dto = await this.client.get<
+          GraphDeviceStateSummary | { value?: GraphDeviceStateSummary }
+        >(endpoint.path(), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapDeviceStateSummary(dto, kind), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.summaryNotReported, source }),
+    );
+  }
+
+  private readComplianceSettings(
+    options: RequestOptions,
+  ): Promise<SectionResult<ComplianceSettingSummariesInfo>> {
+    const endpoint = Endpoints.deviceCompliancePolicySettingStateSummaries;
+    return this.run<ComplianceSettingSummariesInfo>(
+      'deviceCompliancePolicySettingStateSummaries',
+      async (source) => {
+        const { entries, pagesRead, truncated } =
+          await this.readPages<GraphComplianceSettingStateSummary>(
+            endpoint.path(),
+            endpoint.scope,
+            MAX_SETTING_SUMMARY_PAGES,
+            options,
+          );
+        return this.ok(mapComplianceSettingSummaries(entries, { pagesRead, truncated }), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.summaryNotReported, source }),
+    );
   }
 
   // ---------- Dienststatus und Registrierungsfehler (M18) ----------
