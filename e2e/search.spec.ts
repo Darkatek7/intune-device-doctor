@@ -26,6 +26,13 @@ test.describe('Suche', () => {
     await expect(page).toHaveTitle(/CONTOSO-PC001/);
   });
 
+  test('Seriennummer „demo-000042“ öffnet CONTOSO-PC042 direkt', async ({ page }) => {
+    await page.goto('/');
+    await searchDevice(page, 'demo-000042');
+    await waitForTilesReady(page);
+    await expect(page).toHaveTitle(/CONTOSO-PC042/);
+  });
+
   test('Teilname „contoso-pc0“ zeigt die Auswahlliste mit mehreren Geräten', async ({ page }) => {
     await page.goto('/');
     await searchDevice(page, 'contoso-pc0');

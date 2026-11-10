@@ -99,6 +99,7 @@ describe('DeviceHeader – weitere Geräte', () => {
       operatingSystem: os,
       osVersion: null,
       model: null,
+      serialNumber: null,
       complianceState,
       lastSyncDateTime: null,
     }) satisfies DeviceSearchResult;

@@ -21,6 +21,7 @@ const device = (over: Partial<DeviceSearchResult> = {}): DeviceSearchResult => (
   operatingSystem: 'Windows',
   osVersion: '10.0',
   model: null,
+  serialNumber: null,
   complianceState: 'compliant',
   lastSyncDateTime: hoursAgo(2),
   ...over,

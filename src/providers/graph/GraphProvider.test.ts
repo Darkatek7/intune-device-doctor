@@ -144,6 +144,42 @@ describe('GraphProvider – Suche', () => {
     ]);
   });
 
+  it('findet Geräte per Seriennummer clientseitig über die Geräteliste (kein $filter auf serialNumber dokumentiert)', async () => {
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ serialNumber: 'DEMO-000001' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', serialNumber: 'DEMO-000042' }),
+        pc001Device({ id: 'c', deviceName: 'CONTOSO-PC003', serialNumber: 'DEMO-0000421' }),
+      ]);
+    });
+    const hits = await provider.searchDevices(' demo-000042 ');
+    expect(hits.map((d) => [d.deviceName, d.serialNumber])).toEqual([
+      ['CONTOSO-PC002', 'DEMO-000042'],
+    ]);
+    const filters = calls.map((c) => c.parsed.searchParams.get('$filter'));
+    expect(filters).toEqual([
+      "deviceName eq 'demo-000042'",
+      "contains(deviceName,'demo-000042')",
+      null,
+    ]);
+    expect(filters.some((f) => f?.includes('serialNumber'))).toBe(false);
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'GET', 'GET']);
+    expect(calls[2]!.parsed.searchParams.get('$select')?.split(',')).toContain('serialNumber');
+  });
+
+  it('bevorzugt den Treffer per Seriennummer vor Treffern im Benutzernamen', async () => {
+    const { provider } = setup((call) => {
+      if (call.parsed.searchParams.get('$filter')) return collection([]);
+      return collection([
+        pc001Device({ userDisplayName: 'Demo Benutzer', serialNumber: 'X1' }),
+        pc001Device({ id: 'b', deviceName: 'CONTOSO-PC002', serialNumber: 'DEMO' }),
+      ]);
+    });
+    const hits = await provider.searchDevices('demo');
+    expect(hits.map((d) => d.deviceName)).toEqual(['CONTOSO-PC002']);
+  });
+
   it('liefert für leere Eingabe eine leere Liste ohne Request', async () => {
     const { provider, calls } = setup();
     await expect(provider.searchDevices('   ')).resolves.toEqual([]);

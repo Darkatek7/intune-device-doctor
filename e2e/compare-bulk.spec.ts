@@ -125,7 +125,7 @@ test.describe('Sammelprüfung (Demo)', () => {
     await expect(page.getByRole('heading', { name: 'Mehrere Geräte prüfen' })).toBeVisible();
 
     await page
-      .getByLabel('Gerätenamen (einer pro Zeile)')
+      .getByLabel('Gerätenamen oder Seriennummern (einer pro Zeile)')
       .fill('CONTOSO-PC001\nCONTOSO-PC033\ncontoso-pc014\nGIBT-ES-NICHT');
     await expect(page.getByText('4 Namen erkannt')).toBeVisible();
     await page.getByRole('button', { name: 'Prüfen', exact: true }).click();
@@ -214,7 +214,7 @@ test.describe('Barrierefreiheit M12/B', () => {
     await page.getByRole('button', { name: 'Mehrere Geräte prüfen' }).click();
     await expectNoSevereViolations(page, 'Sammelprüfung leer');
     await page
-      .getByLabel('Gerätenamen (einer pro Zeile)')
+      .getByLabel('Gerätenamen oder Seriennummern (einer pro Zeile)')
       .fill('CONTOSO-PC001\nCONTOSO-PC033\nGIBT-ES-NICHT');
     await page.getByRole('button', { name: 'Prüfen', exact: true }).click();
     await expect(page.getByText('Prüfung abgeschlossen: 3 Namen.')).toBeVisible();

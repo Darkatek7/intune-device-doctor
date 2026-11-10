@@ -14,6 +14,7 @@ const suggestion = (id: string, name: string): DeviceSearchResult => ({
   operatingSystem: 'Windows',
   osVersion: '10.0',
   model: null,
+  serialNumber: null,
   complianceState: 'compliant',
   lastSyncDateTime: null,
 });
