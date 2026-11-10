@@ -64,3 +64,13 @@ Quelle: `managedDevice.deviceActionResults` (v1.0, bestehender Geräte-Abruf).
 - [x] Fehlgeschlagene Aktion → Prüfen; laufendes Zurücksetzen/Abkoppeln → deutlicher Hinweis (Erkennung live zu verifizieren)
 - [x] Zeitachse und Befund im Gerätestatus; jeder Text sagt, dass die App selbst keine Aktion auslöst
 - [x] Tests: Mapper, Beitrag, Zeitachse, Graph-Abruf (nur GET, kein zusätzlicher Aufruf), Demo
+
+## Querschnitt und Definition of Done
+
+- [x] Domain, Provider-Schnittstelle, GraphProvider, MockProvider, LazyGraphProvider nachgezogen
+- [x] Demo-Daten: nicht konforme Geräte, Änderung an „Contoso – VPN Always On“ vor dessen Fehler, App-Schutz (AND21, IP015), fehlgeschlagene Remote-Aktion (PC027), fehlende Berechtigung (Tests über Mock-Vorgaben)
+- [x] Ansicht „Mandant“ in beschriftete Abschnitte gegliedert
+- [x] Verbindungstest um alle neuen Endpunkte ergänzt (nur Feldnamen)
+- [x] Doku: `docs/graph-api-reference.md` (inkl. „Live zu verifizieren (M20)“), `docs/live-verification.md`, README (Scope, Grenzen, Demo-Skript, Datenschutz)
+- [x] Lint, Typecheck, Vitest (99 Dateien, 1779 Tests), Build grün
+- [x] E2E komplett grün (332 Tests, vier Projekte, axe inkl. `label-content-name-mismatch`)
