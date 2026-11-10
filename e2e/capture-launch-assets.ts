@@ -266,7 +266,7 @@ interface Moment {
 }
 
 const searchField = (page: Page) =>
-  page.getByRole('combobox', { name: 'Gerätename oder Benutzer' });
+  page.getByRole('combobox', { name: 'Gerätename, Benutzer oder Seriennummer' });
 
 async function submitSearch(page: Page, device: string): Promise<void> {
   await searchField(page).fill(device);

@@ -291,6 +291,7 @@ export function mapSearchResult(
     operatingSystem: str(dto.operatingSystem),
     osVersion: str(dto.osVersion),
     model: str(dto.model),
+    serialNumber: str(dto.serialNumber)?.trim() || null,
     complianceState: pick(dto.complianceState, COMPLIANCE_STATES, 'unknown'),
     lastSyncDateTime: str(dto.lastSyncDateTime),
   };

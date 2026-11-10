@@ -12,6 +12,7 @@ const result = (name: string): DeviceSearchResult => ({
   operatingSystem: 'Windows',
   osVersion: null,
   model: null,
+  serialNumber: null,
   complianceState: 'compliant',
   lastSyncDateTime: null,
 });

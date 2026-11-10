@@ -36,6 +36,7 @@ import {
   MAX_ASSIGNMENT_LOOKUPS,
   type EndpointId,
 } from '../../graph/endpoints';
+import { matchesSerialNumber } from '../../domain/search';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
@@ -139,6 +140,7 @@ function toSearchResult(device: MockDeviceFixture['device']): DeviceSearchResult
     operatingSystem: device.operatingSystem,
     osVersion: device.osVersion,
     model: device.model,
+    serialNumber: device.serialNumber,
     complianceState: device.complianceState,
     lastSyncDateTime: device.lastSyncDateTime,
   };
@@ -183,12 +185,20 @@ export class MockProvider implements DeviceDataProvider {
     const all = this.fixtures();
     const exact = all.filter((f) => f.device.deviceName.toLowerCase() === q);
     const byName = all.filter((f) => f.device.deviceName.toLowerCase().includes(q));
+    const bySerial = all.filter((f) => matchesSerialNumber(f.device.serialNumber, query));
     const byUser = all.filter((f) =>
       [f.device.userPrincipalName, f.device.userDisplayName].some((v) =>
         (v ?? '').toLowerCase().includes(q),
       ),
     );
-    const hits = exact.length > 0 ? exact : byName.length > 0 ? byName : byUser;
+    const hits =
+      exact.length > 0
+        ? exact
+        : byName.length > 0
+          ? byName
+          : bySerial.length > 0
+            ? bySerial
+            : byUser;
     return hits.map(({ device }) => toSearchResult(device));
   }
 
