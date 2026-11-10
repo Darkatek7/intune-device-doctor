@@ -123,7 +123,7 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
 
     for (const heading of [
       de.fleet.sections.overview,
@@ -140,9 +140,11 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp();
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
 
-    const compliance = tenantTiles().find((b) => b.getAttribute('data-tile-id') === 'tenantCompliance')!;
+    const compliance = tenantTiles().find(
+      (b) => b.getAttribute('data-tile-id') === 'tenantCompliance',
+    )!;
     expect(compliance).toHaveAttribute('data-severity', 'warning');
     await user.click(compliance);
     const dialog = await screen.findByRole('dialog');
@@ -158,9 +160,11 @@ describe('Ansicht „Mandant“', () => {
     const user = userEvent.setup();
     renderApp({ provider });
     await openTenant(user);
-    await waitFor(() => expect(tenantTiles()).toHaveLength(7));
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_COUNT));
     const byId = (id: string) => tenantTiles().find((b) => b.getAttribute('data-tile-id') === id)!;
-    expect(within(byId('tenantCompliance')).getByText(de.availability.forbidden)).toBeInTheDocument();
+    expect(
+      within(byId('tenantCompliance')).getByText(de.availability.forbidden),
+    ).toBeInTheDocument();
     expect(byId('tenantConfiguration')).toHaveAttribute('data-severity', 'warning');
     expect(screen.queryByTestId('share-bar-compliance')).not.toBeInTheDocument();
     expect(screen.getByTestId('share-bar-configuration')).toBeInTheDocument();

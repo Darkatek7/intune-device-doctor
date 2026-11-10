@@ -1569,6 +1569,7 @@ const TENANT_FLEET_PATHS = [
   '/v1.0/deviceManagement/deviceCompliancePolicyDeviceStateSummary',
   '/v1.0/deviceManagement/deviceCompliancePolicySettingStateSummaries',
   '/v1.0/deviceManagement/deviceConfigurationDeviceStateSummaries',
+  '/v1.0/deviceManagement/auditEvents',
 ];
 
 describe('GraphProvider – Mandanten-Status (M14/S5)', () => {

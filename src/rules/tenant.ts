@@ -23,7 +23,11 @@ import type {
 } from '../domain/types';
 import { de } from '../i18n/de';
 import { sectionIssueFinding, sortFindings, worstActionable } from './helpers';
-import { evaluateTenantCompliance, evaluateTenantConfiguration } from './fleet';
+import {
+  evaluateTenantChanges,
+  evaluateTenantCompliance,
+  evaluateTenantConfiguration,
+} from './fleet';
 import { evaluateEnrollmentFailures, evaluateServiceHealth } from './service';
 import { Docs } from './knowledge/docs';
 import { THRESHOLDS } from './thresholds';
@@ -352,7 +356,7 @@ function evaluateUnavailable(): Tile {
 
 /**
  * Kacheln der Ansicht „Mandant“ in fester Reihenfolge: Compliance- und Konfigurations-Übersicht (M20),
- * Dienststatus und Registrierungsfehler (M18), Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche.
+ * Dienststatus und Registrierungsfehler (M18), letzte Änderungen (M20), Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche.
  */
 export function evaluateTenant(status: TenantStatus, now: Date): Tile[] {
   return [
@@ -360,6 +364,7 @@ export function evaluateTenant(status: TenantStatus, now: Date): Tile[] {
     evaluateTenantConfiguration(status.configurationSummary),
     evaluateServiceHealth(status.serviceHealth, now),
     evaluateEnrollmentFailures(status.enrollmentFailures, now),
+    evaluateTenantChanges(status.auditEvents, now),
     evaluatePush(status.applePushCertificate, now),
     evaluateVpp(status.vppTokens, now),
     evaluateUnavailable(),
@@ -372,6 +377,7 @@ export type TenantSectionKey = keyof typeof de.fleet.sections;
 export const TENANT_SECTIONS: ReadonlyArray<{ key: TenantSectionKey; tiles: readonly TileId[] }> = [
   { key: 'overview', tiles: ['tenantCompliance', 'tenantConfiguration'] },
   { key: 'service', tiles: ['tenantServiceHealth', 'tenantEnrollmentFailures'] },
+  { key: 'changes', tiles: ['tenantChanges'] },
   { key: 'certificates', tiles: ['tenantApplePush', 'tenantVpp', 'tenantUnavailable'] },
 ];
 

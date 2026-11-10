@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SectionResult } from '../../domain/types';
 import type { SleepFn } from '../../graph/client';
-import { MAX_SETTING_SUMMARY_PAGES } from '../../graph/endpoints';
+import { de } from '../../i18n/de';
+import { MAX_AUDIT_EVENT_PAGES, MAX_SETTING_SUMMARY_PAGES } from '../../graph/endpoints';
 import { createGraphProvider } from './GraphProvider';
 import {
   collection,
@@ -120,5 +121,59 @@ describe('GraphProvider – Compliance-Übersicht (M20/S1)', () => {
     const status = await provider.getTenantStatus();
     expectStatus(status.complianceSummary, 'ok');
     expect(sleep).toHaveBeenCalledWith(4000, undefined);
+  });
+});
+
+describe('GraphProvider – Änderungsprotokoll (M20/S2)', () => {
+  const AUDIT_PATH = '/v1.0/deviceManagement/auditEvents';
+  const audit = (id: string) => ({
+    id,
+    activity: 'Patch DeviceConfiguration',
+    activityDateTime: '2026-11-09T10:00:00Z',
+    actor: { userPrincipalName: 'admin@contoso.com', ipAddress: '203.0.113.7' },
+    resources: [],
+  });
+
+  it('nur GET ohne Query-Optionen, seitenbegrenzt; IP-Adresse verlässt den Provider nie', async () => {
+    let page = 0;
+    const { provider, calls } = setup((call) => {
+      if (call.parsed.pathname === AUDIT_PATH || call.parsed.pathname.endsWith('/auditNext')) {
+        page += 1;
+        return collection([audit(`a${page}`)], 'https://graph.microsoft.com/v1.0/auditNext');
+      }
+      return graphError(404, 'NotFound');
+    });
+    const result = expectStatus(await provider.getAuditEvents(), 'ok');
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.search).toBe('');
+    expect(result.data.pagesRead).toBe(MAX_AUDIT_EVENT_PAGES);
+    expect(result.data.truncated).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('203.0.113.7');
+  });
+
+  it('403 → forbidden mit optionalem Scope; 404 → nicht verfügbar; 429 → Retry-After', async () => {
+    const forbidden = setup(() => graphError(403, 'Forbidden'));
+    const denied = expectStatus(await forbidden.provider.getAuditEvents(), 'forbidden');
+    expect(denied.error.requiredScope).toBe('DeviceManagementApps.Read.All');
+
+    const missing = setup(() => graphError(404, 'NotFound'));
+    const gone = expectStatus(await missing.provider.getAuditEvents(), 'unavailable');
+    expect(gone.reason).toBe(de.fleet.reasons.auditNotReported);
+
+    let n = 0;
+    const throttled = setup(() =>
+      ++n === 1 ? graphError(429, 'TooManyRequests', { 'Retry-After': '4' }) : collection([]),
+    );
+    expectStatus(await throttled.provider.getAuditEvents(), 'ok');
+    expect(throttled.sleep).toHaveBeenCalledWith(4000, undefined);
+  });
+
+  it('getTenantStatus: fehlende Berechtigung für das Protokoll betrifft nur seine Section', async () => {
+    const { provider } = setup((call) =>
+      call.parsed.pathname === AUDIT_PATH ? graphError(403, 'Forbidden') : collection([]),
+    );
+    const status = await provider.getTenantStatus();
+    expect(status.auditEvents.status).toBe('forbidden');
+    expect(status.enrollmentFailures.status).toBe('ok');
   });
 });

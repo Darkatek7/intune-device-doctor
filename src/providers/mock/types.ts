@@ -16,6 +16,7 @@ import type {
   EnrollmentFailuresInfo,
   ComplianceSettingSummariesInfo,
   DeviceStateSummaryInfo,
+  AuditEventsInfo,
   EnrollmentLimitsInfo,
   ServiceHealthInfo,
   EntraDeviceInfo,
@@ -111,6 +112,8 @@ export interface MockTenantFixture {
   complianceSettings?: MockSection<ComplianceSettingSummariesInfo>;
   /** M20/S1: Zähler der Konfigurationsprofile */
   configurationSummary?: MockSection<DeviceStateSummaryInfo>;
+  /** M20/S2: Änderungsprotokoll (Standard: Änderungen der letzten Tage, siehe ../mock/fleet.ts) */
+  auditEvents?: MockSection<AuditEventsInfo>;
   /** Ansicht „Richtlinien“ (M15): ersetzt die aus den Demo-Geräten abgeleitete Liste (z. B. forbidden in Tests). */
   configurations?: MockSection<TenantPolicyList>;
   compliancePolicies?: MockSection<TenantPolicyList>;

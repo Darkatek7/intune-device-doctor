@@ -16,6 +16,7 @@ export const deFleet = {
   tiles: {
     tenantCompliance: 'Compliance im Mandanten',
     tenantConfiguration: 'Konfigurationsprofile im Mandanten',
+    tenantChanges: 'Letzte Änderungen',
   },
 
   /** Abschnitte der Ansicht „Mandant“ */
@@ -163,7 +164,76 @@ export const deFleet = {
     },
   },
 
+  // ---------- S2: Änderungsprotokoll ----------
+  audit: {
+    value: (n: number) =>
+      n === 0 ? 'Keine Änderungen' : `${n} ${plural(n, 'Änderung', 'Änderungen')}`,
+    summary: (days: number, latest: string | null) =>
+      latest ? `Letzte ${days} Tage · zuletzt ${latest}` : `Letzte ${days} Tage`,
+    summaryNone: (days: number) => `In den letzten ${days} Tagen wurde nichts protokolliert.`,
+    listTitle: (days: number) => `Änderungen der letzten ${days} Tage`,
+    listDetail: (shown: number, total: number) =>
+      shown === total
+        ? `${shown} ${plural(shown, 'Eintrag', 'Einträge')} aus dem Intune-Überwachungsprotokoll, neueste zuerst.`
+        : `Die neuesten ${shown} von ${total} Einträgen aus dem Intune-Überwachungsprotokoll.`,
+    listCause:
+      'Übersicht, kein Befund. Aktivität, Kategorie und Ergebnis stammen unverändert von Microsoft. Angezeigt wird, wer die Änderung ausgelöst hat (Benutzer oder Anwendung) – IP-Adressen und Berechtigungen liest die App nie.',
+    listRemediation: [
+      'Details (geänderte Eigenschaften, alte und neue Werte) im Intune Admin Center unter Mandantenverwaltung › Überwachungsprotokolle öffnen.',
+    ],
+    noneTitle: (days: number) => `Keine Änderungen in den letzten ${days} Tagen`,
+    noneDetail: (read: number) =>
+      `Unter den ${read} gelesenen Einträgen liegt keiner im Zeitfenster.`,
+    columns: {
+      time: 'Zeitpunkt',
+      activity: 'Aktivität',
+      category: 'Kategorie / Komponente',
+      result: 'Ergebnis',
+      object: 'Objekt (Typ)',
+      actor: 'Wer',
+    },
+    actor: {
+      user: (name: string) => name,
+      application: (name: string) => `${name} (Anwendung)`,
+      unknown: 'Nicht angegeben',
+    },
+    objectCell: (name: string | null, type: string | null) =>
+      [name ?? '–', type ? `(${type})` : null].filter(Boolean).join(' '),
+    noValue: '–',
+    truncatedTitle: (pages: number) =>
+      `Nur die ersten ${pages} ${plural(pages, 'Seite', 'Seiten')} des Protokolls gelesen`,
+    truncatedDetail:
+      'Microsoft liefert weitere Einträge. Für das Überwachungsprotokoll sind weder Filter noch Sortierung dokumentiert, auch die Reihenfolge der Seiten nicht – Änderungen im Zeitfenster können deshalb fehlen.',
+    truncatedCause: 'Bewusste Grenze, damit die Ansicht schnell bleibt.',
+    truncatedRemediation: [
+      'Das vollständige Protokoll im Intune Admin Center unter Mandantenverwaltung › Überwachungsprotokolle mit Datumsfilter ansehen.',
+    ],
+    facts: {
+      window: 'Zeitfenster',
+      count: 'Änderungen',
+      read: 'Gelesene Einträge',
+      pages: 'Gelesene Seiten',
+    },
+    windowValue: (days: number) => `${days} Tage`,
+    // Richtlinien-Detail
+    policyTitle: 'Änderungen an dieser Richtlinie',
+    policyNone: 'Im gelesenen Protokoll gibt es keine Änderung an dieser Richtlinie.',
+    policyLoading: 'Änderungsprotokoll wird geladen …',
+    policyTableLabel: (policy: string) => `Änderungen an ${policy}`,
+    policyMatchNote:
+      'Abgleich über die Ressourcen-ID im Überwachungsprotokoll. Es werden nur die gelesenen Seiten berücksichtigt.',
+    policyForbidden: (scope: string) =>
+      `Änderungen nicht abrufbar: Es fehlt die Berechtigung ${scope} oder eine Intune-Rolle mit „Audit data – Read“.`,
+    policyUnavailable: (reason: string) => `Änderungen nicht abrufbar: ${reason}`,
+    /** Ruhiger Hinweis – ausdrücklich ohne Kausalität */
+    changedBeforeProblems: (date: string, activity: string, devices: number) =>
+      `Am ${date} geändert („${activity}“). Danach ${devices === 1 ? 'meldete 1 Gerät' : `meldeten ${devices} Geräte`} ein Problem mit dieser Richtlinie. Ein Zusammenhang ist möglich, aber nicht belegt.`,
+    changedBeforeProblemsNote: (days: number) =>
+      `Eigener Richtwert der App: Änderungen bis ${days} Tage vor der Meldung werden genannt.`,
+  },
+
   reasons: {
     summaryNotReported: 'Microsoft meldet für diesen Mandanten keine Zusammenfassung.',
+    auditNotReported: 'Das Überwachungsprotokoll ist für diesen Mandanten nicht verfügbar.',
   },
 } as const;

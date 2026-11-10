@@ -40,6 +40,21 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
+ * Sprache einer Zelle: Zellangabe vor Spaltenangabe; leere Zellen (Platzhalter „–“) nie englisch.
+ */
+function cellLang(
+  table: FindingTable,
+  row: FindingTable['rows'][number],
+  index: number,
+  cell: string,
+): 'en' | null {
+  if (!cell) return null;
+  const own = row.cellLangs?.[index];
+  if (own !== undefined) return own;
+  return table.columnLangs?.[index] ?? null;
+}
+
+/**
  * Kleine Textabelle (z. B. gleichnamige Entra-Objekte); horizontal scrollbar, Markierung für die Hervorhebung.
  * Der scrollbare Bereich ist per Tastatur fokussierbar und benannt (WCAG 2.1.1, axe „scrollable-region-focusable“).
  */
@@ -69,7 +84,11 @@ function FindingTableView({ table, label }: { table: FindingTable; label: string
               className={row.highlight ? 'bg-accent/8 font-medium' : undefined}
             >
               {row.cells.map((cell, i) => (
-                <td key={i} className="px-3 py-2 align-top text-label">
+                <td
+                  key={i}
+                  lang={cellLang(table, row, i, cell) ?? undefined}
+                  className="px-3 py-2 align-top text-label"
+                >
                   {cell || '–'}
                 </td>
               ))}

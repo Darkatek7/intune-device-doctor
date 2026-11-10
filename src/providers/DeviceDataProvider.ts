@@ -9,6 +9,7 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  AuditEventsInfo,
   AssignmentLookup,
   AssignmentsInfo,
   EnrollmentFailuresInfo,
@@ -189,6 +190,13 @@ export interface DeviceDataProvider {
     device: ManagedDeviceInfo,
     options?: RequestOptions,
   ): Promise<SectionResult<EnrollmentFailuresInfo>>;
+
+  /**
+   * Intune-Änderungsprotokoll (M20/S2): `auditEvents`, höchstens MAX_AUDIT_EVENT_PAGES Seiten, neueste
+   * zuerst. Teil von getTenantStatus; einzeln abrufbar für „Änderungen an dieser Richtlinie“. Optionaler
+   * Scope DeviceManagementApps.Read.All (403 → forbidden). Vom Auslöser nur UPN bzw. App-Name.
+   */
+  getAuditEvents(options?: RequestOptions): Promise<SectionResult<AuditEventsInfo>>;
 
   /**
    * Richtlinien des Mandanten (M15, Ansicht „Richtlinien“): Konfigurationsprofile und

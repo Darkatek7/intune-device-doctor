@@ -5,13 +5,22 @@
  * über dem eigenen Richtwert von 10 %), zwei mit Fehler, eines mit Konflikt. Die Einstellungsnamen folgen
  * dem dokumentierten Muster „Klassenname.Eigenschaft“ (`setting`) bzw. dem Eigenschaftsnamen
  * (`settingName`); die Zahlen sind erfunden.
+ *
+ * S2 – Änderungsprotokoll: einige Änderungen der letzten Tage, darunter eine Änderung an „Contoso – VPN
+ * Always On“ (demoGuid('policy', 23)) zwei Tage vor dessen Fehler auf CONTOSO-PC042, eine automatisierte
+ * Änderung durch eine Anwendung und eine ältere Änderung außerhalb des 7-Tage-Fensters. Aktivitätsnamen
+ * folgen dem Muster der Intune-Überwachungsprotokolle („<Vorgang> <Objekttyp>“), die Administratoren sind
+ * fiktiv (contoso.com).
  */
 import type {
+  AuditEventEntry,
+  AuditEventsInfo,
   ComplianceSettingSummariesInfo,
   ComplianceSettingSummaryInfo,
   DeviceStateSummaryInfo,
 } from '../../domain/types';
 import type { SettingSummaryPlatformType } from '../../graph/dto';
+import { ago, demoGuid } from './scenarios/helpers';
 
 // ---------- S1: Compliance-Übersicht ----------
 
@@ -101,6 +110,92 @@ export function defaultComplianceSettings(): ComplianceSettingSummariesInfo {
         },
       ),
       setting(6, win, 'passwordRequired', 'windows10AndLater', { nonCompliant: 0, compliant: 174 }),
+    ],
+  };
+}
+
+// ---------- S2: Änderungsprotokoll ----------
+
+const ADMIN = 'anna.schmidt@contoso.com';
+const HELPDESK = 'tim.wagner@contoso.com';
+
+function audit(
+  n: number,
+  time: string,
+  activity: string,
+  category: string,
+  resource: { id: string; name: string; type: string },
+  actor: { kind: 'user' | 'application'; name: string },
+  result = 'Success',
+): AuditEventEntry {
+  return {
+    id: `00000000-0000-4000-e000-${n.toString().padStart(12, '0')}`,
+    activityDateTime: time,
+    activity,
+    activityType: activity,
+    activityOperationType: activity.split(' ')[0] ?? null,
+    activityResult: result,
+    category,
+    componentName: category,
+    correlationId: `00000000-0000-4000-f000-${n.toString().padStart(12, '0')}`,
+    actor: {
+      kind: actor.kind,
+      name: actor.name,
+      actorType: actor.kind === 'user' ? 'ItPro' : 'Application',
+    },
+    resources: [{ resourceId: resource.id, displayName: resource.name, type: resource.type }],
+  };
+}
+
+export const VPN_POLICY_ID = demoGuid('policy', 23);
+
+export function defaultAuditEvents(now: Date): AuditEventsInfo {
+  const vpn = { id: VPN_POLICY_ID, name: 'Contoso – VPN Always On', type: 'DeviceConfiguration' };
+  return {
+    pagesRead: 1,
+    truncated: false,
+    events: [
+      audit(
+        1,
+        ago(now, { hours: 20 }),
+        'Assign DeviceCompliancePolicy',
+        'Compliance',
+        {
+          id: demoGuid('policy', 1),
+          name: 'Contoso – Windows 11 Basis-Compliance',
+          type: 'DeviceCompliancePolicy',
+        },
+        { kind: 'user', name: ADMIN },
+      ),
+      audit(2, ago(now, { days: 2 }), 'Patch DeviceConfiguration', 'DeviceConfiguration', vpn, {
+        kind: 'user',
+        name: ADMIN,
+      }),
+      audit(
+        3,
+        ago(now, { days: 3, hours: 4 }),
+        'Patch MobileApp',
+        'Application',
+        { id: 'app-vpn-client', name: 'Contoso VPN Client 5.1', type: 'MobileApp' },
+        { kind: 'application', name: 'Contoso Automation' },
+      ),
+      audit(
+        4,
+        ago(now, { days: 4 }),
+        'Delete DeviceConfiguration',
+        'DeviceConfiguration',
+        {
+          id: demoGuid('policy', 90),
+          name: 'Contoso – WLAN Gäste (alt)',
+          type: 'DeviceConfiguration',
+        },
+        { kind: 'user', name: HELPDESK },
+        'Failure',
+      ),
+      audit(5, ago(now, { days: 12 }), 'Create DeviceConfiguration', 'DeviceConfiguration', vpn, {
+        kind: 'user',
+        name: ADMIN,
+      }),
     ],
   };
 }

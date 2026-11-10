@@ -1,6 +1,7 @@
 /** M20/S1: Regeln der Compliance-/Konfigurations-Übersicht. */
 import { describe, expect, it } from 'vitest';
 import type {
+  AuditEventEntry,
   ComplianceSettingSummariesInfo,
   DataSource,
   DeviceStateSummaryInfo,
@@ -9,7 +10,12 @@ import type {
 import { COMPLIANCE_SUMMARY_FIELDS } from '../graph/dto';
 import { de } from '../i18n/de';
 import {
+  AUDIT_COLUMNS,
   SUMMARY_SEGMENTS,
+  actorLabel,
+  changeBeforeProblems,
+  changesForResource,
+  evaluateTenantChanges,
   evaluateTenantCompliance,
   evaluateTenantConfiguration,
   summarySegments,
@@ -213,5 +219,96 @@ describe('Kachel „Konfigurationsprofile im Mandanten“', () => {
     const counts = t.findings.find((f) => f.id === 'tenantConfiguration-counts')!;
     expect(counts.table!.rows.some((r) => r.cells.includes('compliantDeviceCount'))).toBe(true);
     expect(counts.docsUrl).toMatch(LEARN_URL);
+  });
+});
+
+describe('Änderungsprotokoll (M20/S2)', () => {
+  const NOW = new Date('2026-11-10T12:00:00Z');
+  const entry = (
+    id: string,
+    daysAgo: number,
+    extra: Partial<AuditEventEntry> = {},
+  ): AuditEventEntry => ({
+    id,
+    activityDateTime: new Date(NOW.getTime() - daysAgo * 86_400_000).toISOString(),
+    activity: 'Patch DeviceConfiguration',
+    activityType: null,
+    activityOperationType: 'Patch',
+    activityResult: 'Success',
+    category: 'DeviceConfiguration',
+    componentName: 'DeviceConfiguration',
+    correlationId: null,
+    actor: { kind: 'user', name: 'admin@contoso.com', actorType: 'ItPro' },
+    resources: [{ resourceId: 'P1', displayName: 'VPN', type: 'DeviceConfiguration' }],
+    ...extra,
+  });
+
+  it(`zeigt nur Änderungen der letzten ${THRESHOLDS.auditWindowDays} Tage, mit allen Spalten`, () => {
+    const tile = evaluateTenantChanges(
+      ok({ events: [entry('a', 1), entry('b', 20)], pagesRead: 1, truncated: false }),
+      NOW,
+    );
+    expect(tile.severity).toBe('ok');
+    expect(tile.value).toBe(de.fleet.audit.value(1));
+    const list = tile.findings.find((f) => f.id === 'tenantChanges-list')!;
+    expect(list.table!.columns).toEqual(AUDIT_COLUMNS);
+    expect(list.table!.rows).toHaveLength(1);
+    const cells = list.table!.rows[0]!.cells;
+    expect(cells.slice(1)).toEqual([
+      'Patch DeviceConfiguration',
+      'DeviceConfiguration',
+      'Success',
+      'VPN (DeviceConfiguration)',
+      'admin@contoso.com',
+    ]);
+    expect(list.table!.rows[0]!.cellLangs).toEqual([null, 'en', 'en', 'en', 'en', null]);
+  });
+
+  it('Anwendung wird als solche benannt, fehlender Auslöser ehrlich', () => {
+    expect(
+      actorLabel(entry('a', 1, { actor: { kind: 'application', name: 'Bot', actorType: null } })),
+    ).toBe('Bot (Anwendung)');
+    expect(
+      actorLabel(entry('a', 1, { actor: { kind: 'unknown', name: null, actorType: null } })),
+    ).toBe(de.fleet.audit.actor.unknown);
+  });
+
+  it('keine Änderung im Fenster, Seitengrenze → Hinweise; Fehler der Section → Kachel nicht verfügbar', () => {
+    const tile = evaluateTenantChanges(ok({ events: [], pagesRead: 5, truncated: true }), NOW);
+    expect(tile.severity).toBe('unknown');
+    expect(tile.findings.map((f) => f.id)).toEqual([
+      'tenantChanges-none',
+      'tenantChanges-truncated',
+    ]);
+    const forbidden = evaluateTenantChanges(
+      {
+        status: 'forbidden',
+        source: SOURCE,
+        error: { code: 'forbidden', message: 'x', requiredScope: 'DeviceManagementApps.Read.All' },
+      },
+      NOW,
+    );
+    expect(forbidden.availability).toBe('forbidden');
+  });
+
+  it('Änderungen je Ressource (ID ohne Groß-/Kleinschreibung) und ruhiger Hinweis nur bei zeitlicher Nähe', () => {
+    const info = {
+      events: [entry('a', 2), entry('x', 1, { resources: [] })],
+      pagesRead: 1,
+      truncated: false,
+    };
+    const changes = changesForResource(info, 'p1');
+    expect(changes.map((c) => c.id)).toEqual(['a']);
+    const reported = (daysAgo: number) => ({
+      lastReportedDateTime: new Date(NOW.getTime() - daysAgo * 86_400_000).toISOString(),
+    });
+    expect(changeBeforeProblems(changes, [reported(0.5), reported(3)])).toMatchObject({
+      devices: 1,
+    });
+    // Meldung vor der Änderung oder ohne Zeitpunkt → kein Hinweis
+    expect(changeBeforeProblems(changes, [reported(3), { lastReportedDateTime: null }])).toBeNull();
+    // Meldung später als der Richtwert nach der Änderung → kein Hinweis
+    const old = [entry('o', THRESHOLDS.auditChangeBeforeErrorDays + 3)];
+    expect(changeBeforeProblems(old, [reported(0)])).toBeNull();
   });
 });

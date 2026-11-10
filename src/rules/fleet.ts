@@ -12,12 +12,15 @@
  * - Nie critical: es sind Mandanten-Summen, kein einzelnes Gerät ist dadurch belegt defekt.
  * - Alle Zähler 0/leer → unknown („keine Geräte gemeldet“).
  */
-import { formatPercent } from '../domain/format';
+import { formatDateTime, formatPercent, formatRelativeTime } from '../domain/format';
 import type {
+  AuditEventEntry,
+  AuditEventsInfo,
   ComplianceSettingSummariesInfo,
   ComplianceSettingSummaryInfo,
   DeviceStateSummaryInfo,
   Finding,
+  FindingTable,
   SectionResult,
   Severity,
   Tile,
@@ -178,6 +181,8 @@ function topViolationsFinding(
               s.topColumns.error,
               s.topColumns.conflict,
             ],
+            // Einstellungsnamen sind Microsoft-Originalwerte (englisch)
+            columnLangs: ['en', null, null, null, null],
             rows: top.map((setting) => ({
               cells: [
                 setting.name,
@@ -306,4 +311,185 @@ export function evaluateTenantConfiguration(status: SectionResult<DeviceStateSum
     sources: [status.source],
     facts: shareFacts(summary, s.facts.shareConfiguration),
   };
+}
+
+// ---------- S2: Änderungsprotokoll ----------
+//
+// Die Kachel „Letzte Änderungen“ ist eine Übersicht: Aktivität und Ergebnis sind freie Zeichenketten
+// (keine Werte dokumentiert) und werden nicht gedeutet → Severity ok (Daten gelesen) bzw. unknown bei
+// Grenzen. Kein Befund behauptet eine Ursache.
+
+const a = de.fleet.audit;
+const DAY_MS = 86_400_000;
+/** Höchstzahl der Zeilen in der Tabelle der Kachel */
+export const MAX_AUDIT_ROWS = 50;
+
+export function actorLabel(event: AuditEventEntry): string {
+  const { actor } = event;
+  if (!actor.name) return a.actor.unknown;
+  return actor.kind === 'application' ? a.actor.application(actor.name) : a.actor.user(actor.name);
+}
+
+function categoryCell(event: AuditEventEntry): string {
+  const parts = [event.category, event.componentName].filter(
+    (part, index, all): part is string => !!part && all.indexOf(part) === index,
+  );
+  return parts.length > 0 ? parts.join(' / ') : a.noValue;
+}
+
+function objectCell(event: AuditEventEntry): string {
+  if (event.resources.length === 0) return a.noValue;
+  return event.resources.map((r) => a.objectCell(r.displayName, r.type)).join(', ');
+}
+
+/** Ereignisse im Zeitfenster (activityDateTime innerhalb der letzten `days` Tage). */
+export function eventsWithin(info: AuditEventsInfo, now: Date, days: number): AuditEventEntry[] {
+  const from = now.getTime() - days * DAY_MS;
+  return info.events.filter((event) => {
+    const ms = Date.parse(event.activityDateTime ?? '');
+    return !Number.isNaN(ms) && ms >= from;
+  });
+}
+
+/** Zeilen der Änderungstabelle (Zeitpunkt, Aktivität, Kategorie, Ergebnis, Objekt, Wer). */
+export function auditRows(events: AuditEventEntry[]): string[][] {
+  return events.map((event) => [
+    event.activityDateTime ? formatDateTime(event.activityDateTime) : a.noValue,
+    event.activity ?? a.noValue,
+    categoryCell(event),
+    event.activityResult ?? a.noValue,
+    objectCell(event),
+    actorLabel(event),
+  ]);
+}
+
+/**
+ * Sprache der Spalten: Aktivität, Kategorie, Ergebnis und Objekttyp sind Microsoft-Originalwerte
+ * (englisch); Zeitpunkt und „Wer“ nicht. Platzhalter „–“ bleiben deutsch.
+ */
+export const AUDIT_COLUMN_LANGS: Array<'en' | null> = [null, 'en', 'en', 'en', 'en', null];
+
+export function auditCellLang(cell: string, column: number): 'en' | null {
+  return cell && cell !== a.noValue ? (AUDIT_COLUMN_LANGS[column] ?? null) : null;
+}
+
+function auditTable(events: AuditEventEntry[]): FindingTable {
+  return {
+    columns: [...AUDIT_COLUMNS],
+    columnLangs: AUDIT_COLUMN_LANGS,
+    rows: auditRows(events).map((cells) => ({
+      cells,
+      cellLangs: cells.map((cell, column) => auditCellLang(cell, column)),
+    })),
+  };
+}
+
+export const AUDIT_COLUMNS = [
+  a.columns.time,
+  a.columns.activity,
+  a.columns.category,
+  a.columns.result,
+  a.columns.object,
+  a.columns.actor,
+];
+
+export function evaluateTenantChanges(status: SectionResult<AuditEventsInfo>, now: Date): Tile {
+  const tileBase = {
+    id: 'tenantChanges' as const,
+    title: de.tiles.tenantChanges,
+    state: 'ready' as const,
+    sections: [],
+  };
+  if (status.status !== 'ok') return issueTile(tileBase, status);
+
+  const days = THRESHOLDS.auditWindowDays;
+  const info = status.data;
+  const recent = eventsWithin(info, now, days);
+  const findings: Finding[] = [];
+  if (recent.length > 0) {
+    const rows = recent.slice(0, MAX_AUDIT_ROWS);
+    findings.push({
+      id: 'tenantChanges-list',
+      severity: 'unknown',
+      title: a.listTitle(days),
+      detail: a.listDetail(rows.length, recent.length),
+      cause: a.listCause,
+      remediation: [...a.listRemediation],
+      table: auditTable(rows),
+      source: status.source,
+      docsUrl: Docs.intuneAuditLogs,
+    });
+  } else {
+    findings.push({
+      id: 'tenantChanges-none',
+      severity: 'unknown',
+      title: a.noneTitle(days),
+      detail: a.noneDetail(info.events.length),
+      cause: a.listCause,
+      remediation: [...a.listRemediation],
+      source: status.source,
+      docsUrl: Docs.intuneAuditLogs,
+    });
+  }
+  if (info.truncated) {
+    findings.push({
+      id: 'tenantChanges-truncated',
+      severity: 'unknown',
+      title: a.truncatedTitle(info.pagesRead),
+      detail: a.truncatedDetail,
+      cause: a.truncatedCause,
+      remediation: [...a.truncatedRemediation],
+      evidence: { pagesRead: info.pagesRead },
+      source: status.source,
+      docsUrl: Docs.auditEventsList,
+    });
+  }
+  const latest = recent[0]?.activityDateTime ?? null;
+  return {
+    ...tileBase,
+    severity: info.truncated && recent.length === 0 ? 'unknown' : 'ok',
+    value: a.value(recent.length),
+    summary:
+      recent.length > 0
+        ? a.summary(days, latest ? formatRelativeTime(latest, now) : null)
+        : a.summaryNone(days),
+    findings,
+    sources: [status.source],
+    facts: [
+      { label: a.facts.window, value: a.windowValue(days) },
+      { label: a.facts.count, value: String(recent.length) },
+      { label: a.facts.read, value: String(info.events.length) },
+      { label: a.facts.pages, value: String(info.pagesRead) },
+    ],
+  };
+}
+
+/** Änderungen an einem Objekt (Abgleich über auditResource.resourceId, ohne Groß-/Kleinschreibung). */
+export function changesForResource(info: AuditEventsInfo, resourceId: string): AuditEventEntry[] {
+  const id = resourceId.toLowerCase();
+  return info.events.filter((event) =>
+    event.resources.some((resource) => resource.resourceId?.toLowerCase() === id),
+  );
+}
+
+/**
+ * Ruhiger Hinweis: Gab es eine Änderung höchstens THRESHOLDS.auditChangeBeforeErrorDays Tage (eigener
+ * Richtwert) vor gemeldeten Problemen? Liefert die jüngste solche Änderung und die Zahl der Geräte, die
+ * danach ein Problem gemeldet haben. Behauptet keine Kausalität – nur zeitliche Nähe.
+ */
+export function changeBeforeProblems(
+  changes: AuditEventEntry[],
+  problemReports: Array<{ lastReportedDateTime: string | null }>,
+): { change: AuditEventEntry; devices: number } | null {
+  const windowMs = THRESHOLDS.auditChangeBeforeErrorDays * DAY_MS;
+  for (const change of changes) {
+    const changed = Date.parse(change.activityDateTime ?? '');
+    if (Number.isNaN(changed)) continue;
+    const devices = problemReports.filter((entry) => {
+      const reported = Date.parse(entry.lastReportedDateTime ?? '');
+      return !Number.isNaN(reported) && reported >= changed && reported - changed <= windowMs;
+    }).length;
+    if (devices > 0) return { change, devices };
+  }
+  return null;
 }

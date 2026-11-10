@@ -206,6 +206,8 @@ export function evaluateServiceHealth(status: SectionResult<ServiceHealthInfo>, 
     remediation: [...h.serviceRemediation],
     table: {
       columns: [h.columns.service, h.columns.status, h.columns.open, h.columns.resolved],
+      // Dienstnamen sind Microsoft-Originalwerte (englisch)
+      columnLangs: ['en', null, null, null],
       rows: services.map((service) => ({
         cells: [
           service.service,
@@ -357,6 +359,8 @@ function listFinding(info: EnrollmentFailuresInfo, source: DataSource): Finding 
           event.failureReason ?? f.noReason,
           event.userId ?? f.unknownValue,
         ],
+        // failureReason ist ein Microsoft-Originaltext (englisch); der deutsche Platzhalter nicht
+        cellLangs: [null, null, null, null, event.failureReason ? 'en' : null, null],
       })),
     },
     source,

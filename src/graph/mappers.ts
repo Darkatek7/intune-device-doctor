@@ -46,6 +46,9 @@ import type {
   ComplianceSettingSummariesInfo,
   ComplianceSettingSummaryInfo,
   DeviceStateSummaryInfo,
+  AuditEventEntry,
+  AuditEventsInfo,
+  AuditResourceInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
@@ -96,6 +99,7 @@ import type {
   GraphTroubleshootingEvent,
   GraphComplianceSettingStateSummary,
   GraphDeviceStateSummary,
+  GraphAuditEvent,
 } from './dto';
 import {
   COMPLIANCE_SUMMARY_FIELDS,
@@ -1366,4 +1370,57 @@ export function mapComplianceSettingSummaries(
         a.name.localeCompare(b.name, 'de'),
     );
   return { settings, pagesRead: options.pagesRead, truncated: options.truncated };
+}
+
+// ---------- Änderungsprotokoll (M20/S2) ----------
+
+const text0 = (value: unknown): string | null => str(value)?.trim() || null;
+
+/**
+ * auditEvent → Domain. Vom `actor` werden ausschließlich `userPrincipalName`, `applicationDisplayName`,
+ * `auditActorType` und `type` gelesen – IP-Adresse, Berechtigungen und IDs nie.
+ */
+export function mapAuditEvent(dto: GraphAuditEvent): AuditEventEntry | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id) return null;
+  const actor = dto.actor && typeof dto.actor === 'object' ? dto.actor : null;
+  const upn = text0(actor?.userPrincipalName);
+  const app = text0(actor?.applicationDisplayName);
+  const resources: AuditResourceInfo[] = (Array.isArray(dto.resources) ? dto.resources : [])
+    .filter((resource) => resource && typeof resource === 'object')
+    .map((resource) => ({
+      resourceId: text0(resource.resourceId),
+      displayName: text0(resource.displayName),
+      type: text0(resource.auditResourceType) ?? text0(resource.type),
+    }));
+  return {
+    id,
+    activityDateTime: validDate(dto.activityDateTime),
+    activity: text0(dto.activity) ?? text0(dto.displayName),
+    activityType: text0(dto.activityType),
+    activityOperationType: text0(dto.activityOperationType),
+    activityResult: text0(dto.activityResult),
+    category: text0(dto.category),
+    componentName: text0(dto.componentName),
+    correlationId: text0(dto.correlationId),
+    actor: {
+      kind: upn ? 'user' : app ? 'application' : 'unknown',
+      name: upn ?? app,
+      actorType: text0(actor?.auditActorType) ?? text0(actor?.type),
+    },
+    resources,
+  };
+}
+
+/** auditEvents → Domain, neueste zuerst (eine Sortierung ist nicht dokumentiert, deshalb clientseitig). */
+export function mapAuditEvents(
+  entries: GraphAuditEvent[] | null | undefined,
+  options: { pagesRead: number; truncated: boolean },
+): AuditEventsInfo {
+  const time = (event: AuditEventEntry) => Date.parse(event.activityDateTime ?? '') || 0;
+  const events = (Array.isArray(entries) ? entries : [])
+    .map(mapAuditEvent)
+    .filter((event): event is AuditEventEntry => event !== null)
+    .sort((a, b) => time(b) - time(a));
+  return { events, pagesRead: options.pagesRead, truncated: options.truncated };
 }

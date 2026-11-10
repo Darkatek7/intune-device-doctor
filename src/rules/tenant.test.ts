@@ -43,6 +43,7 @@ function status(overrides: Partial<TenantStatus> = {}): TenantStatus {
     complianceSummary: ok({ kind: 'compliance', counts: { compliantDeviceCount: 10 } }),
     complianceSettings: ok({ settings: [], pagesRead: 1, truncated: false }),
     configurationSummary: ok({ kind: 'configuration', counts: { compliantDeviceCount: 10 } }),
+    auditEvents: ok({ events: [], pagesRead: 1, truncated: false }),
     ...overrides,
   };
 }
@@ -58,6 +59,7 @@ describe('Mandanten-Status – Struktur', () => {
       'tenantConfiguration',
       'tenantServiceHealth',
       'tenantEnrollmentFailures',
+      'tenantChanges',
       'tenantApplePush',
       'tenantVpp',
       'tenantUnavailable',

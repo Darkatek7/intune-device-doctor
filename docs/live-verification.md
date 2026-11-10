@@ -76,6 +76,13 @@ Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M18)“. 
 - **Dienststatus** (Scope `ServiceHealth.Read.All` per Admin-Consent; Konto mit einer Admin-Rolle, z. B. Service Support Administrator): Toolbar › „Mandant“ → `GET …/admin/serviceAnnouncement/healthOverviews?$expand=issues`. Prüfen: 200; Schreibweise der Enum-Werte; **wie `service` und `id` für Intune und Entra lauten** (Kachel „Dienststatus“ › „Alle gemeldeten Dienste“) – erkennt die App beide? Ohne Rolle bzw. Consent: Kachel „Fehlende Berechtigung“, in der Geräteansicht erscheint **kein** Hinweis. Mit offenem Intune-Vorfall: Hinweis über den Gerätekacheln, Sprung in die Kachel; Titel/Beschreibung mit dem Microsoft 365 Admin Center vergleichen. Keine Vorfalltexte in Berichte übernehmen (nur Status/Struktur).
 - **Registrierungsfehler** (Scope `DeviceManagementManagedDevices.Read.All`, bereits beim Login): Toolbar › „Mandant“ → `GET …/deviceManagement/troubleshootingEvents`. Prüfen: `@odata.type` der Einträge, Seitengröße und Reihenfolge, Form von `failureReason`; Zahlen mit dem Bericht Geräte › Überwachen › Registrierungsfehler vergleichen. Ein Gerät öffnen, dessen Benutzer kürzlich einen Fehlschlag hatte: erscheint der Befund in „Registrierung (Benutzer)“ (Abgleich über `userId`)? Keine Benutzer-IDs oder Gerätenamen in Berichte übernehmen.
 
+## 7. Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen (M20)
+
+Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M20)“. Der Verbindungstest ruft alle neuen Endpunkte mit auf (nur Feldnamen). Für S2/S3 zusätzlich den optionalen Scope `DeviceManagementApps.Read.All` einwilligen.
+
+- **S1:** Ansicht „Mandant“ öffnen → Kacheln „Compliance im Mandanten“ und „Konfigurationsprofile im Mandanten“ mit den Zählern aus dem Admin Center (Geräte › Compliance › Überwachen) vergleichen; „Häufigste Verstöße“ mit „Einstellungs-Compliance“ vergleichen.
+- **S2:** Mit Consent für `DeviceManagementApps.Read.All` und einer Rolle mit „Audit data – Read“ eine harmlose Testrichtlinie umbenennen. „Mandant“ › „Letzte Änderungen“ muss den Eintrag zeigen (Name des Kontos, Aktivität); in „Richtlinien“ dieselbe Richtlinie öffnen → „Änderungen an dieser Richtlinie“ muss ihn enthalten (bestätigt `resourceId` = Richtlinien-ID). Ohne Consent: nur diese beiden Stellen zeigen „Fehlende Berechtigung“. Im Verbindungstest prüfen, dass im `actor` Feldnamen wie `ipAddress` zwar vorkommen können, die App sie aber nicht anzeigt.
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.

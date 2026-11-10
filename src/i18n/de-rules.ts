@@ -24,6 +24,8 @@ export const deRules = {
         'Die Lizenzdetails eines Benutzers darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Directory Readers, License Administrator oder User Administrator hat (oder eine benutzerdefinierte Rolle mit microsoft.directory/users/licenseDetails/read).',
       'SecurityAlert.Read.All':
         'Sicherheitswarnungen darf laut Microsoft nur lesen, wer eine Entra-Rolle wie Security Reader, Global Reader, Security Operator oder Security Administrator hat.',
+      'DeviceManagementApps.Read.All':
+        'Für das Überwachungsprotokoll braucht das Konto laut Microsoft die Entra-Rolle Intune Administrator oder eine Intune-Rolle mit „Audit data – Read“ (z. B. Read Only Operator); für App-Schutz-Registrierungen „Managed apps – Read“.',
       'ServiceHealth.Read.All':
         'Den Dienststatus darf laut Microsoft nur lesen, wer eine Admin-Rolle hat, z. B. Service Support Administrator oder Helpdesk Administrator.',
       'DeviceLocalCredential.ReadBasic.All':

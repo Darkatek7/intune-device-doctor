@@ -508,6 +508,54 @@ export interface TenantStatus {
   complianceSettings: SectionResult<ComplianceSettingSummariesInfo>;
   /** Gerätezähler aller Konfigurationsprofile (M20/S1) */
   configurationSummary: SectionResult<DeviceStateSummaryInfo>;
+  /** Intune-Änderungsprotokoll (M20/S2, optionaler Scope DeviceManagementApps.Read.All, seitenbegrenzt) */
+  auditEvents: SectionResult<AuditEventsInfo>;
+}
+
+// ---------- Änderungsprotokoll (M20/S2) ----------
+
+/**
+ * Wer die Änderung ausgelöst hat (auditActor): Benutzer (UPN) oder Anwendung (Anzeigename). Bewusst
+ * ohne IP-Adresse, Berechtigungen, Benutzer-/Anwendungs-ID und Service Principal Name.
+ */
+export interface AuditActorInfo {
+  kind: 'user' | 'application' | 'unknown';
+  /** UPN des Benutzers bzw. Anzeigename der Anwendung */
+  name: string | null;
+  /** auditActorType bzw. type – freie Zeichenkette laut Doku, nur roh angezeigt */
+  actorType: string | null;
+}
+
+/** Ein betroffenes Objekt (auditResource), ohne geänderte Eigenschaften (alte/neue Werte). */
+export interface AuditResourceInfo {
+  resourceId: string | null;
+  displayName: string | null;
+  /** auditResourceType bzw. type – freie Zeichenkette */
+  type: string | null;
+}
+
+/** Ein Eintrag des Intune-Überwachungsprotokolls. Alle Texte sind Microsoft-Rohwerte (keine Enums dokumentiert). */
+export interface AuditEventEntry {
+  id: string;
+  activityDateTime: string | null;
+  /** activity („Friendly name“), sonst displayName */
+  activity: string | null;
+  activityType: string | null;
+  activityOperationType: string | null;
+  activityResult: string | null;
+  category: string | null;
+  componentName: string | null;
+  correlationId: string | null;
+  actor: AuditActorInfo;
+  resources: AuditResourceInfo[];
+}
+
+export interface AuditEventsInfo {
+  /** Alle gelesenen Ereignisse, neueste zuerst (clientseitig sortiert – keine Sortierung dokumentiert) */
+  events: AuditEventEntry[];
+  pagesRead: number;
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_AUDIT_EVENT_PAGES) */
+  truncated: boolean;
 }
 
 // ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
@@ -794,6 +842,7 @@ export type TileId =
   | 'tenantEnrollmentFailures'
   | 'tenantCompliance'
   | 'tenantConfiguration'
+  | 'tenantChanges'
   | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
@@ -814,7 +863,18 @@ export interface AppInfo {
 /** Kleine Tabelle innerhalb eines Befunds (z. B. gleichnamige Entra-Objekte). Reiner Text. */
 export interface FindingTable {
   columns: string[];
-  rows: Array<{ cells: string[]; /** z. B. das aktuelle Objekt */ highlight?: boolean }>;
+  /**
+   * Sprache je Spalte (M20): `'en'` für unveränderte englische Microsoft-Originalwerte (z. B. Dienstnamen,
+   * Fehlergründe, Aktivitäten) – die UI setzt `lang`, damit Screenreader richtig vorlesen. null = Deutsch.
+   */
+  columnLangs?: Array<'en' | null>;
+  rows: Array<{
+    cells: string[];
+    /** z. B. das aktuelle Objekt */
+    highlight?: boolean;
+    /** Sprache je Zelle; überschreibt columnLangs (null = Deutsch, z. B. deutscher Platzhalter „–“) */
+    cellLangs?: Array<'en' | null | undefined>;
+  }>;
 }
 
 /** Weiterführender Link, z. B. "In Intune öffnen". */

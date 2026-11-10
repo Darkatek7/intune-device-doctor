@@ -11,6 +11,7 @@ import type {
   TenantStatus,
   ComplianceSettingSummariesInfo,
   DeviceStateSummaryInfo,
+  AuditEventsInfo,
   TenantPolicies,
   TenantPolicyInfo,
   TenantPolicyKind,
@@ -55,6 +56,7 @@ import {
   defaultComplianceSettings,
   defaultComplianceSummary,
   defaultConfigurationSummary,
+  defaultAuditEvents,
 } from './fleet';
 import { defaultEnrollmentFailures, defaultServiceHealth } from './service';
 import { scenarios as defaultScenarios } from './scenarios';
@@ -474,6 +476,20 @@ export class MockProvider implements DeviceDataProvider {
     return this.section<EnrollmentFailuresInfo>(device, 'enrollmentFailures', options);
   }
 
+  private auditEventsResult(): SectionResult<AuditEventsInfo> {
+    return this.fromSpec<AuditEventsInfo>(
+      this.tenant.auditEvents ?? { status: 'ok', data: defaultAuditEvents(this.now()) },
+      'auditEvents',
+      sourceFor('auditEvents'),
+    );
+  }
+
+  /** Änderungsprotokoll (M20/S2): Standard-Demo oder `options.tenant.auditEvents`. */
+  async getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
+    await this.delay('auditEvents', options.signal);
+    return this.auditEventsResult();
+  }
+
   /** Mandanten-Status: Standard oder `options.tenant` (siehe MockTenantFixture). */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
     await this.delay('tenant', options.signal);
@@ -510,6 +526,7 @@ export class MockProvider implements DeviceDataProvider {
         'deviceConfigurationDeviceStateSummaries',
         sourceFor('deviceConfigurationDeviceStateSummaries'),
       ),
+      auditEvents: this.auditEventsResult(),
     };
   }
 

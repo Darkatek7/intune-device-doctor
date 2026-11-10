@@ -36,6 +36,7 @@ import type {
   TenantPolicyKind,
   ComplianceSettingSummariesInfo,
   DeviceStateSummaryInfo,
+  AuditEventsInfo,
   TenantPolicyList,
   PolicyDeviceOverview,
   PolicyDeviceStatusesInfo,
@@ -78,6 +79,7 @@ import type {
   GraphWindowsProtectionState,
   GraphComplianceSettingStateSummary,
   GraphDeviceStateSummary,
+  GraphAuditEvent,
 } from '../../graph/dto';
 import {
   ASSIGNMENTS_DISPLAY,
@@ -93,6 +95,7 @@ import {
   MAX_SERVICE_HEALTH_PAGES,
   MAX_TROUBLESHOOTING_EVENT_PAGES,
   MAX_SETTING_SUMMARY_PAGES,
+  MAX_AUDIT_EVENT_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -128,6 +131,7 @@ import {
   mapWindowsProtection,
   mapComplianceSettingSummaries,
   mapDeviceStateSummary,
+  mapAuditEvents,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
@@ -553,6 +557,7 @@ export class GraphProvider implements DeviceDataProvider {
       complianceSummary,
       complianceSettings,
       configurationSummary,
+      auditEvents,
     ] = await Promise.all([
       this.readApplePushCertificate(options),
       this.readVppTokens(options),
@@ -561,6 +566,7 @@ export class GraphProvider implements DeviceDataProvider {
       this.readDeviceStateSummary('compliance', options),
       this.readComplianceSettings(options),
       this.readDeviceStateSummary('configuration', options),
+      this.getAuditEvents(options),
     ]);
     return {
       applePushCertificate,
@@ -570,7 +576,28 @@ export class GraphProvider implements DeviceDataProvider {
       complianceSummary,
       complianceSettings,
       configurationSummary,
+      auditEvents,
     };
+  }
+
+  // ---------- Änderungsprotokoll (M20/S2) ----------
+
+  /** auditEvents: höchstens MAX_AUDIT_EVENT_PAGES Seiten (kein Filter/keine Sortierung dokumentiert). */
+  getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
+    const endpoint = Endpoints.auditEvents;
+    return this.run<AuditEventsInfo>(
+      'auditEvents',
+      async (source) => {
+        const { entries, pagesRead, truncated } = await this.readPages<GraphAuditEvent>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_AUDIT_EVENT_PAGES,
+          options,
+        );
+        return this.ok(mapAuditEvents(entries, { pagesRead, truncated }), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.auditNotReported, source }),
+    );
   }
 
   /**
