@@ -3,6 +3,7 @@
  * Enum-Werte werden 1:1 aus den Graph-DTOs übernommen (offizielles Microsoft-Datenmodell).
  */
 import type {
+  ActionState,
   AppliedConditionalAccessPolicyResult,
   AutopilotEnrollmentState,
   ComplianceState,
@@ -125,7 +126,24 @@ export interface ManagedDeviceInfo {
   isSupervised: boolean | null;
   androidSecurityPatchLevel: string | null;
   enrollmentProfileName: string | null;
+  /**
+   * M20/S4: Remote-Aktionen laut managedDevice.deviceActionResults, zuletzt aktualisierte zuerst.
+   * undefined = nicht geliefert (z. B. Suchtreffer, ältere Demo-Daten).
+   */
+  actionResults?: DeviceActionResultInfo[];
   source: DataSource;
+}
+
+/** Ergebnis einer Remote-Aktion (deviceActionResult, v1.0). */
+export interface DeviceActionResultInfo {
+  /** Rohwert von Microsoft (keine Werteliste dokumentiert, nie übersetzt) */
+  actionName: string | null;
+  /** Dokumentierter Zustand; unbekannte Werte → 'unknown' */
+  actionState: ActionState | 'unknown';
+  /** Rohwert des Zustands (für unbekannte Werte) */
+  actionStateRaw: string | null;
+  startDateTime: string | null;
+  lastUpdatedDateTime: string | null;
 }
 
 export interface DetectedMalware {

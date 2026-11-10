@@ -324,6 +324,74 @@ export const deFleet = {
     },
   },
 
+  // ---------- S4: Letzte Remote-Aktionen ----------
+  remoteActions: {
+    /** Zustände laut actionState (v1.0) */
+    state: {
+      none: 'Keiner',
+      pending: 'Ausstehend',
+      canceled: 'Abgebrochen',
+      active: 'Aktiv',
+      done: 'Abgeschlossen',
+      failed: 'Fehlgeschlagen',
+      notSupported: 'Nicht unterstützt',
+      unknown: 'Unbekannt',
+    } as Record<string, string>,
+    /** Hinweis in jedem Befund: die App liest nur */
+    readOnlyNote:
+      'MDM Doctor löst selbst keine Aktionen aus – die Angaben stammen aus Intune (managedDevice.deviceActionResults).',
+    columns: {
+      action: 'Aktion (Rohwert)',
+      state: 'Status',
+      started: 'Gestartet',
+      updated: 'Zuletzt aktualisiert',
+    },
+    noValue: '–',
+    tableLabel: 'Letzte Remote-Aktionen',
+    unnamed: 'Aktion ohne Namen',
+    listTitle: (n: number) =>
+      `${n} ${plural(n, 'Remote-Aktion', 'Remote-Aktionen')} in den letzten Tagen`,
+    listDetail: (days: number) =>
+      `Von Intune gemeldete Remote-Aktionen der letzten ${days} Tage (Zeitraum: eigener Richtwert). Der Aktionsname erscheint unverändert, wie Microsoft ihn liefert.`,
+    listCause:
+      'Remote-Aktionen werden von Administratoren im Intune Admin Center, per Graph-API oder vom Benutzer im Unternehmensportal ausgelöst.',
+    listRemediation: [
+      'Alle Aktionen des Mandanten mit Status unter Geräte › Überwachen › Geräteaktionen ansehen.',
+      'Wer eine Aktion ausgelöst hat, zeigt Mandantenverwaltung › Überwachungsprotokolle (Spalte „Initiiert von“).',
+    ],
+    failedTitle: (action: string) => `Remote-Aktion „${action}“ fehlgeschlagen`,
+    failedDetail: (when: string) =>
+      `Intune meldet die Aktion als fehlgeschlagen (zuletzt aktualisiert ${when}).`,
+    failedCause:
+      'Das Gerät konnte die Aktion nicht ausführen, oder sie wird auf dieser Plattform bzw. in diesem Registrierungstyp nicht unterstützt. Gründe nennt Microsoft je Aktion in der Fehlerbehebung für Geräteaktionen.',
+    failedRemediation: [
+      'Status und Details unter Geräte › Überwachen › Geräteaktionen prüfen.',
+      'Voraussetzungen der Aktion (Plattform, Registrierungstyp, Rolle) in der Microsoft-Dokumentation der Aktion abgleichen und die Aktion bei Bedarf im Intune Admin Center erneut auslösen.',
+    ],
+    wipeTitle: (action: string) =>
+      `„${action}“ ist noch nicht abgeschlossen – Gerät wird möglicherweise zurückgesetzt oder abgekoppelt`,
+    wipeDetail: (state: string, when: string) =>
+      `Status „${state}“, gestartet ${when}. Sobald sich das Gerät meldet, kann es zurückgesetzt bzw. aus der Verwaltung entfernt werden – Fehlersuche an diesem Gerät ist dann womöglich nicht mehr sinnvoll.`,
+    wipeCause:
+      'Laut Microsoft melden Geräte ihren Status nicht immer an Intune zurück, bevor das Zurücksetzen bzw. Abkoppeln beginnt – der Status bleibt dann „Ausstehend“. Ein Gerät, das sich nicht meldet, bleibt ausstehend, bis sein MDM-Zertifikat abläuft. Zurücksetzen, Abkoppeln und Löschen haben Vorrang vor allen anderen ausstehenden Aktionen.',
+    wipeRemediation: [
+      'Vor weiteren Schritten mit dem Benutzer bzw. dem auslösenden Administrator klären, ob das Zurücksetzen/Abkoppeln gewollt ist (Überwachungsprotokolle, Spalte „Initiiert von“).',
+      'Ist die Aktion nachweislich erfolgt, das Gerät laut Microsoft aus Intune löschen.',
+    ],
+    wipeNameNote:
+      'Erkannt am Rohwert des Aktionsnamens (enthält „wipe“ oder „retire“); Microsoft dokumentiert keine Werteliste – live zu verifizieren.',
+    facts: {
+      recent: (days: number) => `Remote-Aktionen (${days} Tage)`,
+      failed: 'Davon fehlgeschlagen',
+      latest: 'Letzte Aktion',
+    },
+    valueFailed: 'Aktion fehlgeschlagen',
+    valueWipe: 'Zurücksetzen läuft',
+    timelineTitle: (action: string) => `Remote-Aktion „${action}“`,
+    timelineDetail: (state: string) =>
+      `Status: ${state}. Ausgelöst in Intune, nicht durch MDM Doctor.`,
+  },
+
   reasons: {
     summaryNotReported: 'Microsoft meldet für diesen Mandanten keine Zusammenfassung.',
     auditNotReported: 'Das Überwachungsprotokoll ist für diesen Mandanten nicht verfügbar.',

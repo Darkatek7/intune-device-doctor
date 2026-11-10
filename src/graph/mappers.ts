@@ -50,6 +50,7 @@ import type {
   AuditEventsInfo,
   AppProtectionInfo,
   AppProtectionRegistration,
+  DeviceActionResultInfo,
   AuditResourceInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
@@ -103,8 +104,10 @@ import type {
   GraphDeviceStateSummary,
   GraphAuditEvent,
   GraphManagedAppRegistration,
+  GraphDeviceActionResult,
 } from './dto';
 import {
+  ACTION_STATES,
   COMPLIANCE_SUMMARY_FIELDS,
   CONFIGURATION_SUMMARY_FIELDS,
   SETTING_SUMMARY_PLATFORM_TYPES,
@@ -313,6 +316,9 @@ export function mapManagedDevice(dto: GraphManagedDevice): ManagedDeviceInfo {
     isSupervised: bool(dto.isSupervised),
     androidSecurityPatchLevel: str(dto.androidSecurityPatchLevel)?.trim() || null,
     enrollmentProfileName: str(dto.enrollmentProfileName)?.trim() || null,
+    ...(Array.isArray(dto.deviceActionResults)
+      ? { actionResults: mapDeviceActionResults(dto.deviceActionResults) }
+      : {}),
     source: graphSource('managedDevice'),
   };
 }
@@ -1495,4 +1501,26 @@ export function mapAppProtection(
     pagesRead: options.pagesRead,
     truncated: options.truncated,
   };
+}
+
+// ---------- Remote-Aktionen (M20/S4) ----------
+
+/** deviceActionResults → Domain, zuletzt aktualisierte zuerst. actionName bleibt Rohwert. */
+export function mapDeviceActionResults(
+  entries: GraphDeviceActionResult[] | null | undefined,
+): DeviceActionResultInfo[] {
+  const time = (entry: DeviceActionResultInfo) =>
+    Date.parse(entry.lastUpdatedDateTime ?? entry.startDateTime ?? '') || 0;
+  return (Array.isArray(entries) ? entries : [])
+    .filter(
+      (entry): entry is GraphDeviceActionResult => Boolean(entry) && typeof entry === 'object',
+    )
+    .map((entry): DeviceActionResultInfo => ({
+      actionName: str(entry.actionName)?.trim() || null,
+      actionState: pickOrNull(entry.actionState, ACTION_STATES) ?? 'unknown',
+      actionStateRaw: str(entry.actionState),
+      startDateTime: validDate(entry.startDateTime),
+      lastUpdatedDateTime: validDate(entry.lastUpdatedDateTime),
+    }))
+    .sort((a, b) => time(b) - time(a));
 }

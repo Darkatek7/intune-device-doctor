@@ -244,3 +244,37 @@ describe('GraphProvider – App-Schutz (M20/S3)', () => {
     expect(throttled.sleep).toHaveBeenCalledWith(3000, undefined);
   });
 });
+
+describe('GraphProvider – Remote-Aktionen (M20/S4)', () => {
+  it('liest deviceActionResults aus dem bestehenden managedDevice-GET (kein zusätzlicher Abruf)', async () => {
+    const { provider, calls } = setup((call) =>
+      call.parsed.pathname.startsWith('/v1.0/deviceManagement/managedDevices/')
+        ? jsonResponse(
+            pc001Device({
+              deviceActionResults: [
+                {
+                  actionName: 'rebootNow',
+                  actionState: 'failed',
+                  startDateTime: '2026-11-08T09:00:00Z',
+                  lastUpdatedDateTime: '2026-11-08T10:00:00Z',
+                },
+              ],
+            }),
+          )
+        : graphError(404, 'NotFound'),
+    );
+    const device = await provider.getDevice('00000000-0000-4000-8000-000000000001');
+    expect(device.actionResults).toEqual([
+      {
+        actionName: 'rebootNow',
+        actionState: 'failed',
+        actionStateRaw: 'failed',
+        startDateTime: '2026-11-08T09:00:00Z',
+        lastUpdatedDateTime: '2026-11-08T10:00:00Z',
+      },
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.parsed.search).toBe('');
+  });
+});

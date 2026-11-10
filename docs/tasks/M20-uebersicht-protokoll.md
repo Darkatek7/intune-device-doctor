@@ -50,3 +50,17 @@ Endpunkt (v1.0): `GET /deviceAppManagement/managedAppRegistrations` (Mandantenli
 - [x] `rootedDevice` → Problem (bei unsicherer Zuordnung Prüfen); > 30 Tage ohne Synchronisierung → Prüfen (eigener Richtwert, gekennzeichnet)
 - [x] Windows-MAM nur beta → nicht abgefragt, als nicht anwendbar begründet
 - [x] Tests: Mapper, Regel (alle Zweige), Provider 403/404/429, Mock-Demo und forbidden; Verbindungstest-Probe; Doku
+
+## S4 – Letzte Remote-Aktionen (kein neuer Scope)
+
+Quelle: `managedDevice.deviceActionResults` (v1.0, bestehender Geräte-Abruf).
+
+- Domain: `DeviceActionResultInfo`, `ManagedDeviceInfo.actionResults`; Beitrag `src/rules/tiles/remoteActions.ts` zur Kachel „Gerätestatus“; Zeitachse `remoteAction`.
+- Demo: `CONTOSO-PC027` (`rebootNow` fehlgeschlagen), `CONTOSO-LT108` (`retire` ausstehend).
+
+## Akzeptanz S4
+
+- [x] Feld und Enum `actionState` auf Learn verifiziert; `actionName` ohne Werteliste → nur Rohwert
+- [x] Fehlgeschlagene Aktion → Prüfen; laufendes Zurücksetzen/Abkoppeln → deutlicher Hinweis (Erkennung live zu verifizieren)
+- [x] Zeitachse und Befund im Gerätestatus; jeder Text sagt, dass die App selbst keine Aktion auslöst
+- [x] Tests: Mapper, Beitrag, Zeitachse, Graph-Abruf (nur GET, kein zusätzlicher Aufruf), Demo

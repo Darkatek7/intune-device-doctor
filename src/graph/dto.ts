@@ -112,6 +112,31 @@ export interface GraphManagedDevice {
   /** Android: Sicherheitspatch-Level, z. B. "2026-09-01" */
   androidSecurityPatchLevel: string | null;
   enrollmentProfileName: string | null;
+  /**
+   * M20/S4: Ergebnisse der Remote-Aktionen (read-only, ohne $select im Get enthalten).
+   * https://learn.microsoft.com/graph/api/resources/intune-devices-deviceactionresult?view=graph-rest-1.0
+   */
+  deviceActionResults?: GraphDeviceActionResult[] | null;
+}
+
+/** actionState (v1.0): dokumentierte Werte. Andere Werte → 'unknown' plus Rohwert. */
+export const ACTION_STATES = [
+  'none',
+  'pending',
+  'canceled',
+  'active',
+  'done',
+  'failed',
+  'notSupported',
+] as const;
+export type ActionState = (typeof ACTION_STATES)[number];
+
+/** deviceActionResult (v1.0). Für `actionName` ist keine Werteliste dokumentiert – nur Rohwert. */
+export interface GraphDeviceActionResult {
+  actionName?: string | null;
+  actionState?: string | null;
+  startDateTime?: string | null;
+  lastUpdatedDateTime?: string | null;
 }
 
 /** Felder für die Trefferliste der Suche ($select). */

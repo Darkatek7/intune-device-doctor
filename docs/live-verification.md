@@ -82,6 +82,7 @@ Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M20)“. 
 
 - **S1:** Ansicht „Mandant“ öffnen → Kacheln „Compliance im Mandanten“ und „Konfigurationsprofile im Mandanten“ mit den Zählern aus dem Admin Center (Geräte › Compliance › Überwachen) vergleichen; „Häufigste Verstöße“ mit „Einstellungs-Compliance“ vergleichen.
 - **S3:** Ein Android-Gerät mit Outlook (App-Schutzrichtlinie zugewiesen) öffnen → Kachel „App-Schutz“ muss Outlook mit Paketname und letzter Synchronisierung zeigen; mit dem Bericht Apps › Überwachen › App-Schutzstatus vergleichen. Auf einem iPhone prüfen, ob „Zuordnung zum Gerät nicht sicher“ erscheint (generischer Name).
+- **S4:** An einem Testgerät im Intune Admin Center eine harmlose Aktion (Synchronisieren) auslösen; danach in MDM Doctor das Gerät öffnen → Gerätestatus zeigt die Aktion mit Rohwert und Status, die Zeitachse ebenso. Den Rohwert von `actionName` notieren (Verbindungstest zeigt nur Feldnamen).
 - **S2:** Mit Consent für `DeviceManagementApps.Read.All` und einer Rolle mit „Audit data – Read“ eine harmlose Testrichtlinie umbenennen. „Mandant“ › „Letzte Änderungen“ muss den Eintrag zeigen (Name des Kontos, Aktivität); in „Richtlinien“ dieselbe Richtlinie öffnen → „Änderungen an dieser Richtlinie“ muss ihn enthalten (bestätigt `resourceId` = Richtlinien-ID). Ohne Consent: nur diese beiden Stellen zeigen „Fehlende Berechtigung“. Im Verbindungstest prüfen, dass im `actor` Feldnamen wie `ipAddress` zwar vorkommen können, die App sie aber nicht anzeigt.
 
 ## Abschluss

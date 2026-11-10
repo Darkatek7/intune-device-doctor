@@ -32,7 +32,11 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     signIns: 'warning',
     attestation: 'warning',
   },
-  'CONTOSO-PC027': { defender: 'warning', securityAlerts: 'critical' }, // M14/S4: offene Defender-Warnung high
+  'CONTOSO-PC027': {
+    defender: 'warning',
+    securityAlerts: 'critical', // M14/S4: offene Defender-Warnung high
+    deviceStatus: 'warning', // M20/S4: Remote-Aktion rebootNow fehlgeschlagen
+  },
   'CONTOSO-PC033': {
     checkIn: 'critical',
     compliance: 'critical',

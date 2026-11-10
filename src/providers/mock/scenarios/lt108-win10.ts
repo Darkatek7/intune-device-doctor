@@ -1,4 +1,5 @@
-/** CONTOSO-LT108 – Windows 10 22H2 (veraltet), Entra-Objekt deaktiviert. Erwartung: OS warning, Gerätestatus critical. */
+/** CONTOSO-LT108 – Windows 10 22H2 (veraltet), Entra-Objekt deaktiviert. Erwartung: OS warning, Gerätestatus critical.
+ * M20/S4: „retire“ seit drei Tagen ausstehend → deutlicher Hinweis im Gerätestatus. */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
@@ -18,6 +19,16 @@ export const lt108Win10: MockScenario = {
   build: (now) => {
     const device = windowsDevice(now, 108, {
       deviceName: 'CONTOSO-LT108',
+      // fiktiver Rohwert (keine Werteliste dokumentiert)
+      actionResults: [
+        {
+          actionName: 'retire',
+          actionState: 'pending',
+          actionStateRaw: 'pending',
+          startDateTime: ago(now, { days: 3 }),
+          lastUpdatedDateTime: ago(now, { days: 3 }),
+        },
+      ],
       osVersion: '10.0.19045.6456',
       model: 'Latitude 7420',
       manufacturer: 'Dell Inc.',

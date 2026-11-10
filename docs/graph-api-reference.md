@@ -229,6 +229,16 @@ Verifiziert auf Microsoft Learn am 2026-11-10. Optionaler Scope `DeviceManagemen
 - **Windows-MAM** (`windowsManagedAppRegistration`) ist nur in **beta** dokumentiert → nicht abgefragt, Kachel nur für iOS/Android, sonst `notApplicable` mit Begründung.
 - **Severity:** `rootedDevice` → Problem (Learn: Bedingter Start, „Jailbroken/rooted devices“ → Block access / Wipe data, [iOS](https://learn.microsoft.com/intune/app-management/protection/configure-conditional-launch), [Android](https://learn.microsoft.com/intune/app-management/protection/ref-settings-android#conditional-launch)); bei unsicherer Zuordnung Prüfen. Letzte Synchronisierung > 30 Tage → Prüfen, **eigener Richtwert** (`THRESHOLDS.appProtectionSyncWarningDays`); Learn nennt nur ~30 Minuten Check-in bei aktiver Nutzung und die Fehlersuche bei ausbleibender Synchronisierung ([Troubleshooting](https://learn.microsoft.com/troubleshoot/mem/intune/app-protection-policies/troubleshoot-app-protection-policy-deployment#additional-troubleshooting-scenarios)).
 
+## Letzte Remote-Aktionen (v1.0, M20/S4)
+
+Verifiziert auf Microsoft Learn am 2026-11-10. **Kein neuer Endpunkt, kein neuer Scope:** `deviceActionResults` ist eine dokumentierte, schreibgeschützte Eigenschaft von [managedDevice](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0) und kommt mit dem bestehenden `GET /deviceManagement/managedDevices/{id}` (ohne `$select`).
+
+- **`deviceActionResult`** ([Ressource](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-deviceactionresult?view=graph-rest-1.0)): gelesen `actionName, actionState, startDateTime, lastUpdatedDateTime`.
+- **`actionState`** (`actionState`-Enum): `none, pending, canceled, active, done, failed, notSupported`; andere Werte → „Unbekannt“ plus Rohwert.
+- **`actionName`:** Typ String, **keine Werteliste dokumentiert** → nur Rohwert (`lang="en"`), nie übersetzt. Laufendes Zurücksetzen/Abkoppeln wird am Rohwert erkannt (enthält `wipe`/`retire`, Zustand `pending`/`active`) → „Live zu verifizieren (M20)“.
+- **Bewertung:** `failed` → Prüfen ([Fehlerbehebung Geräteaktionen](https://learn.microsoft.com/troubleshoot/mem/intune/device-management/troubleshoot-device-actions#wipe-and-retire-actions)); ausstehendes Zurücksetzen/Abkoppeln → deutlicher Hinweis (Learn: Status bleibt „Pending“, wenn das Gerät sich vor dem Zurücksetzen nicht mehr meldet; bei Offline-Geräten bis zum Ablauf des MDM-Zertifikats; Retire/Wipe/Delete haben Vorrang vor anderen Aktionen – [Geräteaktionen](https://learn.microsoft.com/intune/device-management/actions/)). Zeitfenster 30 Tage = **eigener Richtwert** (`THRESHOLDS.remoteActionRecentDays`).
+- **Read-only:** Die App ruft keine Aktions-Endpunkte auf (`wipe`, `retire`, `rebootNow`, `syncDevice` … sind POST und bleiben ungenutzt); jeder Befund sagt das.
+
 ## Verbindungstest (M14/S6)
 
 Ansicht „Verbindungstest“ (nur Live; Schaltfläche in der Geräteansicht, `?device=<id>&view=connection-test`). Sie führt die „Live zu verifizieren“-Listen mit einem Klick aus und führt **keine neuen Endpunkte** ein: Sie ruft ausschließlich die Endpunkte der Registry (`Endpoints` in `src/graph/endpoints.ts`) auf.
@@ -355,6 +365,7 @@ Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification
 - [ ] **Compliance-Zähler (S1):** Kommen `deviceCompliancePolicyDeviceStateSummary` und `deviceConfigurationDeviceStateSummaries` als flaches Objekt oder – wie in den Doku-Beispielen – unter `value`? Stimmen die Zähler mit „Geräte › Compliance › Überwachen“ überein, und überschneiden sich Kategorien (Summe ≠ Geräteanzahl)? Wie viele Einträge hat `deviceCompliancePolicySettingStateSummaries`, in welcher Reihenfolge, und reichen 3 Seiten?
 - [ ] **Änderungsprotokoll (S2):** Entspricht `resources[].resourceId` bei Richtlinienänderungen der Graph-ID der Richtlinie? In welcher Reihenfolge liefert `auditEvents` ohne `$orderby`, und reichen 5 Seiten für 7 Tage? Wie sehen `activity`, `activityType` und `category` für Konfigurationsprofile aus, und ist `actor.userPrincipalName` bei Änderungen durch Apps leer?
 - [ ] **App-Schutz (S3):** Liefert `managedAppRegistrations` im echten Mandanten `userId` und `deviceName` (Android: echter Name, iOS 16+: generisch)? Kommt `appIdentifier` mit `@odata.type`? Wie viele Seiten hat die Liste, und reichen 3?
+- [ ] **Remote-Aktionen (S4):** Enthält die Get-Antwort von `managedDevice` ohne `$select` tatsächlich `deviceActionResults`? Welche Rohwerte liefert `actionName` (z. B. für Zurücksetzen, Abkoppeln, Neustart, Synchronisierung), und trifft die Erkennung „wipe“/„retire“ zu?
 
 ## Phase 2 (optional, nach MVP)
 
