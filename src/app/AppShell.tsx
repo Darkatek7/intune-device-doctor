@@ -35,6 +35,7 @@ import { LandingTools } from '../ui/LandingTools';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
+import { NAV_ITEMS, type NavId } from '../ui/navItems';
 import { Toolbar } from '../ui/Toolbar';
 import { ZipProgress } from '../ui/ZipProgress';
 import { ConnectionTestView } from './ConnectionTestView';
@@ -511,6 +512,21 @@ function Shell({ account, extraChips }: Props) {
     );
   }
 
+  // Hauptnavigation: Einträge stehen in NAV_ITEMS, hier nur Handler und aktiver Eintrag.
+  const navHandlers: Record<NavId, () => void> = {
+    devices: goHome,
+    policies: openPolicies,
+    tenant: openTenant,
+  };
+  const activeView = showPolicies ? 'policies' : showTenant ? 'tenant' : null;
+  const navItems = NAV_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: item.icon,
+    active: item.view === activeView,
+    onSelect: navHandlers[item.id],
+  }));
+
   const dragging = usePageFileDrop(showHero, startAnalysis);
 
   const liveStatus = state.loading
@@ -542,14 +558,7 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
-        {...(liveWithoutProvider
-          ? {}
-          : {
-              onOpenTenant: openTenant,
-              tenantActive: showTenant,
-              onOpenPolicies: openPolicies,
-              policiesActive: showPolicies,
-            })}
+        navItems={liveWithoutProvider ? [] : navItems}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}

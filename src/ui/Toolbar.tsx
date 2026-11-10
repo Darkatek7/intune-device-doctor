@@ -1,8 +1,9 @@
-import { Landmark, ListChecks, Stethoscope } from 'lucide-react';
+import { Stethoscope } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
 import { ModeSwitch } from './ModeSwitch';
+import type { NavItem } from './navItems';
 import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
@@ -12,14 +13,8 @@ interface Props {
   onModeChange: (mode: DataMode) => void;
   liveAvailable: boolean;
   onHome: () => void;
-  /** Öffnet die Ansicht „Mandant“ (M14/S5); fehlt → Schaltfläche entfällt (z. B. Live ohne Anmeldung) */
-  onOpenTenant?: () => void;
-  /** Die Ansicht „Mandant“ ist gerade offen */
-  tenantActive?: boolean;
-  /** Öffnet die Ansicht „Richtlinien“ (M15); fehlt → Schaltfläche entfällt */
-  onOpenPolicies?: () => void;
-  /** Die Ansicht „Richtlinien“ ist gerade offen */
-  policiesActive?: boolean;
+  /** Hauptnavigation (Geräte, Richtlinien, Mandant …); leer/fehlend → keine Navigation */
+  navItems?: readonly NavItem[];
   /** Slot für das Konto (M4: AuthGate/Account-Menü) */
   account?: ReactNode;
 }
@@ -31,10 +26,7 @@ export function Toolbar({
   onModeChange,
   liveAvailable,
   onHome,
-  onOpenTenant,
-  tenantActive,
-  onOpenPolicies,
-  policiesActive,
+  navItems,
   account,
 }: Props) {
   const [scrolled, setScrolled] = useState(false);
@@ -54,7 +46,7 @@ export function Toolbar({
             type="button"
             onClick={onHome}
             aria-label={de.toolbar.home}
-            className="flex shrink-0 items-center gap-2 rounded-lg px-1 text-base font-semibold tracking-[-0.01em] text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+            className="order-1 flex shrink-0 items-center gap-2 rounded-lg px-1 text-base lg:order-none font-semibold tracking-[-0.01em] text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
           >
             <span aria-hidden="true" className="squircle app-glyph size-7">
               <Stethoscope size={16} strokeWidth={2.25} />
@@ -62,40 +54,38 @@ export function Toolbar({
             {/* Sehr schmale Displays: nur die Glyphe, damit Mandant/Richtlinien/Modus in eine Zeile passen */}
             <span className="max-[419px]:sr-only">{de.app.name}</span>
           </button>
+          {navItems && navItems.length > 0 && (
+            <nav
+              aria-label={de.nav.label}
+              className="order-4 flex w-full min-w-0 gap-1 lg:order-none lg:w-auto"
+            >
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={item.onSelect}
+                    aria-current={item.active ? 'page' : undefined}
+                    className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] sm:flex-none ${
+                      item.active
+                        ? 'bg-accent/15 text-accent'
+                        : 'text-secondary-label hover:bg-fill hover:text-label'
+                    }`}
+                  >
+                    <Icon aria-hidden="true" size={16} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
           {search && (
-            <div className="order-last w-full min-w-0 sm:order-none sm:mx-auto sm:w-auto sm:max-w-xl sm:flex-1">
+            <div className="order-3 w-full min-w-0 sm:order-2 sm:mx-auto sm:w-auto sm:max-w-xl sm:flex-1 lg:order-none">
               {search}
             </div>
           )}
-          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {onOpenTenant && (
-              <button
-                type="button"
-                onClick={onOpenTenant}
-                aria-current={tenantActive ? 'page' : undefined}
-                title={de.toolbar.tenant}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
-                  tenantActive ? 'bg-accent/15 text-accent' : 'bg-fill text-label'
-                }`}
-              >
-                <Landmark aria-hidden="true" size={16} />
-                <span className="sr-only sm:not-sr-only">{de.toolbar.tenantShort}</span>
-              </button>
-            )}
-            {onOpenPolicies && (
-              <button
-                type="button"
-                onClick={onOpenPolicies}
-                aria-current={policiesActive ? 'page' : undefined}
-                title={de.toolbar.policies}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] ${
-                  policiesActive ? 'bg-accent/15 text-accent' : 'bg-fill text-label'
-                }`}
-              >
-                <ListChecks aria-hidden="true" size={16} />
-                <span className="sr-only sm:not-sr-only">{de.toolbar.policiesShort}</span>
-              </button>
-            )}
+          <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3 sm:gap-3 lg:order-none">
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />
             <ThemeToggle />
             {account}

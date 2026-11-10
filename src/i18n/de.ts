@@ -329,6 +329,13 @@ export const de = {
       done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
     },
   },
+  /** Hauptnavigation der Toolbar */
+  nav: {
+    label: 'Hauptnavigation',
+    devices: 'Geräte',
+    policies: 'Richtlinien',
+    tenant: 'Mandant',
+  },
   toolbar: {
     tenant: 'Mandanten-Status',
     tenantShort: 'Mandant',
