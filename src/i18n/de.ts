@@ -254,8 +254,7 @@ export const de = {
     start: 'Test starten',
     restart: 'Erneut testen',
     cancel: 'Abbrechen',
-    running: (done: number, total: number) =>
-      `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
+    running: (done: number, total: number) => `Endpunkt ${Math.min(done + 1, total)} von ${total} …`,
     finished: 'Test abgeschlossen',
     cancelled: 'Test abgebrochen – die bisherigen Ergebnisse bleiben erhalten.',
     failedToStart: 'Das Gerät konnte nicht geladen werden.',

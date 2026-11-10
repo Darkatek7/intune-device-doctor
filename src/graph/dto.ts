@@ -705,7 +705,6 @@ export interface GraphTenantPolicy {
   id: string;
   displayName?: string | null;
   lastModifiedDateTime?: string | null;
-  createdDateTime?: string | null;
   version?: number | null;
 }
 
@@ -714,7 +713,6 @@ export interface GraphTenantPolicy {
  * Konflikte existiert in v1.0 nicht. Das Doku-Beispiel zeigt die Antwort unter `value` verpackt.
  */
 export interface GraphPolicyDeviceOverview {
-  id?: string | null;
   pendingCount?: number | null;
   notApplicableCount?: number | null;
   successCount?: number | null;
