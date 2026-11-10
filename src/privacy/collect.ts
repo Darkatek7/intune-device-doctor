@@ -55,7 +55,10 @@ export function collectKnown(root: unknown, extra: readonly KnownValue[] = []): 
     const record = node;
 
     // Gerät-ähnliche Objekte: ihre `id` ist die Geräte-ID (auch wenn sie keine GUID ist).
-    if (typeof record['id'] === 'string' && ('deviceName' in record || 'deviceDisplayName' in record)) {
+    if (
+      typeof record['id'] === 'string' &&
+      ('deviceName' in record || 'deviceDisplayName' in record)
+    ) {
       add('id', record['id']);
     }
     // Entra-Geräteobjekt: `displayName` ist der Gerätename (bei Richtlinien/Gruppen/Apps dagegen sichtbar).

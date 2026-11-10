@@ -8,6 +8,9 @@ import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile, TileId } from '../domain/types';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { de } from '../i18n/de';
+import { maskFileName } from '../privacy/fileName';
+import { PrivacyViewProvider } from '../privacy/PrivacyProvider';
+import { useBuildPrivacyView } from '../privacy/privacyContext';
 import { useProviderContext } from './providerContextValue';
 import { sortTiles, summarize } from '../rules/evaluate';
 import { buildTicketNote } from '../rules/ticketNote';
@@ -21,7 +24,7 @@ import { InsightCard } from '../ui/InsightCard';
 import { MergeOffer } from '../ui/MergeOffer';
 import { TileGrid } from '../ui/TileGrid';
 import { ZipHeader } from '../ui/ZipHeader';
-import { zipTitle } from '../ui/zipTitle';
+import { maskedZipTitle } from '../ui/zipTitle';
 
 interface Props {
   report: DiagnosticsReport;
@@ -40,7 +43,12 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
   const [openId, setOpenId] = useState<string | null>(null);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 
-  const tiles = useMemo(() => sortTiles(evaluateDiagnosticsTiles(report, now)), [report, now]);
+  // Präsentationsmodus (M19): Kacheln, Zeitachse und Ausgaben werden am Anzeige-Modell maskiert.
+  const view = useBuildPrivacyView(report);
+  const tiles = useMemo(
+    () => view.deep(sortTiles(evaluateDiagnosticsTiles(report, now))),
+    [report, now, view],
+  );
   const summary = useMemo(() => summarize(tiles), [tiles]);
   useEffect(() => {
     onToneChange?.(summary.worst);
@@ -48,7 +56,10 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
   const openTile = openId ? tiles.find((tile) => tile.id === openId) : undefined;
 
   // M12/A: Zeitachse und „Wahrscheinlichste Ursache“ (nur ZIP-Kacheln)
-  const timeline = useMemo(() => buildTimeline({ diagnostics: report, now }), [report, now]);
+  const timeline = useMemo(
+    () => view.deep(buildTimeline({ diagnostics: report, now })),
+    [report, now, view],
+  );
   const insights = useMemo(() => correlate(tiles), [tiles]);
   const openableTiles = useMemo(() => new Set<TileId>(tiles.map((tile) => tile.id)), [tiles]);
   const openTileById = useCallback((tileId: TileId) => {
@@ -57,19 +68,22 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
     setOpenId(tileId);
   }, []);
 
-  const title = zipTitle(report);
+  const title = maskedZipTitle(report, view);
+  const shownFileName = view.enabled ? maskFileName(view.masker, report.fileName) : report.fileName;
   const getTicketNote = useCallback(
     () =>
-      buildTicketNote({
-        title,
-        details: [de.zipView.kind, report.fileName],
-        mode: 'zip',
-        tiles,
-        now: new Date(),
-        insights,
-        timeline,
-      }),
-    [title, report.fileName, tiles, insights, timeline],
+      view.text(
+        buildTicketNote({
+          title,
+          details: [de.zipView.kind, shownFileName],
+          mode: 'zip',
+          tiles,
+          now: new Date(),
+          insights,
+          timeline,
+        }),
+      ),
+    [view, title, shownFileName, tiles, insights, timeline],
   );
   useEffect(() => {
     const previous = document.title;
@@ -95,35 +109,41 @@ export function ZipView({ report: rawReport, offer, onMerge, onBack, onToneChang
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
-      <ZipHeader
-        report={report}
-        summary={summary}
-        onBack={onBack}
-        actions={
-          <HeaderActions
-            timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
-            getTicketNote={getTicketNote}
-            compare={{ kind: 'zip', report, tiles }}
-          />
-        }
-      />
-      {offer && <MergeOffer deviceName={offer.deviceName} onMerge={onMerge} />}
-      {insights.length > 0 && (
-        <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
-      )}
-      <TileGrid tiles={tiles} onOpen={handleOpen} />
-      <AnimatePresence>
-        {openTile && (
-          <DetailSheet
-            key="detail-sheet"
-            tile={openTile}
-            origin={origin}
-            notices={[]}
-            onClose={() => setOpenId(null)}
+    <PrivacyViewProvider view={view}>
+      <div className="flex flex-col gap-6">
+        <ZipHeader
+          report={report}
+          summary={summary}
+          onBack={onBack}
+          actions={
+            <HeaderActions
+              timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
+              getTicketNote={getTicketNote}
+              compare={{ kind: 'zip', report, tiles }}
+            />
+          }
+        />
+        {offer && <MergeOffer deviceName={offer.deviceName} onMerge={onMerge} />}
+        {insights.length > 0 && (
+          <InsightCard
+            insights={insights}
+            openableTiles={openableTiles}
+            onOpenTile={openTileById}
           />
         )}
-      </AnimatePresence>
-    </div>
+        <TileGrid tiles={tiles} onOpen={handleOpen} />
+        <AnimatePresence>
+          {openTile && (
+            <DetailSheet
+              key="detail-sheet"
+              tile={openTile}
+              origin={origin}
+              notices={[]}
+              onClose={() => setOpenId(null)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </PrivacyViewProvider>
   );
 }

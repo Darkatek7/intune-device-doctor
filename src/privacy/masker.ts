@@ -243,7 +243,8 @@ export function createMasker(salt: string): Masker {
         const proto = Object.getPrototypeOf(node) as unknown;
         if (proto !== Object.prototype && proto !== null) return node;
         const result: Record<string, unknown> = {};
-        for (const [childKey, child] of Object.entries(node)) result[childKey] = walk(child, childKey);
+        for (const [childKey, child] of Object.entries(node))
+          result[childKey] = walk(child, childKey);
         return result;
       }
       return node;

@@ -15,7 +15,7 @@ export interface PrivacyView {
   /** Tiefe Transformation eines Anzeige-Modells (aus: dasselbe Objekt) */
   deep<T>(value: T): T;
   /** Gleiche Sicht mit weiteren bekannten Werten (z. B. aus einer geladenen Vergleichsdatei) */
-  extend(source: unknown): PrivacyView;
+  extend(source: unknown, extra?: readonly KnownValue[]): PrivacyView;
 }
 
 export function createView(
@@ -31,7 +31,8 @@ export function createView(
     scope,
     text: (input) => (enabled ? masker.text(input, scope) : input),
     deep: (value) => (enabled ? masker.deep(value, scope) : value),
-    extend: (source) => createView(masker, enabled, [...known, ...collectKnown(source)]),
+    extend: (source, extra = []) =>
+      createView(masker, enabled, [...known, ...collectKnown(source, extra)]),
   };
 }
 

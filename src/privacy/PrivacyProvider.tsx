@@ -31,6 +31,12 @@ export function PrivacyProvider({ children, initialEnabled, salt }: Props) {
 }
 
 /** Stellt die Sicht einer Ansicht allen Nachfahren (auch Portalen) bereit. */
-export function PrivacyViewProvider({ view, children }: { view: PrivacyView; children: ReactNode }) {
+export function PrivacyViewProvider({
+  view,
+  children,
+}: {
+  view: PrivacyView;
+  children: ReactNode;
+}) {
   return <PrivacyViewContext.Provider value={view}>{children}</PrivacyViewContext.Provider>;
 }
