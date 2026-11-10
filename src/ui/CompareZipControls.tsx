@@ -1,6 +1,6 @@
 import { GitCompareArrows } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { useMemo, useRef, useState } from 'react';
+import { useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { useProviderContext } from '../app/providerContextValue';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile } from '../domain/types';
@@ -16,6 +16,16 @@ interface Props {
   /** Die geöffnete ZIP samt ihren bereits ausgewerteten Kacheln */
   report: DiagnosticsReport;
   tiles: readonly Tile[];
+  /** Ohne eigene Schaltfläche (Aktion läuft über `ref` aus einem Menü) */
+  headless?: boolean;
+  /** Fokus nach dem Schließen des Vergleichs, wenn keine eigene Schaltfläche existiert */
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  ref?: Ref<CompareZipHandle>;
+}
+
+export interface CompareZipHandle {
+  /** Öffnet die Dateiauswahl für die zweite ZIP */
+  chooseFile: () => void;
 }
 
 const BUTTON_CLASS =
@@ -35,7 +45,13 @@ const toSnapshot = (report: DiagnosticsReport, tiles: readonly Tile[], now: Date
  * lokal analysiert. Die ältere Sammlung gilt als „Vorher“; fehlt ein Sammelzeitpunkt, ist die
  * geöffnete ZIP „Vorher“.
  */
-export function CompareZipControls({ report, tiles }: Props) {
+export function CompareZipControls({
+  report,
+  tiles,
+  headless = false,
+  returnFocusRef,
+  ref,
+}: Props) {
   const { provider } = useProviderContext();
   const { state, analyze, reset } = useDiagnosticsAnalysis();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,24 +89,32 @@ export function CompareZipControls({ report, tiles }: Props) {
       ? state.error
       : null;
 
+  useImperativeHandle(ref, () => ({
+    chooseFile: () => {
+      if (!running) inputRef.current?.click();
+    },
+  }));
+
   const close = () => {
     reset();
-    buttonRef.current?.focus();
+    (headless ? returnFocusRef : buttonRef)?.current?.focus();
   };
 
   return (
-    <div className="flex flex-col gap-1.5 sm:items-end">
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={running}
-        onClick={() => inputRef.current?.click()}
-        title={`${de.compare.zipHint} ${de.compare.fileLocal}`}
-        className={BUTTON_CLASS}
-      >
-        <GitCompareArrows aria-hidden="true" size={16} />
-        {de.compare.zipButton}
-      </button>
+    <div className={headless ? 'contents' : 'flex flex-col gap-1.5 sm:items-end'}>
+      {!headless && (
+        <button
+          ref={buttonRef}
+          type="button"
+          disabled={running}
+          onClick={() => inputRef.current?.click()}
+          title={`${de.compare.zipHint} ${de.compare.fileLocal}`}
+          className={BUTTON_CLASS}
+        >
+          <GitCompareArrows aria-hidden="true" size={16} />
+          {de.compare.zipButton}
+        </button>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -109,10 +133,14 @@ export function CompareZipControls({ report, tiles }: Props) {
           void analyze(file);
         }}
       />
-      <p role="status" aria-live="polite" className="text-sm text-secondary-label">
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-sm text-secondary-label empty:sr-only max-sm:basis-full"
+      >
         {running ? de.compare.zipAnalyzing(state.fileName ?? '') : ''}
       </p>
-      <p role="alert" className="text-sm text-critical empty:hidden">
+      <p role="alert" className="text-sm text-critical empty:hidden max-sm:basis-full">
         {errorText}
       </p>
       <AnimatePresence>

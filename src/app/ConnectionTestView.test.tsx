@@ -79,7 +79,8 @@ describe('Verbindungstest – Einstieg', () => {
     renderApp();
     await user.type(screen.getByRole('combobox', { name: de.field.label }), 'CONTOSO-PC001{Enter}');
     await screen.findByRole('heading', { level: 1, name: /CONTOSO-PC001/ });
-    expect(screen.queryByRole('button', { name: t.open })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: de.actions.more }));
+    expect(screen.queryByRole('menuitem', { name: t.open })).not.toBeInTheDocument();
   });
 
   it('Demo-Deep-Link ?view=connection-test zeigt die normale Geräteansicht', async () => {
@@ -91,12 +92,13 @@ describe('Verbindungstest – Einstieg', () => {
     expect(screen.queryByRole('heading', { level: 1, name: t.title })).not.toBeInTheDocument();
   });
 
-  it('Live: Button in der Geräteansicht öffnet die Ansicht, schreibt view=connection-test und kehrt zurück', async () => {
+  it('Live: Menüeintrag „Mehr“ in der Geräteansicht öffnet die Ansicht, schreibt view=connection-test und kehrt zurück', async () => {
     const user = userEvent.setup();
     const provider = liveMockProvider({ testConnection: fakeTest() });
     openLive(provider);
     await user.type(screen.getByRole('combobox', { name: de.field.label }), 'CONTOSO-PC001{Enter}');
-    await user.click(await screen.findByRole('button', { name: t.open }));
+    await user.click(await screen.findByRole('button', { name: de.actions.more }));
+    await user.click(await screen.findByRole('menuitem', { name: t.open }));
 
     expect(await screen.findByRole('heading', { level: 1, name: t.title })).toBeInTheDocument();
     expect(window.location.search).toContain('view=connection-test');

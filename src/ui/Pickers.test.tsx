@@ -64,7 +64,7 @@ describe('Landing', () => {
     render(
       <Landing
         search={<div />}
-        examples={[{ deviceName: 'CONTOSO-PC001', label: 'Gesundes Gerät' }]}
+        examples={[{ deviceName: 'CONTOSO-PC001', label: 'Gesundes Gerät', iconKind: 'laptop' }]}
         onPickExample={onPick}
         extraChips={<li>Beispiel-ZIP</li>}
       />,

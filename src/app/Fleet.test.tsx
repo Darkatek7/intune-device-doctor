@@ -66,7 +66,8 @@ describe('Änderungsprotokoll (M20/S2)', { timeout: 20_000 }, () => {
     );
     renderApp({ provider: new MockProvider({ latency: false }) });
     const region = await screen.findByRole('region', { name: /Änderungen an/ });
-    expect(within(region).getAllByTestId('policy-change-row')).toHaveLength(2);
+    // Der Abschnitt erscheint vor seinen Zeilen (Ansicht wird nachgeladen, Protokoll lädt getrennt).
+    expect(await within(region).findAllByTestId('policy-change-row')).toHaveLength(2);
     expect(within(region).getAllByText('Patch DeviceConfiguration')[0]).toHaveAttribute(
       'lang',
       'en',

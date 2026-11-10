@@ -2,7 +2,6 @@
  * Ergebnisansicht eines Geräts: Header, Kachel-Grid und Detail-Sheet.
  * Daten kommen ausschließlich über useDeviceSnapshot (Provider-Schnittstelle).
  */
-import { Activity } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
@@ -17,18 +16,16 @@ import { correlate } from '../rules/correlate';
 import { buildTimeline } from '../rules/timeline';
 import type { DeviceSearchResult, ManagedDeviceInfo, Tile, TileId } from '../domain/types';
 import type { AmbientTone } from '../ui/AmbientGlow';
-import { CompareControls } from '../ui/CompareControls';
 import { DetailSheet } from '../ui/DetailSheet';
 import { DeviceHeader } from '../ui/DeviceHeader';
 import { deviceMeta } from '../ui/deviceMeta';
 import { DiagnosticsChip } from '../ui/DiagnosticsChip';
 import { ErrorState } from '../ui/ErrorState';
+import { HeaderActions } from '../ui/HeaderActions';
 import { InsightCard } from '../ui/InsightCard';
 import { ServiceHealthNotice } from '../ui/ServiceHealthNotice';
-import { TimelineButton } from '../ui/TimelineButton';
 import { sectionNotices } from '../ui/sectionNotices';
 import { TileGrid } from '../ui/TileGrid';
-import { TicketNoteButton } from '../ui/TicketNoteButton';
 import { TileSkeleton } from '../ui/TileSkeleton';
 
 interface Props {
@@ -222,31 +219,17 @@ export function DeviceView({
         }
         onOpenDevice={onOpenDevice}
         actions={
-          <div className="flex flex-wrap items-start gap-2 sm:justify-end">
-            <TimelineButton
-              events={timeline}
-              openableTiles={openableTiles}
-              onOpenTile={openTileById}
-              disabled={!snapshot || stillLoading}
-            />
-            <TicketNoteButton getNote={getTicketNote} disabled={!snapshot || stillLoading} />
-            <CompareControls
-              getCurrent={getSnapshotFile}
-              disabled={!snapshot || stillLoading}
-              currentLabel={snapshot?.device.deviceName ?? ''}
-            />
-            {onOpenConnectionTest && (
-              <button
-                type="button"
-                onClick={onOpenConnectionTest}
-                title={de.connectionTest.openHint}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
-              >
-                <Activity aria-hidden="true" size={16} />
-                {de.connectionTest.open}
-              </button>
-            )}
-          </div>
+          <HeaderActions
+            timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
+            getTicketNote={getTicketNote}
+            compare={{
+              kind: 'device',
+              getCurrent: getSnapshotFile,
+              currentLabel: snapshot?.device.deviceName ?? '',
+            }}
+            disabled={!snapshot || stillLoading}
+            {...(onOpenConnectionTest ? { onOpenConnectionTest } : {})}
+          />
         }
         badges={
           diagnostics && onRemoveDiagnostics ? (
@@ -261,7 +244,7 @@ export function DeviceView({
         <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
       )}
       {snapshot ? (
-        <TileGrid tiles={ordered} onOpen={handleOpen} />
+        <TileGrid tiles={ordered} onOpen={handleOpen} settled={!stillLoading} />
       ) : (
         <ul
           aria-label={de.grid.label}

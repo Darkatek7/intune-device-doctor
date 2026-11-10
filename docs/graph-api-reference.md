@@ -352,7 +352,7 @@ Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification
 
 ## Live zu verifizieren (M18)
 
-Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 6):
+Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 7):
 
 - [ ] **Dienstname Intune/Entra:** Wie lauten `service` und `id` für Intune und Entra in `healthOverviews` (Learn nennt keine festen Werte)? Greift die Zuordnung über den Namen („Intune“/„Entra“)? Ggf. die Zuordnung in `serviceHealthKind` (`src/graph/mappers.ts`) auf die echten IDs umstellen und hier eintragen.
 - [ ] **Dienststatus allgemein:** Liefert `$expand=issues` 200 und wie viele (auch alte, behobene) Einträge je Dienst? Kommen Enum-Werte camelCase oder PascalCase? Welche Admin-Rolle reicht dem lesenden Konto real (403 ohne Rolle?)?
@@ -360,7 +360,7 @@ Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification
 
 ## Live zu verifizieren (M20)
 
-Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 7):
+Gegen einen echten Tenant noch nicht geprüft (Vorgehen: `docs/live-verification.md` › 8):
 
 - [ ] **Compliance-Zähler (S1):** Kommen `deviceCompliancePolicyDeviceStateSummary` und `deviceConfigurationDeviceStateSummaries` als flaches Objekt oder – wie in den Doku-Beispielen – unter `value`? Stimmen die Zähler mit „Geräte › Compliance › Überwachen“ überein, und überschneiden sich Kategorien (Summe ≠ Geräteanzahl)? Wie viele Einträge hat `deviceCompliancePolicySettingStateSummaries`, in welcher Reihenfolge, und reichen 3 Seiten?
 - [ ] **Änderungsprotokoll (S2):** Entspricht `resources[].resourceId` bei Richtlinienänderungen der Graph-ID der Richtlinie? In welcher Reihenfolge liefert `auditEvents` ohne `$orderby`, und reichen 5 Seiten für 7 Tage? Wie sehen `activity`, `activityType` und `category` für Konfigurationsprofile aus, und ist `actor.userPrincipalName` bei Änderungen durch Apps leer?

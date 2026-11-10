@@ -1,6 +1,6 @@
 import { Check, ClipboardCopy, Printer } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref, type RefObject } from 'react';
 import { de } from '../i18n/de';
 import { TicketNoteDialog } from './TicketNoteDialog';
 
@@ -9,6 +9,16 @@ interface Props {
   getNote: () => string;
   /** Solange Kacheln laden: nicht benutzbar */
   disabled?: boolean;
+  /** Schaltfläche „Drucken / PDF“ anzeigen (Standard). Sonst über `ref.openPrint()` aus einem Menü. */
+  showPrint?: boolean;
+  /** Wohin der Fokus nach dem Schließen des Druck-Dialogs geht, wenn keine eigene Schaltfläche existiert */
+  printReturnFocusRef?: RefObject<HTMLElement | null>;
+  ref?: Ref<TicketNoteHandle>;
+}
+
+/** Aktion „Drucken / PDF“ für Aufrufer, die sie in einem Menü anbieten. */
+export interface TicketNoteHandle {
+  openPrint: () => void;
 }
 
 const FEEDBACK_MS = 2000;
@@ -18,7 +28,13 @@ const FEEDBACK_MS = 2000;
  * Zwischenablage nicht verfügbar oder abgelehnt, öffnet sich ein Textfeld zum manuellen Kopieren.
  * Nichts verlässt den Browser.
  */
-export function TicketNoteButton({ getNote, disabled = false }: Props) {
+export function TicketNoteButton({
+  getNote,
+  disabled = false,
+  showPrint = true,
+  printReturnFocusRef,
+  ref,
+}: Props) {
   const [copied, setCopied] = useState(false);
   const [fallback, setFallback] = useState<{ text: string; reason: 'clipboard' | 'print' } | null>(
     null,
@@ -48,10 +64,15 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
     }
   };
 
+  const openPrint = () => setFallback({ text: getNote(), reason: 'print' });
+  useImperativeHandle(ref, () => ({ openPrint }));
+
   const closeFallback = () => {
     const reason = fallback?.reason;
     setFallback(null);
-    (reason === 'print' ? printRef : buttonRef).current?.focus();
+    const target =
+      reason === 'print' ? (showPrint ? printRef : (printReturnFocusRef ?? buttonRef)) : buttonRef;
+    target.current?.focus();
   };
 
   return (
@@ -67,17 +88,19 @@ export function TicketNoteButton({ getNote, disabled = false }: Props) {
         <ClipboardCopy aria-hidden="true" size={16} />
         {de.ticket.button}
       </button>
-      <button
-        ref={printRef}
-        type="button"
-        disabled={disabled}
-        onClick={() => setFallback({ text: getNote(), reason: 'print' })}
-        title={de.comfort.printHint}
-        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <Printer aria-hidden="true" size={16} />
-        {de.comfort.printButton}
-      </button>
+      {showPrint && (
+        <button
+          ref={printRef}
+          type="button"
+          disabled={disabled}
+          onClick={openPrint}
+          title={de.comfort.printHint}
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Printer aria-hidden="true" size={16} />
+          {de.comfort.printButton}
+        </button>
+      )}
       <span
         role="status"
         aria-live="polite"
