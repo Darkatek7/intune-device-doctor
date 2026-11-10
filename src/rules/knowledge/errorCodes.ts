@@ -1,10 +1,17 @@
 /**
- * Intune-Fehlercodes mit Deutung. Jeder Eintrag MUSS eine Microsoft-Learn-URL haben (Test erzwingt das).
- * Basis: "Common error codes and descriptions in Microsoft Intune"
- * https://learn.microsoft.com/troubleshoot/mem/intune/general/troubleshoot-company-resource-access-problems
+ * Zentrale Fehlercode-Wissensbasis. Jeder Eintrag MUSS eine Microsoft-Learn-URL haben (Test erzwingt das).
+ * - Richtlinien-/Einstellungsfehler (hier): "Common error codes and descriptions in Microsoft Intune"
+ *   https://learn.microsoft.com/troubleshoot/mem/intune/general/troubleshoot-company-resource-access-problems
+ * - Registrierung: enrollmentErrors.ts, Autopilot/ESP: autopilotErrors.ts, App-Installation: appErrors.ts
+ * - Installer-Exitcodes (MSI): unten, aus "Application installation common error codes reference"
+ *
+ * Nachschlagen immer über describeErrorCode() – mit optionalem Kontext für mehrdeutige Win32-Codes.
  */
 import { hresultToHex } from '../../domain/format';
-import type { KnowledgeEntry } from './types';
+import { APP_ERROR_CODES } from './appErrors';
+import { AUTOPILOT_ERROR_CODES } from './autopilotErrors';
+import { ENROLLMENT_ERROR_CODES } from './enrollmentErrors';
+import type { ErrorCodeContext, KnowledgeEntry } from './types';
 import { explainCode, type CodeExplanation } from './win32';
 
 const INTUNE_COMMON_ERRORS_URL =
@@ -16,6 +23,7 @@ function entry(decimal: number, data: Omit<KnowledgeEntry, 'hex' | 'decimal'>): 
   return { hex: hresultToHex(decimal), decimal, ...data };
 }
 
+/** Richtlinien-/Einstellungsfehler (0x87D1FDxx). */
 export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
   entry(-2016281112, {
     title: 'Einstellung nicht angewendet – „Remediation failed“ (0x87D1FDE8)',
@@ -67,7 +75,21 @@ export const INTUNE_ERROR_CODES: KnowledgeEntry[] = [
   }),
 ];
 
-/** Bekannte MSI-/Installer-Codes für Win32-Apps (Intune "Application installation error codes"). */
+const APP_INSTALL_REFERENCE_URL =
+  'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference';
+
+/** Alle Wissensbasis-Einträge mit HRESULT-Form – Hex-Werte sind über alle Gruppen eindeutig (Test). */
+export const ALL_ERROR_CODES: KnowledgeEntry[] = [
+  ...INTUNE_ERROR_CODES,
+  ...ENROLLMENT_ERROR_CODES,
+  ...AUTOPILOT_ERROR_CODES,
+  ...APP_ERROR_CODES,
+];
+
+/**
+ * Bekannte MSI-/Installer-Exitcodes für Win32-Apps, Abschnitt „MSI errors“ der Seite
+ * "Application installation common error codes reference" (Anker je Code geprüft, 2026-11-10).
+ */
 export const INSTALLER_EXIT_CODES: Array<{
   code: number;
   title: string;
@@ -81,41 +103,88 @@ export const INSTALLER_EXIT_CODES: Array<{
     cause: 'Die Installation wurde abgebrochen – laut Microsoft durch den Benutzer.',
     remediation: [
       'Nutzer bitten, die Installation vollständig durchlaufen zu lassen (z. B. über das Unternehmensportal erneut starten).',
-      'Installationsbefehl auf unbeaufsichtigte Ausführung prüfen (z. B. msiexec /qn), damit keine Rückfrage erscheint.',
+      'Laut Microsoft die Installation nach Möglichkeit im Systemkontext statt im Benutzerkontext ausführen.',
     ],
-    docsUrl:
-      'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#msi-errors',
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1602`,
   },
   {
     code: 1603,
     title: 'Schwerer Fehler bei der Installation (1603)',
     cause: 'Der Installer meldet einen schweren Fehler während der Installation.',
     remediation: [
-      'IME-Logs (AppWorkload.log, IntuneManagementExtension.log) und das MSI-Log am Gerät auswerten.',
+      'Windows-Installer-Protokollierung aktivieren und die Installation wiederholen; im MSI-Log steht der Fehlergrund typischerweise in der Nähe von „Return value 3“.',
       'Installation testweise im Systemkontext ausführen (z. B. per PsExec), um die Ursache zu reproduzieren.',
     ],
-    docsUrl:
-      'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#msi-errors',
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1603`,
+  },
+  {
+    code: 1605,
+    title: 'Produkt nicht installiert (1605)',
+    cause:
+      'Laut Microsoft ist die Aktion nur für Produkte gültig, die aktuell installiert sind („This action is only valid for products that are currently installed“).',
+    remediation: [
+      'Sicherstellen, dass das Produkt installiert ist, bevor eine davon abhängige Installation läuft.',
+    ],
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1605`,
   },
   {
     code: 1618,
     title: 'Andere Installation läuft bereits (1618)',
     cause: 'Eine andere Installation war zum Zeitpunkt aktiv.',
     remediation: [
-      'Warten, bis die vorherige Installation abgeschlossen ist; Intune wiederholt die Installation automatisch.',
+      'Warten, bis die vorherige Installation abgeschlossen ist, bevor eine neue startet.',
+      'Reagiert die vorherige Installation nicht mehr, kann sie laut Microsoft beendet werden – mit möglichen unerwünschten Folgen.',
     ],
-    docsUrl:
-      'https://learn.microsoft.com/intune/configmgr/tenant-attach/app-install-error-reference#msi-errors',
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1618`,
+  },
+  {
+    code: 1633,
+    title: 'Prozessortyp nicht unterstützt (1633)',
+    cause:
+      'Laut Microsoft wird das Installationspaket von diesem Prozessortyp nicht unterstützt.',
+    remediation: [
+      'Prüfen, ob die Prozessorarchitektur des Geräts zur Software passt und die Mindestanforderungen erfüllt.',
+      'Erfüllt das Gerät die Anforderungen des Herstellers, den Produkthersteller kontaktieren.',
+    ],
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1633`,
+  },
+  {
+    code: 1638,
+    title: 'Andere Version bereits installiert (1638)',
+    cause:
+      'Laut Microsoft ist bereits eine andere Version dieses Produkts installiert; die Installation dieser Version kann nicht fortgesetzt werden.',
+    remediation: [
+      'Die unerwünschte Version deinstallieren – per Verwaltungswerkzeug/Skript oder manuell über Einstellungen › Apps.',
+    ],
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1638`,
+  },
+  {
+    code: 1642,
+    title: 'Upgrade-Patch nicht anwendbar (1642)',
+    cause:
+      'Laut Microsoft kann der Windows Installer den Upgrade-Patch nicht installieren: Das zu aktualisierende Programm fehlt möglicherweise, oder der Patch gilt für eine andere Version.',
+    remediation: ['Prüfen, ob das Gerät die Versionsvoraussetzungen des Produkts für die Installation erfüllt.'],
+    docsUrl: `${APP_INSTALL_REFERENCE_URL}#1642`,
   },
 ];
 
-export function findIntuneErrorCode(decimalOrHex: number | string): KnowledgeEntry | undefined {
+/** Passt der Eintrag in den Kontext? Kontextfreie Einträge passen immer. */
+function matchesContext(entry: KnowledgeEntry, context: ErrorCodeContext | undefined): boolean {
+  return entry.context === undefined || entry.context === context;
+}
+
+/** Wissensbasis-Eintrag zu einem Code (Hex oder signierte Dezimalzahl), ggf. kontextabhängig. */
+export function findIntuneErrorCode(
+  decimalOrHex: number | string,
+  context?: ErrorCodeContext,
+): KnowledgeEntry | undefined {
   const explanation = explainCode(decimalOrHex);
-  return INTUNE_ERROR_CODES.find((e) => e.hex === explanation.hex);
+  return ALL_ERROR_CODES.find((e) => e.hex === explanation.hex && matchesContext(e, context));
 }
 
 export interface ErrorCodeDescription {
   explanation: CodeExplanation;
+  /** Treffer in der Wissensbasis (Richtlinie, Registrierung, Autopilot oder App) */
   intune?: KnowledgeEntry;
   installer?: (typeof INSTALLER_EXIT_CODES)[number];
   /** Kurztext für Kachel/Finding, z. B. "0x87D1FDE8 · Remediation failed" oder "Unbekannter Code" */
@@ -123,16 +192,22 @@ export interface ErrorCodeDescription {
   docsUrl: string | null;
 }
 
-/** Fehlercode beschreiben: Intune-Wissensbasis → Installer-Codes → generische Win32/WinHTTP/NTSTATUS-Deutung. */
+/**
+ * Fehlercode beschreiben: Wissensbasis → Installer-Codes → generische Win32/WinHTTP/NTSTATUS-Deutung.
+ * `context` schaltet Einträge frei, die nur in einem Kontext eindeutig sind (z. B. 0x800705B4 bei der
+ * Registrierung); ohne Kontext werden nur eindeutige Codes gedeutet. Installer-Exitcodes gelten im
+ * App-Kontext und ohne Kontext (bisheriges Verhalten der Richtlinien-Kachel), nicht bei der Registrierung.
+ */
 export function describeErrorCode(
   decimalOrHex: number | string,
   unknownLabel: string,
+  context?: ErrorCodeContext,
 ): ErrorCodeDescription {
   const explanation = explainCode(decimalOrHex);
-  const intune = INTUNE_ERROR_CODES.find((e) => e.hex === explanation.hex);
+  const intune = findIntuneErrorCode(decimalOrHex, context);
   if (intune) return { explanation, intune, label: intune.title, docsUrl: intune.docsUrl };
   const installer =
-    explanation.kind === 'win32'
+    explanation.kind === 'win32' && context !== 'enrollment'
       ? INSTALLER_EXIT_CODES.find((c) => c.code === explanation.baseCode)
       : undefined;
   if (installer)
