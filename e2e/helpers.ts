@@ -153,6 +153,22 @@ export async function openTile(page: Page, title: string): Promise<Locator> {
   return dialog;
 }
 
+/** Öffnet das Aktionsmenü „Mehr“ im Geräte-/ZIP-Header und liefert das Menü. */
+export async function openMoreMenu(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Mehr', exact: true }).click();
+  const menu = page.getByRole('menu', { name: 'Mehr' });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Wartet, bis der Menüeintrag benutzbar ist (nicht mehr geladen wird), und löst ihn aus. */
+export async function clickMoreAction(page: Page, name: string): Promise<void> {
+  const menu = await openMoreMenu(page);
+  const item = menu.getByRole('menuitem', { name, exact: true });
+  await expect(item).not.toHaveAttribute('aria-disabled', 'true');
+  await item.click();
+}
+
 /** Opacity von Sheet und Sheet-Inhalt als „panel|inhalt“ (leer, wenn kein Dialog offen ist). */
 const SHEET_OPACITY_SCRIPT = `(() => {
   const dialog = document.querySelector('[role="dialog"]');

@@ -7,13 +7,27 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { buildFixtureZip, FIXTURE_FILE_NAME } from '../src/diagnostics/fixture';
-import { T, expect, openDevice, test, waitForTilesReady } from './helpers';
+import {
+  T,
+  clickMoreAction,
+  expect,
+  openDevice,
+  openMoreMenu,
+  test,
+  waitForTilesReady,
+} from './helpers';
 
 const HOME_BUTTON = 'MDM Doctor – zur Startseite';
 
 /** Vergleich ist erst möglich, wenn alles geladen ist (inkl. Zuweisungen, die nach den Kacheln kommen). */
 async function compareInput(page: Page) {
-  await expect(page.getByRole('button', { name: 'Mit Stand vergleichen' })).toBeEnabled();
+  const menu = await openMoreMenu(page);
+  await expect(menu.getByRole('menuitem', { name: 'Mit Stand vergleichen' })).not.toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
   return page.getByTestId('compare-input');
 }
 
@@ -24,7 +38,7 @@ test.describe('Vorher/Nachher (Gerät)', () => {
     await openDevice(page, 'CONTOSO-PC042');
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Stand exportieren' }).click();
+    await clickMoreAction(page, 'Stand exportieren');
     const file = await download;
     expect(file.suggestedFilename()).toMatch(/^mdm-doctor-stand-CONTOSO-PC042-\d{8}-\d{4}\.json$/);
     const target = path.join(
@@ -54,7 +68,7 @@ test.describe('Vorher/Nachher (Gerät)', () => {
   test('anderes Gerät: Warnung bei abweichendem Namen, Kacheln mit Trend', async ({ page }) => {
     await openDevice(page, 'CONTOSO-PC001');
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Stand exportieren' }).click();
+    await clickMoreAction(page, 'Stand exportieren');
     const target = path.join(mkdtempSync(path.join(tmpdir(), 'mdm-stand-')), 'pc001.json');
     await (await download).saveAs(target);
 
