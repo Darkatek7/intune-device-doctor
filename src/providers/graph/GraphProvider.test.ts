@@ -1677,6 +1677,7 @@ describe('GraphProvider – Richtlinien → Geräte (M15)', () => {
         id: guid(21),
         displayName: 'Contoso – Edge Sicherheitsbaseline',
         description: 'FREITEXT-NICHT-LESEN',
+        preSharedKey: 'GEHEIMER-SCHLUESSEL',
         lastModifiedDateTime: daysAgo(2),
         version: 3,
       },
@@ -1740,6 +1741,8 @@ describe('GraphProvider – Richtlinien → Geräte (M15)', () => {
       pendingCount: 1,
     });
     expect(JSON.stringify(result)).not.toContain('FREITEXT-NICHT-LESEN');
+    // Einstellungen abgeleiteter Typen (kein $select dokumentiert) werden nie übernommen
+    expect(JSON.stringify(result)).not.toContain('GEHEIMER-SCHLUESSEL');
     const compliance = expectStatus(result.compliancePolicies, 'ok');
     expect(compliance.data.policies[0]!.platform).toBe('ios');
   });
