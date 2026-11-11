@@ -12,11 +12,12 @@ import { de } from '../i18n/de';
 import { PrivacyViewProvider } from '../privacy/PrivacyProvider';
 import { useBuildPrivacyView } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
-import { evaluateTenant } from '../rules/tenant';
+import { evaluateTenant, groupTenantTiles, TENANT_SECTIONS } from '../rules/tenant';
 import { summarize } from '../rules/evaluate';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { ErrorState } from '../ui/ErrorState';
+import { ShareBar } from '../ui/ShareBar';
 import { SummaryPills } from '../ui/SummaryPills';
 import { summarySentence } from '../ui/summaryText';
 import { TileGrid } from '../ui/TileGrid';
@@ -34,8 +35,6 @@ interface Props {
   onToneChange?: (tone: AmbientTone) => void;
 }
 
-const SKELETONS = ['tenantApplePush', 'tenantVpp', 'tenantUnavailable'] as const;
-
 export function TenantView({
   provider,
   openTileId,
@@ -47,7 +46,7 @@ export function TenantView({
   const { state, reload } = useTenantStatus(provider);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 
-  // Präsentationsmodus (M19): z. B. Benutzer-IDs der Registrierungsfehler
+  // Präsentationsmodus (M19): z. B. Benutzer-IDs der Registrierungsfehler, Konten im Änderungsprotokoll
   const view = useBuildPrivacyView(state.status === 'done' ? state.data : null);
   const tiles = useMemo<Tile[]>(
     () => (state.status === 'done' ? view.deep(evaluateTenant(state.data, state.now)) : []),
@@ -147,20 +146,57 @@ export function TenantView({
               : de.tenantView.a11y.done(summarySentence(summary))}
           </p>
         </div>
-        {loading ? (
-          <ul
-            aria-label={de.grid.label}
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {SKELETONS.map((id) => (
-              <li key={id}>
-                <TileSkeleton tile={{ id, title: de.tiles[id] }} />
-              </li>
+        {loading
+          ? TENANT_SECTIONS.map((section) => (
+              <section
+                key={section.key}
+                aria-labelledby={`tenant-section-${section.key}`}
+                className="flex flex-col gap-3"
+              >
+                <h2
+                  id={`tenant-section-${section.key}`}
+                  className="text-lg font-semibold text-label"
+                >
+                  {de.fleet.sections[section.key]}
+                </h2>
+                <ul
+                  aria-label={de.grid.label}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                >
+                  {section.tiles.map((id) => (
+                    <li key={id}>
+                      <TileSkeleton tile={{ id, title: de.tiles[id] }} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          : groupTenantTiles(tiles).map((section) => (
+              <section
+                key={section.key}
+                aria-labelledby={`tenant-section-${section.key}`}
+                data-testid={`tenant-section-${section.key}`}
+                className="flex flex-col gap-3"
+              >
+                <h2
+                  id={`tenant-section-${section.key}`}
+                  className="text-lg font-semibold text-label"
+                >
+                  {de.fleet.sections[section.key]}
+                </h2>
+                {section.key === 'overview' && state.status === 'done' && (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {state.data.complianceSummary.status === 'ok' && (
+                      <ShareBar summary={state.data.complianceSummary.data} />
+                    )}
+                    {state.data.configurationSummary.status === 'ok' && (
+                      <ShareBar summary={state.data.configurationSummary.data} />
+                    )}
+                  </div>
+                )}
+                <TileGrid tiles={section.tiles} onOpen={handleOpen} />
+              </section>
             ))}
-          </ul>
-        ) : (
-          <TileGrid tiles={tiles} onOpen={handleOpen} />
-        )}
         <AnimatePresence>
           {openTile && (
             <DetailSheet

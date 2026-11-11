@@ -19,6 +19,7 @@ import {
 import { Docs } from '../knowledge/docs';
 import { THRESHOLDS } from '../thresholds';
 import { duplicatesContribution } from './duplicates';
+import { remoteActionsContribution } from './remoteActions';
 
 const t = de.rules.deviceStatus;
 const f = de.rules.facts;
@@ -130,6 +131,12 @@ export function evaluateDeviceStatus(snapshot: DeviceSnapshot, now: Date): Tile 
   findings.push(...duplicates.findings);
   facts.push(...duplicates.facts);
   if (duplicates.value) values.push(duplicates.value);
+
+  // M20/S4: letzte Remote-Aktionen (aus managedDevice, kein zusätzlicher Abruf)
+  const actions = remoteActionsContribution(snapshot, now);
+  findings.push(...actions.findings);
+  facts.push(...actions.facts);
+  if (actions.value) values.push(actions.value);
 
   const certExpiry = device.managementCertificateExpirationDate;
   if (certExpiry) {

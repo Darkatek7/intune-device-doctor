@@ -13,6 +13,7 @@ import { de } from '../i18n/de';
 import { usePrivacy } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { PolicyChanges } from '../ui/PolicyChanges';
 import { SeverityBadge, SeverityIcon } from '../ui/SeverityBadge';
 import { TONE_CLASS } from '../ui/tone';
 
@@ -317,6 +318,13 @@ export function PolicyDetailView({
           )}
         </div>
       )}
+
+      <PolicyChanges
+        provider={provider}
+        policyId={policyKey.id}
+        title={title}
+        problems={problems}
+      />
 
       <div className="flex flex-col gap-3 text-sm text-secondary-label">
         {section?.status === 'ok' && section.data.truncated && (

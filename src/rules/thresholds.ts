@@ -26,4 +26,16 @@ export const THRESHOLDS = {
   eventLogErrorWarningCount: 1,
   /** Höchstzahl der Ereignisgruppen, die als einzelne Befunde erscheinen */
   eventLogMaxFindings: 8,
+  /** Mandant (M20/S1): ab diesem Anteil nicht konformer Geräte → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
+  tenantNonCompliantShareWarning: 0.1,
+  /** Mandant (M20/S1): so viele Einstellungen zeigt „Häufigste Verstöße“ höchstens */
+  tenantTopViolations: 10,
+  /** Änderungsprotokoll (M20/S2): Zeitfenster der Ansicht „Mandant“ in Tagen */
+  auditWindowDays: 7,
+  /** Änderungsprotokoll (M20/S2): Änderung höchstens so viele Tage vor einem gemeldeten Fehler → ruhiger Hinweis (eigener Richtwert) */
+  auditChangeBeforeErrorDays: 7,
+  /** App-Schutz (M20/S3): letzte Synchronisierung älter als so viele Tage → Warnung (eigener Richtwert, keine Microsoft-Vorgabe) */
+  appProtectionSyncWarningDays: 30,
+  /** Remote-Aktionen (M20/S4): fehlgeschlagene Aktionen höchstens so viele Tage zurück als Befund (eigener Richtwert) */
+  remoteActionRecentDays: 30,
 } as const;

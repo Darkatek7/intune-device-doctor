@@ -3,11 +3,13 @@
  * Enum-Werte werden 1:1 aus den Graph-DTOs übernommen (offizielles Microsoft-Datenmodell).
  */
 import type {
+  ActionState,
   AppliedConditionalAccessPolicyResult,
   AutopilotEnrollmentState,
   ComplianceState,
   ComplianceStatus,
   ConditionalAccessStatus,
+  DeviceStateCountField,
   DeviceEnrollmentFailureReason,
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
@@ -19,6 +21,7 @@ import type {
   ServiceHealthClassificationType,
   ServiceHealthStatus,
   ServicePlanProvisioningStatus,
+  SettingSummaryPlatformType,
   TroubleshootingEnrollmentType,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
@@ -123,7 +126,24 @@ export interface ManagedDeviceInfo {
   isSupervised: boolean | null;
   androidSecurityPatchLevel: string | null;
   enrollmentProfileName: string | null;
+  /**
+   * M20/S4: Remote-Aktionen laut managedDevice.deviceActionResults, zuletzt aktualisierte zuerst.
+   * undefined = nicht geliefert (z. B. Suchtreffer, ältere Demo-Daten).
+   */
+  actionResults?: DeviceActionResultInfo[];
   source: DataSource;
+}
+
+/** Ergebnis einer Remote-Aktion (deviceActionResult, v1.0). */
+export interface DeviceActionResultInfo {
+  /** Rohwert von Microsoft (keine Werteliste dokumentiert, nie übersetzt) */
+  actionName: string | null;
+  /** Dokumentierter Zustand; unbekannte Werte → 'unknown' */
+  actionState: ActionState | 'unknown';
+  /** Rohwert des Zustands (für unbekannte Werte) */
+  actionStateRaw: string | null;
+  startDateTime: string | null;
+  lastUpdatedDateTime: string | null;
 }
 
 export interface DetectedMalware {
@@ -466,6 +486,41 @@ export interface SecurityAlertsInfo {
   moreAvailable: boolean;
 }
 
+// ---------- App-Schutz (M20/S3) ----------
+
+/** Eine App-Schutz-Registrierung (managedAppRegistration, v1.0) des primären Benutzers. */
+export interface AppProtectionRegistration {
+  id: string;
+  /** Bundle-ID (iOS) bzw. Paketname (Android) aus appIdentifier; null, wenn nicht geliefert */
+  appIdentifier: string | null;
+  /** Plattform laut appIdentifier-Typ */
+  appPlatform: 'ios' | 'android' | null;
+  applicationVersion: string | null;
+  managementSdkVersion: string | null;
+  platformVersion: string | null;
+  deviceType: string | null;
+  deviceName: string | null;
+  createdDateTime: string | null;
+  lastSyncDateTime: string | null;
+  /** Rohwerte aus flaggedReasons ohne `none` (dokumentiert: rootedDevice) */
+  flaggedReasons: string[];
+}
+
+export interface AppProtectionInfo {
+  /**
+   * Registrierungen, die angezeigt werden: bei `matchedBy = 'deviceName'` nur die mit gleichem Gerätenamen,
+   * bei `'user'` alle des Benutzers (Zuordnung zum Gerät nicht sicher). Zuletzt synchronisierte zuerst.
+   */
+  registrations: AppProtectionRegistration[];
+  /** Wie die Registrierungen dem Gerät zugeordnet wurden (v1.0 kennt keine Geräte-ID) */
+  matchedBy: 'deviceName' | 'user';
+  /** Alle Registrierungen des Benutzers in den gelesenen Seiten */
+  userRegistrationCount: number;
+  pagesRead: number;
+  /** true = weitere Seiten nicht gelesen */
+  truncated: boolean;
+}
+
 // ---------- Mandanten-Status (M14/S5) ----------
 
 export type VppTokenStateLevel =
@@ -500,6 +555,94 @@ export interface TenantStatus {
   serviceHealth: SectionResult<ServiceHealthInfo>;
   /** Fehlgeschlagene Registrierungen im Mandanten (M18, seitenbegrenzt) */
   enrollmentFailures: SectionResult<EnrollmentFailuresInfo>;
+  /** Gerätezähler aller Compliance-Richtlinien (M20/S1) */
+  complianceSummary: SectionResult<DeviceStateSummaryInfo>;
+  /** Zähler je Compliance-Einstellung (M20/S1, „Häufigste Verstöße“, seitenbegrenzt) */
+  complianceSettings: SectionResult<ComplianceSettingSummariesInfo>;
+  /** Gerätezähler aller Konfigurationsprofile (M20/S1) */
+  configurationSummary: SectionResult<DeviceStateSummaryInfo>;
+  /** Intune-Änderungsprotokoll (M20/S2, optionaler Scope DeviceManagementApps.Read.All, seitenbegrenzt) */
+  auditEvents: SectionResult<AuditEventsInfo>;
+}
+
+// ---------- Änderungsprotokoll (M20/S2) ----------
+
+/**
+ * Wer die Änderung ausgelöst hat (auditActor): Benutzer (UPN) oder Anwendung (Anzeigename). Bewusst
+ * ohne IP-Adresse, Berechtigungen, Benutzer-/Anwendungs-ID und Service Principal Name.
+ */
+export interface AuditActorInfo {
+  kind: 'user' | 'application' | 'unknown';
+  /** UPN des Benutzers bzw. Anzeigename der Anwendung */
+  name: string | null;
+  /** auditActorType bzw. type – freie Zeichenkette laut Doku, nur roh angezeigt */
+  actorType: string | null;
+}
+
+/** Ein betroffenes Objekt (auditResource), ohne geänderte Eigenschaften (alte/neue Werte). */
+export interface AuditResourceInfo {
+  resourceId: string | null;
+  displayName: string | null;
+  /** auditResourceType bzw. type – freie Zeichenkette */
+  type: string | null;
+}
+
+/** Ein Eintrag des Intune-Überwachungsprotokolls. Alle Texte sind Microsoft-Rohwerte (keine Enums dokumentiert). */
+export interface AuditEventEntry {
+  id: string;
+  activityDateTime: string | null;
+  /** activity („Friendly name“), sonst displayName */
+  activity: string | null;
+  activityType: string | null;
+  activityOperationType: string | null;
+  activityResult: string | null;
+  category: string | null;
+  componentName: string | null;
+  correlationId: string | null;
+  actor: AuditActorInfo;
+  resources: AuditResourceInfo[];
+}
+
+export interface AuditEventsInfo {
+  /** Alle gelesenen Ereignisse, neueste zuerst (clientseitig sortiert – keine Sortierung dokumentiert) */
+  events: AuditEventEntry[];
+  pagesRead: number;
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_AUDIT_EVENT_PAGES) */
+  truncated: boolean;
+}
+
+// ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+/**
+ * Gerätezähler eines Summary-Endpunkts. `counts` enthält genau die für diese Art dokumentierten Felder
+ * (Compliance: 9, Konfiguration: 7); null = Wert fehlt in der Antwort. Ob sich die Zähler überschneiden,
+ * dokumentiert Microsoft nicht.
+ */
+export interface DeviceStateSummaryInfo {
+  kind: TenantPolicyKind;
+  counts: Partial<Record<DeviceStateCountField, number | null>>;
+}
+
+/** Zähler einer Compliance-Einstellung über alle Richtlinien des Mandanten. */
+export interface ComplianceSettingSummaryInfo {
+  id: string;
+  /** settingName, sonst setting (Klassen- und Eigenschaftsname) */
+  name: string;
+  setting: string | null;
+  /** null = Wert fehlt oder ist nicht dokumentiert; Rohwert in platformRaw */
+  platform: SettingSummaryPlatformType | null;
+  platformRaw: string | null;
+  nonCompliantDeviceCount: number | null;
+  errorDeviceCount: number | null;
+  conflictDeviceCount: number | null;
+  compliantDeviceCount: number | null;
+}
+
+export interface ComplianceSettingSummariesInfo {
+  settings: ComplianceSettingSummaryInfo[];
+  pagesRead: number;
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_SETTING_SUMMARY_PAGES) */
+  truncated: boolean;
 }
 
 // ---------- Dienststatus (M18) ----------
@@ -707,6 +850,8 @@ export interface DeviceSnapshot {
   enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
   /** Offene Defender-Warnungen dieses Geräts (M14/S4, optionaler Scope SecurityAlert.Read.All) */
   securityAlerts?: SectionResult<SecurityAlertsInfo>;
+  /** Nur iOS/Android: App-Schutz-Registrierungen des primären Benutzers (M20/S3, optionaler Scope DeviceManagementApps.Read.All) */
+  appProtection?: SectionResult<AppProtectionInfo>;
   /** Fehlgeschlagene Registrierungen des primären Benutzers (M18, seitenbegrenzt, Kachel „Registrierung“) */
   enrollmentFailures?: SectionResult<EnrollmentFailuresInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
@@ -738,6 +883,7 @@ export type TileId =
   | 'defender'
   | 'policies'
   | 'apps'
+  | 'appProtection'
   | 'signIns'
   | 'laps'
   | 'autopilot'
@@ -750,6 +896,9 @@ export type TileId =
   | 'tenantVpp'
   | 'tenantServiceHealth'
   | 'tenantEnrollmentFailures'
+  | 'tenantCompliance'
+  | 'tenantConfiguration'
+  | 'tenantChanges'
   | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
@@ -770,7 +919,18 @@ export interface AppInfo {
 /** Kleine Tabelle innerhalb eines Befunds (z. B. gleichnamige Entra-Objekte). Reiner Text. */
 export interface FindingTable {
   columns: string[];
-  rows: Array<{ cells: string[]; /** z. B. das aktuelle Objekt */ highlight?: boolean }>;
+  /**
+   * Sprache je Spalte (M20): `'en'` für unveränderte englische Microsoft-Originalwerte (z. B. Dienstnamen,
+   * Fehlergründe, Aktivitäten) – die UI setzt `lang`, damit Screenreader richtig vorlesen. null = Deutsch.
+   */
+  columnLangs?: Array<'en' | null>;
+  rows: Array<{
+    cells: string[];
+    /** z. B. das aktuelle Objekt */
+    highlight?: boolean;
+    /** Sprache je Zelle; überschreibt columnLangs (null = Deutsch, z. B. deutscher Platzhalter „–“) */
+    cellLangs?: Array<'en' | null | undefined>;
+  }>;
 }
 
 /** Weiterführender Link, z. B. "In Intune öffnen". */
@@ -826,6 +986,7 @@ export type SnapshotSectionKey =
   | 'enrollmentLimits'
   | 'securityAlerts'
   | 'enrollmentFailures'
+  | 'appProtection'
   | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */

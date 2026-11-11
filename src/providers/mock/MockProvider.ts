@@ -8,7 +8,11 @@ import type {
   EnrollmentLimitsInfo,
   ServiceHealthInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   TenantStatus,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
+  AuditEventsInfo,
   TenantPolicies,
   TenantPolicyInfo,
   TenantPolicyKind,
@@ -49,6 +53,13 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { buildMockPolicies, policyKey } from './policies';
+import {
+  defaultComplianceSettings,
+  defaultComplianceSummary,
+  defaultConfigurationSummary,
+  defaultAuditEvents,
+  emptyAppProtection,
+} from './fleet';
 import { defaultEnrollmentFailures, defaultServiceHealth } from './service';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
@@ -99,6 +110,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   enrollmentLimits: 'deviceEnrollmentConfigurations',
   securityAlerts: 'securityAlerts',
   enrollmentFailures: 'troubleshootingEvents',
+  appProtection: 'managedAppRegistrations',
 };
 
 export function abortError(): DOMException {
@@ -302,6 +314,14 @@ export class MockProvider implements DeviceDataProvider {
     if (key === 'securityAlerts') {
       return { status: 'ok', data: defaultSecurityAlerts() };
     }
+    if (key === 'appProtection') {
+      const { osFamily, userId } = fixture.device;
+      if (osFamily !== 'ios' && osFamily !== 'android') {
+        return { status: 'notApplicable', reason: de.fleet.reasons.appProtectionPlatform };
+      }
+      if (!userId) return { status: 'notApplicable', reason: de.fleet.reasons.appProtectionNoUser };
+      return { status: 'ok', data: emptyAppProtection() };
+    }
     if (key === 'enrollmentFailures') {
       const userId = fixture.device.userId;
       if (!userId) {
@@ -467,6 +487,20 @@ export class MockProvider implements DeviceDataProvider {
     return this.section<EnrollmentFailuresInfo>(device, 'enrollmentFailures', options);
   }
 
+  private auditEventsResult(): SectionResult<AuditEventsInfo> {
+    return this.fromSpec<AuditEventsInfo>(
+      this.tenant.auditEvents ?? { status: 'ok', data: defaultAuditEvents(this.now()) },
+      'auditEvents',
+      sourceFor('auditEvents'),
+    );
+  }
+
+  /** Änderungsprotokoll (M20/S2): Standard-Demo oder `options.tenant.auditEvents`. */
+  async getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
+    await this.delay('auditEvents', options.signal);
+    return this.auditEventsResult();
+  }
+
   /** Mandanten-Status: Standard oder `options.tenant` (siehe MockTenantFixture). */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
     await this.delay('tenant', options.signal);
@@ -488,6 +522,22 @@ export class MockProvider implements DeviceDataProvider {
         'vppTokens',
         sourceFor('vppTokens'),
       ),
+      complianceSummary: this.fromSpec<DeviceStateSummaryInfo>(
+        this.tenant.complianceSummary ?? { status: 'ok', data: defaultComplianceSummary() },
+        'deviceCompliancePolicyDeviceStateSummary',
+        sourceFor('deviceCompliancePolicyDeviceStateSummary'),
+      ),
+      complianceSettings: this.fromSpec<ComplianceSettingSummariesInfo>(
+        this.tenant.complianceSettings ?? { status: 'ok', data: defaultComplianceSettings() },
+        'deviceCompliancePolicySettingStateSummaries',
+        sourceFor('deviceCompliancePolicySettingStateSummaries'),
+      ),
+      configurationSummary: this.fromSpec<DeviceStateSummaryInfo>(
+        this.tenant.configurationSummary ?? { status: 'ok', data: defaultConfigurationSummary() },
+        'deviceConfigurationDeviceStateSummaries',
+        sourceFor('deviceConfigurationDeviceStateSummaries'),
+      ),
+      auditEvents: this.auditEventsResult(),
     };
   }
 
@@ -581,6 +631,10 @@ export class MockProvider implements DeviceDataProvider {
       endpoint,
       sourceFor(endpoint),
     );
+  }
+
+  getAppProtection(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<AppProtectionInfo>(device, 'appProtection', options);
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options: RequestOptions = {}) {
