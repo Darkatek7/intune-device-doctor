@@ -1,10 +1,11 @@
-import { ChevronRight, Laptop, Stethoscope } from 'lucide-react';
+import { ChevronRight, Stethoscope } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { de } from '../i18n/de';
 import type { DataMode } from '../domain/types';
 import type { RecentDevice } from '../hooks/useRecentDevices';
 import type { ExampleDevice } from '../hooks/useExampleDevices';
 import { EXAMPLE_CHIP_CLASS } from './chipStyles';
+import { DEVICE_ICON } from './deviceIcon';
 import { DropZone } from './DropZone';
 import { RecentDevices } from './RecentDevices';
 
@@ -62,32 +63,36 @@ export function Landing({
             {de.demo.examplesTitle}
           </h2>
           <ul className="grid grid-cols-1 gap-2.5 min-[30rem]:grid-cols-2 sm:grid-cols-3">
-            {examples.map((scenario) => (
-              <li key={scenario.deviceName} className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => onPickExample(scenario.deviceName)}
-                  className={EXAMPLE_CHIP_CLASS}
-                >
-                  <span aria-hidden="true" className="squircle size-8 bg-fill text-secondary-label">
-                    <Laptop size={17} />
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-semibold text-label">
-                      {scenario.deviceName}
+            {examples.map((scenario) => {
+              const Icon = DEVICE_ICON[scenario.iconKind];
+              return (
+                <li key={scenario.deviceName} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onPickExample(scenario.deviceName)}
+                    className={EXAMPLE_CHIP_CLASS}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="squircle size-8 bg-fill text-secondary-label"
+                    >
+                      <Icon size={17} />
                     </span>
-                    <span title={scenario.label} className="truncate text-xs text-secondary-label">
-                      {scenario.label}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-semibold text-label">
+                        {scenario.deviceName}
+                      </span>
+                      <span className="text-xs text-secondary-label">{scenario.label}</span>
                     </span>
-                  </span>
-                  <ChevronRight
-                    aria-hidden="true"
-                    size={16}
-                    className="shrink-0 text-tertiary-label"
-                  />
-                </button>
-              </li>
-            ))}
+                    <ChevronRight
+                      aria-hidden="true"
+                      size={16}
+                      className="shrink-0 text-tertiary-label"
+                    />
+                  </button>
+                </li>
+              );
+            })}
             {extraChips}
           </ul>
         </div>

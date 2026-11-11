@@ -4,7 +4,7 @@
  */
 import { ChevronLeft, CloudOff, FileWarning, SearchX } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { DataMode, DeviceSearchResult } from '../domain/types';
 import { useBulkCheck } from '../hooks/useBulkCheck';
 import { useDeviceSearch } from '../hooks/useDeviceSearch';
@@ -25,7 +25,6 @@ import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
 import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
 import { BookmarkletDialog } from '../ui/BookmarkletDialog';
-import { BulkView } from '../ui/BulkView';
 import { DropOverlay } from '../ui/DropOverlay';
 import { EmptyState } from '../ui/EmptyState';
 import { ErrorState } from '../ui/ErrorState';
@@ -35,14 +34,13 @@ import { LandingTools } from '../ui/LandingTools';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { ResultPicker } from '../ui/ResultPicker';
 import { SearchField } from '../ui/SearchField';
+import { NAV_ITEMS, type NavId } from '../ui/navItems';
 import { Toolbar } from '../ui/Toolbar';
+import { ViewFallback } from '../ui/ViewFallback';
 import { ZipProgress } from '../ui/ZipProgress';
-import { ConnectionTestView } from './ConnectionTestView';
 import { DeviceView } from './DeviceView';
-import { TenantView } from './TenantView';
-import { PoliciesView } from './PoliciesView';
+import { BulkView, ConnectionTestView, PoliciesView, TenantView, ZipView } from './lazyViews';
 import { useProviderContext } from './providerContextValue';
-import { ZipView } from './ZipView';
 
 interface Props {
   /** Slot für das Konto in der Toolbar (M4: AuthGate/Account-Menü) */
@@ -511,6 +509,21 @@ function Shell({ account, extraChips }: Props) {
     );
   }
 
+  // Hauptnavigation: Einträge stehen in NAV_ITEMS, hier nur Handler und aktiver Eintrag.
+  const navHandlers: Record<NavId, () => void> = {
+    devices: goHome,
+    policies: openPolicies,
+    tenant: openTenant,
+  };
+  const activeView = showPolicies ? 'policies' : showTenant ? 'tenant' : null;
+  const navItems = NAV_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: item.icon,
+    active: item.view === activeView,
+    onSelect: navHandlers[item.id],
+  }));
+
   const dragging = usePageFileDrop(showHero, startAnalysis);
 
   const liveStatus = state.loading
@@ -542,14 +555,7 @@ function Shell({ account, extraChips }: Props) {
         onModeChange={changeMode}
         liveAvailable={liveAvailable}
         onHome={goHome}
-        {...(liveWithoutProvider
-          ? {}
-          : {
-              onOpenTenant: openTenant,
-              tenantActive: showTenant,
-              onOpenPolicies: openPolicies,
-              policiesActive: showPolicies,
-            })}
+        navItems={liveWithoutProvider ? [] : navItems}
         account={account}
       />
       {mode === 'live' && provider && !online && <OfflineBanner />}
@@ -557,7 +563,7 @@ function Shell({ account, extraChips }: Props) {
         <p className="sr-only" role="status" aria-live="polite">
           {liveStatus}
         </p>
-        {content}
+        <Suspense fallback={<ViewFallback />}>{content}</Suspense>
       </main>
       <AnimatePresence>
         {bookmarkletOpen && (

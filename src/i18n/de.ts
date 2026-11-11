@@ -337,6 +337,13 @@ export const de = {
       done: (summary: string) => `Mandanten-Status geladen: ${summary}`,
     },
   },
+  /** Hauptnavigation der Toolbar */
+  nav: {
+    label: 'Hauptnavigation',
+    devices: 'Geräte',
+    policies: 'Richtlinien',
+    tenant: 'Mandant',
+  },
   toolbar: {
     tenant: 'Mandanten-Status',
     tenantShort: 'Mandant',
@@ -356,7 +363,7 @@ export const de = {
   },
   hero: {
     title: 'Intune-Geräte in Sekunden diagnostizieren',
-    subtitle: 'Gerätenamen oder Benutzer eingeben – oder ein Beispielgerät laden.',
+    subtitle: 'Gerätenamen, Benutzer oder Seriennummer eingeben – oder ein Beispielgerät laden.',
   },
   header: {
     loadingDevice: 'Gerät wird geladen …',
@@ -372,9 +379,21 @@ export const de = {
     otherDevicesLabel: 'Weitere Geräte des Benutzers',
     openOtherDevice: (name: string, compliance: string) => `${name} öffnen (${compliance})`,
   },
+  /** Aktionsleiste über den Kacheln (Menü „Mehr“) */
+  actions: {
+    label: 'Aktionen',
+    more: 'Mehr',
+    moreHint: 'Weitere Aktionen',
+  },
   grid: {
     label: 'Statuskacheln',
     open: 'Details anzeigen',
+    /** Abschnitt der unauffälligen Kacheln (kompakt) */
+    healthyTitle: (n: number) => `In Ordnung · ${n}`,
+    /** Positive Aussage, wenn keine Kachel einen Befund hat */
+    allOkTitle: 'Keine Auffälligkeiten',
+    allOkBody: (n: number) =>
+      n === 1 ? 'Die Prüfung ist in Ordnung.' : `Alle ${n} Prüfungen sind in Ordnung.`,
   },
   sheet: {
     loading: 'Wird ausgewertet …',
