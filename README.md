@@ -24,16 +24,43 @@ npm run dev
 
 Öffnen: http://localhost:5173 (Demo-Modus).
 
-### Mit Docker / Rancher Desktop
+### Mit Docker (fertiges Image, ohne eigenen Build)
+
+Bei jedem Merge nach `main` baut GitHub Actions das Image `ghcr.io/darkatek7/intune-device-doctor` (Tags `latest` und `sha-<commit>`, bei Versions-Tags `v1.2.3` zusätzlich `1.2.3` und `1.2`; für `linux/amd64` und `linux/arm64`). Wöchentlich wird es neu gebaut, damit Sicherheitsupdates des nginx-Basis-Images ankommen.
+
+```bash
+# compose.yaml aus dem Repo holen (oder das Repo klonen)
+curl -fsSLO https://raw.githubusercontent.com/Darkatek7/intune-device-doctor/main/compose.yaml
+# optional für den Live-Modus: .env.local mit VITE_*-Werten anlegen (siehe .env.example)
+docker compose up -d          # → http://localhost:5173
+```
+
+**Aktualisieren:** `docker compose pull && docker compose up -d` (danach optional `docker image prune -f`). Eine feste Version statt `latest`: `MDM_DOCTOR_IMAGE=ghcr.io/darkatek7/intune-device-doctor:sha-<commit> docker compose up -d`; anderer Host-Port: `MDM_DOCTOR_PORT=8080`.
+
+Ohne Compose:
+
+```bash
+docker run -d --name mdm-doctor -p 5173:80 --restart unless-stopped \
+  -e VITE_APP_MODE=live \
+  -e VITE_MSAL_CLIENT_ID=<Anwendungs-(Client-)ID> \
+  -e VITE_MSAL_TENANT_ID=<Verzeichnis-(Mandanten-)ID> \
+  ghcr.io/darkatek7/intune-device-doctor:latest
+```
+
+**Konfiguration zur Laufzeit:** Das Image enthält keine Mandantenwerte. Beim Start schreibt `docker/40-mdm-doctor-config.sh` die `VITE_*`-Umgebungsvariablen (`VITE_APP_MODE`, `VITE_MSAL_CLIENT_ID`, `VITE_MSAL_TENANT_ID`, `VITE_MSAL_REDIRECT_URI`, `VITE_IDLE_TIMEOUT_MINUTES`) nach `/config.js`; die App liest sie vor dem Start und bevorzugt sie vor den Build-Werten. Erlaubt sind nur GUIDs, Domains, `http(s)`-URLs bzw. Zahlen – ein ungültiger Wert verhindert den Start (Meldung in `docker compose logs`). Ohne Variablen läuft der Demo-Modus.
+
+**Andere Rechner als `localhost` (z. B. eine VM):** Die Microsoft-Anmeldung braucht einen sicheren Kontext – `https://` oder `http://localhost`. Über `http://<vm>:5173` funktioniert nur der Demo-Modus und die ZIP-Analyse. Für den Live-Modus entweder einen Reverse-Proxy mit TLS davorsetzen (Caddy, Traefik, nginx; dann die HTTPS-Adresse als Redirect-URI der Entra-App eintragen und `VITE_MSAL_REDIRECT_URI` setzen) oder per SSH-Tunnel lokal öffnen: `ssh -L 5173:localhost:5173 <vm>` → http://localhost:5173.
+
+### Mit Docker selbst bauen / Rancher Desktop
 
 ```bash
 npm install
 npm run docker:up
 ```
 
-Baut die App auf dem Host (`dist/`, inklusive der `VITE_*`-Werte aus `.env.local`) und startet sie als nginx-Container unter http://localhost:5173 – derselbe Port wie der Dev-Server, damit die Redirect-URI der Entra-App unverändert passt. Stoppen mit `npm run docker:down`. Der Image-Build selbst braucht keinen npm-Zugriff; das funktioniert damit auch hinter Firmen-Proxys mit TLS-Inspektion, die Container-Traffic nicht durchlassen. Nach Code- oder `.env.local`-Änderungen erneut `npm run docker:up` ausführen.
+Baut die App auf dem Host (`dist/`, inklusive der `VITE_*`-Werte aus `.env.local`) und startet sie als nginx-Container unter http://localhost:5173 – derselbe Port wie der Dev-Server, damit die Redirect-URI der Entra-App unverändert passt (`compose.yaml` + `compose.build.yaml`). Stoppen mit `npm run docker:down`. Der Image-Build selbst braucht keinen npm-Zugriff; das funktioniert damit auch hinter Firmen-Proxys mit TLS-Inspektion, die Container-Traffic nicht durchlassen. Nach Code- oder `.env.local`-Änderungen erneut `npm run docker:up` ausführen.
 
-Der Container setzt die Sicherheits-Header, die als Meta-Tag nicht möglich sind (`docker/nginx.conf`): `Content-Security-Policy: frame-ancestors 'self'` und `X-Frame-Options: SAMEORIGIN` gegen Clickjacking (`'self'`, weil MSAL die eigene Redirect-URI für die stille Token-Erneuerung in einem versteckten iframe lädt), dazu `X-Content-Type-Options: nosniff`, `Referrer-Policy` und `Permissions-Policy`. Die Konfiguration braucht nginx ab 1.29.3 (`add_header_inherit`).
+Der Container setzt die Sicherheits-Header, die als Meta-Tag nicht möglich sind (`docker/nginx.conf`): `Content-Security-Policy: frame-ancestors 'self'` und `X-Frame-Options: SAMEORIGIN` gegen Clickjacking (`'self'`, weil MSAL die eigene Redirect-URI für die stille Token-Erneuerung in einem versteckten iframe lädt), dazu `X-Content-Type-Options: nosniff`, `Referrer-Policy` und `Permissions-Policy`. Die Konfiguration braucht nginx ab 1.29.3 (`add_header_inherit`); das Image nutzt die stabile Reihe 1.30.
 
 ## Demo-Skript (3 Minuten)
 
@@ -122,7 +149,7 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
    VITE_IDLE_TIMEOUT_MINUTES=30
    ```
 
-   Ohne Client- und Tenant-ID bleibt der Live-Modus deaktiviert; der Demo-Modus funktioniert unverändert. Dev-Server nach Änderungen an `.env.local` neu starten.
+   Ohne Client- und Tenant-ID bleibt der Live-Modus deaktiviert; der Demo-Modus funktioniert unverändert. Dev-Server nach Änderungen an `.env.local` neu starten. Im Container-Image gelten dieselben Variablen als Umgebungsvariablen (Abschnitt „Mit Docker“), ein Neubau ist dafür nicht nötig.
 
    **Abmeldung bei Inaktivität:** Im Live-Modus meldet die App nach `VITE_IDLE_TIMEOUT_MINUTES` Minuten ohne Aktivität (Maus, Tastatur, Scrollen, Rückkehr in den Tab) automatisch ab; 60 Sekunden vorher (bei einem Wert von 1 Minute: 30 Sekunden) erscheint ein Hinweis mit „Angemeldet bleiben“. Erlaubt sind ganze Minuten von 1 bis 1440, `0` schaltet die Funktion ab, ungültige oder leere Werte ergeben den Standard (30). Die Abmeldung ist **lokal** (MSAL-Cache dieses Tabs wird geleert, keine Weiterleitung zur Microsoft-Abmeldeseite) – die Entra-Sitzung anderer Tabs, z. B. des Intune Admin Centers, bleibt bestehen. Die nächste Anmeldung verlangt dafür eine erneute Authentifizierung (`prompt=login`).
 
@@ -143,7 +170,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 | `npm run fixture`     | Synthetisches DiagLogs-Test-ZIP erzeugen                    |
 | `npm run test:e2e`    | Playwright-E2E inkl. axe-Scan und Screenshots (4 Projekte)  |
 | `npm run check:full`  | `check` + E2E                                               |
-| `npm run docker:up`   | Host-Build + nginx-Container auf Port 5173 (Docker/Rancher) |
+| `npm run docker:up`   | Host-Build + eigenes nginx-Image auf Port 5173 (Docker/Rancher) |
 | `npm run docker:down` | Container stoppen und entfernen                             |
 
 ## Datenschutz

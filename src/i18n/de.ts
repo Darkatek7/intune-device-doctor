@@ -18,7 +18,7 @@ export const de = {
     demo: 'Demo',
     live: 'Live',
     liveNotConfigured:
-      'Live-Modus nicht konfiguriert – Client-ID und Tenant-ID in .env.local setzen.',
+      'Live-Modus nicht konfiguriert – Client-ID und Tenant-ID in .env.local bzw. als Umgebungsvariablen des Containers setzen.',
   },
   search: {
     placeholder: 'Gerätename, Benutzer oder Seriennummer …',
