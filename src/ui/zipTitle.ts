@@ -7,7 +7,10 @@ export function zipTitle(report: DiagnosticsReport): string {
 }
 
 /** Titel für die Anzeige: im Präsentationsmodus Pseudonym statt Gerätename bzw. Dateiname. */
-export function maskedZipTitle(report: DiagnosticsReport, view: PrivacyView): string {
+export function maskedZipTitle(
+  report: DiagnosticsReport,
+  view: Pick<PrivacyView, 'enabled' | 'masker'>,
+): string {
   if (!view.enabled) return zipTitle(report);
   return report.deviceNameFromFile
     ? view.masker.device(report.deviceNameFromFile)

@@ -12,7 +12,7 @@ import { usePrivacy } from '../privacy/privacyContext';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import { buildSnapshotFile, type SnapshotFile } from '../rules/snapshotCompare';
 import { CompareDialog } from './CompareDialog';
-import { zipTitle } from './zipTitle';
+import { maskedZipTitle } from './zipTitle';
 
 interface Props {
   /** Die geöffnete ZIP samt ihren bereits ausgewerteten Kacheln */
@@ -153,7 +153,10 @@ export function CompareZipControls({
             key="compare-zip-dialog"
             before={pair.before}
             after={pair.after}
-            beforeLabel={shownName(pair.beforeLabel) || shownName(zipTitle(report))}
+            // Ohne eigenes Etikett: derselbe Titel wie im Kopf der ZIP-Ansicht (Gerät-…, nicht Datei-…)
+            beforeLabel={
+              shownName(pair.beforeLabel) || maskedZipTitle(report, { enabled: privacyOn, masker })
+            }
             afterLabel={shownName(pair.afterLabel)}
             onClose={close}
           />

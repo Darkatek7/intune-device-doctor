@@ -233,6 +233,13 @@ describe('collectKnown', () => {
     expect(known).toEqual([{ kind: 'device', value: 'CONTOSO-IP015' }]);
   });
 
+  it('große Ereignislisten verdrängen flache Felder nicht (Breitensuche)', () => {
+    // 80.000 Datensätze stehen in der Schlüsselreihenfolge VOR dem Gerät – wie in einem großen DiagLogs-ZIP.
+    const events = Array.from({ length: 80_000 }, (_, index) => ({ id: index, message: 'ok' }));
+    const known = collectKnown({ logs: { events }, device: { deviceName: 'CONTOSO-PC042' } });
+    expect(known).toEqual([{ kind: 'device', value: 'CONTOSO-PC042' }]);
+  });
+
   it('übersteht Zyklen', () => {
     const a: Record<string, unknown> = { deviceName: 'LOOP-1' };
     a['self'] = a;

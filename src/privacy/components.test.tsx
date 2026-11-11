@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { DiagnosticsReport } from '../diagnostics/types';
 import { de } from '../i18n/de';
 import { PrivacyNotice, PrivacyToggle } from '../ui/PrivacyToggle';
 import { PrivateLink } from '../ui/PrivateLink';
+import { maskedZipTitle } from '../ui/zipTitle';
 import { maskFileName } from './fileName';
 import { createMasker } from './masker';
 import { PrivacyProvider } from './PrivacyProvider';
@@ -114,5 +116,25 @@ describe('maskFileName', () => {
   it('ersetzt andere Dateinamen vollständig, behält die Endung', () => {
     expect(maskFileName(masker, 'kunde-mueller.zip')).toMatch(/^Datei-[0-9A-F]{4}\.zip$/);
     expect(maskFileName(masker, '')).toBe('');
+  });
+});
+
+describe('maskedZipTitle', () => {
+  const m = createMasker('t');
+  const report = (values: Partial<DiagnosticsReport>) => values as DiagnosticsReport;
+  const named = report({
+    deviceNameFromFile: 'CONTOSO-PC042',
+    fileName: 'DiagLogs-CONTOSO-PC042-20261110T101500Z.zip',
+  });
+
+  it('nennt das Gerät überall gleich: Kopf der ZIP-Ansicht und Etikett im Vergleich', () => {
+    expect(maskedZipTitle(named, { enabled: true, masker: m })).toBe(m.device('CONTOSO-PC042'));
+    expect(maskedZipTitle(named, { enabled: true, masker: m })).toMatch(/^Gerät-[0-9A-F]{4}$/);
+  });
+
+  it('ohne erkennbaren Gerätenamen: Pseudonym des Dateinamens; Modus aus: unverändert', () => {
+    const other = report({ deviceNameFromFile: null, fileName: 'export-anna.zip' });
+    expect(maskedZipTitle(other, { enabled: true, masker: m })).toMatch(/^Datei-[0-9A-F]{4}$/);
+    expect(maskedZipTitle(named, { enabled: false, masker: m })).toBe('CONTOSO-PC042');
   });
 });

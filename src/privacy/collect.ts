@@ -7,7 +7,12 @@ import { auditResourceKind, isGenericDeviceName, SENSITIVE_KEYS } from './keys';
 import type { KnownValue, SensitiveKind } from './masker';
 
 const MAX_DEPTH = 14;
-const MAX_NODES = 60_000;
+/**
+ * Schutz vor entarteten Eingaben, keine fachliche Grenze: Ein großes DiagLogs-ZIP bringt mehrere
+ * zehntausend Ereignisdatensätze mit. Die Daten werden in der Breite durchlaufen (flache Felder zuerst),
+ * damit Gerät, Benutzer und Registrierung auch dann erfasst sind, wenn die Grenze je erreicht würde.
+ */
+const MAX_NODES = 1_000_000;
 
 /** `{ key, value }`-Felder (dsregcmd): Schlüsselnamen, deren Wert sensibel ist. */
 const KEYED_FIELDS: ReadonlyArray<readonly [RegExp, SensitiveKind]> = [
@@ -44,12 +49,18 @@ export function collectKnown(root: unknown, extra: readonly KnownValue[] = []): 
 
   let nodes = 0;
   const visited = new WeakSet<object>();
-  const walk = (node: unknown, depth: number) => {
+  // Breitensuche: Warteschlange mit Lesezeiger (kein shift – das wäre bei großen Listen quadratisch).
+  const queue: Array<{ node: object; depth: number }> = [];
+  const enqueue = (node: unknown, depth: number) => {
     if (node === null || typeof node !== 'object' || depth > MAX_DEPTH) return;
-    if (++nodes > MAX_NODES || visited.has(node)) return;
+    if (visited.has(node) || nodes >= MAX_NODES) return;
+    nodes++;
     visited.add(node);
+    queue.push({ node, depth });
+  };
+  const visit = (node: object, depth: number) => {
     if (Array.isArray(node)) {
-      for (const item of node) walk(item, depth + 1);
+      for (const item of node) enqueue(item, depth + 1);
       return;
     }
     if (!isPlain(node)) return;
@@ -89,9 +100,13 @@ export function collectKnown(root: unknown, extra: readonly KnownValue[] = []): 
         if (typeof child === 'string') add(kind, child);
         else if (Array.isArray(child)) for (const item of child) add(kind, item);
       }
-      walk(child, depth + 1);
+      enqueue(child, depth + 1);
     }
   };
-  walk(root, 0);
+  enqueue(root, 0);
+  for (let next = 0; next < queue.length; next++) {
+    const entry = queue[next]!;
+    visit(entry.node, entry.depth);
+  }
   return out;
 }
