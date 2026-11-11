@@ -43,6 +43,15 @@ import type {
   ServiceHealthInfo,
   ServiceHealthIssueInfo,
   ServiceHealthKind,
+  ComplianceSettingSummariesInfo,
+  ComplianceSettingSummaryInfo,
+  DeviceStateSummaryInfo,
+  AuditEventEntry,
+  AuditEventsInfo,
+  AppProtectionInfo,
+  AppProtectionRegistration,
+  DeviceActionResultInfo,
+  AuditResourceInfo,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
@@ -91,8 +100,17 @@ import type {
   GraphServiceHealth,
   GraphServiceHealthIssue,
   GraphTroubleshootingEvent,
+  GraphComplianceSettingStateSummary,
+  GraphDeviceStateSummary,
+  GraphAuditEvent,
+  GraphManagedAppRegistration,
+  GraphDeviceActionResult,
 } from './dto';
 import {
+  ACTION_STATES,
+  COMPLIANCE_SUMMARY_FIELDS,
+  CONFIGURATION_SUMMARY_FIELDS,
+  SETTING_SUMMARY_PLATFORM_TYPES,
   DEVICE_ENROLLMENT_FAILURE_REASONS,
   SERVICE_HEALTH_CLASSIFICATIONS,
   SERVICE_HEALTH_STATUSES,
@@ -298,6 +316,9 @@ export function mapManagedDevice(dto: GraphManagedDevice): ManagedDeviceInfo {
     isSupervised: bool(dto.isSupervised),
     androidSecurityPatchLevel: str(dto.androidSecurityPatchLevel)?.trim() || null,
     enrollmentProfileName: str(dto.enrollmentProfileName)?.trim() || null,
+    ...(Array.isArray(dto.deviceActionResults)
+      ? { actionResults: mapDeviceActionResults(dto.deviceActionResults) }
+      : {}),
     source: graphSource('managedDevice'),
   };
 }
@@ -1298,4 +1319,208 @@ export function mapEnrollmentFailures(
     truncated: options.truncated,
     filteredUserId: options.filterUserId ?? null,
   };
+}
+
+// ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+/**
+ * Summary-Objekt → Zähler. Übernimmt genau die für diese Art dokumentierten Felder; akzeptiert das Objekt
+ * direkt oder unter `value` (so zeigt es das Beispiel der Doku).
+ */
+export function mapDeviceStateSummary(
+  dto: GraphDeviceStateSummary | { value?: GraphDeviceStateSummary } | null | undefined,
+  kind: TenantPolicyKind,
+): DeviceStateSummaryInfo {
+  const raw: GraphDeviceStateSummary =
+    dto && typeof dto === 'object' && 'value' in dto && dto.value && typeof dto.value === 'object'
+      ? dto.value
+      : ((dto as GraphDeviceStateSummary | null | undefined) ?? {});
+  const fields = kind === 'compliance' ? COMPLIANCE_SUMMARY_FIELDS : CONFIGURATION_SUMMARY_FIELDS;
+  const counts: DeviceStateSummaryInfo['counts'] = {};
+  for (const field of fields) counts[field] = count(raw[field]);
+  return { kind, counts };
+}
+
+function mapSettingSummary(
+  dto: GraphComplianceSettingStateSummary,
+): ComplianceSettingSummaryInfo | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id) return null;
+  const setting = str(dto.setting)?.trim() || null;
+  return {
+    id,
+    name: str(dto.settingName)?.trim() || setting || id,
+    setting,
+    platform: pickOrNull(dto.platformType, SETTING_SUMMARY_PLATFORM_TYPES),
+    platformRaw: str(dto.platformType)?.trim() || null,
+    nonCompliantDeviceCount: count(dto.nonCompliantDeviceCount),
+    errorDeviceCount: count(dto.errorDeviceCount),
+    conflictDeviceCount: count(dto.conflictDeviceCount),
+    compliantDeviceCount: count(dto.compliantDeviceCount),
+  };
+}
+
+/**
+ * Einstellungs-Zähler → Domain, sortiert nach nicht konformen Geräten (dann Fehler, Konflikte, Name). Eine
+ * Sortierung ist serverseitig nicht dokumentiert – deshalb clientseitig.
+ */
+export function mapComplianceSettingSummaries(
+  entries: GraphComplianceSettingStateSummary[] | null | undefined,
+  options: { pagesRead: number; truncated: boolean },
+): ComplianceSettingSummariesInfo {
+  const settings = (Array.isArray(entries) ? entries : [])
+    .map(mapSettingSummary)
+    .filter((entry): entry is ComplianceSettingSummaryInfo => entry !== null)
+    .sort(
+      (a, b) =>
+        (b.nonCompliantDeviceCount ?? 0) - (a.nonCompliantDeviceCount ?? 0) ||
+        (b.errorDeviceCount ?? 0) - (a.errorDeviceCount ?? 0) ||
+        (b.conflictDeviceCount ?? 0) - (a.conflictDeviceCount ?? 0) ||
+        a.name.localeCompare(b.name, 'de'),
+    );
+  return { settings, pagesRead: options.pagesRead, truncated: options.truncated };
+}
+
+// ---------- Änderungsprotokoll (M20/S2) ----------
+
+const text0 = (value: unknown): string | null => str(value)?.trim() || null;
+
+/**
+ * auditEvent → Domain. Vom `actor` werden ausschließlich `userPrincipalName`, `applicationDisplayName`,
+ * `auditActorType` und `type` gelesen – IP-Adresse, Berechtigungen und IDs nie.
+ */
+export function mapAuditEvent(dto: GraphAuditEvent): AuditEventEntry | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id) return null;
+  const actor = dto.actor && typeof dto.actor === 'object' ? dto.actor : null;
+  const upn = text0(actor?.userPrincipalName);
+  const app = text0(actor?.applicationDisplayName);
+  const resources: AuditResourceInfo[] = (Array.isArray(dto.resources) ? dto.resources : [])
+    .filter((resource) => resource && typeof resource === 'object')
+    .map((resource) => ({
+      resourceId: text0(resource.resourceId),
+      displayName: text0(resource.displayName),
+      type: text0(resource.auditResourceType) ?? text0(resource.type),
+    }));
+  return {
+    id,
+    activityDateTime: validDate(dto.activityDateTime),
+    activity: text0(dto.activity) ?? text0(dto.displayName),
+    activityType: text0(dto.activityType),
+    activityOperationType: text0(dto.activityOperationType),
+    activityResult: text0(dto.activityResult),
+    category: text0(dto.category),
+    componentName: text0(dto.componentName),
+    correlationId: text0(dto.correlationId),
+    actor: {
+      kind: upn ? 'user' : app ? 'application' : 'unknown',
+      name: upn ?? app,
+      actorType: text0(actor?.auditActorType) ?? text0(actor?.type),
+    },
+    resources,
+  };
+}
+
+/** auditEvents → Domain, neueste zuerst (eine Sortierung ist nicht dokumentiert, deshalb clientseitig). */
+export function mapAuditEvents(
+  entries: GraphAuditEvent[] | null | undefined,
+  options: { pagesRead: number; truncated: boolean },
+): AuditEventsInfo {
+  const time = (event: AuditEventEntry) => Date.parse(event.activityDateTime ?? '') || 0;
+  const events = (Array.isArray(entries) ? entries : [])
+    .map(mapAuditEvent)
+    .filter((event): event is AuditEventEntry => event !== null)
+    .sort((a, b) => time(b) - time(a));
+  return { events, pagesRead: options.pagesRead, truncated: options.truncated };
+}
+
+// ---------- App-Schutz (M20/S3) ----------
+
+function appIdentifierOf(dto: GraphManagedAppRegistration): {
+  id: string | null;
+  platform: AppProtectionRegistration['appPlatform'];
+} {
+  const identifier = dto.appIdentifier;
+  if (!identifier) return { id: null, platform: null };
+  const type = (identifier['@odata.type'] ?? '').toLowerCase();
+  if (type.endsWith('iosmobileappidentifier') || (!type && identifier.bundleId)) {
+    return { id: identifier.bundleId ?? null, platform: 'ios' };
+  }
+  if (type.endsWith('androidmobileappidentifier') || (!type && identifier.packageId)) {
+    return { id: identifier.packageId ?? null, platform: 'android' };
+  }
+  return { id: identifier.bundleId ?? identifier.packageId ?? null, platform: null };
+}
+
+export function mapAppProtectionRegistration(
+  dto: GraphManagedAppRegistration,
+): AppProtectionRegistration | null {
+  if (!dto || typeof dto.id !== 'string') return null;
+  const app = appIdentifierOf(dto);
+  return {
+    id: dto.id,
+    appIdentifier: app.id,
+    appPlatform: app.platform,
+    applicationVersion: dto.applicationVersion ?? null,
+    managementSdkVersion: dto.managementSdkVersion ?? null,
+    platformVersion: dto.platformVersion ?? null,
+    deviceType: dto.deviceType ?? null,
+    deviceName: dto.deviceName ?? null,
+    createdDateTime: dto.createdDateTime ?? null,
+    lastSyncDateTime: dto.lastSyncDateTime ?? null,
+    flaggedReasons: (Array.isArray(dto.flaggedReasons) ? dto.flaggedReasons : []).filter(
+      (reason): reason is string => typeof reason === 'string' && reason !== 'none',
+    ),
+  };
+}
+
+const sameText = (a: string | null | undefined, b: string | null | undefined) =>
+  Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+
+/**
+ * managedAppRegistrations → App-Schutz des Geräts. v1.0 dokumentiert keine Geräte-ID an der Registrierung:
+ * Filter auf `userId` (primärer Benutzer), Zuordnung zum Gerät nur über einen gleichen `deviceName`
+ * (ohne Groß-/Kleinschreibung). Gibt es keinen Treffer (z. B. iOS 16+ meldet generische Namen), werden alle
+ * Registrierungen des Benutzers gezeigt (`matchedBy = 'user'`).
+ */
+export function mapAppProtection(
+  entries: GraphManagedAppRegistration[] | null | undefined,
+  options: { userId: string; deviceName: string; pagesRead: number; truncated: boolean },
+): AppProtectionInfo {
+  const time = (entry: AppProtectionRegistration) => Date.parse(entry.lastSyncDateTime ?? '') || 0;
+  const ofUser = (Array.isArray(entries) ? entries : [])
+    .filter((dto) => sameText(dto?.userId, options.userId))
+    .map(mapAppProtectionRegistration)
+    .filter((entry): entry is AppProtectionRegistration => entry !== null)
+    .sort((a, b) => time(b) - time(a));
+  const onDevice = ofUser.filter((entry) => sameText(entry.deviceName, options.deviceName));
+  return {
+    registrations: onDevice.length > 0 ? onDevice : ofUser,
+    matchedBy: onDevice.length > 0 ? 'deviceName' : 'user',
+    userRegistrationCount: ofUser.length,
+    pagesRead: options.pagesRead,
+    truncated: options.truncated,
+  };
+}
+
+// ---------- Remote-Aktionen (M20/S4) ----------
+
+/** deviceActionResults → Domain, zuletzt aktualisierte zuerst. actionName bleibt Rohwert. */
+export function mapDeviceActionResults(
+  entries: GraphDeviceActionResult[] | null | undefined,
+): DeviceActionResultInfo[] {
+  const time = (entry: DeviceActionResultInfo) =>
+    Date.parse(entry.lastUpdatedDateTime ?? entry.startDateTime ?? '') || 0;
+  return (Array.isArray(entries) ? entries : [])
+    .filter(
+      (entry): entry is GraphDeviceActionResult => Boolean(entry) && typeof entry === 'object',
+    )
+    .map((entry): DeviceActionResultInfo => ({
+      actionName: str(entry.actionName)?.trim() || null,
+      actionState: pickOrNull(entry.actionState, ACTION_STATES) ?? 'unknown',
+      actionStateRaw: str(entry.actionState),
+      startDateTime: validDate(entry.startDateTime),
+      lastUpdatedDateTime: validDate(entry.lastUpdatedDateTime),
+    }))
+    .sort((a, b) => time(b) - time(a));
 }

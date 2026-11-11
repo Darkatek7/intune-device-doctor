@@ -4,6 +4,7 @@ import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { fade, spring } from './motion';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  */
 export function TicketNoteDialog({ text, onClose, reason = 'clipboard', onPrint }: Props) {
   const reduced = useReducedMotion();
+  const { enabled: privacyOn } = usePrivacy();
   const titleId = useId();
   const bodyId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -74,6 +76,7 @@ export function TicketNoteDialog({ text, onClose, reason = 'clipboard', onPrint 
         </div>
         <p id={bodyId} className="text-sm text-secondary-label print:hidden">
           {reason === 'print' ? de.comfort.printDialogBody : de.ticket.dialogBody}
+          {privacyOn && ` ${de.privacy.output.ticketNote}`}
         </p>
         <textarea
           ref={areaRef}

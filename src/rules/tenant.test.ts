@@ -40,6 +40,10 @@ function status(overrides: Partial<TenantStatus> = {}): TenantStatus {
     vppTokens: ok([token('a')]),
     serviceHealth: ok({ services: [], truncated: false }),
     enrollmentFailures: ok({ events: [], pagesRead: 1, truncated: false, filteredUserId: null }),
+    complianceSummary: ok({ kind: 'compliance', counts: { compliantDeviceCount: 10 } }),
+    complianceSettings: ok({ settings: [], pagesRead: 1, truncated: false }),
+    configurationSummary: ok({ kind: 'configuration', counts: { compliantDeviceCount: 10 } }),
+    auditEvents: ok({ events: [], pagesRead: 1, truncated: false }),
     ...overrides,
   };
 }
@@ -48,11 +52,14 @@ const tileOf = (tiles: ReturnType<typeof evaluateTenant>, id: string) =>
   tiles.find((tile) => tile.id === id)!;
 
 describe('Mandanten-Status – Struktur', () => {
-  it('liefert fünf fertige Kacheln in fester Reihenfolge ohne Sections', () => {
+  it('liefert alle Kacheln in fester Reihenfolge ohne Sections', () => {
     const tiles = evaluateTenant(status(), NOW);
     expect(tiles.map((tile) => tile.id)).toEqual([
+      'tenantCompliance',
+      'tenantConfiguration',
       'tenantServiceHealth',
       'tenantEnrollmentFailures',
+      'tenantChanges',
       'tenantApplePush',
       'tenantVpp',
       'tenantUnavailable',

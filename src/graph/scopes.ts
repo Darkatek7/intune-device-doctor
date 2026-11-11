@@ -25,6 +25,12 @@ export const GraphScope = {
    * Admin-Rolle nötig (z. B. Service Support Administrator).
    */
   ServiceHealthRead: 'ServiceHealth.Read.All',
+  /**
+   * Intune-Überwachungsprotokoll (auditEvents) und App-Schutz-Registrierungen (managedAppRegistrations),
+   * M20 – optional. Laut Doku least privileged für beide Endpunkte; das Konto braucht zusätzlich eine
+   * Intune-Rolle mit „Audit data – Read“ bzw. „Managed apps – Read“ (oder Intune Administrator).
+   */
+  ManagementAppsRead: 'DeviceManagementApps.Read.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -42,6 +48,7 @@ export const OPTIONAL_SCOPES: readonly GraphScope[] = [
   GraphScope.LicenseAssignmentRead,
   GraphScope.SecurityAlertRead,
   GraphScope.ServiceHealthRead,
+  GraphScope.ManagementAppsRead,
 ];
 
 /** Scopes, die beim Login angefragt werden. */

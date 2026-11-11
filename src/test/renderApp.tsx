@@ -3,16 +3,24 @@ import { AppShell } from '../app/AppShell';
 import { ProviderContextProvider } from '../app/providerContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { MockProvider } from '../providers/mock/MockProvider';
+import { PrivacyProvider } from '../privacy/PrivacyProvider';
 
 /** Rendert die App mit einem MockProvider ohne künstliche Latenz; Live nicht konfiguriert. */
 export function renderApp(
-  options: { liveAvailable?: boolean; provider?: DeviceDataProvider } = {},
+  options: {
+    liveAvailable?: boolean;
+    provider?: DeviceDataProvider;
+    /** Präsentationsmodus (M19) – Standard aus */
+    privacy?: boolean;
+  } = {},
 ) {
   const provider = options.provider ?? new MockProvider({ latency: false });
   return render(
-    <ProviderContextProvider provider={provider} liveAvailable={options.liveAvailable ?? false}>
-      <AppShell />
-    </ProviderContextProvider>,
+    <PrivacyProvider initialEnabled={options.privacy ?? false} salt="test-salt">
+      <ProviderContextProvider provider={provider} liveAvailable={options.liveAvailable ?? false}>
+        <AppShell />
+      </ProviderContextProvider>
+    </PrivacyProvider>,
   );
 }
 
@@ -44,10 +52,12 @@ export function liveMockProvider(overrides: Partial<DeviceDataProvider> = {}): D
     getHealthAttestation: (device, options) => inner.getHealthAttestation(device, options),
     getTenantStatus: (options) => inner.getTenantStatus(options),
     getServiceHealth: (options) => inner.getServiceHealth(options),
+    getAuditEvents: (options) => inner.getAuditEvents(options),
     getEnrollmentFailures: (device, options) => inner.getEnrollmentFailures(device, options),
     getTenantPolicies: (options) => inner.getTenantPolicies(options),
     getPolicyDeviceStatuses: (policy, options) => inner.getPolicyDeviceStatuses(policy, options),
     getSecurityAlerts: (device, options) => inner.getSecurityAlerts(device, options),
+    getAppProtection: (device, options) => inner.getAppProtection(device, options),
     getUserLicense: (device, options) => inner.getUserLicense(device, options),
     getEnrollmentLimits: (device, options) => inner.getEnrollmentLimits(device, options),
     getAssignments: (device, lookups, options) => inner.getAssignments(device, lookups, options),

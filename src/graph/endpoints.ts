@@ -78,6 +78,23 @@ export const MAX_POLICY_STATUS_PAGES = 3;
  */
 export const MAX_SERVICE_HEALTH_PAGES = 2;
 export const MAX_TROUBLESHOOTING_EVENT_PAGES = 3;
+/**
+ * Compliance-Übersicht (M20/S1): für `deviceCompliancePolicySettingStateSummaries` sind weder
+ * Query-Optionen noch eine Sortierung dokumentiert → höchstens so viele Seiten über `@odata.nextLink`.
+ */
+export const MAX_SETTING_SUMMARY_PAGES = 3;
+/**
+ * Änderungsprotokoll (M20/S2): für `auditEvents` sind weder `$filter` noch `$orderby`/`$top` dokumentiert
+ * → höchstens so viele Seiten über `@odata.nextLink`, das Zeitfenster wird clientseitig angewendet. In
+ * welcher Reihenfolge Graph die Seiten liefert, ist nicht dokumentiert.
+ */
+export const MAX_AUDIT_EVENT_PAGES = 5;
+/**
+ * App-Schutz (M20/S3): Für `managedAppRegistrations` sind weder `$filter` noch `$orderby`/`$top`
+ * dokumentiert, und `/users/{id}/managedAppRegistrations` ist nicht als REST-Methode dokumentiert →
+ * höchstens so viele Seiten der Mandantenliste, der Benutzer wird clientseitig gefiltert.
+ */
+export const MAX_APP_REGISTRATION_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
 
@@ -627,6 +644,78 @@ export const Endpoints = {
       'https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-enrollmenttroubleshootingevent-list?view=graph-rest-1.0',
     display: 'GET /deviceManagement/troubleshootingEvents',
     path: () => '/deviceManagement/troubleshootingEvents',
+  },
+  /**
+   * Gerätezähler aller Compliance-Richtlinien des Mandanten (M20/S1, ein Objekt). Die Doku nennt
+   * allgemein „OData Query Parameters“, die App nutzt keine.
+   */
+  deviceCompliancePolicyDeviceStateSummary: {
+    id: 'deviceCompliancePolicyDeviceStateSummary',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicydevicestatesummary-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicyDeviceStateSummary',
+    path: () => '/deviceManagement/deviceCompliancePolicyDeviceStateSummary',
+  },
+  /**
+   * Zähler je Compliance-Einstellung (M20/S1, „Häufigste Verstöße“). Keine Query-Optionen dokumentiert →
+   * ohne $filter/$orderby/$top, höchstens MAX_SETTING_SUMMARY_PAGES Seiten, clientseitig sortiert.
+   */
+  deviceCompliancePolicySettingStateSummaries: {
+    id: 'deviceCompliancePolicySettingStateSummaries',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicysettingstatesummary-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicySettingStateSummaries',
+    path: () => '/deviceManagement/deviceCompliancePolicySettingStateSummaries',
+  },
+  /**
+   * Gerätezähler aller Konfigurationsprofile (M20/S1). Trotz Plural im Pfad liefert die Methode laut Doku
+   * EIN deviceConfigurationDeviceStateSummary-Objekt.
+   */
+  deviceConfigurationDeviceStateSummaries: {
+    id: 'deviceConfigurationDeviceStateSummaries',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-deviceconfigurationdevicestatesummary-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceConfigurationDeviceStateSummaries',
+    path: () => '/deviceManagement/deviceConfigurationDeviceStateSummaries',
+  },
+  /**
+   * Intune-Überwachungsprotokoll (M20/S2): Änderungen an Richtlinien, Apps, Geräten … Keine
+   * Query-Optionen dokumentiert → ohne $filter/$orderby/$top, höchstens MAX_AUDIT_EVENT_PAGES Seiten.
+   * Optionaler Scope DeviceManagementApps.Read.All (laut Doku least privileged).
+   */
+  auditEvents: {
+    id: 'auditEvents',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagementAppsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-auditing-auditevent-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/auditEvents',
+    path: () => '/deviceManagement/auditEvents',
+  },
+  /**
+   * App-Schutz-Registrierungen (M20/S3, iOS/Android): Liste des Mandanten, keine Query-Optionen
+   * dokumentiert → höchstens MAX_APP_REGISTRATION_PAGES Seiten, Filter auf den Benutzer clientseitig.
+   * Optionaler Scope DeviceManagementApps.Read.All.
+   */
+  managedAppRegistrations: {
+    id: 'managedAppRegistrations',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagementAppsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-mam-managedappregistration-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/managedAppRegistrations',
+    path: () => '/deviceAppManagement/managedAppRegistrations',
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

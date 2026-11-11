@@ -3,6 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import { useImperativeHandle, useRef, useState, type Ref, type RefObject } from 'react';
 import { downloadTextFile } from '../lib/download';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import {
   parseSnapshotFile,
   SNAPSHOT_MAX_CHARS,
@@ -45,6 +46,7 @@ export function CompareControls({
   returnFocusRef,
   ref,
 }: Props) {
+  const { enabled: privacyOn, masker } = usePrivacy();
   const inputRef = useRef<HTMLInputElement>(null);
   const compareRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export function CompareControls({
             key="compare-dialog"
             before={open.before}
             after={current}
-            beforeLabel={open.fileName}
+            beforeLabel={privacyOn ? masker.fileName(open.fileName) : open.fileName}
             afterLabel={currentLabel}
             onClose={close}
           />

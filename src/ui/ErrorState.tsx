@@ -1,6 +1,7 @@
 import { CloudOff, Lock, RotateCw, SearchX, TriangleAlert, type LucideIcon } from 'lucide-react';
 import type { AppError, AppErrorCode } from '../domain/types';
 import { de } from '../i18n/de';
+import { usePrivacyView } from '../privacy/privacyContext';
 
 const ICON: Partial<Record<AppErrorCode, LucideIcon>> = {
   forbidden: Lock,
@@ -34,6 +35,7 @@ interface Props {
 
 /** Fehlerzustand für ein ganzes Gerät (getDevice/Suche fehlgeschlagen). */
 export function ErrorState({ error, onRetry, title }: Props) {
+  const view = usePrivacyView();
   const Icon = ICON[error.code] ?? TriangleAlert;
   return (
     <div
@@ -42,7 +44,7 @@ export function ErrorState({ error, onRetry, title }: Props) {
     >
       <Icon aria-hidden="true" size={32} className="text-critical" />
       <h2 className="text-title font-semibold text-label">{title ?? titleFor(error.code)}</h2>
-      <p className="text-base text-secondary-label">{error.message}</p>
+      <p className="text-base text-secondary-label">{view.text(error.message)}</p>
       {error.requiredScope && (
         <p className="text-sm text-secondary-label">
           {de.errorState.requiredScope}:{' '}
@@ -57,7 +59,7 @@ export function ErrorState({ error, onRetry, title }: Props) {
       {error.requestId && (
         <p className="text-sm text-secondary-label">
           {de.errorState.requestId}:{' '}
-          <code className="break-all font-mono text-xs">{error.requestId}</code>
+          <code className="break-all font-mono text-xs">{view.text(error.requestId)}</code>
         </p>
       )}
       {onRetry && (

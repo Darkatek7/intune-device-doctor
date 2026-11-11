@@ -24,6 +24,7 @@ import { buildConnectionTestReport, countOutcomes } from '../domain/connectionTe
 import type { EndpointProbeResult, ProbeOutcome } from '../domain/types';
 import { useConnectionTest } from '../hooks/useConnectionTest';
 import { de } from '../i18n/de';
+import { useBuildPrivacyView } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { ErrorState } from '../ui/ErrorState';
@@ -81,6 +82,7 @@ export function ConnectionTestView({ provider, deviceId, onBack, onToneChange }:
     provider,
     deviceId,
   );
+  const view = useBuildPrivacyView(device.status === 'ready' ? device.device : null);
   const [copied, setCopied] = useState(false);
   const [clipboardFailed, setClipboardFailed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,13 +117,15 @@ export function ConnectionTestView({ provider, deviceId, onBack, onToneChange }:
   const report = useMemo(
     () =>
       finished && device.status === 'ready'
-        ? buildConnectionTestReport(test.results, {
-            osFamily: device.device.osFamily,
-            date: test.finishedAt,
-            complete: test.phase === 'done',
-          })
+        ? view.text(
+            buildConnectionTestReport(test.results, {
+              osFamily: device.device.osFamily,
+              date: test.finishedAt,
+              complete: test.phase === 'done',
+            }),
+          )
         : '',
-    [finished, device, test],
+    [finished, device, test, view],
   );
 
   const copy = async () => {
@@ -188,7 +192,9 @@ export function ConnectionTestView({ provider, deviceId, onBack, onToneChange }:
             <p className="mt-1.5 text-sm text-secondary-label">{t.subtitle}</p>
             {deviceReady && (
               <p className="mt-1 text-sm text-secondary-label">
-                {device.device.deviceName}
+                {view.enabled
+                  ? view.masker.device(device.device.deviceName)
+                  : device.device.deviceName}
                 <span aria-hidden="true"> · </span>
                 {device.device.osFamily}
               </p>
@@ -365,7 +371,10 @@ export function ConnectionTestView({ provider, deviceId, onBack, onToneChange }:
             aria-label={t.reportLabel}
             className="w-full rounded-2xl bg-surface p-3 font-mono text-xs text-label outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
-          <p className="text-xs text-secondary-label">{t.privacy}</p>
+          <p className="text-xs text-secondary-label">
+            {t.privacy}
+            {view.enabled && ` ${de.privacy.output.connectionReport}`}
+          </p>
         </section>
       )}
     </div>

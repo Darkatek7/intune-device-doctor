@@ -43,6 +43,7 @@ export const deAnalysis = {
       zipCollected: 'Sammlung',
       mdmEvent: 'MDM-Ereignis',
       imeLog: 'IME-Protokoll',
+      remoteAction: 'Remote-Aktion',
     } as Record<string, string>,
     /** Titel und Details der Ereignisse */
     events: {

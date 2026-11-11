@@ -4,11 +4,13 @@
  * Haupt-Chunk. Verhalten gegenüber der UI unverändert (gleiche Fehler-/Section-Verträge).
  */
 import type {
+  AuditEventsInfo,
   AssignmentLookup,
   AssignmentsInfo,
   EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
@@ -172,9 +174,17 @@ export class LazyGraphProvider implements DeviceDataProvider {
         vppTokens: failed,
         serviceHealth: failed,
         enrollmentFailures: failed,
+        complianceSummary: failed,
+        complianceSettings: failed,
+        configurationSummary: failed,
+        auditEvents: failed,
       };
     }
     return provider.getTenantStatus(options);
+  }
+
+  getAuditEvents(options?: RequestOptions) {
+    return this.section<AuditEventsInfo>((p) => p.getAuditEvents(options));
   }
 
   getServiceHealth(options?: RequestOptions) {
@@ -207,6 +217,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return this.section<PolicyDeviceStatusesInfo>((p) =>
       p.getPolicyDeviceStatuses(policy, options),
     );
+  }
+
+  getAppProtection(device: ManagedDeviceInfo, options?: RequestOptions) {
+    return this.section<AppProtectionInfo>((p) => p.getAppProtection(device, options));
   }
 
   getSecurityAlerts(device: ManagedDeviceInfo, options?: RequestOptions) {

@@ -3,6 +3,7 @@
  * Registrierungsfehler bei einer Suche ohne Treffer, Kacheln der Ansicht „Mandant“.
  */
 import { screen, waitFor, within } from '@testing-library/react';
+import { TENANT_SECTIONS } from '../rules/tenant';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { de } from '../i18n/de';
@@ -20,6 +21,8 @@ async function search(user: ReturnType<typeof userEvent.setup>, query: string) {
 }
 
 const provider = (tenant: MockTenantFixture = {}) => new MockProvider({ latency: false, tenant });
+
+const TENANT_TILE_COUNT = TENANT_SECTIONS.flatMap((section) => section.tiles).length;
 
 afterEach(() => window.sessionStorage.clear());
 
@@ -158,7 +161,7 @@ describe('Ansicht „Mandant“ – neue Kacheln (M18)', () => {
   it('Demo: Dienststatus „Prüfen“ (offener Vorfall), Registrierungsfehler mit Anzahl', async () => {
     window.history.replaceState({}, '', '/?view=tenant&mode=demo');
     renderApp({ provider: provider() });
-    await waitFor(() => expect(tiles()).toHaveLength(5));
+    await waitFor(() => expect(tiles()).toHaveLength(TENANT_TILE_COUNT));
     expect(byId('tenantServiceHealth')).toHaveAttribute('data-severity', 'warning');
     expect(
       within(byId('tenantServiceHealth')).getByText(de.service.health.valueIssues(2)),
@@ -172,7 +175,7 @@ describe('Ansicht „Mandant“ – neue Kacheln (M18)', () => {
   it('fehlende Berechtigung für den Dienststatus betrifft nur seine Kachel', async () => {
     window.history.replaceState({}, '', '/?view=tenant&mode=demo');
     renderApp({ provider: provider({ serviceHealth: { status: 'forbidden' } }) });
-    await waitFor(() => expect(tiles()).toHaveLength(5));
+    await waitFor(() => expect(tiles()).toHaveLength(TENANT_TILE_COUNT));
     expect(
       within(byId('tenantServiceHealth')).getByText(de.availability.forbidden),
     ).toBeInTheDocument();

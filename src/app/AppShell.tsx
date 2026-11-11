@@ -23,6 +23,7 @@ import { useRecentDevices } from '../hooks/useRecentDevices';
 import { useSearchShortcut } from '../hooks/useSearchShortcut';
 import { useZipDeviceMatch } from '../hooks/useZipDeviceMatch';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { AmbientGlow, type AmbientTone } from '../ui/AmbientGlow';
 import { BookmarkletDialog } from '../ui/BookmarkletDialog';
 import { DropOverlay } from '../ui/DropOverlay';
@@ -38,6 +39,7 @@ import { NAV_ITEMS, type NavId } from '../ui/navItems';
 import { Toolbar } from '../ui/Toolbar';
 import { ViewFallback } from '../ui/ViewFallback';
 import { ZipProgress } from '../ui/ZipProgress';
+import { maskFileName } from '../privacy/fileName';
 import { DeviceView } from './DeviceView';
 import { BulkView, ConnectionTestView, PoliciesView, TenantView, ZipView } from './lazyViews';
 import { useProviderContext } from './providerContextValue';
@@ -78,7 +80,17 @@ function Shell({ account, extraChips }: Props) {
   const online = useOnlineStatus();
   const { state, suggestions, search, suggest, clearSuggestions, reset } =
     useDeviceSearch(provider);
-  const [query, setQuery] = useState('');
+  const privacy = usePrivacy();
+  const [query, setQueryState] = useState('');
+  /**
+   * true = das App setzte den Suchtext (geöffnetes Gerät, Beispiel, Treffer aus Listen). Im
+   * Präsentationsmodus zeigt das Feld dann nichts an; getippter Text bleibt, wie getippt (M19).
+   */
+  const [queryFromApp, setQueryFromApp] = useState(false);
+  const setQuery = useCallback((value: string) => {
+    setQueryState(value);
+    setQueryFromApp(true);
+  }, []);
   const [retryKey, setRetryKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchedAt, setSearchedAt] = useState(() => new Date());
@@ -148,7 +160,7 @@ function Shell({ account, extraChips }: Props) {
       discardZip();
       navigateTo({ device: result.id, tile: null, mode });
     },
-    [clearSuggestions, discardZip, mode],
+    [clearSuggestions, discardZip, mode, setQuery],
   );
 
   const mergeZip = () => {
@@ -229,7 +241,7 @@ function Shell({ account, extraChips }: Props) {
       if (single) openDevice(single);
       else navigateTo({ device: null, tile: null, mode });
     },
-    [search, openDevice, mode],
+    [search, openDevice, mode, setQuery],
   );
 
   const goHome = () => {
@@ -251,12 +263,15 @@ function Shell({ account, extraChips }: Props) {
   const field = (size: 'large' | 'compact') => (
     <SearchField
       size={size}
-      value={query}
+      value={privacy.enabled && queryFromApp ? '' : query}
       onChange={(value) => {
-        setQuery(value);
+        setQueryState(value);
+        setQueryFromApp(false);
         suggest(value);
       }}
-      onSubmit={(value) => void submit(value)}
+      onSubmit={(value) =>
+        void submit(privacy.enabled && queryFromApp && value === '' ? query : value)
+      }
       suggestions={suggestions}
       onSelectSuggestion={openDevice}
       busy={state.loading}
@@ -410,7 +425,15 @@ function Shell({ account, extraChips }: Props) {
   } else if (showZip) {
     if (zip.status === 'running') {
       content = (
-        <ZipProgress fileName={zip.fileName ?? ''} progress={zip.progress} onCancel={leaveZip} />
+        <ZipProgress
+          fileName={
+            privacy.enabled
+              ? maskFileName(privacy.masker, zip.fileName ?? '')
+              : (zip.fileName ?? '')
+          }
+          progress={zip.progress}
+          onCancel={leaveZip}
+        />
       );
     } else if (zip.status === 'error') {
       content = (
@@ -475,7 +498,7 @@ function Shell({ account, extraChips }: Props) {
       <EmptyState
         icon={SearchX}
         title={de.empty.notFoundTitle}
-        description={de.empty.notFoundBody(state.query)}
+        description={privacy.enabled ? de.privacy.notFoundBody : de.empty.notFoundBody(state.query)}
         action={
           <EnrollmentFailuresHint onOpen={() => openTenantTile('tenantEnrollmentFailures')} />
         }

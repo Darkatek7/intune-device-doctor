@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   AppError,
+  AuditEventsInfo,
   PolicyDeviceStatusesInfo,
   SectionResult,
   TenantPolicies,
@@ -89,5 +90,15 @@ export function usePolicyDeviceStatuses(
     provider,
     kind && id ? `${kind}:${id}` : null,
     (signal) => provider.getPolicyDeviceStatuses({ kind: kind!, id: id! }, { signal }),
+  );
+}
+
+/** Änderungsprotokoll des Mandanten (M20/S2) für „Änderungen an dieser Richtlinie“. */
+export function useAuditEvents(provider: DeviceDataProvider): {
+  state: LoadState<SectionResult<AuditEventsInfo>>;
+  reload: () => void;
+} {
+  return useLoad<SectionResult<AuditEventsInfo>>(provider, 'auditEvents', (signal) =>
+    provider.getAuditEvents({ signal }),
   );
 }

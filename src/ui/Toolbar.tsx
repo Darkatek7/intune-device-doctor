@@ -4,6 +4,7 @@ import type { DataMode } from '../domain/types';
 import { de } from '../i18n/de';
 import { ModeSwitch } from './ModeSwitch';
 import type { NavItem } from './navItems';
+import { PrivacyNotice, PrivacyToggle } from './PrivacyToggle';
 import { ThemeToggle } from './ThemeToggle';
 
 interface Props {
@@ -87,10 +88,12 @@ export function Toolbar({
           )}
           <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3 sm:gap-3 lg:order-none">
             <ModeSwitch mode={mode} onChange={onModeChange} liveAvailable={liveAvailable} />
+            <PrivacyToggle />
             <ThemeToggle />
             {account}
           </div>
         </div>
+        <PrivacyNotice />
       </div>
       <div
         aria-hidden="true"

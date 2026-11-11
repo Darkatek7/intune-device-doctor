@@ -13,6 +13,7 @@ import { SEVERITY_RANK } from './helpers';
 import { findEntraSignInError } from './knowledge/entraSignInErrors';
 import { findEventKnowledge } from './knowledge/events';
 import { THRESHOLDS } from './thresholds';
+import { actionLabel, isWipeOrRetire, stateLabel } from './tiles/remoteActions';
 
 const e = de.analysis.timeline.events;
 const DAY_MS = 86_400_000;
@@ -30,7 +31,8 @@ export type TimelineKind =
   | 'certificate'
   | 'zipCollected'
   | 'mdmEvent'
-  | 'imeLog';
+  | 'imeLog'
+  | 'remoteAction';
 
 export type TimelineSource = 'intune' | 'entra' | 'zip';
 
@@ -330,6 +332,25 @@ function addSnapshotEvents(snapshot: DeviceSnapshot, now: Date, push: Push): voi
       now,
     });
   }
+
+  // Remote-Aktionen (M20/S4): Zeitpunkt der letzten Aktualisierung, sonst des Starts
+  (device.actionResults ?? []).forEach((action, index) => {
+    const pendingWipe =
+      (action.actionState === 'pending' || action.actionState === 'active') &&
+      isWipeOrRetire(action);
+    push({
+      id: `remoteAction-${index}`,
+      time: action.lastUpdatedDateTime ?? action.startDateTime,
+      kind: 'remoteAction',
+      severity: action.actionState === 'failed' || pendingWipe ? 'warning' : 'ok',
+      title: de.fleet.remoteActions.timelineTitle(actionLabel(action)),
+      detail: pendingWipe
+        ? de.fleet.remoteActions.timelineDetailPending(stateLabel(action))
+        : de.fleet.remoteActions.timelineDetail(stateLabel(action)),
+      tileId: 'deviceStatus',
+      source: 'intune',
+    });
+  });
 }
 
 /** Ablauf-Ereignis: in der Vergangenheit = abgelaufen (critical), sonst geplant (Warnung ≤ Richtwert). */

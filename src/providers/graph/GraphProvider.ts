@@ -29,11 +29,15 @@ import type {
   PolicyStateInfo,
   SectionResult,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   SignInsInfo,
   TenantStatus,
   TenantPolicies,
   TenantPolicyInfo,
   TenantPolicyKind,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
+  AuditEventsInfo,
   TenantPolicyList,
   PolicyDeviceOverview,
   PolicyDeviceStatusesInfo,
@@ -74,6 +78,10 @@ import type {
   GraphWindowsAutopilotDeviceIdentity,
   GraphWindowsDeviceMalwareState,
   GraphWindowsProtectionState,
+  GraphComplianceSettingStateSummary,
+  GraphDeviceStateSummary,
+  GraphAuditEvent,
+  GraphManagedAppRegistration,
 } from '../../graph/dto';
 import {
   ASSIGNMENTS_DISPLAY,
@@ -88,6 +96,9 @@ import {
   MAX_SECURITY_ALERT_PAGES,
   MAX_SERVICE_HEALTH_PAGES,
   MAX_TROUBLESHOOTING_EVENT_PAGES,
+  MAX_SETTING_SUMMARY_PAGES,
+  MAX_AUDIT_EVENT_PAGES,
+  MAX_APP_REGISTRATION_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -118,9 +129,13 @@ import {
   mapTenantPolicies,
   mapSignIns,
   mapSecurityAlerts,
+  mapAppProtection,
   mapUserLicense,
   mapVppTokens,
   mapWindowsProtection,
+  mapComplianceSettingSummaries,
+  mapDeviceStateSummary,
+  mapAuditEvents,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
@@ -538,13 +553,176 @@ export class GraphProvider implements DeviceDataProvider {
    * verlässt diese Methode nicht.
    */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
-    const [applePushCertificate, vppTokens, serviceHealth, enrollmentFailures] = await Promise.all([
+    const [
+      applePushCertificate,
+      vppTokens,
+      serviceHealth,
+      enrollmentFailures,
+      complianceSummary,
+      complianceSettings,
+      configurationSummary,
+      auditEvents,
+    ] = await Promise.all([
       this.readApplePushCertificate(options),
       this.readVppTokens(options),
       this.getServiceHealth(options),
       this.readEnrollmentFailures(null, options),
+      this.readDeviceStateSummary('compliance', options),
+      this.readComplianceSettings(options),
+      this.readDeviceStateSummary('configuration', options),
+      this.getAuditEvents(options),
     ]);
-    return { applePushCertificate, vppTokens, serviceHealth, enrollmentFailures };
+    return {
+      applePushCertificate,
+      vppTokens,
+      serviceHealth,
+      enrollmentFailures,
+      complianceSummary,
+      complianceSettings,
+      configurationSummary,
+      auditEvents,
+    };
+  }
+
+  // ---------- App-Schutz (M20/S3) ----------
+
+  /**
+   * managedAppRegistrations (Mandantenliste, höchstens MAX_APP_REGISTRATION_PAGES Seiten, keine
+   * Query-Optionen dokumentiert); Benutzer und Gerätename werden clientseitig abgeglichen.
+   */
+  getAppProtection(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<AppProtectionInfo>> {
+    const endpoint = Endpoints.managedAppRegistrations;
+    if (device.osFamily !== 'ios' && device.osFamily !== 'android') {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.fleet.reasons.appProtectionPlatform,
+        source: graphSource('managedAppRegistrations'),
+      });
+    }
+    const userId = device.userId;
+    if (!userId) {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.fleet.reasons.appProtectionNoUser,
+        source: graphSource('managedAppRegistrations'),
+      });
+    }
+    return this.run<AppProtectionInfo>(
+      'managedAppRegistrations',
+      async (source) => {
+        const { entries, pagesRead, truncated } = await this.readPages<GraphManagedAppRegistration>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_APP_REGISTRATION_PAGES,
+          options,
+        );
+        return this.ok(
+          mapAppProtection(entries, {
+            userId,
+            deviceName: device.deviceName,
+            pagesRead,
+            truncated,
+          }),
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.fleet.reasons.appProtectionNotReported,
+        source,
+      }),
+    );
+  }
+
+  // ---------- Änderungsprotokoll (M20/S2) ----------
+
+  /** auditEvents: höchstens MAX_AUDIT_EVENT_PAGES Seiten (kein Filter/keine Sortierung dokumentiert). */
+  getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
+    const endpoint = Endpoints.auditEvents;
+    return this.run<AuditEventsInfo>(
+      'auditEvents',
+      async (source) => {
+        const { entries, pagesRead, truncated } = await this.readPages<GraphAuditEvent>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_AUDIT_EVENT_PAGES,
+          options,
+        );
+        return this.ok(mapAuditEvents(entries, { pagesRead, truncated }), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.auditNotReported, source }),
+    );
+  }
+
+  /**
+   * Liest höchstens `maxPages` Seiten über `@odata.nextLink` (nur GET). Für die Listen dieser Datei sind
+   * keine Query-Optionen dokumentiert – deshalb immer ohne $filter/$top.
+   */
+  private async readPages<T>(
+    firstPath: string,
+    scope: string,
+    maxPages: number,
+    options: RequestOptions,
+  ): Promise<{ entries: T[]; pagesRead: number; truncated: boolean }> {
+    const entries: T[] = [];
+    let next: string | undefined = firstPath;
+    let pagesRead = 0;
+    while (next && pagesRead < maxPages) {
+      const page: GraphCollection<T> | undefined = await this.client.get<GraphCollection<T>>(next, {
+        signal: options.signal,
+        scope,
+      });
+      pagesRead += 1;
+      entries.push(...(page?.value ?? []));
+      next = page?.['@odata.nextLink'] ?? undefined;
+    }
+    return { entries, pagesRead, truncated: Boolean(next) };
+  }
+
+  // ---------- Compliance-/Konfigurations-Übersicht (M20/S1) ----------
+
+  private readDeviceStateSummary(
+    kind: TenantPolicyKind,
+    options: RequestOptions,
+  ): Promise<SectionResult<DeviceStateSummaryInfo>> {
+    const id =
+      kind === 'compliance'
+        ? ('deviceCompliancePolicyDeviceStateSummary' as const)
+        : ('deviceConfigurationDeviceStateSummaries' as const);
+    const endpoint = Endpoints[id];
+    return this.run<DeviceStateSummaryInfo>(
+      id,
+      async (source) => {
+        const dto = await this.client.get<
+          GraphDeviceStateSummary | { value?: GraphDeviceStateSummary }
+        >(endpoint.path(), { signal: options.signal, scope: endpoint.scope });
+        return this.ok(mapDeviceStateSummary(dto, kind), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.summaryNotReported, source }),
+    );
+  }
+
+  private readComplianceSettings(
+    options: RequestOptions,
+  ): Promise<SectionResult<ComplianceSettingSummariesInfo>> {
+    const endpoint = Endpoints.deviceCompliancePolicySettingStateSummaries;
+    return this.run<ComplianceSettingSummariesInfo>(
+      'deviceCompliancePolicySettingStateSummaries',
+      async (source) => {
+        const { entries, pagesRead, truncated } =
+          await this.readPages<GraphComplianceSettingStateSummary>(
+            endpoint.path(),
+            endpoint.scope,
+            MAX_SETTING_SUMMARY_PAGES,
+            options,
+          );
+        return this.ok(mapComplianceSettingSummaries(entries, { pagesRead, truncated }), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.fleet.reasons.summaryNotReported, source }),
+    );
   }
 
   // ---------- Dienststatus und Registrierungsfehler (M18) ----------

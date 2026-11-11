@@ -3,11 +3,13 @@ import type { ReactNode } from 'react';
 import { formatDateTime } from '../domain/format';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import { de } from '../i18n/de';
+import { maskFileName } from '../privacy/fileName';
+import { usePrivacyView } from '../privacy/privacyContext';
 import type { TileSummary } from '../rules/evaluate';
 import { summarySentence } from './summaryText';
 import { SummaryPills } from './SummaryPills';
 import { TONE_CLASS } from './tone';
-import { zipTitle } from './zipTitle';
+import { maskedZipTitle } from './zipTitle';
 
 interface Props {
   report: DiagnosticsReport;
@@ -19,7 +21,11 @@ interface Props {
 
 /** Header der reinen ZIP-Ansicht – analog zum Geräte-Header. */
 export function ZipHeader({ report, summary, onBack, actions }: Props) {
-  const title = zipTitle(report);
+  const view = usePrivacyView();
+  const title = maskedZipTitle(report, view);
+  const fileName = view.enabled
+    ? view.text(maskFileName(view.masker, report.fileName))
+    : report.fileName;
   const kind = report.collectedAtUtc
     ? `${de.zipView.kind} · ${de.zipView.collectedAt(formatDateTime(report.collectedAtUtc))}`
     : de.zipView.kind;
@@ -49,7 +55,7 @@ export function ZipHeader({ report, summary, onBack, actions }: Props) {
               {title}
             </h1>
             <p className="mt-1.5 text-sm text-secondary-label">{kind}</p>
-            <p className="break-all text-xs text-secondary-label">{report.fileName}</p>
+            <p className="break-all text-xs text-secondary-label">{fileName}</p>
           </div>
         </div>
         <div

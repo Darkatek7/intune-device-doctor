@@ -87,7 +87,7 @@ test.describe('Dienststatus und Registrierungsfehler (M18)', () => {
     page,
   }) => {
     await page.goto('/?view=tenant&mode=demo');
-    await expect(tileButtons(page)).toHaveCount(5);
+    await expect(tileButtons(page)).toHaveCount(8);
     await expect(statusBadge(tile(page, S.serviceTile), T.warning)).toBeVisible();
     await expect(statusBadge(tile(page, S.failuresTile), T.warning)).toBeVisible();
 
@@ -120,7 +120,7 @@ test.describe('Dienststatus und Registrierungsfehler (M18)', () => {
     await expectNoSevereViolations(page, 'Geräteansicht mit Dienststatus-Hinweis');
 
     await page.goto('/?view=tenant&mode=demo');
-    await expect(tileButtons(page)).toHaveCount(5);
+    await expect(tileButtons(page)).toHaveCount(8);
     await tile(page, S.serviceTile).click();
     await settleSheet(page);
     await expectNoSevereViolations(page, 'Dienststatus-Sheet');

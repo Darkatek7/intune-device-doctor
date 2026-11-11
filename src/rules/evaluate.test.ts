@@ -10,8 +10,16 @@ import { TILE_ORDER, evaluateTiles, sortTiles, summarize } from './evaluate';
 const NOW = new Date('2026-10-15T12:00:00Z');
 const LEARN_URL = /^https:\/\/learn\.microsoft\.com\//;
 
+/** Nur für iOS/Android (M20/S3) – fehlt beim Windows-Gerät der Basisreihenfolge. */
+const MOBILE_TILES: TileId[] = ['appProtection'];
+
 /** Die Kacheln ohne DiagLogs-ZIP, in Standardreihenfolge (Windows-Gerät). */
-const BASE_TILES: TileId[] = TILE_ORDER.slice(0, WINDOWS_TILE_COUNT);
+const BASE_TILES: TileId[] = TILE_ORDER.filter((id) => !MOBILE_TILES.includes(id)).slice(
+  0,
+  WINDOWS_TILE_COUNT,
+);
+/** Kacheln, deren Severity je Szenario geprüft wird (Basis + mobile). */
+const CHECKED_TILES: TileId[] = [...BASE_TILES, ...MOBILE_TILES];
 
 /** Erwartete Severity je Mock-Szenario. Nicht genannte Kacheln müssen 'ok' sein. */
 const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
@@ -24,7 +32,11 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     signIns: 'warning',
     attestation: 'warning',
   },
-  'CONTOSO-PC027': { defender: 'warning', securityAlerts: 'critical' }, // M14/S4: offene Defender-Warnung high
+  'CONTOSO-PC027': {
+    defender: 'warning',
+    securityAlerts: 'critical', // M14/S4: offene Defender-Warnung high
+    deviceStatus: 'warning', // M20/S4: Remote-Aktion rebootNow fehlgeschlagen
+  },
   'CONTOSO-PC033': {
     checkIn: 'critical',
     compliance: 'critical',
@@ -47,8 +59,13 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     defender: 'unknown',
     osVersion: 'unknown',
     registration: 'warning', // M14/S3: nur MDM for Office 365, keine Intune-Lizenz
+    appProtection: 'warning', // M20/S3: Teams seit 45 Tagen nicht synchronisiert
   },
-  'CONTOSO-AND21': { defender: 'unknown', osVersion: 'warning' },
+  'CONTOSO-AND21': {
+    defender: 'unknown',
+    osVersion: 'warning',
+    appProtection: 'critical', // M20/S3: Outlook mit rootedDevice markiert
+  },
   'CONTOSO-PC050': {
     policies: 'unknown',
     signIns: 'unknown',
@@ -111,7 +128,7 @@ describe('evaluateTiles – Mock-Szenarien', () => {
   it.each(Object.keys(EXPECTED))('%s: erwartete Severity je Kachel', async (name) => {
     const tiles = evaluateTiles(await loadSnapshot(name), NOW);
     // Windows-spezifische Kacheln (z. B. LAPS) gibt es nur für Windows-Geräte
-    for (const tile of tiles.filter((t) => BASE_TILES.includes(t.id))) {
+    for (const tile of tiles.filter((t) => CHECKED_TILES.includes(t.id))) {
       expect(tile.state, `${name}/${tile.id}`).toBe('ready');
       expect(tile.severity, `${name}/${tile.id}`).toBe(EXPECTED[name]?.[tile.id] ?? 'ok');
     }

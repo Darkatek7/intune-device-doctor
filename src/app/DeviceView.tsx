@@ -7,6 +7,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { de } from '../i18n/de';
+import { PrivacyViewProvider } from '../privacy/PrivacyProvider';
+import { useBuildPrivacyView } from '../privacy/privacyContext';
+import { maskFileName } from '../privacy/fileName';
 import { SECTION_KEYS, useDeviceSnapshot } from '../hooks/useDeviceSnapshot';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { evaluateTiles, sortTiles, summarize, TILE_ORDER } from '../rules/evaluate';
@@ -76,11 +79,15 @@ export function DeviceView({
     namedDiagnostics,
   );
   const [origin, setOrigin] = useState<DOMRect | null>(null);
+  // Präsentationsmodus (M19): Sicht mit allen bekannten Werten dieses Geräts. Berechnet wird mit den echten
+  // Daten, maskiert wird erst am Anzeige-Modell und an den Ausgaben.
+  const view = useBuildPrivacyView(snapshot);
 
-  const tiles = useMemo<Tile[]>(
+  const realTiles = useMemo<Tile[]>(
     () => (snapshot && now ? evaluateTiles(snapshot, now) : []),
     [snapshot, now],
   );
+  const tiles = useMemo(() => view.deep(realTiles), [view, realTiles]);
   const summary = useMemo(() => summarize(tiles), [tiles]);
   // Die Zuweisungen (M14/S2) ergänzen Richtlinien und Apps erst nach deren Laden – bis dahin gilt
   // die Ansicht als ladend (sonst enthielten Export, Ticket-Notiz und Ursache-Karte einen Zwischenstand).
@@ -113,8 +120,8 @@ export function DeviceView({
 
   // M12/A: Zeitachse und „Wahrscheinlichste Ursache“ – erst, wenn alle Kacheln fertig sind
   const timeline = useMemo(
-    () => (snapshot && now && !stillLoading ? buildTimeline({ snapshot, now }) : []),
-    [snapshot, now, stillLoading],
+    () => (snapshot && now && !stillLoading ? view.deep(buildTimeline({ snapshot, now })) : []),
+    [snapshot, now, stillLoading, view],
   );
   const insights = useMemo(() => (stillLoading ? [] : correlate(tiles)), [tiles, stillLoading]);
   const openableTiles = useMemo(() => new Set<TileId>(tiles.map((tile) => tile.id)), [tiles]);
@@ -129,16 +136,22 @@ export function DeviceView({
 
   const getTicketNote = useCallback(() => {
     if (!snapshot) return '';
-    return buildTicketNote({
-      title: snapshot.device.deviceName,
-      details: deviceMeta(snapshot.device, tiles, { enrolled: false }),
-      mode: provider.mode,
-      tiles,
-      now: new Date(),
-      insights,
-      timeline,
-    });
-  }, [snapshot, tiles, provider.mode, insights, timeline]);
+    // Ausgabegrenze: im Präsentationsmodus ist auch die Notiz maskiert (Anzeige-Modell + Textnetz).
+    return view.text(
+      buildTicketNote({
+        title: view.text(snapshot.device.deviceName),
+        details: deviceMeta(snapshot.device, tiles, {
+          enrolled: false,
+          ...(view.enabled ? { masker: view.masker } : {}),
+        }),
+        mode: provider.mode,
+        tiles,
+        now: new Date(),
+        insights,
+        timeline,
+      }),
+    );
+  }, [snapshot, tiles, provider.mode, insights, timeline, view]);
 
   // Stand für Export/Vergleich (M12/B1): nur ausgewertete Kacheln, keine Rohdaten.
   const getSnapshotFile = useCallback((): SnapshotFile | null => {
@@ -146,10 +159,10 @@ export function DeviceView({
     return buildSnapshotFile({
       tiles,
       mode: provider.mode,
-      deviceName: snapshot.device.deviceName,
+      deviceName: view.text(snapshot.device.deviceName),
       now: new Date(),
     });
-  }, [snapshot, stillLoading, tiles, provider.mode]);
+  }, [snapshot, stillLoading, tiles, provider.mode, view]);
 
   const openTile = openTileId ? tiles.find((tile) => tile.id === openTileId) : undefined;
 
@@ -171,11 +184,11 @@ export function DeviceView({
   useEffect(() => {
     if (!deviceName) return;
     const previous = document.title;
-    document.title = `${deviceName} – ${de.app.name}`;
+    document.title = `${view.text(deviceName)} – ${de.app.name}`;
     return () => {
       document.title = previous;
     };
-  }, [deviceName]);
+  }, [deviceName, view]);
 
   // Fokus kehrt zur Kachel zurück, sobald das Sheet geschlossen wird (Escape, Scrim, Zurück).
   const previousOpen = useRef<string | null>(null);
@@ -206,69 +219,82 @@ export function DeviceView({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <DeviceHeader
-        device={snapshot?.device ?? null}
-        summary={snapshot ? summary : null}
-        totalTiles={tiles.length}
-        tiles={tiles}
-        tone={tone}
-        throttle={throttle}
-        otherDevices={
-          snapshot?.userDevices?.status === 'ok' ? snapshot.userDevices.data : undefined
-        }
-        onOpenDevice={onOpenDevice}
-        actions={
-          <HeaderActions
-            timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
-            getTicketNote={getTicketNote}
-            compare={{
-              kind: 'device',
-              getCurrent: getSnapshotFile,
-              currentLabel: snapshot?.device.deviceName ?? '',
-            }}
-            disabled={!snapshot || stillLoading}
-            {...(onOpenConnectionTest ? { onOpenConnectionTest } : {})}
-          />
-        }
-        badges={
-          diagnostics && onRemoveDiagnostics ? (
-            <DiagnosticsChip fileName={diagnostics.fileName} onRemove={onRemoveDiagnostics} />
-          ) : undefined
-        }
-      />
-      {onOpenServiceHealth && (
-        <ServiceHealthNotice provider={provider} onOpen={onOpenServiceHealth} />
-      )}
-      {insights.length > 0 && (
-        <InsightCard insights={insights} openableTiles={openableTiles} onOpenTile={openTileById} />
-      )}
-      {snapshot ? (
-        <TileGrid tiles={ordered} onOpen={handleOpen} settled={!stillLoading} />
-      ) : (
-        <ul
-          aria-label={de.grid.label}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          {BASE_TILE_IDS.map((id) => (
-            <li key={id}>
-              <TileSkeleton tile={{ id, title: de.tiles[id] }} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <AnimatePresence>
-        {snapshot && openTile && (
-          <DetailSheet
-            key="detail-sheet"
-            tile={openTile}
-            origin={origin}
-            notices={sectionNotices(snapshot, openTile)}
-            onClose={onCloseTile}
-            onRetry={() => retryTile(openTile)}
+    <PrivacyViewProvider view={view}>
+      <div className="flex flex-col gap-6">
+        <DeviceHeader
+          device={snapshot?.device ?? null}
+          summary={snapshot ? summary : null}
+          totalTiles={tiles.length}
+          tiles={tiles}
+          tone={tone}
+          throttle={throttle}
+          otherDevices={
+            snapshot?.userDevices?.status === 'ok' ? snapshot.userDevices.data : undefined
+          }
+          onOpenDevice={onOpenDevice}
+          actions={
+            <HeaderActions
+              timeline={{ events: timeline, openableTiles, onOpenTile: openTileById }}
+              getTicketNote={getTicketNote}
+              compare={{
+                kind: 'device',
+                getCurrent: getSnapshotFile,
+                currentLabel: view.text(snapshot?.device.deviceName ?? ''),
+              }}
+              disabled={!snapshot || stillLoading}
+              {...(onOpenConnectionTest ? { onOpenConnectionTest } : {})}
+            />
+          }
+          badges={
+            diagnostics && onRemoveDiagnostics ? (
+              <DiagnosticsChip
+                fileName={
+                  view.enabled
+                    ? maskFileName(view.masker, diagnostics.fileName)
+                    : diagnostics.fileName
+                }
+                onRemove={onRemoveDiagnostics}
+              />
+            ) : undefined
+          }
+        />
+        {onOpenServiceHealth && (
+          <ServiceHealthNotice provider={provider} onOpen={onOpenServiceHealth} />
+        )}
+        {insights.length > 0 && (
+          <InsightCard
+            insights={insights}
+            openableTiles={openableTiles}
+            onOpenTile={openTileById}
           />
         )}
-      </AnimatePresence>
-    </div>
+        {snapshot ? (
+          <TileGrid tiles={ordered} onOpen={handleOpen} settled={!stillLoading} />
+        ) : (
+          <ul
+            aria-label={de.grid.label}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
+            {BASE_TILE_IDS.map((id) => (
+              <li key={id}>
+                <TileSkeleton tile={{ id, title: de.tiles[id] }} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <AnimatePresence>
+          {snapshot && openTile && (
+            <DetailSheet
+              key="detail-sheet"
+              tile={openTile}
+              origin={origin}
+              notices={view.deep(sectionNotices(snapshot, openTile))}
+              onClose={onCloseTile}
+              onRetry={() => retryTile(openTile)}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </PrivacyViewProvider>
   );
 }

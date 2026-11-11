@@ -2,6 +2,7 @@ import { Check, ClipboardCopy, Printer } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref, type RefObject } from 'react';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { TicketNoteDialog } from './TicketNoteDialog';
 
 interface Props {
@@ -35,6 +36,7 @@ export function TicketNoteButton({
   printReturnFocusRef,
   ref,
 }: Props) {
+  const { enabled: privacyOn } = usePrivacy();
   const [copied, setCopied] = useState(false);
   const [fallback, setFallback] = useState<{ text: string; reason: 'clipboard' | 'print' } | null>(
     null,
@@ -82,7 +84,11 @@ export function TicketNoteButton({
         type="button"
         disabled={disabled}
         onClick={() => void onClick()}
-        title={de.ticket.buttonHint}
+        title={
+          privacyOn
+            ? `${de.ticket.buttonHint} ${de.privacy.output.ticketNote}`
+            : de.ticket.buttonHint
+        }
         className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-control px-3.5 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <ClipboardCopy aria-hidden="true" size={16} />
