@@ -4,7 +4,9 @@
  * Quellenangaben auf Basis von src/graph/endpoints.ts).
  */
 import type {
+  EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
+  ServiceHealthInfo,
   SecurityAlertsInfo,
   TenantStatus,
   TenantPolicies,
@@ -47,6 +49,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { buildMockPolicies, policyKey } from './policies';
+import { defaultEnrollmentFailures, defaultServiceHealth } from './service';
 import { scenarios as defaultScenarios } from './scenarios';
 import {
   defaultAppStates,
@@ -95,6 +98,7 @@ const SECTION_ENDPOINT: Record<SectionKey, EndpointId> = {
   userLicense: 'userLicenseDetails',
   enrollmentLimits: 'deviceEnrollmentConfigurations',
   securityAlerts: 'securityAlerts',
+  enrollmentFailures: 'troubleshootingEvents',
 };
 
 export function abortError(): DOMException {
@@ -298,6 +302,24 @@ export class MockProvider implements DeviceDataProvider {
     if (key === 'securityAlerts') {
       return { status: 'ok', data: defaultSecurityAlerts() };
     }
+    if (key === 'enrollmentFailures') {
+      const userId = fixture.device.userId;
+      if (!userId) {
+        return { status: 'notApplicable', reason: de.service.reasons.enrollmentFailuresNoUser };
+      }
+      const tenant = this.tenantEnrollmentFailures();
+      if (tenant.status !== 'ok') return tenant;
+      return {
+        status: 'ok',
+        data: {
+          ...tenant.data,
+          events: tenant.data.events.filter(
+            (event) => event.userId?.toLowerCase() === userId.toLowerCase(),
+          ),
+          filteredUserId: userId,
+        },
+      };
+    }
     if (key === 'duplicateDevices') {
       const entra = fixture.entraDevice;
       if (entra.status !== 'ok') {
@@ -418,11 +440,44 @@ export class MockProvider implements DeviceDataProvider {
     return this.section<UserLicenseInfo>(device, 'userLicense', options);
   }
 
+  private tenantEnrollmentFailures(): MockSection<EnrollmentFailuresInfo> {
+    return (
+      this.tenant.enrollmentFailures ?? {
+        status: 'ok',
+        data: defaultEnrollmentFailures(this.now()),
+      }
+    );
+  }
+
+  private serviceHealthResult(): SectionResult<ServiceHealthInfo> {
+    return this.fromSpec<ServiceHealthInfo>(
+      this.tenant.serviceHealth ?? { status: 'ok', data: defaultServiceHealth(this.now()) },
+      'serviceHealthOverviews',
+      sourceFor('serviceHealthOverviews'),
+    );
+  }
+
+  /** Dienststatus (M18): Standard mit offenem Intune-Vorfall oder `options.tenant.serviceHealth`. */
+  async getServiceHealth(options: RequestOptions = {}): Promise<SectionResult<ServiceHealthInfo>> {
+    await this.delay('serviceHealth', options.signal);
+    return this.serviceHealthResult();
+  }
+
+  getEnrollmentFailures(device: ManagedDeviceInfo, options: RequestOptions = {}) {
+    return this.section<EnrollmentFailuresInfo>(device, 'enrollmentFailures', options);
+  }
+
   /** Mandanten-Status: Standard oder `options.tenant` (siehe MockTenantFixture). */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
     await this.delay('tenant', options.signal);
     const now = this.now();
     return {
+      serviceHealth: this.serviceHealthResult(),
+      enrollmentFailures: this.fromSpec<EnrollmentFailuresInfo>(
+        this.tenantEnrollmentFailures(),
+        'troubleshootingEvents',
+        sourceFor('troubleshootingEvents'),
+      ),
       applePushCertificate: this.fromSpec<ApplePushCertificateInfo>(
         this.tenant.applePushCertificate ?? { status: 'ok', data: defaultTenantApplePush(now) },
         'applePushNotificationCertificate',

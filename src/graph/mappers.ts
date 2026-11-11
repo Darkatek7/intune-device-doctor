@@ -37,6 +37,12 @@ import type {
   PolicyDeviceStatusEntry,
   TenantPolicyInfo,
   TenantPolicyKind,
+  EnrollmentFailureEvent,
+  EnrollmentFailuresInfo,
+  ServiceHealthEntry,
+  ServiceHealthInfo,
+  ServiceHealthIssueInfo,
+  ServiceHealthKind,
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
@@ -82,6 +88,15 @@ import type {
   WindowsMalwareSeverity,
   WindowsMalwareState,
   WindowsMalwareThreatState,
+  GraphServiceHealth,
+  GraphServiceHealthIssue,
+  GraphTroubleshootingEvent,
+} from './dto';
+import {
+  DEVICE_ENROLLMENT_FAILURE_REASONS,
+  SERVICE_HEALTH_CLASSIFICATIONS,
+  SERVICE_HEALTH_STATUSES,
+  TROUBLESHOOTING_ENROLLMENT_TYPES,
 } from './dto';
 import { Endpoints, type EndpointId } from './endpoints';
 
@@ -1146,4 +1161,141 @@ export function mapPolicyDeviceStatuses(
     });
   }
   return mapped;
+}
+
+// ---------- Dienststatus (M18) ----------
+
+/**
+ * Enum-Wert ohne Rücksicht auf die Schreibweise des ersten Buchstabens: Die Doku nennt die Werte
+ * camelCase (`serviceOperational`, `incident`), ihre Beispielantworten aber PascalCase
+ * („ServiceOperational“, „Incident“). Andere Werte → null (der Rohwert bleibt separat erhalten).
+ */
+export function pickEnumLoose<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  const text = str(value)?.trim();
+  if (!text) return null;
+  const normalized = text.charAt(0).toLowerCase() + text.slice(1);
+  return (allowed as readonly string[]).includes(normalized) ? (normalized as T) : null;
+}
+
+/**
+ * Zuordnung eines Dienstes zu Intune bzw. Entra über den Namen/die ID. Microsoft dokumentiert keine
+ * festen Namen („Use the list healthOverviews operation to get exact string names“) – deshalb nur ein
+ * Teilstring-Vergleich, live zu verifizieren (docs/graph-api-reference.md › „Live zu verifizieren (M18)“).
+ */
+export function serviceHealthKind(service: string, id: string): ServiceHealthKind | null {
+  const text = `${service} ${id}`.toLowerCase();
+  if (text.includes('intune')) return 'intune';
+  if (text.includes('entra')) return 'entra';
+  return null;
+}
+
+function mapServiceHealthIssue(dto: GraphServiceHealthIssue): ServiceHealthIssueInfo | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id) return null;
+  return {
+    id,
+    title: str(dto.title)?.trim() || null,
+    classification: pickEnumLoose(dto.classification, SERVICE_HEALTH_CLASSIFICATIONS),
+    status: pickEnumLoose(dto.status, SERVICE_HEALTH_STATUSES),
+    statusRaw: str(dto.status)?.trim() || null,
+    startDateTime: validDate(dto.startDateTime),
+    lastModifiedDateTime: validDate(dto.lastModifiedDateTime),
+    feature: str(dto.feature)?.trim() || null,
+    featureGroup: str(dto.featureGroup)?.trim() || null,
+    impactDescription: str(dto.impactDescription)?.trim() || null,
+  };
+}
+
+const KIND_ORDER: Record<ServiceHealthKind, number> = { intune: 0, entra: 1 };
+
+/** healthOverviews (mit `$expand=issues`) → Domain. Nur offene Einträge (isResolved ≠ true) bleiben erhalten. */
+export function mapServiceHealth(
+  entries: GraphServiceHealth[] | null | undefined,
+  truncated: boolean,
+): ServiceHealthInfo {
+  const services: ServiceHealthEntry[] = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const id = entry && typeof entry === 'object' ? str(entry.id) : null;
+    if (!id) continue;
+    const service = str(entry.service)?.trim() || id;
+    const issues = (Array.isArray(entry.issues) ? entry.issues : [])
+      .filter((issue) => issue && typeof issue === 'object')
+      .map((issue) => ({ issue, mapped: mapServiceHealthIssue(issue) }));
+    const open = issues
+      .filter(({ issue, mapped }) => mapped && issue.isResolved !== true)
+      .map(({ mapped }) => mapped!);
+    const time = (issue: ServiceHealthIssueInfo) =>
+      Date.parse(issue.lastModifiedDateTime ?? issue.startDateTime ?? '') || 0;
+    services.push({
+      id,
+      service,
+      kind: serviceHealthKind(service, id),
+      status: pickEnumLoose(entry.status, SERVICE_HEALTH_STATUSES),
+      statusRaw: str(entry.status)?.trim() || null,
+      openIssues: open.sort((a, b) => time(b) - time(a)),
+      resolvedCount: issues.filter(({ issue }) => issue.isResolved === true).length,
+    });
+  }
+  const rank = (entry: ServiceHealthEntry) => (entry.kind ? KIND_ORDER[entry.kind] : 2);
+  services.sort((a, b) => rank(a) - rank(b) || a.service.localeCompare(b.service, 'de'));
+  return { services, truncated };
+}
+
+// ---------- Registrierungsfehler (M18) ----------
+
+const ENROLLMENT_EVENT_TYPE = '#microsoft.graph.enrollmentTroubleshootingEvent';
+
+/**
+ * Nur Registrierungsfehler: die Liste ist laut Doku eine Sammlung des Basistyps
+ * deviceManagementTroubleshootingEvent (ohne Registrierungsfelder). Übernommen werden Einträge mit dem
+ * abgeleiteten Typ enrollmentTroubleshootingEvent – oder ohne `@odata.type`, wenn sie die Felder des
+ * abgeleiteten Typs tragen.
+ */
+function isEnrollmentEvent(dto: GraphTroubleshootingEvent): boolean {
+  const type = str(dto['@odata.type']);
+  if (type) return type === ENROLLMENT_EVENT_TYPE;
+  return 'failureCategory' in dto || 'enrollmentType' in dto;
+}
+
+export function mapEnrollmentFailure(
+  dto: GraphTroubleshootingEvent,
+): EnrollmentFailureEvent | null {
+  const id = dto && typeof dto === 'object' ? str(dto.id) : null;
+  if (!id || !isEnrollmentEvent(dto)) return null;
+  return {
+    id,
+    eventDateTime: validDate(dto.eventDateTime),
+    correlationId: str(dto.correlationId)?.trim() || null,
+    operatingSystem: str(dto.operatingSystem)?.trim() || null,
+    osVersion: str(dto.osVersion)?.trim() || null,
+    userId: usableId(dto.userId),
+    enrollmentType: pickOrNull(dto.enrollmentType, TROUBLESHOOTING_ENROLLMENT_TYPES),
+    enrollmentTypeRaw: str(dto.enrollmentType)?.trim() || null,
+    failureCategory: pickOrNull(dto.failureCategory, DEVICE_ENROLLMENT_FAILURE_REASONS),
+    failureCategoryRaw: str(dto.failureCategory)?.trim() || null,
+    failureReason: str(dto.failureReason)?.trim() || null,
+  };
+}
+
+/**
+ * troubleshootingEvents → Registrierungsfehler, neueste zuerst (eine Sortierung ist nicht dokumentiert,
+ * deshalb clientseitig). Mit `filterUserId` nur die Einträge dieses Benutzers (Vergleich ohne Groß-/
+ * Kleinschreibung).
+ */
+export function mapEnrollmentFailures(
+  entries: GraphTroubleshootingEvent[] | null | undefined,
+  options: { pagesRead: number; truncated: boolean; filterUserId?: string | null },
+): EnrollmentFailuresInfo {
+  const filter = options.filterUserId?.toLowerCase() ?? null;
+  const events = (Array.isArray(entries) ? entries : [])
+    .map(mapEnrollmentFailure)
+    .filter((event): event is EnrollmentFailureEvent => event !== null)
+    .filter((event) => !filter || event.userId?.toLowerCase() === filter);
+  const time = (event: EnrollmentFailureEvent) => Date.parse(event.eventDateTime ?? '') || 0;
+  return {
+    events: events.sort((a, b) => time(b) - time(a)),
+    pagesRead: options.pagesRead,
+    truncated: options.truncated,
+    filteredUserId: options.filterUserId ?? null,
+  };
 }

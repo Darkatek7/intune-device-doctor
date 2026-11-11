@@ -8,6 +8,7 @@ import type {
   ComplianceState,
   ComplianceStatus,
   ConditionalAccessStatus,
+  DeviceEnrollmentFailureReason,
   DeviceEnrollmentType,
   ManagedDevicePartnerReportedHealthState,
   ManagementAgentType,
@@ -15,7 +16,10 @@ import type {
   MobileAppIntent,
   PolicyPlatformType,
   ResultantAppState,
+  ServiceHealthClassificationType,
+  ServiceHealthStatus,
   ServicePlanProvisioningStatus,
+  TroubleshootingEnrollmentType,
   WindowsDeviceHealthState,
   WindowsMalwareSeverity,
   WindowsMalwareState,
@@ -492,6 +496,87 @@ export interface VppTokenInfo {
 export interface TenantStatus {
   applePushCertificate: SectionResult<ApplePushCertificateInfo>;
   vppTokens: SectionResult<VppTokenInfo[]>;
+  /** Microsoft-365-Dienststatus (M18, optionaler Scope ServiceHealth.Read.All) */
+  serviceHealth: SectionResult<ServiceHealthInfo>;
+  /** Fehlgeschlagene Registrierungen im Mandanten (M18, seitenbegrenzt) */
+  enrollmentFailures: SectionResult<EnrollmentFailuresInfo>;
+}
+
+// ---------- Dienststatus (M18) ----------
+
+/**
+ * Welcher Dienst gemeint ist. Der genaue `service`-Name ist laut Doku Mandanten-Datum („Use the list
+ * healthOverviews operation to get exact string names“) – die Zuordnung erfolgt deshalb über den Namen
+ * (enthält „Intune“ bzw. „Entra“) und ist unter „Live zu verifizieren (M18)“ notiert.
+ */
+export type ServiceHealthKind = 'intune' | 'entra';
+
+/** Ein offener Vorfall oder Hinweis. Texte bleiben englisch (Microsoft-Original, nicht übersetzt). */
+export interface ServiceHealthIssueInfo {
+  id: string;
+  title: string | null;
+  /** null = Wert fehlt oder ist nicht dokumentiert */
+  classification: ServiceHealthClassificationType | null;
+  /** null = Wert fehlt oder ist nicht dokumentiert; der Rohwert steht in statusRaw */
+  status: ServiceHealthStatus | null;
+  statusRaw: string | null;
+  startDateTime: string | null;
+  lastModifiedDateTime: string | null;
+  feature: string | null;
+  featureGroup: string | null;
+  impactDescription: string | null;
+}
+
+export interface ServiceHealthEntry {
+  id: string;
+  service: string;
+  kind: ServiceHealthKind | null;
+  status: ServiceHealthStatus | null;
+  statusRaw: string | null;
+  /** Nur nicht behobene Vorfälle/Hinweise (isResolved ≠ true), neueste Aktualisierung zuerst */
+  openIssues: ServiceHealthIssueInfo[];
+  /** Als behoben gemeldete (ausgeblendete) Einträge */
+  resolvedCount: number;
+}
+
+export interface ServiceHealthInfo {
+  /** Alle gemeldeten Dienste (Intune/Entra zuerst) */
+  services: ServiceHealthEntry[];
+  /** Weitere Seiten vorhanden, aber nicht gelesen */
+  truncated: boolean;
+}
+
+// ---------- Registrierungsfehler (M18) ----------
+
+/**
+ * Ein fehlgeschlagener Registrierungsversuch (enrollmentTroubleshootingEvent). Die Ressource nennt nur die
+ * `userId` (GUID) – ein Name ist mit den vorhandenen Berechtigungen nicht abrufbar.
+ */
+export interface EnrollmentFailureEvent {
+  id: string;
+  eventDateTime: string | null;
+  correlationId: string | null;
+  operatingSystem: string | null;
+  osVersion: string | null;
+  userId: string | null;
+  /** null = Wert fehlt; nicht dokumentierte Werte stehen nur in enrollmentTypeRaw */
+  enrollmentType: TroubleshootingEnrollmentType | null;
+  enrollmentTypeRaw: string | null;
+  /** null = Wert fehlt oder ist nicht dokumentiert; Rohwert in failureCategoryRaw */
+  failureCategory: DeviceEnrollmentFailureReason | null;
+  failureCategoryRaw: string | null;
+  failureReason: string | null;
+}
+
+export interface EnrollmentFailuresInfo {
+  /** Neueste zuerst (clientseitig sortiert – eine Sortierung ist nicht dokumentiert) */
+  events: EnrollmentFailureEvent[];
+  /** Gelesene Seiten */
+  pagesRead: number;
+  /** Weitere Seiten vorhanden, aber nicht gelesen (Grenze MAX_TROUBLESHOOTING_EVENT_PAGES) */
+  truncated: boolean;
+  /** Bei gerätebezogener Abfrage: Benutzer, auf den gefiltert wurde (sonst null) */
+  filteredUserId: string | null;
 }
 
 // ---------- Richtlinien → Geräte (M15, Ansicht „Richtlinien“) ----------
@@ -622,6 +707,8 @@ export interface DeviceSnapshot {
   enrollmentLimits?: SectionResult<EnrollmentLimitsInfo>;
   /** Offene Defender-Warnungen dieses Geräts (M14/S4, optionaler Scope SecurityAlert.Read.All) */
   securityAlerts?: SectionResult<SecurityAlertsInfo>;
+  /** Fehlgeschlagene Registrierungen des primären Benutzers (M18, seitenbegrenzt, Kachel „Registrierung“) */
+  enrollmentFailures?: SectionResult<EnrollmentFailuresInfo>;
   /** Gruppen des Geräts in Entra (informativ, Scope Device.Read.All) */
   deviceGroups?: SectionResult<DeviceGroupsInfo>;
   /**
@@ -661,6 +748,8 @@ export type TileId =
   // Ansicht „Mandant“ (M14/S5), kein Gerät:
   | 'tenantApplePush'
   | 'tenantVpp'
+  | 'tenantServiceHealth'
+  | 'tenantEnrollmentFailures'
   | 'tenantUnavailable'
   // nur mit DiagLogs-ZIP:
   | 'entraJoin'
@@ -695,6 +784,12 @@ export interface Finding {
   severity: Severity;
   /** Kurz: "BitLocker ist nicht aktiviert" */
   title: string;
+  /**
+   * Sprache von `title` bzw. `detail`, wenn sie unverändert von Microsoft stammen (z. B. Vorfälle im
+   * Dienststatus, M18) – die UI setzt dann `lang`, damit Screenreader richtig vorlesen.
+   */
+  titleLang?: 'en';
+  detailLang?: 'en';
   /** Was genau beobachtet wurde */
   detail: string;
   /** Wahrscheinliche Ursache(n) */
@@ -730,6 +825,7 @@ export type SnapshotSectionKey =
   | 'userLicense'
   | 'enrollmentLimits'
   | 'securityAlerts'
+  | 'enrollmentFailures'
   | 'assignments';
 
 /** Geprüfter Wert, der im Detail-Sheet angezeigt wird (auch wenn alles in Ordnung ist). */

@@ -35,15 +35,22 @@ const docHeight = (page: Page) =>
   page.evaluate('document.documentElement.scrollHeight') as Promise<number>;
 
 test.describe('Gesunde Kacheln kompakt (U1)', () => {
-  test('PC042: Kacheln mit Befund bleiben groß, 10 gesunde stehen kompakt unter „In Ordnung · 10“', async ({
+  test('PC042: Kacheln mit Befund bleiben groß, die gesunden stehen kompakt unter „In Ordnung · N“', async ({
     page,
   }) => {
     await openDevice(page, 'CONTOSO-PC042');
-    await expect(page.getByRole('heading', { level: 2, name: 'In Ordnung · 10' })).toBeVisible();
+    // Die Zahl hängt von den Demo-Daten ab (jedes Paket mit neuen Befunden verschiebt sie) –
+    // geprüft wird deshalb, dass Überschrift, kompakte und große Kacheln zusammenpassen.
+    const heading = page.getByRole('heading', { level: 2, name: /^In Ordnung · \d+$/ });
+    await expect(heading).toBeVisible();
+    const healthy = Number((await heading.textContent())!.replace(/\D+/g, ''));
+    expect(healthy).toBeGreaterThanOrEqual(5);
 
     const compact = page.locator('button[data-tile-compact]');
-    await expect(compact).toHaveCount(10);
-    await expect(tileButtons(page)).toHaveCount(15);
+    await expect(compact).toHaveCount(healthy);
+    const total = await tileButtons(page).count();
+    // PC042 ist das Szenario mit mehreren Befunden: mindestens fünf große Karten
+    expect(total - healthy).toBeGreaterThanOrEqual(5);
 
     // Große Karte (Befund) deutlich höher als eine kompakte Zeile
     const large = await tile(page, 'Richtlinien').boundingBox();

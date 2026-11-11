@@ -38,6 +38,7 @@ const EXPECTED: Record<string, Partial<Record<TileId, Severity>>> = {
     osVersion: 'warning',
     apps: 'critical',
     signIns: 'warning',
+    registration: 'warning', // M18: fehlgeschlagene Android-Registrierung des Benutzers (Beschränkung)
   },
   'CONTOSO-LT108': { deviceStatus: 'critical', osVersion: 'warning', autopilot: 'warning' },
   'CONTOSO-MAC07': { defender: 'unknown', osVersion: 'unknown' },

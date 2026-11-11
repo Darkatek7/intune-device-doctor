@@ -11,8 +11,10 @@
 import type {
   AssignmentLookup,
   AssignmentsInfo,
+  EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
   TenantPolicyKind,
@@ -170,6 +172,23 @@ export interface DeviceDataProvider {
    * wird nie gelesen. Wirft nur bei Abbruch.
    */
   getTenantStatus(options?: RequestOptions): Promise<TenantStatus>;
+
+  /**
+   * Microsoft-365-Dienststatus (M18): alle abonnierten Dienste mit ihren offenen Vorfällen/Hinweisen
+   * (`healthOverviews?$expand=issues`). Teil von getTenantStatus; einzeln abrufbar für den Hinweis in der
+   * Geräteansicht. Optionaler Scope ServiceHealth.Read.All (403 → forbidden).
+   */
+  getServiceHealth(options?: RequestOptions): Promise<SectionResult<ServiceHealthInfo>>;
+
+  /**
+   * Fehlgeschlagene Registrierungen des primären Benutzers (M18): die Registrierungsfehler des Mandanten
+   * (höchstens MAX_TROUBLESHOOTING_EVENT_PAGES Seiten), clientseitig auf die `userId` des Geräts gefiltert.
+   * Ohne primären Benutzer notApplicable.
+   */
+  getEnrollmentFailures(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<EnrollmentFailuresInfo>>;
 
   /**
    * Richtlinien des Mandanten (M15, Ansicht „Richtlinien“): Konfigurationsprofile und

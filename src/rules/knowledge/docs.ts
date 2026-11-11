@@ -218,4 +218,35 @@ export const Docs = {
   cabinetFormat: 'https://learn.microsoft.com/previous-versions/bb417343(v=msdn.10)',
   expandCommand:
     'https://learn.microsoft.com/windows-server/administration/windows-commands/expand',
+  // M18: Dienststatus (abgerufen 2026-11-10)
+  serviceHealthOverviewsList:
+    'https://learn.microsoft.com/graph/api/serviceannouncement-list-healthoverviews?view=graph-rest-1.0',
+  serviceHealthIssueResource:
+    'https://learn.microsoft.com/graph/api/resources/servicehealthissue?view=graph-rest-1.0',
+  /** „check its health status … before calling for support or spending time troubleshooting“ */
+  serviceCommunicationsOverview:
+    'https://learn.microsoft.com/graph/service-communications-concept-overview',
+  /** Dienstintegrität im Microsoft 365 Admin Center; Rollen Service Support admin, Helpdesk admin */
+  m365ServiceHealth:
+    'https://learn.microsoft.com/microsoft-365/enterprise/view-service-health?view=o365-worldwide',
+  /** Intune-Mandantenstatus › Dienstintegrität; Rolle Service support administrator, E-Mail-Benachrichtigungen */
+  intuneTenantStatusServiceHealth:
+    'https://learn.microsoft.com/intune/governance/tenant-status#service-health-and-message-center-tab',
+  // M18: Registrierungsfehler (abgerufen 2026-11-10)
+  troubleshootingEventsList:
+    'https://learn.microsoft.com/graph/api/intune-troubleshooting-enrollmenttroubleshootingevent-list?view=graph-rest-1.0',
+  enrollmentFailureReasonEnum:
+    'https://learn.microsoft.com/graph/api/resources/intune-troubleshooting-deviceenrollmentfailurereason?view=graph-rest-1.0',
+  /** Bericht „Registrierungsfehler“: Zeile öffnen → Details und empfohlene Schritte */
+  enrollmentFailuresReport: 'https://learn.microsoft.com/intune/device-enrollment/monitor-reports',
+  enrollmentSelfHelpDiagnostics:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#run-self-help-diagnostics',
+  enrollmentDeviceDateTime:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#check-device-date-and-time',
+  enrollmentMdmAuthorityNotSet:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#it-admin-needs-to-set-mdm-authority',
+  /** Fehlercode-Tabelle: „Account is in maintenance mode“ */
+  enrollmentErrorCodes:
+    'https://learn.microsoft.com/troubleshoot/mem/intune/device-enrollment/troubleshoot-device-enrollment-in-intune#enrollment-error-codes',
+  enrollmentRestrictions: 'https://learn.microsoft.com/intune/device-enrollment/restrictions',
 } as const;

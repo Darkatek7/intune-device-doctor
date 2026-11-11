@@ -8,7 +8,9 @@ import type {
   AssignmentLookup,
   AssignmentObjectInfo,
   AssignmentsInfo,
+  EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
+  ServiceHealthInfo,
   UserLicenseInfo,
   HealthAttestationInfo,
   DeviceGroupsInfo,
@@ -58,6 +60,8 @@ import type {
   GraphEntraDevice,
   GraphLicenseDetails,
   GraphSecurityAlert,
+  GraphServiceHealth,
+  GraphTroubleshootingEvent,
   GraphVppToken,
   GraphPolicyDeviceOverview,
   GraphPolicyDeviceStatus,
@@ -82,6 +86,8 @@ import {
   MAX_POLICY_STATUS_PAGES,
   POLICY_OVERVIEW_CONCURRENCY,
   MAX_SECURITY_ALERT_PAGES,
+  MAX_SERVICE_HEALTH_PAGES,
+  MAX_TROUBLESHOOTING_EVENT_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -97,7 +103,9 @@ import {
   mapDuplicateDevices,
   mapUserDevices,
   mapBitlockerKey,
+  mapEnrollmentFailures,
   mapEnrollmentLimits,
+  mapServiceHealth,
   mapEntraDevice,
   mapHealthAttestation,
   mapLocalAdmin,
@@ -530,11 +538,99 @@ export class GraphProvider implements DeviceDataProvider {
    * verlässt diese Methode nicht.
    */
   async getTenantStatus(options: RequestOptions = {}): Promise<TenantStatus> {
-    const [applePushCertificate, vppTokens] = await Promise.all([
+    const [applePushCertificate, vppTokens, serviceHealth, enrollmentFailures] = await Promise.all([
       this.readApplePushCertificate(options),
       this.readVppTokens(options),
+      this.getServiceHealth(options),
+      this.readEnrollmentFailures(null, options),
     ]);
-    return { applePushCertificate, vppTokens };
+    return { applePushCertificate, vppTokens, serviceHealth, enrollmentFailures };
+  }
+
+  // ---------- Dienststatus und Registrierungsfehler (M18) ----------
+
+  /** healthOverviews mit `$expand=issues`, höchstens MAX_SERVICE_HEALTH_PAGES Seiten. */
+  getServiceHealth(options: RequestOptions = {}): Promise<SectionResult<ServiceHealthInfo>> {
+    const endpoint = Endpoints.serviceHealthOverviews;
+    return this.run<ServiceHealthInfo>(
+      'serviceHealthOverviews',
+      async (source) => {
+        const entries: GraphServiceHealth[] = [];
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_SERVICE_HEALTH_PAGES) {
+          const page: GraphCollection<GraphServiceHealth> | undefined = await this.client.get<
+            GraphCollection<GraphServiceHealth>
+          >(next, { signal: options.signal, scope: endpoint.scope });
+          pages += 1;
+          entries.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(mapServiceHealth(entries, Boolean(next)), source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.service.reasons.serviceHealthNotReported,
+        source,
+      }),
+    );
+  }
+
+  /** Registrierungsfehler des Benutzers (Gerätekachel „Registrierung (Benutzer)“). */
+  getEnrollmentFailures(
+    device: ManagedDeviceInfo,
+    options: RequestOptions = {},
+  ): Promise<SectionResult<EnrollmentFailuresInfo>> {
+    if (!device.userId) {
+      return Promise.resolve({
+        status: 'notApplicable',
+        reason: de.service.reasons.enrollmentFailuresNoUser,
+        source: graphSource('troubleshootingEvents'),
+      });
+    }
+    return this.readEnrollmentFailures(device.userId, options);
+  }
+
+  /**
+   * troubleshootingEvents: höchstens MAX_TROUBLESHOOTING_EVENT_PAGES Seiten (kein Filter/keine Sortierung
+   * dokumentiert); `userId` filtert clientseitig.
+   */
+  private readEnrollmentFailures(
+    userId: string | null,
+    options: RequestOptions,
+  ): Promise<SectionResult<EnrollmentFailuresInfo>> {
+    const endpoint = Endpoints.troubleshootingEvents;
+    return this.run<EnrollmentFailuresInfo>(
+      'troubleshootingEvents',
+      async (source) => {
+        const entries: GraphTroubleshootingEvent[] = [];
+        let next: string | undefined = endpoint.path();
+        let pages = 0;
+        while (next && pages < MAX_TROUBLESHOOTING_EVENT_PAGES) {
+          const page: GraphCollection<GraphTroubleshootingEvent> | undefined =
+            await this.client.get<GraphCollection<GraphTroubleshootingEvent>>(next, {
+              signal: options.signal,
+              scope: endpoint.scope,
+            });
+          pages += 1;
+          entries.push(...(page?.value ?? []));
+          next = page?.['@odata.nextLink'] ?? undefined;
+        }
+        return this.ok(
+          mapEnrollmentFailures(entries, {
+            pagesRead: pages,
+            truncated: Boolean(next),
+            filterUserId: userId,
+          }),
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: de.service.reasons.troubleshootingNotReported,
+        source,
+      }),
+    );
   }
 
   // ---------- Richtlinien → Geräte (M15) ----------

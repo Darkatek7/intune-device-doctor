@@ -5,6 +5,7 @@
 import { deAnalysis } from './de-analysis';
 import { dePolicies } from './de-policies';
 import { deRules } from './de-rules';
+import { deService } from './de-service';
 
 export const de = {
   app: {
@@ -47,6 +48,7 @@ export const de = {
     tenantApplePush: 'Apple-MDM-Push-Zertifikat',
     tenantVpp: 'Apple-VPP-Token',
     tenantUnavailable: 'Weitere Konnektoren und Token',
+    ...deService.tiles,
     groups: 'Gruppen',
     attestation: 'Integritätsnachweis',
     enrollment: 'Enrollment',
@@ -113,6 +115,8 @@ export const de = {
   },
   /** Texte der Regel-Engine – siehe ./de-rules.ts */
   rules: deRules,
+  /** Dienststatus und Registrierungsfehler (M18) – siehe ./de-service.ts */
+  service: deService,
   analysis: deAnalysis,
   policies: dePolicies,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */
