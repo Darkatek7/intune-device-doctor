@@ -7,7 +7,7 @@
 - **Live-Modus** über Microsoft Graph (MSAL, Authorization Code + PKCE), ausschließlich offiziell dokumentierte Endpunkte (`docs/graph-api-reference.md`).
 - **ZIP-Analyse lokal** – Diagnose-Archive verlassen den Browser nie.
 
-> Status: Hackathon-MVP (M1–M7 umgesetzt). Abnahmeprotokoll: [`docs/acceptance.md`](docs/acceptance.md).
+> Status: Meilensteine M1–M15 sind gemergt (Aufgaben und Akzeptanzkriterien je Meilenstein in [`docs/tasks/`](docs/tasks/)), M16 (Sicherheits-Härtung) ist in Arbeit. Die Abnahme des MVP (M1–M7) steht in [`docs/acceptance.md`](docs/acceptance.md); der Live-Modus wurde nur teilweise gegen einen echten Tenant geprüft – offene Punkte in [`docs/live-verification.md`](docs/live-verification.md) und unter „Bekannte Grenzen“.
 
 | Dashboard (hell)                                                 | Detail-Sheet (dunkel)                                        | ZIP-Analyse (mobil)                                    |
 | ---------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------ |
@@ -44,6 +44,18 @@ Die Demo (nur Mock-Daten, Live-Modus deaktiviert) läuft unter **https://darkate
 
 Für einen **gehosteten Live-Modus** (eigener Build mit `VITE_APP_MODE=live`, `VITE_MSAL_CLIENT_ID`/`VITE_MSAL_TENANT_ID`) muss die Hosting-URL zusätzlich als SPA-Redirect-URI in der Entra-App-Registrierung eingetragen werden (bei Unterpfad-Hosting inkl. Pfad, z. B. `https://darkatek7.github.io/intune-device-doctor/`) und per `VITE_MSAL_REDIRECT_URI` exakt so gesetzt sein; Standard ist nur der Origin ohne Pfad. Der Produktions-Build setzt eine Content-Security-Policy (`vite.config.ts`), die Graph und `login.microsoftonline.com` erlaubt.
 
+### HTTP-Header für Selbst-Hosting
+
+Die CSP des Builds steckt in einem `<meta>`-Tag, weil GitHub Pages keine eigenen HTTP-Header setzen kann (auch die öffentliche Demo kann sie daher nicht ergänzen). Wer die App selbst hostet (nginx, IIS, Azure Static Web Apps, Cloudflare …), sollte zusätzlich diese Header senden:
+
+| Header                                            | Zweck                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy: frame-ancestors 'self'` | Clickjacking-Schutz; `frame-ancestors` wirkt **nicht** per `<meta>`. `'self'` statt `'none'`, weil MSAL für die stille Token-Erneuerung die eigene Redirect-URI in einem versteckten iframe derselben Origin lädt (`SilentHandler`/`SilentIframeClient` in `@azure/msal-browser`). |
+| `X-Content-Type-Options: nosniff`                 | Verhindert MIME-Sniffing                                                                                                                                                                                                                                                           |
+| `Referrer-Policy: no-referrer`                    | Sendet beim Verlassen der Seite keinen Referrer (die URL enthält Geräte-IDs); `strict-origin-when-cross-origin` ist ein brauchbarer Kompromiss                                                                                                                                     |
+
+Beispiel (nginx): `add_header Content-Security-Policy "frame-ancestors 'self'" always;` – mehrere CSP-Quellen (Header und `<meta>`) gelten gemeinsam, es gilt jeweils die strengere Regel.
+
 ## Erscheinungsbild
 
 Standard ist der dunkle Modus; der Schalter oben rechts (Sonne/Mond) wechselt zu Hell. Die Wahl bleibt im Browser gespeichert.
@@ -60,18 +72,18 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
 2. **Plattform:** Authentifizierung › Plattform hinzufügen › **Single-page application** (nicht „Web“, sonst `AADSTS9002326`). **Redirect-URI** `http://localhost:5173` (bzw. die URL, unter der die App gehostet wird; muss exakt mit `VITE_MSAL_REDIRECT_URI` bzw. dem Origin übereinstimmen).
 3. **API-Berechtigungen** (Microsoft Graph, **delegiert**) – genau diese, keine Schreibrechte:
 
-   | Scope                                     | Zweck                                                                                           |
-   | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
-   | `User.Read`                               | Anmeldung/Profil                                                                                |
-   | `DeviceManagementManagedDevices.Read.All` | Geräte, Defender, Compliance-Status                                                             |
-   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps); Ansicht „Richtlinien“ (Richtlinien, Zähler, Gerätestatus) |
-   | `Device.Read.All`                         | Entra-Geräteobjekt                                                                              |
-   | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst)                        |
+   | Scope                                     | Zweck                                                                                                                            |
+   | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+   | `User.Read`                               | Anmeldung/Profil                                                                                                                 |
+   | `DeviceManagementManagedDevices.Read.All` | Geräte, Defender, Compliance-Status                                                                                              |
+   | `DeviceManagementConfiguration.Read.All`  | Konfigurationsprofil-Status, App-Namen (mobileApps); Ansicht „Richtlinien“ (Richtlinien, Zähler, Gerätestatus)                   |
+   | `Device.Read.All`                         | Entra-Geräteobjekt                                                                                                               |
+   | `BitlockerKey.ReadBasic.All`              | Nur ob ein BitLocker-Schlüssel hinterlegt ist (nie der Schlüssel selbst)                                                         |
    | `DeviceManagementServiceConfig.Read.All`  | Ablauf des Apple-MDM-Push-Zertifikats (nur Datum, keine Apple-ID), Autopilot-Eintrag des Geräts; VPP-Token der Ansicht „Mandant“ |
-   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)                                |
-   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)                           |
-   | `LicenseAssignment.Read.All`              | Kachel „Registrierung (Benutzer)“: nur ob der primäre Benutzer einen Intune-Lizenzplan hat (optional) |
-   | `SecurityAlert.Read.All`                  | Kachel „Sicherheitswarnungen“: offene Defender-for-Endpoint-Warnungen dieses Geräts (optional) |
+   | `AuditLog.Read.All`                       | Anmeldungen des Benutzers an diesem Gerät (Kachel „Anmeldungen“)                                                                 |
+   | `DeviceLocalCredential.ReadBasic.All`     | Windows LAPS: nur Zeitpunkte der Kennwortsicherung (nie das Kennwort)                                                            |
+   | `LicenseAssignment.Read.All`              | Kachel „Registrierung (Benutzer)“: nur ob der primäre Benutzer einen Intune-Lizenzplan hat (optional)                            |
+   | `SecurityAlert.Read.All`                  | Kachel „Sicherheitswarnungen“: offene Defender-for-Endpoint-Warnungen dieses Geräts (optional)                                   |
 
    Anschließend **Admin-Consent** für den Mandanten erteilen (alle Intune-Scopes und `BitlockerKey.ReadBasic.All` erfordern ihn). **Nach einem Update der App, das einen neuen Scope ergänzt** (zuletzt `DeviceManagementServiceConfig.Read.All` für die Autopilot-Kachel), muss der Admin-Consent erneut erteilt werden – bis dahin zeigt die betroffene Prüfung „Fehlende Berechtigung“ mit dem Scope, der Rest funktioniert weiter.
 
@@ -83,9 +95,13 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
    VITE_MSAL_TENANT_ID=<Verzeichnis-(Mandanten-)ID>
    # optional, Standard ist der aktuelle Origin
    VITE_MSAL_REDIRECT_URI=http://localhost:5173
+   # optional: Minuten bis zur automatischen Abmeldung bei Inaktivität (Standard 30, 0 = aus)
+   VITE_IDLE_TIMEOUT_MINUTES=30
    ```
 
    Ohne Client- und Tenant-ID bleibt der Live-Modus deaktiviert; der Demo-Modus funktioniert unverändert. Dev-Server nach Änderungen an `.env.local` neu starten.
+
+   **Abmeldung bei Inaktivität:** Im Live-Modus meldet die App nach `VITE_IDLE_TIMEOUT_MINUTES` Minuten ohne Aktivität (Maus, Tastatur, Scrollen, Rückkehr in den Tab) automatisch ab; 60 Sekunden vorher (bei einem Wert von 1 Minute: 30 Sekunden) erscheint ein Hinweis mit „Angemeldet bleiben“. Erlaubt sind ganze Minuten von 1 bis 1440, `0` schaltet die Funktion ab, ungültige oder leere Werte ergeben den Standard (30). Die Abmeldung ist **lokal** (MSAL-Cache dieses Tabs wird geleert, keine Weiterleitung zur Microsoft-Abmeldeseite) – die Entra-Sitzung anderer Tabs, z. B. des Intune Admin Centers, bleibt bestehen. Die nächste Anmeldung verlangt dafür eine erneute Authentifizierung (`prompt=login`).
 
 5. **Rollen der Nutzer:** Delegierter Zugriff = Schnittmenge aus Consent-Scopes und den Rechten des angemeldeten Nutzers. Ausreichend sind z. B. Intune-RBAC „Read Only Operator“ oder Entra „Global Reader“, „Helpdesk Administrator“, „Security Reader“, „Intune Administrator“. BitLocker-Metadaten sehen zusätzlich nur z. B. Cloud Device Administrator, Helpdesk Administrator, Intune Service Administrator, Security Reader, Global Reader. Fehlt etwas, zeigt die jeweilige Kachel „Fehlende Berechtigung“ mit dem benötigten Scope; der Rest des Dashboards funktioniert weiter.
 
@@ -109,6 +125,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 
 - Echte Diagnose-ZIPs enthalten personen- und tenantbezogene Daten. Sie werden ausschließlich lokal im Browser verarbeitet (kein Upload, kein `fetch` im Analysepfad) und dürfen nicht ins Repository (`.gitignore` sperrt `*.zip`, `*.cab`, `*.evtx`, `*.etl`).
 - Die „Ticket-Notiz“ wird nur in die lokale Zwischenablage kopiert.
+- **Abmeldung (Live-Modus):** Beim Abmelden – manuell wie nach Inaktivität (Standard 30 Minuten, `VITE_IDLE_TIMEOUT_MINUTES`) – wird die Liste „Zuletzt geöffnet“ des Live-Modus gelöscht, denn sie enthält echte Gerätenamen (`localStorage`, Schlüssel `mdm-doctor.recent.live`). Nach der Inaktivitäts-Abmeldung sind geladene Gerätedaten nicht mehr sichtbar oder im Arbeitsspeicher der App erreichbar; die Demo-Liste bleibt unberührt. Das MSAL-Token liegt nur in `sessionStorage` (endet mit dem Tab).
 - Der Live-Modus liest nur (HTTP GET); BitLocker-Schlüsselwerte werden nie abgefragt (kein `$select=key`), es geht nur um die Frage, ob ein Schlüssel hinterlegt ist.
 - Demo- und Testdaten sind fiktiv (Contoso, `contoso.com`).
 
@@ -143,3 +160,7 @@ Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` 
 - `docs/diaglogs-format.md` – Aufbau der DiagLogs-ZIPs
 - `docs/ui-guidelines.md` – Designregeln
 - `CLAUDE.md` – Arbeitsregeln für Claude Code
+
+## Lizenz
+
+[MIT](LICENSE) – Copyright (c) 2026 Darkatek7.

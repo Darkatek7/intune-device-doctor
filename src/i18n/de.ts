@@ -239,6 +239,14 @@ export const de = {
     failed: 'Anmeldung fehlgeschlagen.',
     account: 'Angemeldetes Konto',
     notConfigured: 'Anmeldung nicht möglich: Client-ID und Tenant-ID fehlen (.env.local).',
+    /** Hinweis auf der Anmelde-Ansicht nach automatischer Abmeldung (M16/S2) */
+    idleSignedOut: (minutes: number) =>
+      `Aus Sicherheitsgründen nach ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} Inaktivität abgemeldet.`,
+    idleWarningTitle: 'Bald abgemeldet',
+    idleWarning:
+      'Aus Sicherheitsgründen wirst du bei weiterer Inaktivität in weniger als einer Minute abgemeldet. Geladene Gerätedaten werden dabei verworfen.',
+    idleSecondsLeft: (seconds: number) => `Noch ${seconds} s`,
+    idleStay: 'Angemeldet bleiben',
   },
   /** UI-Shell (M2): Toolbar, Suche, Header, Sheet, Leerzustände */
   /** Verbindungstest (M14/S6, nur Live) */

@@ -69,6 +69,14 @@ Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M15)“. 
 - Toolbar › „Richtlinien“ → `GET …/deviceManagement/deviceConfigurations` und `…/deviceCompliancePolicies`, danach je Richtlinie `…/{id}/deviceStatusOverview` (höchstens 50). Prüfen: 200 ohne Query-Optionen; `@odata.type` vorhanden (Plattform-Spalte); Zähler stimmen mit dem Admin Center (Gerätestatus der Richtlinie) überein – notieren, wie Konflikte/„nicht konform“ gezählt werden.
 - Eine Richtlinie mit bekannten Fehlern öffnen → `…/{id}/deviceStatuses`. Prüfen: Einträge vorhanden (bei Konfigurationsprofilen trotz Abkündigungshinweis ab Mai 2026), `deviceDisplayName` = Intune-Gerätename (Klick findet das Gerät), Form der `id`. Keine Gerätenamen/UPNs in Berichte übernehmen.
 
+## 6. Sicherheits-Härtung (M16)
+
+Trusted Types und die strenge CSP gelten **nur im Produktions-Build** (Meta-Tag per `cspPlugin`); `npm run dev` prüft sie nicht. Deshalb mit `VITE_APP_MODE=live` und den Entra-IDs bauen und lokal ausliefern: `npm run build && npx vite preview`, die Redirect-URI der App-Registrierung muss zur Preview-URL passen (`VITE_MSAL_REDIRECT_URI`).
+
+- **Anmeldung funktioniert mit Trusted Types:** Konsole offen halten (Filter „Trusted Type“ und „Content Security Policy“). Anmelden (Redirect), Gerät öffnen, Verbindungstest laufen lassen. Erwartet: keine `TypeError`-/CSP-/„Trusted Type“-Meldungen, `securitypolicyviolation` bleibt leer. Zusätzlich prüfen: stille Token-Erneuerung im versteckten iframe (z. B. nach Ablauf des Access-Tokens ca. 60–90 Minuten nach der Anmeldung weiterarbeiten; die iframe-Anfrage an `login.microsoftonline.com` darf nicht blockiert werden) und manuelle Abmeldung.
+- **Abmeldung bei Inaktivität:** mit `VITE_IDLE_TIMEOUT_MINUTES=2` bauen. Nach ca. 90 s ohne Eingabe erscheint der Hinweis „Bald abgemeldet“ (Klick „Angemeldet bleiben“ verlängert); nach 2 Minuten zeigt die Anmeldeseite „Aus Sicherheitsgründen … abgemeldet“, die Gerätedaten sind weg, „Zuletzt geöffnet“ ist leer. In einem zweiten Tab das Intune Admin Center offen halten: Dessen Sitzung muss bestehen bleiben (lokale Abmeldung, keine Weiterleitung zur Microsoft-Abmeldeseite). Die erneute Anmeldung muss nach Zugangsdaten fragen (`prompt=login` in der Autorisierungs-URL, Netzwerk-Tab).
+- Findet sich eine Trusted-Types-Verletzung, die Meldung (ohne Tenant-Daten) im PR festhalten; Notausstieg: `require-trusted-types-for 'script'` in `vite.config.ts` entfernen (Details: `docs/tasks/M16-haertung.md`).
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.
