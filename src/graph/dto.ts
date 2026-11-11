@@ -112,6 +112,31 @@ export interface GraphManagedDevice {
   /** Android: Sicherheitspatch-Level, z. B. "2026-09-01" */
   androidSecurityPatchLevel: string | null;
   enrollmentProfileName: string | null;
+  /**
+   * M20/S4: Ergebnisse der Remote-Aktionen (read-only, ohne $select im Get enthalten).
+   * https://learn.microsoft.com/graph/api/resources/intune-devices-deviceactionresult?view=graph-rest-1.0
+   */
+  deviceActionResults?: GraphDeviceActionResult[] | null;
+}
+
+/** actionState (v1.0): dokumentierte Werte. Andere Werte → 'unknown' plus Rohwert. */
+export const ACTION_STATES = [
+  'none',
+  'pending',
+  'canceled',
+  'active',
+  'done',
+  'failed',
+  'notSupported',
+] as const;
+export type ActionState = (typeof ACTION_STATES)[number];
+
+/** deviceActionResult (v1.0). Für `actionName` ist keine Werteliste dokumentiert – nur Rohwert. */
+export interface GraphDeviceActionResult {
+  actionName?: string | null;
+  actionState?: string | null;
+  startDateTime?: string | null;
+  lastUpdatedDateTime?: string | null;
 }
 
 /** Felder für die Trefferliste der Suche ($select). */
@@ -736,4 +761,276 @@ export interface GraphPolicyDeviceStatus {
   status?: ComplianceStatus | null;
   lastReportedDateTime?: string | null;
   userPrincipalName?: string | null;
+}
+
+// ---------- Dienststatus (Service Communications, v1.0) – M18 ----------
+// https://learn.microsoft.com/en-us/graph/api/serviceannouncement-list-healthoverviews?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/servicehealth?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/servicehealthissue?view=graph-rest-1.0
+// Scope ServiceHealth.Read.All (least privileged laut Doku, optional – nicht beim Login).
+
+/**
+ * serviceHealthStatus – vollständige Liste laut Ressource serviceHealthIssue. Die Beispielantworten der
+ * Doku schreiben die Werte mit großem Anfangsbuchstaben („ServiceOperational“) – der Mapper vergleicht
+ * deshalb ohne Rücksicht auf die Schreibweise des ersten Buchstabens.
+ */
+export const SERVICE_HEALTH_STATUSES = [
+  'serviceOperational',
+  'investigating',
+  'restoringService',
+  'verifyingService',
+  'serviceRestored',
+  'postIncidentReviewPublished',
+  'serviceDegradation',
+  'serviceInterruption',
+  'extendedRecovery',
+  'falsePositive',
+  'investigationSuspended',
+  'resolved',
+  'mitigatedExternal',
+  'mitigated',
+  'resolvedExternal',
+  'confirmed',
+  'reported',
+  'unknownFutureValue',
+] as const;
+export type ServiceHealthStatus = (typeof SERVICE_HEALTH_STATUSES)[number];
+
+/** serviceHealthClassificationType laut Ressource serviceHealthIssue. */
+export const SERVICE_HEALTH_CLASSIFICATIONS = [
+  'advisory',
+  'incident',
+  'unknownFutureValue',
+] as const;
+export type ServiceHealthClassificationType = (typeof SERVICE_HEALTH_CLASSIFICATIONS)[number];
+
+/**
+ * serviceHealthIssue – nur gelesene Felder. Nicht gelesen: `posts` (Verlauf als HTML), `details`,
+ * `origin`, `endDateTime`.
+ */
+export interface GraphServiceHealthIssue {
+  id: string;
+  title?: string | null;
+  classification?: string | null;
+  status?: string | null;
+  isResolved?: boolean | null;
+  startDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+  feature?: string | null;
+  featureGroup?: string | null;
+  impactDescription?: string | null;
+}
+
+/** serviceHealth (ein Eintrag aus healthOverviews), mit `$expand=issues` laut Beispiel 2 der Doku. */
+export interface GraphServiceHealth {
+  id: string;
+  service?: string | null;
+  status?: string | null;
+  issues?: GraphServiceHealthIssue[] | null;
+}
+
+// ---------- Registrierungsfehler (Intune Troubleshooting, v1.0) – M18 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-troubleshooting-enrollmenttroubleshootingevent-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-enrollmenttroubleshootingevent?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-troubleshooting-deviceenrollmentfailurereason?view=graph-rest-1.0
+// Scope DeviceManagementManagedDevices.Read.All (beim Login angefragt).
+
+/** deviceEnrollmentFailureReason – vollständig laut Enum-Seite (Werte 0–11). */
+export const DEVICE_ENROLLMENT_FAILURE_REASONS = [
+  'unknown',
+  'authentication',
+  'authorization',
+  'accountValidation',
+  'userValidation',
+  'deviceNotSupported',
+  'inMaintenance',
+  'badRequest',
+  'featureNotSupported',
+  'enrollmentRestrictionsEnforced',
+  'clientDisconnected',
+  'userAbandonment',
+] as const;
+export type DeviceEnrollmentFailureReason = (typeof DEVICE_ENROLLMENT_FAILURE_REASONS)[number];
+
+/**
+ * deviceEnrollmentType, wie ihn die Ressource enrollmentTroubleshootingEvent aufzählt (10 Werte – weniger
+ * als bei managedDevice).
+ */
+export const TROUBLESHOOTING_ENROLLMENT_TYPES = [
+  'unknown',
+  'userEnrollment',
+  'deviceEnrollmentManager',
+  'appleBulkWithUser',
+  'appleBulkWithoutUser',
+  'windowsAzureADJoin',
+  'windowsBulkUserless',
+  'windowsAutoEnrollment',
+  'windowsBulkAzureDomainJoin',
+  'windowsCoManagement',
+] as const;
+export type TroubleshootingEnrollmentType = (typeof TROUBLESHOOTING_ENROLLMENT_TYPES)[number];
+
+/**
+ * Eintrag aus `/deviceManagement/troubleshootingEvents`. Die Liste ist laut Doku eine Sammlung von
+ * deviceManagementTroubleshootingEvent (Basistyp: nur id, eventDateTime, correlationId); Registrierungs-
+ * fehler kommen als abgeleiteter Typ enrollmentTroubleshootingEvent. Nicht gelesen:
+ * `managedDeviceIdentifier`, `deviceId`.
+ */
+export interface GraphTroubleshootingEvent {
+  '@odata.type'?: string;
+  id: string;
+  eventDateTime?: string | null;
+  correlationId?: string | null;
+  operatingSystem?: string | null;
+  osVersion?: string | null;
+  userId?: string | null;
+  enrollmentType?: string | null;
+  failureCategory?: string | null;
+  failureReason?: string | null;
+}
+
+// ---------- Compliance-/Konfigurations-Übersicht des Mandanten (v1.0) – M20/S1 ----------
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancepolicydevicestatesummary?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-deviceconfigurationdevicestatesummary?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancepolicysettingstatesummary?view=graph-rest-1.0
+// Scope DeviceManagementConfiguration.Read.All (beim Login angefragt).
+
+/** Zähler von deviceCompliancePolicyDeviceStateSummary – exakt die dokumentierten Int32-Felder. */
+export const COMPLIANCE_SUMMARY_FIELDS = [
+  'compliantDeviceCount',
+  'nonCompliantDeviceCount',
+  'inGracePeriodCount',
+  'errorDeviceCount',
+  'conflictDeviceCount',
+  'unknownDeviceCount',
+  'notApplicableDeviceCount',
+  'remediatedDeviceCount',
+  'configManagerCount',
+] as const;
+
+/** Zähler von deviceConfigurationDeviceStateSummary (ohne Schonfrist und Configuration Manager). */
+export const CONFIGURATION_SUMMARY_FIELDS = [
+  'compliantDeviceCount',
+  'nonCompliantDeviceCount',
+  'errorDeviceCount',
+  'conflictDeviceCount',
+  'unknownDeviceCount',
+  'notApplicableDeviceCount',
+  'remediatedDeviceCount',
+] as const;
+
+export type DeviceStateCountField = (typeof COMPLIANCE_SUMMARY_FIELDS)[number];
+
+/**
+ * Antwort der beiden Summary-Endpunkte (ein Objekt). Die Beispielantwort der Doku verpackt das Objekt in
+ * `value` – der Mapper akzeptiert beide Formen (live zu verifizieren, M20).
+ */
+export type GraphDeviceStateSummary = Partial<Record<DeviceStateCountField, number | null>> & {
+  id?: string | null;
+};
+
+/** policyPlatformType laut Ressource deviceCompliancePolicySettingStateSummary (9 Werte). */
+export const SETTING_SUMMARY_PLATFORM_TYPES = [
+  'android',
+  'iOS',
+  'macOS',
+  'windowsPhone81',
+  'windows81AndLater',
+  'windows10AndLater',
+  'androidWorkProfile',
+  'linux',
+  'all',
+] as const;
+export type SettingSummaryPlatformType = (typeof SETTING_SUMMARY_PLATFORM_TYPES)[number];
+
+/** deviceCompliancePolicySettingStateSummary – nur gelesene Felder (Beziehung deviceComplianceSettingStates nicht). */
+export interface GraphComplianceSettingStateSummary {
+  id: string;
+  setting?: string | null;
+  settingName?: string | null;
+  platformType?: string | null;
+  compliantDeviceCount?: number | null;
+  nonCompliantDeviceCount?: number | null;
+  errorDeviceCount?: number | null;
+  conflictDeviceCount?: number | null;
+  unknownDeviceCount?: number | null;
+  notApplicableDeviceCount?: number | null;
+  remediatedDeviceCount?: number | null;
+}
+
+// ---------- Änderungsprotokoll (Intune-Überwachung, v1.0) – M20/S2 ----------
+// https://learn.microsoft.com/en-us/graph/api/intune-auditing-auditevent-list?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditevent?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditactor?view=graph-rest-1.0
+// https://learn.microsoft.com/en-us/graph/api/resources/intune-auditing-auditresource?view=graph-rest-1.0
+// Scope DeviceManagementApps.Read.All (optional – nicht beim Login).
+
+/**
+ * auditActor – NUR die Felder, die die App liest. Bewusst nie gelesen (Datensparsamkeit): `ipAddress`,
+ * `userPermissions`, `userId`, `applicationId`, `servicePrincipalName`. Graph liefert sie mit; der Mapper
+ * übernimmt sie nicht, sie verlassen den Mapper nie.
+ */
+export interface GraphAuditActor {
+  type?: string | null;
+  auditActorType?: string | null;
+  userPrincipalName?: string | null;
+  applicationDisplayName?: string | null;
+}
+
+/** auditResource – ohne `modifiedProperties` (alte/neue Werte werden nicht gelesen). */
+export interface GraphAuditResource {
+  displayName?: string | null;
+  type?: string | null;
+  auditResourceType?: string | null;
+  resourceId?: string | null;
+}
+
+/** auditEvent – nur gelesene Felder. Alle Texte sind freie Zeichenketten (keine Enums dokumentiert). */
+export interface GraphAuditEvent {
+  id: string;
+  displayName?: string | null;
+  componentName?: string | null;
+  actor?: GraphAuditActor | null;
+  activity?: string | null;
+  activityDateTime?: string | null;
+  activityType?: string | null;
+  activityOperationType?: string | null;
+  activityResult?: string | null;
+  correlationId?: string | null;
+  resources?: GraphAuditResource[] | null;
+  category?: string | null;
+}
+
+// ---------- App-Schutz (M20/S3) ----------
+
+/** managedAppFlaggedReason (v1.0): dokumentierte Werte. Andere Werte bleiben Rohwerte. */
+export const MANAGED_APP_FLAGGED_REASONS = ['none', 'rootedDevice'] as const;
+
+/**
+ * mobileAppIdentifier (v1.0): `iosMobileAppIdentifier.bundleId` bzw. `androidMobileAppIdentifier.packageId`.
+ * https://learn.microsoft.com/graph/api/resources/intune-mam-mobileappidentifier?view=graph-rest-1.0
+ */
+export interface GraphMobileAppIdentifier {
+  '@odata.type'?: string | null;
+  bundleId?: string | null;
+  packageId?: string | null;
+}
+
+/**
+ * managedAppRegistration (v1.0) – nur gelesene Felder. `deviceTag` und `version` werden nicht gelesen;
+ * `managedDeviceId`/`azureADDeviceId` gibt es nur in beta (nicht verwendet).
+ * https://learn.microsoft.com/graph/api/resources/intune-mam-managedappregistration?view=graph-rest-1.0
+ */
+export interface GraphManagedAppRegistration {
+  id: string;
+  createdDateTime?: string | null;
+  lastSyncDateTime?: string | null;
+  applicationVersion?: string | null;
+  managementSdkVersion?: string | null;
+  platformVersion?: string | null;
+  deviceType?: string | null;
+  deviceName?: string | null;
+  flaggedReasons?: string[] | null;
+  userId?: string | null;
+  appIdentifier?: GraphMobileAppIdentifier | null;
 }

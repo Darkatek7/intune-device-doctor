@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AccountInfo, IPublicClientApplication } from '@azure/msal-browser';
 import { describeAuthError } from './describeAuthError';
+import { subscribeLocalSignOut } from './sessionState';
 import { currentAccount, initMsal } from './token';
 
 export type AuthState =
@@ -30,8 +31,15 @@ export function useMsalAccount(instance: IPublicClientApplication): AuthState {
       initMsal(instance).then(refresh, () => undefined);
     });
 
+    // Lokale Abmeldung (Inaktivität) löst kein MSAL-Ereignis aus. Die Ansicht wechselt auch dann
+    // zu „abgemeldet“, wenn das Leeren des Caches scheitern sollte (Daten nie weiter anzeigen).
+    const unsubscribe = subscribeLocalSignOut(() => {
+      if (!cancelled) setState({ status: 'signedOut' });
+    });
+
     return () => {
       cancelled = true;
+      unsubscribe();
       if (callbackId) instance.removeEventCallback(callbackId);
     };
   }, [instance]);

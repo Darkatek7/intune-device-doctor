@@ -6,6 +6,7 @@ import { formatDateTime } from '../domain/format';
 import type { Severity } from '../domain/types';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { de } from '../i18n/de';
+import { usePrivacyView } from '../privacy/privacyContext';
 import {
   compareSnapshots,
   type FindingChange,
@@ -161,10 +162,22 @@ function SideInfo({
  * Vergleichsansicht für Vorher/Nachher (Gerät) und zwei ZIPs. Reine Darstellung von
  * `compareSnapshots`; nichts wird gespeichert oder gesendet.
  */
-export function CompareDialog({ before, after, beforeLabel, afterLabel, onClose }: Props) {
+export function CompareDialog({
+  before: rawBefore,
+  after: rawAfter,
+  beforeLabel,
+  afterLabel,
+  onClose,
+}: Props) {
   const reduced = useReducedMotion();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Präsentationsmodus: beide Stände (auch eine geladene Datei mit echten Namen) werden vor dem
+  // Vergleich maskiert – so bleibt „gleiches Gerät“ erkennbar und nichts Echtes erscheint.
+  const base = usePrivacyView();
+  const view = useMemo(() => base.extend([rawBefore, rawAfter]), [base, rawBefore, rawAfter]);
+  const before = useMemo(() => view.deep(rawBefore), [view, rawBefore]);
+  const after = useMemo(() => view.deep(rawAfter), [view, rawAfter]);
   const comparison = useMemo(() => compareSnapshots(before, after), [before, after]);
   const { counts } = comparison;
   const changed = comparison.tiles.length - counts.same;
@@ -220,6 +233,12 @@ export function CompareDialog({ before, after, beforeLabel, afterLabel, onClose 
             <X aria-hidden="true" size={16} />
           </button>
         </div>
+
+        {view.enabled && (
+          <p data-testid="compare-privacy-note" className="text-sm text-secondary-label">
+            {de.privacy.output.compare}
+          </p>
+        )}
 
         {comparison.deviceNameMismatch && (
           <p

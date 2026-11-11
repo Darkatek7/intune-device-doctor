@@ -4,6 +4,7 @@ import { ProviderContextProvider } from './app/providerContext';
 import { useProviderContext } from './app/providerContextValue';
 import { navigateTo } from './hooks/useUrlState';
 import { de } from './i18n/de';
+import { PrivacyProvider } from './privacy/PrivacyProvider';
 
 // MSAL (~300 kB) wird nur im Live-Modus gebraucht – der Demo-Modus lädt es nie.
 const AuthGate = lazy(() => import('./auth/AuthGate').then((m) => ({ default: m.AuthGate })));
@@ -54,8 +55,10 @@ function Root() {
 
 export default function App() {
   return (
-    <ProviderContextProvider>
-      <Root />
-    </ProviderContextProvider>
+    <PrivacyProvider>
+      <ProviderContextProvider>
+        <Root />
+      </ProviderContextProvider>
+    </PrivacyProvider>
   );
 }

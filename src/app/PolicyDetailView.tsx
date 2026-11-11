@@ -10,8 +10,10 @@ import { formatDateTime, formatRelativeTime } from '../domain/format';
 import type { TenantPolicyInfo, TenantPolicyKind } from '../domain/types';
 import { usePolicyDeviceStatuses } from '../hooks/useTenantPolicies';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { PolicyChanges } from '../ui/PolicyChanges';
 import { SeverityBadge, SeverityIcon } from '../ui/SeverityBadge';
 import { TONE_CLASS } from '../ui/tone';
 
@@ -50,6 +52,7 @@ export function PolicyDetailView({
   onOpenDeviceByName,
   onToneChange,
 }: Props) {
+  const { enabled: privacyOn, masker } = usePrivacy();
   const { state, reload } = usePolicyDeviceStatuses(provider, policyKey);
   const [onlyProblems, setOnlyProblems] = useState(true);
 
@@ -68,7 +71,7 @@ export function PolicyDetailView({
   }, [tone, onToneChange]);
 
   const loading = state.status === 'loading';
-  const title = policy?.displayName ?? (listLoading ? t.title : policyKey.id);
+  const title = policy?.displayName ?? (listLoading ? t.title : masker.text(policyKey.id, null));
   const now = state.status === 'done' ? state.now : new Date();
   const source = section?.source;
 
@@ -256,52 +259,72 @@ export function PolicyDetailView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-separator">
-                  {shown.map((entry) => (
-                    <tr key={entry.id} data-testid="policy-status-row" data-status={entry.status}>
-                      <th scope="row" className="px-4 py-2.5 font-semibold text-label">
-                        {entry.deviceDisplayName ? (
-                          <button
-                            type="button"
-                            onClick={() => onOpenDeviceByName(entry.deviceDisplayName!)}
-                            title={d.openDevice}
-                            className={LINK_BUTTON}
-                          >
-                            {entry.deviceDisplayName}
-                          </button>
-                        ) : (
-                          d.noValue
-                        )}
-                      </th>
-                      <td className="px-4 py-2.5 break-all text-label">
-                        {entry.userPrincipalName ?? entry.userName ?? d.noValue}
-                      </td>
-                      <td className="px-4 py-2.5 text-label">{entry.deviceModel ?? d.noValue}</td>
-                      <td className="px-4 py-2.5">
-                        <SeverityBadge
-                          severity={statusSeverity(entry.status)}
-                          label={t.status[entry.status]}
-                        />
-                      </td>
-                      <td className="px-4 py-2.5 text-label">
-                        {entry.lastReportedDateTime ? (
-                          <span
-                            title={formatDateTime(entry.lastReportedDateTime)}
-                            className="tabular-nums"
-                          >
-                            {formatRelativeTime(entry.lastReportedDateTime, now)}
-                          </span>
-                        ) : (
-                          d.noValue
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {shown.map((entry) => {
+                    const deviceName =
+                      entry.deviceDisplayName && privacyOn
+                        ? masker.device(entry.deviceDisplayName)
+                        : entry.deviceDisplayName;
+                    const userText = privacyOn
+                      ? entry.userPrincipalName
+                        ? masker.upn(entry.userPrincipalName)
+                        : entry.userName
+                          ? masker.user(entry.userName)
+                          : null
+                      : (entry.userPrincipalName ?? entry.userName);
+                    return (
+                      <tr key={entry.id} data-testid="policy-status-row" data-status={entry.status}>
+                        <th scope="row" className="px-4 py-2.5 font-semibold text-label">
+                          {entry.deviceDisplayName ? (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDeviceByName(entry.deviceDisplayName!)}
+                              title={d.openDevice}
+                              className={LINK_BUTTON}
+                            >
+                              {deviceName}
+                            </button>
+                          ) : (
+                            d.noValue
+                          )}
+                        </th>
+                        <td className="px-4 py-2.5 break-all text-label">
+                          {userText ?? d.noValue}
+                        </td>
+                        <td className="px-4 py-2.5 text-label">{entry.deviceModel ?? d.noValue}</td>
+                        <td className="px-4 py-2.5">
+                          <SeverityBadge
+                            severity={statusSeverity(entry.status)}
+                            label={t.status[entry.status]}
+                          />
+                        </td>
+                        <td className="px-4 py-2.5 text-label">
+                          {entry.lastReportedDateTime ? (
+                            <span
+                              title={formatDateTime(entry.lastReportedDateTime)}
+                              className="tabular-nums"
+                            >
+                              {formatRelativeTime(entry.lastReportedDateTime, now)}
+                            </span>
+                          ) : (
+                            d.noValue
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       )}
+
+      <PolicyChanges
+        provider={provider}
+        policyId={policyKey.id}
+        title={title}
+        problems={problems}
+      />
 
       <div className="flex flex-col gap-3 text-sm text-secondary-label">
         {section?.status === 'ok' && section.data.truncated && (

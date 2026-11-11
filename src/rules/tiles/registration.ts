@@ -1,5 +1,6 @@
 /**
- * Registrierung (Benutzer) – Lizenz und Gerätelimit des primären Benutzers (M14/S3). Nur mit primärem
+ * Registrierung (Benutzer) – Lizenz und Gerätelimit des primären Benutzers (M14/S3) sowie seine
+ * fehlgeschlagenen Registrierungen (M18, seitenbegrenzt). Nur mit primärem
  * Benutzer (siehe evaluateTiles). Zwei unabhängige Teile: Lizenz (LicenseAssignment.Read.All) und
  * Gerätelimit (DeviceManagementServiceConfig.Read.All). Das wirksame Limit ist nicht bestimmbar
  * (Benutzergruppen werden nicht gelesen) → Anzeige aller Limit-Konfigurationen und ein Hinweis, wenn die
@@ -25,6 +26,7 @@ import {
   worstActionable,
 } from '../helpers';
 import { Docs } from '../knowledge/docs';
+import { deviceEnrollmentFailures } from '../service';
 
 const t = de.rules.registration;
 
@@ -108,13 +110,18 @@ function licenseFindings(
   return { findings, facts, missing };
 }
 
-export function evaluateRegistration(snapshot: DeviceSnapshot, _now: Date): Tile {
-  void _now;
-  const sections: Tile['sections'] = ['userLicense', 'enrollmentLimits', 'userDevices'];
+export function evaluateRegistration(snapshot: DeviceSnapshot, now: Date): Tile {
+  const sections: Tile['sections'] = [
+    'userLicense',
+    'enrollmentLimits',
+    'userDevices',
+    'enrollmentFailures',
+  ];
   if (!sectionsLoaded(snapshot, sections)) return loadingTile('registration', sections);
   const license = snapshot.userLicense!;
   const limits = snapshot.enrollmentLimits!;
   const userDevices = snapshot.userDevices!;
+  const failures = snapshot.enrollmentFailures!;
 
   const findings: Finding[] = [];
   const facts: TileFact[] = [];
@@ -191,19 +198,27 @@ export function evaluateRegistration(snapshot: DeviceSnapshot, _now: Date): Tile
     findings.push(sectionIssueFinding('registration-limits', limits));
   }
 
+  // --- Fehlgeschlagene Registrierungen des Benutzers (M18) ---
+  const failurePart = deviceEnrollmentFailures(failures, now);
+  findings.push(...failurePart.findings);
+  facts.push(...failurePart.facts);
+
   const anyUnavailable = license.status !== 'ok' || limits.status !== 'ok';
   const severity: Severity = worstActionable(findings, anyUnavailable ? 'unknown' : 'ok');
   const missingStatus = license.status !== 'ok' ? license.status : limits.status;
   const availability =
     license.status !== 'ok' ? license.status : limits.status !== 'ok' ? limits.status : undefined;
 
+  const failedCount = failures.status === 'ok' ? failures.data.events.length : 0;
   const value = licenseMissing
     ? t.valueNoLicense
-    : limitReached
-      ? t.valueLimit
-      : missingStatus !== 'ok'
-        ? de.availability[missingStatus]
-        : t.valueLicenseOk;
+    : failedCount > 0
+      ? de.service.failures.valueCount(failedCount)
+      : limitReached
+        ? t.valueLimit
+        : missingStatus !== 'ok'
+          ? de.availability[missingStatus]
+          : t.valueLicenseOk;
   const licenseSummary =
     license.status !== 'ok'
       ? t.summaryLicenseUnknown
@@ -223,6 +238,7 @@ export function evaluateRegistration(snapshot: DeviceSnapshot, _now: Date): Tile
       license.source,
       limits.source,
       userDevices.status === 'ok' ? userDevices.source : undefined,
+      failures.status === 'notApplicable' ? undefined : failures.source,
     ]),
     facts,
     availability,

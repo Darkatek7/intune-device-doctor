@@ -6,10 +6,13 @@
 import { useState, type ReactNode } from 'react';
 import type { IPublicClientApplication } from '@azure/msal-browser';
 import { LogOut } from 'lucide-react';
-import { isLiveConfigured } from '../config';
+import { appConfig, isLiveConfigured } from '../config';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { describeAuthError } from './describeAuthError';
+import { IdleLogout } from './IdleLogout';
 import { getMsalInstance } from './msalConfig';
+import { readIdleSignOutMinutes } from './sessionState';
 import { signIn, signOut } from './token';
 import { useMsalAccount } from './useMsalAccount';
 
@@ -20,6 +23,8 @@ interface AuthProps {
 
 export interface AuthGateProps extends AuthProps {
   children: ReactNode;
+  /** Nur für Tests – Standard: `appConfig.idleTimeoutMinutes` (0 = Abmeldung bei Inaktivität aus). */
+  idleTimeoutMinutes?: number;
   /** Zusätzliche Aktion unter dem Anmelde-Button (z. B. "Zum Demo-Modus wechseln") */
   secondaryAction?: ReactNode;
 }
@@ -38,12 +43,20 @@ function ConfiguredGate({
   children,
   instance,
   secondaryAction,
+  idleTimeoutMinutes = appConfig.idleTimeoutMinutes,
 }: AuthGateProps & { instance: IPublicClientApplication }) {
   const auth = useMsalAccount(instance);
   const [redirecting, setRedirecting] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
 
-  if (auth.status === 'signedIn') return <>{children}</>;
+  if (auth.status === 'signedIn') {
+    return (
+      <>
+        {children}
+        {idleTimeoutMinutes > 0 && <IdleLogout instance={instance} minutes={idleTimeoutMinutes} />}
+      </>
+    );
+  }
 
   if (auth.status === 'loading') {
     return (
@@ -64,9 +77,16 @@ function ConfiguredGate({
     });
   };
 
+  const idleMinutes = readIdleSignOutMinutes();
+
   return (
     <Centered>
       <h1 className="text-title font-semibold">{de.auth.title}</h1>
+      {idleMinutes !== null && (
+        <p role="status" className="text-sm font-medium text-warning">
+          {de.auth.idleSignedOut(idleMinutes)}
+        </p>
+      )}
       <p className="text-sm text-secondary-label">{de.auth.description}</p>
       {(auth.status === 'error' || signInError !== null) && (
         <div role="alert" className="space-y-1 text-sm">
@@ -91,7 +111,12 @@ function ConfiguredGate({
   );
 }
 
-export function AuthGate({ children, instance, secondaryAction }: AuthGateProps) {
+export function AuthGate({
+  children,
+  instance,
+  secondaryAction,
+  idleTimeoutMinutes,
+}: AuthGateProps) {
   if (!isLiveConfigured && !instance) {
     return (
       <Centered>
@@ -103,7 +128,11 @@ export function AuthGate({ children, instance, secondaryAction }: AuthGateProps)
     );
   }
   return (
-    <ConfiguredGate instance={instance ?? getMsalInstance()} secondaryAction={secondaryAction}>
+    <ConfiguredGate
+      instance={instance ?? getMsalInstance()}
+      secondaryAction={secondaryAction}
+      idleTimeoutMinutes={idleTimeoutMinutes}
+    >
       {children}
     </ConfiguredGate>
   );
@@ -111,12 +140,19 @@ export function AuthGate({ children, instance, secondaryAction }: AuthGateProps)
 
 function ConfiguredAccountButton({ instance }: { instance: IPublicClientApplication }) {
   const auth = useMsalAccount(instance);
+  const privacy = usePrivacy();
   if (auth.status !== 'signedIn') return null;
   const { account } = auth;
-  const label = account.name || account.username;
+  // Präsentationsmodus: Name und UPN des angemeldeten Kontos verbergen.
+  const label = privacy.enabled
+    ? account.name
+      ? privacy.masker.user(account.name)
+      : privacy.masker.upn(account.username)
+    : account.name || account.username;
+  const title = privacy.enabled ? privacy.masker.upn(account.username) : account.username;
   return (
     <div className="flex items-center gap-2 text-sm" aria-label={de.auth.account}>
-      <span className="max-w-[12rem] truncate text-secondary-label" title={account.username}>
+      <span className="max-w-[12rem] truncate text-secondary-label" title={title}>
         {label}
       </span>
       <button

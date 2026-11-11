@@ -1,9 +1,11 @@
 /**
  * CONTOSO-AND21 – Pixel 8 (Android 15), Android Enterprise vollständig verwaltet.
  * Sicherheitspatch ca. 200 Tage alt (relativ zu now). Erwartung: Betriebssystem warning (Patch alt),
- * Defender nicht anwendbar (unknown), Gerätestatus ok.
+ * Defender nicht anwendbar (unknown), Gerätestatus ok. App-Schutz (M20/S3) critical: Outlook mit
+ * „rootedDevice“ markiert (über den Gerätenamen zugeordnet).
  */
 import { de } from '../../../i18n/de';
+import { and21AppProtection } from '../fleet';
 import type { MockScenario } from '../types';
 import {
   ago,
@@ -43,6 +45,8 @@ export const and21Android: MockScenario = {
     });
     return {
       device,
+      // M20/S3: Outlook mit rootedDevice markiert
+      appProtection: { status: 'ok', data: and21AppProtection(now) },
       // M14/S3: Gerätelimit von 1 Gerät für diese Benutzergruppe – das Gerät erreicht es bereits
       enrollmentLimits: {
         status: 'ok',

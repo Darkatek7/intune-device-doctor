@@ -1,4 +1,4 @@
-import { T, expect, openDevice, test, waitForTilesReady } from './helpers';
+import { T, clickMoreAction, expect, openDevice, test, waitForTilesReady } from './helpers';
 
 test.describe('Bedienkomfort', () => {
   test('geöffnetes Gerät erscheint nach „zurück“ unter „Zuletzt geöffnet“', async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe('Bedienkomfort', () => {
     });
     await page.addInitScript('window.print = () => window.__recordPrint();');
     await openDevice(page, 'CONTOSO-PC042');
-    await page.getByRole('button', { name: 'Drucken / PDF' }).click();
+    await clickMoreAction(page, 'Drucken / PDF');
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

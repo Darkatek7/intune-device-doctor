@@ -18,10 +18,17 @@ import type {
   TenantStatus,
   Tile,
   TileFact,
+  TileId,
   VppTokenInfo,
 } from '../domain/types';
 import { de } from '../i18n/de';
 import { sectionIssueFinding, sortFindings, worstActionable } from './helpers';
+import {
+  evaluateTenantChanges,
+  evaluateTenantCompliance,
+  evaluateTenantConfiguration,
+} from './fleet';
+import { evaluateEnrollmentFailures, evaluateServiceHealth } from './service';
 import { Docs } from './knowledge/docs';
 import { THRESHOLDS } from './thresholds';
 
@@ -347,11 +354,37 @@ function evaluateUnavailable(): Tile {
   };
 }
 
-/** Kacheln der Ansicht „Mandant“ in fester Reihenfolge: Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche. */
+/**
+ * Kacheln der Ansicht „Mandant“ in fester Reihenfolge: Compliance- und Konfigurations-Übersicht (M20),
+ * Dienststatus und Registrierungsfehler (M18), letzte Änderungen (M20), Push-Zertifikat, VPP-Token, nicht abrufbare Bereiche.
+ */
 export function evaluateTenant(status: TenantStatus, now: Date): Tile[] {
   return [
+    evaluateTenantCompliance(status.complianceSummary, status.complianceSettings),
+    evaluateTenantConfiguration(status.configurationSummary),
+    evaluateServiceHealth(status.serviceHealth, now),
+    evaluateEnrollmentFailures(status.enrollmentFailures, now),
+    evaluateTenantChanges(status.auditEvents, now),
     evaluatePush(status.applePushCertificate, now),
     evaluateVpp(status.vppTokens, now),
     evaluateUnavailable(),
   ];
+}
+
+export type TenantSectionKey = keyof typeof de.fleet.sections;
+
+/** Abschnitte der Ansicht „Mandant“ (M20): welche Kachel unter welcher Überschrift steht. */
+export const TENANT_SECTIONS: ReadonlyArray<{ key: TenantSectionKey; tiles: readonly TileId[] }> = [
+  { key: 'overview', tiles: ['tenantCompliance', 'tenantConfiguration'] },
+  { key: 'service', tiles: ['tenantServiceHealth', 'tenantEnrollmentFailures'] },
+  { key: 'changes', tiles: ['tenantChanges'] },
+  { key: 'certificates', tiles: ['tenantApplePush', 'tenantVpp', 'tenantUnavailable'] },
+];
+
+/** Kacheln nach Abschnitt; leere Abschnitte entfallen. */
+export function groupTenantTiles(tiles: Tile[]): Array<{ key: TenantSectionKey; tiles: Tile[] }> {
+  return TENANT_SECTIONS.map((section) => ({
+    key: section.key,
+    tiles: tiles.filter((tile) => section.tiles.includes(tile.id)),
+  })).filter((section) => section.tiles.length > 0);
 }

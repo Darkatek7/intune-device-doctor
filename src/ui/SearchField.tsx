@@ -3,6 +3,7 @@ import { useId, useState, type KeyboardEvent, type Ref } from 'react';
 import type { DeviceSearchResult } from '../domain/types';
 import { shortcutLabel } from '../hooks/useSearchShortcut';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 
 interface Props {
   value: string;
@@ -29,6 +30,7 @@ export function SearchField({
   autoFocus,
 }: Props) {
   const listId = useId();
+  const { enabled: masked, masker } = usePrivacy();
   const [focused, setFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [dismissed, setDismissed] = useState(false);
@@ -176,11 +178,19 @@ export function SearchField({
                 index === activeIndex ? 'bg-accent-fill text-white' : 'text-label'
               }`}
             >
-              <span className="truncate font-medium">{s.deviceName}</span>
+              <span className="truncate font-medium">
+                {masked ? masker.device(s.deviceName) : s.deviceName}
+              </span>
               <span
                 className={`truncate text-xs ${index === activeIndex ? 'text-white' : 'text-secondary-label'}`}
               >
-                {s.userDisplayName ?? s.userPrincipalName ?? de.picker.noUser}
+                {masked
+                  ? s.userDisplayName
+                    ? masker.user(s.userDisplayName)
+                    : s.userPrincipalName
+                      ? masker.upn(s.userPrincipalName)
+                      : de.picker.noUser
+                  : (s.userDisplayName ?? s.userPrincipalName ?? de.picker.noUser)}
               </span>
             </li>
           ))}

@@ -9,12 +9,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Tile } from '../domain/types';
 import { useTenantStatus } from '../hooks/useTenantStatus';
 import { de } from '../i18n/de';
+import { PrivacyViewProvider } from '../privacy/PrivacyProvider';
+import { useBuildPrivacyView } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
-import { evaluateTenant } from '../rules/tenant';
+import { evaluateTenant, groupTenantTiles, TENANT_SECTIONS } from '../rules/tenant';
 import { summarize } from '../rules/evaluate';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { ErrorState } from '../ui/ErrorState';
+import { ShareBar } from '../ui/ShareBar';
 import { SummaryPills } from '../ui/SummaryPills';
 import { summarySentence } from '../ui/summaryText';
 import { TileGrid } from '../ui/TileGrid';
@@ -32,8 +35,6 @@ interface Props {
   onToneChange?: (tone: AmbientTone) => void;
 }
 
-const SKELETONS = ['tenantApplePush', 'tenantVpp', 'tenantUnavailable'] as const;
-
 export function TenantView({
   provider,
   openTileId,
@@ -45,9 +46,11 @@ export function TenantView({
   const { state, reload } = useTenantStatus(provider);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 
+  // Präsentationsmodus (M19): z. B. Benutzer-IDs der Registrierungsfehler, Konten im Änderungsprotokoll
+  const view = useBuildPrivacyView(state.status === 'done' ? state.data : null);
   const tiles = useMemo<Tile[]>(
-    () => (state.status === 'done' ? evaluateTenant(state.data, state.now) : []),
-    [state],
+    () => (state.status === 'done' ? view.deep(evaluateTenant(state.data, state.now)) : []),
+    [state, view],
   );
   const summary = useMemo(() => summarize(tiles), [tiles]);
   const tone: AmbientTone = state.status === 'done' ? summary.worst : 'accent';
@@ -89,83 +92,124 @@ export function TenantView({
 
   const loading = state.status === 'loading';
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="-ml-1 inline-flex items-center gap-0.5 rounded-full py-1 pr-2 pl-1 text-sm font-medium text-accent outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
-          >
-            <ChevronLeft aria-hidden="true" size={18} />
-            {de.tenantView.back}
-          </button>
-        </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <span
-              aria-hidden="true"
-              className={`squircle mt-1 size-14 shadow-[inset_0_1px_0_var(--c-highlight)] transition-colors duration-500 sm:size-16 ${TONE_CLASS[tone]}`}
-            >
-              <Landmark size={30} strokeWidth={1.75} />
-            </span>
-            <div className="min-w-0">
-              <h1 className="display-type break-words text-3xl font-semibold text-label sm:text-display">
-                {de.tenantView.title}
-              </h1>
-              <p className="mt-1.5 text-sm text-secondary-label">{de.tenantView.subtitle}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:items-end sm:pb-1">
-            {!loading && (
-              <div
-                aria-label={de.header.summaryLabel}
-                className="flex flex-wrap items-center gap-2 text-sm font-medium text-label"
-              >
-                <SummaryPills summary={summary} />
-              </div>
-            )}
+    <PrivacyViewProvider view={view}>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <div>
             <button
               type="button"
-              onClick={reload}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 self-start rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:self-end"
+              onClick={onBack}
+              className="-ml-1 inline-flex items-center gap-0.5 rounded-full py-1 pr-2 pl-1 text-sm font-medium text-accent outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
             >
-              <RotateCw aria-hidden="true" size={15} className={loading ? 'animate-spin' : ''} />
-              {de.tenantView.refresh}
+              <ChevronLeft aria-hidden="true" size={18} />
+              {de.tenantView.back}
             </button>
           </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <span
+                aria-hidden="true"
+                className={`squircle mt-1 size-14 shadow-[inset_0_1px_0_var(--c-highlight)] transition-colors duration-500 sm:size-16 ${TONE_CLASS[tone]}`}
+              >
+                <Landmark size={30} strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0">
+                <h1 className="display-type break-words text-3xl font-semibold text-label sm:text-display">
+                  {de.tenantView.title}
+                </h1>
+                <p className="mt-1.5 text-sm text-secondary-label">{de.tenantView.subtitle}</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:items-end sm:pb-1">
+              {!loading && (
+                <div
+                  aria-label={de.header.summaryLabel}
+                  className="flex flex-wrap items-center gap-2 text-sm font-medium text-label"
+                >
+                  <SummaryPills summary={summary} />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={reload}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 self-start rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:self-end"
+              >
+                <RotateCw aria-hidden="true" size={15} className={loading ? 'animate-spin' : ''} />
+                {de.tenantView.refresh}
+              </button>
+            </div>
+          </div>
+          <p className="sr-only" role="status" aria-live="polite">
+            {loading
+              ? de.tenantView.a11y.loading
+              : de.tenantView.a11y.done(summarySentence(summary))}
+          </p>
         </div>
-        <p className="sr-only" role="status" aria-live="polite">
-          {loading ? de.tenantView.a11y.loading : de.tenantView.a11y.done(summarySentence(summary))}
-        </p>
+        {loading
+          ? TENANT_SECTIONS.map((section) => (
+              <section
+                key={section.key}
+                aria-labelledby={`tenant-section-${section.key}`}
+                className="flex flex-col gap-3"
+              >
+                <h2
+                  id={`tenant-section-${section.key}`}
+                  className="text-lg font-semibold text-label"
+                >
+                  {de.fleet.sections[section.key]}
+                </h2>
+                <ul
+                  aria-label={de.grid.label}
+                  className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                >
+                  {section.tiles.map((id) => (
+                    <li key={id}>
+                      <TileSkeleton tile={{ id, title: de.tiles[id] }} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          : groupTenantTiles(tiles).map((section) => (
+              <section
+                key={section.key}
+                aria-labelledby={`tenant-section-${section.key}`}
+                data-testid={`tenant-section-${section.key}`}
+                className="flex flex-col gap-3"
+              >
+                <h2
+                  id={`tenant-section-${section.key}`}
+                  className="text-lg font-semibold text-label"
+                >
+                  {de.fleet.sections[section.key]}
+                </h2>
+                {section.key === 'overview' && state.status === 'done' && (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {state.data.complianceSummary.status === 'ok' && (
+                      <ShareBar summary={state.data.complianceSummary.data} />
+                    )}
+                    {state.data.configurationSummary.status === 'ok' && (
+                      <ShareBar summary={state.data.configurationSummary.data} />
+                    )}
+                  </div>
+                )}
+                <TileGrid tiles={section.tiles} onOpen={handleOpen} />
+              </section>
+            ))}
+        <AnimatePresence>
+          {openTile && (
+            <DetailSheet
+              key="detail-sheet"
+              tile={openTile}
+              origin={origin}
+              notices={[]}
+              onClose={onCloseTile}
+              onRetry={reload}
+            />
+          )}
+        </AnimatePresence>
       </div>
-      {loading ? (
-        <ul
-          aria-label={de.grid.label}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          {SKELETONS.map((id) => (
-            <li key={id}>
-              <TileSkeleton tile={{ id, title: de.tiles[id] }} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <TileGrid tiles={tiles} onOpen={handleOpen} />
-      )}
-      <AnimatePresence>
-        {openTile && (
-          <DetailSheet
-            key="detail-sheet"
-            tile={openTile}
-            origin={origin}
-            notices={[]}
-            onClose={onCloseTile}
-            onRetry={reload}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+    </PrivacyViewProvider>
   );
 }

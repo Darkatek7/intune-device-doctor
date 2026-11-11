@@ -1,21 +1,33 @@
 import { GitCompareArrows } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
-import { useMemo, useRef, useState } from 'react';
+import { useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { useProviderContext } from '../app/providerContextValue';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile } from '../domain/types';
 import { isZipFileName, useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { de } from '../i18n/de';
+import { maskFileName } from '../privacy/fileName';
+import { usePrivacy } from '../privacy/privacyContext';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import { buildSnapshotFile, type SnapshotFile } from '../rules/snapshotCompare';
 import { CompareDialog } from './CompareDialog';
-import { zipTitle } from './zipTitle';
+import { maskedZipTitle } from './zipTitle';
 
 interface Props {
   /** Die geöffnete ZIP samt ihren bereits ausgewerteten Kacheln */
   report: DiagnosticsReport;
   tiles: readonly Tile[];
+  /** Ohne eigene Schaltfläche (Aktion läuft über `ref` aus einem Menü) */
+  headless?: boolean;
+  /** Fokus nach dem Schließen des Vergleichs, wenn keine eigene Schaltfläche existiert */
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  ref?: Ref<CompareZipHandle>;
+}
+
+export interface CompareZipHandle {
+  /** Öffnet die Dateiauswahl für die zweite ZIP */
+  chooseFile: () => void;
 }
 
 const BUTTON_CLASS =
@@ -35,8 +47,16 @@ const toSnapshot = (report: DiagnosticsReport, tiles: readonly Tile[], now: Date
  * lokal analysiert. Die ältere Sammlung gilt als „Vorher“; fehlt ein Sammelzeitpunkt, ist die
  * geöffnete ZIP „Vorher“.
  */
-export function CompareZipControls({ report, tiles }: Props) {
+export function CompareZipControls({
+  report,
+  tiles,
+  headless = false,
+  returnFocusRef,
+  ref,
+}: Props) {
   const { provider } = useProviderContext();
+  const { enabled: privacyOn, masker } = usePrivacy();
+  const shownName = (name: string) => (privacyOn ? maskFileName(masker, name) : name);
   const { state, analyze, reset } = useDiagnosticsAnalysis();
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -73,24 +93,32 @@ export function CompareZipControls({ report, tiles }: Props) {
       ? state.error
       : null;
 
+  useImperativeHandle(ref, () => ({
+    chooseFile: () => {
+      if (!running) inputRef.current?.click();
+    },
+  }));
+
   const close = () => {
     reset();
-    buttonRef.current?.focus();
+    (headless ? returnFocusRef : buttonRef)?.current?.focus();
   };
 
   return (
-    <div className="flex flex-col gap-1.5 sm:items-end">
-      <button
-        ref={buttonRef}
-        type="button"
-        disabled={running}
-        onClick={() => inputRef.current?.click()}
-        title={`${de.compare.zipHint} ${de.compare.fileLocal}`}
-        className={BUTTON_CLASS}
-      >
-        <GitCompareArrows aria-hidden="true" size={16} />
-        {de.compare.zipButton}
-      </button>
+    <div className={headless ? 'contents' : 'flex flex-col gap-1.5 sm:items-end'}>
+      {!headless && (
+        <button
+          ref={buttonRef}
+          type="button"
+          disabled={running}
+          onClick={() => inputRef.current?.click()}
+          title={`${de.compare.zipHint} ${de.compare.fileLocal}`}
+          className={BUTTON_CLASS}
+        >
+          <GitCompareArrows aria-hidden="true" size={16} />
+          {de.compare.zipButton}
+        </button>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -109,10 +137,14 @@ export function CompareZipControls({ report, tiles }: Props) {
           void analyze(file);
         }}
       />
-      <p role="status" aria-live="polite" className="text-sm text-secondary-label">
-        {running ? de.compare.zipAnalyzing(state.fileName ?? '') : ''}
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-sm text-secondary-label empty:sr-only max-sm:basis-full"
+      >
+        {running ? de.compare.zipAnalyzing(shownName(state.fileName ?? '')) : ''}
       </p>
-      <p role="alert" className="text-sm text-critical empty:hidden">
+      <p role="alert" className="text-sm text-critical empty:hidden max-sm:basis-full">
         {errorText}
       </p>
       <AnimatePresence>
@@ -121,8 +153,11 @@ export function CompareZipControls({ report, tiles }: Props) {
             key="compare-zip-dialog"
             before={pair.before}
             after={pair.after}
-            beforeLabel={pair.beforeLabel || zipTitle(report)}
-            afterLabel={pair.afterLabel}
+            // Ohne eigenes Etikett: derselbe Titel wie im Kopf der ZIP-Ansicht (Gerät-…, nicht Datei-…)
+            beforeLabel={
+              shownName(pair.beforeLabel) || maskedZipTitle(report, { enabled: privacyOn, masker })
+            }
+            afterLabel={shownName(pair.afterLabel)}
             onClose={close}
           />
         )}

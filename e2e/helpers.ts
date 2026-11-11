@@ -143,7 +143,18 @@ export async function waitForTilesReady(page: Page): Promise<void> {
   await expect(tileButtons(page).first()).toBeVisible();
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   await expect(page.getByText(T.loading, { exact: true })).toHaveCount(0);
+  // Nach dem Laden wandern gesunde Kacheln in den kompakten Abschnitt (Crossfade); axe-Scans und
+  // Screenshots sollen erst nach dem Einblenden laufen, sonst messen sie halbtransparente Texte.
+  await expect
+    .poll(() => page.evaluate(TILE_OPACITY_SCRIPT), { message: 'Kacheln blenden noch ein' })
+    .toBe(true);
 }
+
+/** true, sobald alle Kachel-Listeneinträge und deren Inhalt voll deckend sind (String: kein DOM-Lib im Node-Projekt) */
+const TILE_OPACITY_SCRIPT = `(() => {
+  const nodes = document.querySelectorAll('ul[aria-label="Statuskacheln"] li, ul[aria-label="Statuskacheln"] li > div');
+  return Array.from(nodes).every((el) => getComputedStyle(el).opacity === '1');
+})()`;
 
 /** Öffnet das Detail-Sheet einer Kachel per Klick und liefert den Dialog. */
 export async function openTile(page: Page, title: string): Promise<Locator> {
@@ -151,6 +162,22 @@ export async function openTile(page: Page, title: string): Promise<Locator> {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   return dialog;
+}
+
+/** Öffnet das Aktionsmenü „Mehr“ im Geräte-/ZIP-Header und liefert das Menü. */
+export async function openMoreMenu(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Mehr', exact: true }).click();
+  const menu = page.getByRole('menu', { name: 'Mehr' });
+  await expect(menu).toBeVisible();
+  return menu;
+}
+
+/** Wartet, bis der Menüeintrag benutzbar ist (nicht mehr geladen wird), und löst ihn aus. */
+export async function clickMoreAction(page: Page, name: string): Promise<void> {
+  const menu = await openMoreMenu(page);
+  const item = menu.getByRole('menuitem', { name, exact: true });
+  await expect(item).not.toHaveAttribute('aria-disabled', 'true');
+  await item.click();
 }
 
 /** Opacity von Sheet und Sheet-Inhalt als „panel|inhalt“ (leer, wenn kein Dialog offen ist). */

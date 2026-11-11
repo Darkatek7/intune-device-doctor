@@ -3,6 +3,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { formatDateTime, formatRelativeTime } from '../domain/format';
 import type { BulkState } from '../hooks/useBulkCheck';
 import { de } from '../i18n/de';
+import { usePrivacyView } from '../privacy/privacyContext';
 import { downloadTextFile } from '../lib/download';
 import {
   BULK_MAX_INPUT_CHARS,
@@ -89,6 +90,18 @@ export function BulkView({
   onOpenDevice,
   onSearchName,
 }: Props) {
+  const base = usePrivacyView();
+  // Auch eingetippte Namen ohne Treffer sind Gerätenamen und werden verborgen.
+  const view = useMemo(
+    () =>
+      base.extend(
+        state.rows,
+        state.rows.map((row) => ({ kind: 'device' as const, value: row.name })),
+      ),
+    [base, state.rows],
+  );
+  const { masker } = view;
+  const showDevice = (name: string) => (view.enabled ? masker.device(name) : name);
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
@@ -118,7 +131,7 @@ export function BulkView({
   const exportCsv = () =>
     downloadTextFile(
       de.bulk.csv.fileName(stamp(state.checkedAt)),
-      bulkRowsToCsv(state.rows, state.checkedAt, csvLabels()),
+      view.text(bulkRowsToCsv(state.rows, state.checkedAt, csvLabels())),
       'text/csv;charset=utf-8',
     );
 
@@ -169,7 +182,11 @@ export function BulkView({
             <button
               type="button"
               disabled={parsed.names.length === 0}
-              onClick={() => onStart(parsed.names)}
+              onClick={() => {
+                onStart(parsed.names);
+                // Präsentationsmodus: Die Eingabeliste verschwindet nach dem Start (auch bei „Neu starten“).
+                if (view.enabled) setText('');
+              }}
               className={PRIMARY_BUTTON}
             >
               {de.bulk.start}
@@ -227,7 +244,11 @@ export function BulkView({
               <button
                 type="button"
                 onClick={exportCsv}
-                title={de.bulk.exportCsvHint}
+                title={
+                  view.enabled
+                    ? `${de.bulk.exportCsvHint} ${de.privacy.output.bulkCsv}`
+                    : de.bulk.exportCsvHint
+                }
                 className={SECONDARY_BUTTON}
               >
                 <Download aria-hidden="true" size={16} />
@@ -293,29 +314,29 @@ export function BulkView({
                             event.stopPropagation();
                             onOpenDevice(device);
                           }}
-                          aria-label={de.bulk.openDevice(device.deviceName)}
+                          aria-label={de.bulk.openDevice(showDevice(device.deviceName))}
                           className={LINK_BUTTON}
                         >
-                          {device.deviceName}
+                          {showDevice(device.deviceName)}
                         </button>
                       ) : row.status === 'done' && row.matchCount > 1 ? (
                         <button
                           type="button"
                           onClick={() => onSearchName(row.name)}
-                          aria-label={de.bulk.searchName(row.name)}
+                          aria-label={de.bulk.searchName(showDevice(row.name))}
                           className={LINK_BUTTON}
                         >
-                          {row.name}
+                          {showDevice(row.name)}
                         </button>
                       ) : (
-                        row.name
+                        showDevice(row.name)
                       )}
                     </th>
                     <td className="px-4 py-2.5 text-label">
                       {matchText(row)}
                       {row.status === 'error' && row.errorMessage && (
                         <span className="block text-xs text-secondary-label">
-                          {row.errorMessage}
+                          {view.text(row.errorMessage)}
                         </span>
                       )}
                     </td>
@@ -341,7 +362,11 @@ export function BulkView({
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-label">
-                      {device?.userDisplayName ?? de.bulk.noValue}
+                      {device?.userDisplayName
+                        ? view.enabled
+                          ? masker.user(device.userDisplayName)
+                          : device.userDisplayName
+                        : de.bulk.noValue}
                     </td>
                   </tr>
                 );

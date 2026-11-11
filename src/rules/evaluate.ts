@@ -5,6 +5,7 @@
  */
 import type { DeviceSnapshot, Severity, Tile, TileId } from '../domain/types';
 import { evaluateApps } from './tiles/apps';
+import { evaluateAppProtection } from './tiles/appProtection';
 import { evaluateBitLocker } from './tiles/bitlocker';
 import { evaluateCheckIn } from './tiles/checkIn';
 import { evaluateCompliance } from './tiles/compliance';
@@ -34,6 +35,7 @@ export const TILE_ORDER: TileId[] = [
   'securityAlerts',
   'policies',
   'apps',
+  'appProtection',
   'signIns',
   'registration',
   'laps',
@@ -63,6 +65,10 @@ export function evaluateTiles(snapshot: DeviceSnapshot, now: Date): Tile[] {
   // App-Status (Graph beta) liefert in vielen Tenants keine Daten → Kachel nur, wenn Daten kamen;
   // kein Lade-Platzhalter, damit das Raster beim Ausblenden nicht springt.
   if (snapshot.appInstallStates?.status === 'ok') tiles.push(evaluateApps(snapshot, now));
+  // M20/S3: App-Schutz (MAM) ist in v1.0 nur für iOS/Android dokumentiert → Kachel nur dort
+  if (snapshot.device.osFamily === 'ios' || snapshot.device.osFamily === 'android') {
+    tiles.push(evaluateAppProtection(snapshot, now));
+  }
   tiles.push(evaluateSignIns(snapshot, now));
   // M14/S3: Lizenz und Gerätelimit gelten je Benutzer → Kachel nur mit primärem Benutzer
   if (snapshot.device.userId) tiles.push(evaluateRegistration(snapshot, now));

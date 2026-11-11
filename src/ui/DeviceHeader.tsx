@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ExternalLink, Hourglass } from 'lucide-react';
 import type { DeviceSearchResult, ManagedDeviceInfo, Tile } from '../domain/types';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { IntunePortal } from '../links/intunePortal';
 import type { TileSummary } from '../rules/evaluate';
 import type { AmbientTone } from './AmbientGlow';
@@ -9,6 +10,7 @@ import { DEVICE_ICON, deviceIconKind, searchResultIconKind } from './deviceIcon'
 import { deviceMeta } from './deviceMeta';
 import { TONE_CLASS } from './tone';
 import { summarySentence } from './summaryText';
+import { PrivateLink } from './PrivateLink';
 import { SummaryPills } from './SummaryPills';
 
 interface Props {
@@ -55,15 +57,26 @@ export function DeviceHeader({
   otherDevices,
   onOpenDevice,
 }: Props) {
+  const { enabled, masker } = usePrivacy();
   const loading = !device || !summary || summary.loading > 0;
-  const meta = device ? deviceMeta(device, tiles) : [];
+  const meta = device ? deviceMeta(device, tiles, enabled ? { masker } : {}) : [];
+  const deviceName = device ? (enabled ? masker.device(device.deviceName) : device.deviceName) : '';
+  const userLabel = device
+    ? enabled
+      ? device.userDisplayName
+        ? masker.user(device.userDisplayName)
+        : device.userPrincipalName
+          ? masker.upn(device.userPrincipalName)
+          : '–'
+      : (device.userDisplayName ?? device.userPrincipalName ?? '–')
+    : '';
   const DeviceIcon = DEVICE_ICON[deviceIconKind(device)];
 
   const liveText = !device
     ? de.header.loadingDevice
     : loading
-      ? de.a11y.deviceLoading(device.deviceName)
-      : de.a11y.deviceDone(device.deviceName, summarySentence(summary));
+      ? de.a11y.deviceLoading(deviceName)
+      : de.a11y.deviceDone(deviceName, summarySentence(summary));
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,7 +90,7 @@ export function DeviceHeader({
           </span>
           <div className="min-w-0">
             <h1 className="display-type break-words text-3xl font-semibold text-label sm:text-display">
-              {device ? device.deviceName : <span className="text-secondary-label">…</span>}
+              {device ? deviceName : <span className="text-secondary-label">…</span>}
             </h1>
             <p className="mt-1.5 text-sm text-secondary-label">
               {device ? meta.join(' · ') : de.header.loadingDevice}
@@ -108,7 +121,7 @@ export function DeviceHeader({
                     url: IntunePortal.deviceInventory(device.id),
                   },
                 ].map((link) => (
-                  <a
+                  <PrivateLink
                     key={link.url}
                     href={link.url}
                     aria-label={link.label}
@@ -119,7 +132,7 @@ export function DeviceHeader({
                   >
                     {link.short}
                     <ExternalLink aria-hidden="true" size={14} />
-                  </a>
+                  </PrivateLink>
                 ))}
               </nav>
             )}
@@ -130,12 +143,11 @@ export function DeviceHeader({
                 className="mt-2 flex flex-wrap items-center gap-2"
               >
                 <span className="text-sm text-secondary-label">
-                  {de.header.otherDevices(
-                    device.userDisplayName ?? device.userPrincipalName ?? '–',
-                  )}
+                  {de.header.otherDevices(userLabel)}
                 </span>
                 {otherDevices.slice(0, MAX_OTHER_DEVICES).map((other) => {
                   const Icon = DEVICE_ICON[searchResultIconKind(other)];
+                  const otherName = enabled ? masker.device(other.deviceName) : other.deviceName;
                   const compliance =
                     (de.picker.compliance as Record<string, string>)[other.complianceState] ?? '';
                   return (
@@ -143,11 +155,11 @@ export function DeviceHeader({
                       key={other.id}
                       type="button"
                       onClick={() => onOpenDevice(other)}
-                      aria-label={de.header.openOtherDevice(other.deviceName, compliance)}
+                      aria-label={de.header.openOtherDevice(otherName, compliance)}
                       className="inline-flex items-center gap-1.5 rounded-full bg-label/6 px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform hover:bg-label/10 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
                     >
                       <Icon aria-hidden="true" size={14} />
-                      {other.deviceName}
+                      {otherName}
                       <span
                         aria-hidden="true"
                         className={`size-2 rounded-full ${COMPLIANCE_DOT[other.complianceState] ?? 'bg-unknown'}`}

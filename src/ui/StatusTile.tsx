@@ -102,7 +102,7 @@ export function StatusTile({ tile, onOpen, ref }: Props) {
         >
           {tile.value}
         </span>
-        <span className="line-clamp-1 text-sm text-secondary-label">{tile.summary}</span>
+        <span className="line-clamp-2 text-sm text-secondary-label">{tile.summary}</span>
       </span>
     </button>
   );

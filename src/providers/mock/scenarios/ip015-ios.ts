@@ -2,8 +2,10 @@
  * CONTOSO-IP015 – iPhone 15 (iOS 18.6.2), Apple User Enrollment, nicht beaufsichtigt.
  * MDM-Zertifikat läuft in 12 Tagen ab, das Apple-MDM-Push-Zertifikat des Mandanten in 20 Tagen. Erwartung: Gerätestatus warning (Zertifikat; der Hinweis
  * „nicht beaufsichtigt“ ist unknown und zieht die Kachel nicht hoch), Defender und Betriebssystem unknown.
+ * App-Schutz (M20/S3) warning: Teams seit 45 Tagen nicht synchronisiert, Zuordnung nur über den Benutzer.
  */
 import { de } from '../../../i18n/de';
+import { ip015AppProtection } from '../fleet';
 import type { MockScenario } from '../types';
 import { appState, entraDevice, inFuture, policy, userLicenseInfo, windowsDevice } from './helpers';
 
@@ -34,6 +36,8 @@ export const ip015Ios: MockScenario = {
     });
     return {
       device,
+      // M20/S3: generischer Gerätename (iOS 16+) → nur über den Benutzer zugeordnet, Teams veraltet
+      appProtection: { status: 'ok', data: ip015AppProtection(now) },
       // M14/S3: nur „Mobile Device Management for Office 365“, noch nicht aktiviert → keine Intune-Lizenz
       userLicense: {
         status: 'ok',

@@ -1,6 +1,7 @@
 import { Check, ChevronRight, Copy } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 
 type Evidence = Record<string, string | number | boolean | null>;
 
@@ -10,6 +11,7 @@ function show(value: string | number | boolean | null): string {
 
 /** Einklappbare Key/Value-Tabelle der Rohdaten mit Kopieren-Button (Monospace für Werte). */
 export function EvidenceTable({ evidence }: { evidence: Evidence }) {
+  const { enabled: privacyOn } = usePrivacy();
   const [open, setOpen] = useState(false);
   const [copy, setCopy] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,6 +64,7 @@ export function EvidenceTable({ evidence }: { evidence: Evidence }) {
           <button
             type="button"
             onClick={onCopy}
+            title={privacyOn ? de.privacy.output.copyEvidence : undefined}
             className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-sm text-accent outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
           >
             {copy === 'copied' ? (

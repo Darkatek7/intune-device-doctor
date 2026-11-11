@@ -13,13 +13,19 @@ import type {
   ApplePushCertificateInfo,
   AppInstallStateInfo,
   BitLockerKeyInfo,
+  EnrollmentFailuresInfo,
+  ComplianceSettingSummariesInfo,
+  DeviceStateSummaryInfo,
+  AuditEventsInfo,
   EnrollmentLimitsInfo,
+  ServiceHealthInfo,
   EntraDeviceInfo,
   HealthAttestationInfo,
   LocalAdminInfo,
   ManagedDeviceInfo,
   PolicyStateInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
   SignInsInfo,
   UserLicenseInfo,
   VppTokenInfo,
@@ -70,6 +76,13 @@ export interface MockDeviceFixture {
   /** Optional (M14/S3) – ohne Angabe: zwei Gerätelimit-Konfigurationen (5 und 15 Geräte); ohne Benutzer notApplicable. */
   enrollmentLimits?: MockSection<EnrollmentLimitsInfo>;
   /**
+   * Optional (M18) – ohne Angabe: die Registrierungsfehler des Demo-Mandanten, gefiltert auf den Benutzer
+   * des Geräts; ohne Benutzer notApplicable.
+   */
+  enrollmentFailures?: MockSection<EnrollmentFailuresInfo>;
+  /** Optional (M20/S3) – ohne Angabe: iOS/Android ok ohne Registrierung, sonst bzw. ohne Benutzer notApplicable. */
+  appProtection?: MockSection<AppProtectionInfo>;
+  /**
    * Optional (M14/S2) – ohne Angabe: jedes nachgeschlagene Objekt ist der Gruppe „Contoso – Alle Geräte“
    * zugewiesen. Ein `ok`-Wert ersetzt die abgeleitete Antwort vollständig; die anderen Status simulieren
    * z. B. fehlende Berechtigung.
@@ -92,6 +105,18 @@ export interface MockScenario {
 export interface MockTenantFixture {
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
   vppTokens?: MockSection<VppTokenInfo[]>;
+  /** M18: Dienststatus (Standard: offener Intune-Vorfall, siehe ../mock/service.ts) */
+  serviceHealth?: MockSection<ServiceHealthInfo>;
+  /** M18: Registrierungsfehler des Mandanten (Standard: sieben Fehlschläge in fünf Kategorien) */
+  enrollmentFailures?: MockSection<EnrollmentFailuresInfo>;
+  /** M20/S1: Compliance-Zähler (Standard: 265 Geräte, 31 nicht konform, siehe ../mock/fleet.ts) */
+  complianceSummary?: MockSection<DeviceStateSummaryInfo>;
+  /** M20/S1: Zähler je Compliance-Einstellung (Standard: sechs Einstellungen) */
+  complianceSettings?: MockSection<ComplianceSettingSummariesInfo>;
+  /** M20/S1: Zähler der Konfigurationsprofile */
+  configurationSummary?: MockSection<DeviceStateSummaryInfo>;
+  /** M20/S2: Änderungsprotokoll (Standard: Änderungen der letzten Tage, siehe ../mock/fleet.ts) */
+  auditEvents?: MockSection<AuditEventsInfo>;
   /** Ansicht „Richtlinien“ (M15): ersetzt die aus den Demo-Geräten abgeleitete Liste (z. B. forbidden in Tests). */
   configurations?: MockSection<TenantPolicyList>;
   compliancePolicies?: MockSection<TenantPolicyList>;

@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GraphScope, LOGIN_SCOPES } from '../graph/scopes';
 import { de } from '../i18n/de';
 import { GraphRequestError } from '../graph/client';
+import { PrivacyProvider } from '../privacy/PrivacyProvider';
 import { AccountButton, AuthGate } from './AuthGate';
 import { createMsalConfiguration } from './msalConfig';
 import { getGraphToken, initMsal } from './token';
@@ -157,6 +158,22 @@ describe('AccountButton', () => {
     const msal = fakeMsal({ accounts: [ACCOUNT] });
     render(<AccountButton instance={msal} />);
     expect(await screen.findByText('Ada Admin')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: de.auth.signOut }));
+    expect(msal.logoutRedirect).toHaveBeenCalledWith({ account: ACCOUNT });
+  });
+
+  it('Präsentationsmodus (M19): Name und UPN des Kontos sind verborgen, Abmelden funktioniert', async () => {
+    const msal = fakeMsal({ accounts: [ACCOUNT] });
+    const { container } = render(
+      <PrivacyProvider initialEnabled salt="t">
+        <AccountButton instance={msal} />
+      </PrivacyProvider>,
+    );
+    expect(await screen.findByText(/^Benutzer-[0-9A-F]{4}$/)).toBeInTheDocument();
+    expect(container.innerHTML).not.toMatch(/Ada Admin|admin@contoso\.com/);
+    expect(container.querySelector('[title]')?.getAttribute('title')).toMatch(
+      /@beispiel\.example$/,
+    );
     await userEvent.click(screen.getByRole('button', { name: de.auth.signOut }));
     expect(msal.logoutRedirect).toHaveBeenCalledWith({ account: ACCOUNT });
   });

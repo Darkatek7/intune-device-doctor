@@ -58,6 +58,14 @@ function writeRecentDevices(mode: DataMode, list: RecentDevice[]): void {
   }
 }
 
+/**
+ * Löscht die gespeicherte Liste eines Modus (z. B. beim Abmelden im Live-Modus: enthält echte
+ * Gerätenamen). Greift direkt auf den Speicher zu, unabhängig vom Hook.
+ */
+export function clearStoredRecentDevices(mode: DataMode): void {
+  writeRecentDevices(mode, []);
+}
+
 export interface RecentDevices {
   recent: RecentDevice[];
   /** Merkt das Gerät als zuletzt geöffnet (nach oben; Duplikate nach id entfernt; max. 8). */

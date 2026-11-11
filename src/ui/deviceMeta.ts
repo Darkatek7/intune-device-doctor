@@ -1,6 +1,7 @@
 import { formatDate } from '../domain/format';
 import type { ManagedDeviceInfo, Tile } from '../domain/types';
 import { de } from '../i18n/de';
+import type { Masker } from '../privacy/masker';
 
 /**
  * Metazeile eines Geräts (Modell · Nutzer · OS [· Enrollment]). Die OS-Angabe stammt, sobald
@@ -9,15 +10,26 @@ import { de } from '../i18n/de';
 export function deviceMeta(
   device: ManagedDeviceInfo,
   tiles: readonly Tile[] = [],
-  options: { enrolled?: boolean } = {},
+  options: {
+    enrolled?: boolean;
+    /** Präsentationsmodus: Benutzer als Pseudonym */ masker?: Masker;
+  } = {},
 ): string[] {
   const osTile = tiles.find((tile) => tile.id === 'osVersion' && tile.state === 'ready');
   const os =
     (osTile?.value && osTile.value !== '–' ? osTile.value : null) ??
     ([device.operatingSystem, device.osVersion].filter(Boolean).join(' ') || null);
+  const { masker } = options;
+  const user = masker
+    ? device.userDisplayName
+      ? masker.user(device.userDisplayName)
+      : device.userPrincipalName
+        ? masker.upn(device.userPrincipalName)
+        : null
+    : (device.userDisplayName ?? device.userPrincipalName);
   return [
     device.model,
-    device.userDisplayName ?? device.userPrincipalName,
+    user,
     os,
     options.enrolled !== false && device.enrolledDateTime
       ? de.header.enrolled(formatDate(device.enrolledDateTime))

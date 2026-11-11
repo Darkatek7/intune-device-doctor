@@ -1,4 +1,5 @@
-/** CONTOSO-PC027 – Defender-Warnungen: Signaturen veraltet, Neustart ausstehend, 1 Malware in Quarantäne. Erwartung: Defender critical/warning. */
+/** CONTOSO-PC027 – Defender-Warnungen: Signaturen veraltet, Neustart ausstehend, 1 Malware in Quarantäne. Erwartung: Defender critical/warning.
+ * M20/S4: Remote-Aktion „rebootNow“ vor zwei Tagen fehlgeschlagen, „syncDevice“ erfolgreich → Gerätestatus warning. */
 import { de } from '../../../i18n/de';
 import type { MockScenario } from '../types';
 import {
@@ -21,6 +22,23 @@ export const pc027Defender: MockScenario = {
     const device = windowsDevice(now, 27, {
       userPrincipalName: 'lena.fischer@contoso.com',
       userDisplayName: 'Lena Fischer',
+      // Aktionsnamen sind fiktive Rohwerte (Microsoft dokumentiert keine Werteliste)
+      actionResults: [
+        {
+          actionName: 'syncDevice',
+          actionState: 'done',
+          actionStateRaw: 'done',
+          startDateTime: ago(now, { hours: 6 }),
+          lastUpdatedDateTime: ago(now, { hours: 5 }),
+        },
+        {
+          actionName: 'rebootNow',
+          actionState: 'failed',
+          actionStateRaw: 'failed',
+          startDateTime: ago(now, { days: 2, hours: 1 }),
+          lastUpdatedDateTime: ago(now, { days: 2 }),
+        },
+      ],
     });
     return {
       device,

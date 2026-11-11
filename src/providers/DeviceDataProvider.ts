@@ -9,10 +9,14 @@
  *   status forbidden / notApplicable / unavailable / error.
  */
 import type {
+  AuditEventsInfo,
   AssignmentLookup,
   AssignmentsInfo,
+  EnrollmentFailuresInfo,
   EnrollmentLimitsInfo,
   SecurityAlertsInfo,
+  AppProtectionInfo,
+  ServiceHealthInfo,
   TenantStatus,
   TenantPolicies,
   TenantPolicyKind,
@@ -172,6 +176,30 @@ export interface DeviceDataProvider {
   getTenantStatus(options?: RequestOptions): Promise<TenantStatus>;
 
   /**
+   * Microsoft-365-Dienststatus (M18): alle abonnierten Dienste mit ihren offenen Vorfällen/Hinweisen
+   * (`healthOverviews?$expand=issues`). Teil von getTenantStatus; einzeln abrufbar für den Hinweis in der
+   * Geräteansicht. Optionaler Scope ServiceHealth.Read.All (403 → forbidden).
+   */
+  getServiceHealth(options?: RequestOptions): Promise<SectionResult<ServiceHealthInfo>>;
+
+  /**
+   * Fehlgeschlagene Registrierungen des primären Benutzers (M18): die Registrierungsfehler des Mandanten
+   * (höchstens MAX_TROUBLESHOOTING_EVENT_PAGES Seiten), clientseitig auf die `userId` des Geräts gefiltert.
+   * Ohne primären Benutzer notApplicable.
+   */
+  getEnrollmentFailures(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<EnrollmentFailuresInfo>>;
+
+  /**
+   * Intune-Änderungsprotokoll (M20/S2): `auditEvents`, höchstens MAX_AUDIT_EVENT_PAGES Seiten, neueste
+   * zuerst. Teil von getTenantStatus; einzeln abrufbar für „Änderungen an dieser Richtlinie“. Optionaler
+   * Scope DeviceManagementApps.Read.All (403 → forbidden). Vom Auslöser nur UPN bzw. App-Name.
+   */
+  getAuditEvents(options?: RequestOptions): Promise<SectionResult<AuditEventsInfo>>;
+
+  /**
    * Richtlinien des Mandanten (M15, Ansicht „Richtlinien“): Konfigurationsprofile und
    * Compliance-Richtlinien (je ein SectionResult) mit den Zählern aus `deviceStatusOverview` – höchstens
    * für MAX_POLICY_OVERVIEWS Richtlinien (zuletzt geänderte zuerst), der Rest `overview: null` („nicht
@@ -193,6 +221,16 @@ export interface DeviceDataProvider {
    * (höchstens 3 Seiten à 100), clientseitig dem Gerät zugeordnet; behobene ausgeblendet. Optionaler
    * Scope SecurityAlert.Read.All (403 → forbidden).
    */
+  /**
+   * Nur iOS/Android (M20/S3): App-Schutz-Registrierungen des primären Benutzers, über den Gerätenamen dem
+   * Gerät zugeordnet – sonst alle des Benutzers (offen ausgewiesen). Optionaler Scope
+   * DeviceManagementApps.Read.All. Andere Plattformen bzw. ohne Benutzer → notApplicable.
+   */
+  getAppProtection(
+    device: ManagedDeviceInfo,
+    options?: RequestOptions,
+  ): Promise<SectionResult<AppProtectionInfo>>;
+
   getSecurityAlerts(
     device: ManagedDeviceInfo,
     options?: RequestOptions,

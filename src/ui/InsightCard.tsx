@@ -51,7 +51,7 @@ export function InsightCard({ insights, openableTiles, onOpenTile }: Props) {
                     type="button"
                     aria-label={t.openTile(de.tiles[tileId])}
                     onClick={() => onOpenTile(tileId)}
-                    className="rounded-full bg-accent/8 px-3 py-1 text-sm font-medium text-accent outline-none transition-transform hover:bg-accent/12 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+                    className="rounded-full bg-accent/6 px-3 py-1 text-sm font-medium text-accent outline-none transition-transform hover:bg-accent/12 focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
                   >
                     {de.tiles[tileId]}
                   </button>
