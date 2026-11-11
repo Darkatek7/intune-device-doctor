@@ -74,4 +74,33 @@ export const VISIBLE_KEYS: readonly string[] = [
   'requestid',
   // Defender-Risikostufe des Geräts (Wert, kein Name)
   'deviceriskscore',
+  // M20: Name einer Compliance-Einstellung bzw. einer Anwendung im Änderungsprotokoll (Benutzer-UPNs
+  // desselben Felds sammelt collect.ts über `kind: 'user'`), Rohwerte von Microsoft
+  'name',
+  'actionname',
+  'componentname',
 ];
+
+/**
+ * Generische Gerätenamen sind keine Kennung: Ab iOS 16 melden App-Schutz-Registrierungen laut Microsoft nur
+ * noch „iPhone“ bzw. „iPad“. Als bekannter Wert würden sie zudem Modellbezeichnungen wie „iPhone 15“
+ * verstümmeln – sie werden deshalb weder gesammelt noch gesucht.
+ */
+export const isGenericDeviceName = (value: string): boolean =>
+  /^(iphone|ipad|ipod touch|android)$/i.test(value.trim());
+
+/**
+ * Objekt eines Eintrags im Änderungsprotokoll (M20): Ist sein Anzeigename eine Kennung? `auditResource.type`
+ * ist eine freie Zeichenkette ohne dokumentierte Werteliste – deshalb eine vorsichtige Heuristik: Typen, die
+ * nach Richtlinie, Profil, App, Gruppe oder Rolle klingen, bleiben sichtbar (wie überall im Modus); Typen,
+ * die nach Gerät oder Benutzer klingen, werden verborgen.
+ */
+const AUDIT_TYPE_VISIBLE =
+  /polic|configuration|compliance|profile|categor|script|setting|assignment|filter|template|baseline|restriction|notification|app|group|role|scope|tag|term|brand/i;
+
+export function auditResourceKind(type: unknown): 'device' | 'user' | null {
+  if (typeof type !== 'string' || AUDIT_TYPE_VISIBLE.test(type)) return null;
+  if (/device|autopilot|computer/i.test(type)) return 'device';
+  if (/user|account|person/i.test(type)) return 'user';
+  return null;
+}

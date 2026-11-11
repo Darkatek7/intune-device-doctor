@@ -157,6 +157,8 @@ Der Schalter (Auge-Symbol in der Toolbar, `aria-pressed`) ersetzt alle personen-
   - Die **Adresszeile** trägt weiter `?device=<id>` (Voraussetzung für Neuladen und Teilen) – bei Screenshots des ganzen Browserfensters die Adresszeile ausblenden.
   - Das Sicherheitsnetz erkennt E-Mail-Adressen, GUIDs, MAC-, IPv4- und IPv6-Adressen in beliebigem Text. Namen ohne bekannten Bezug (z. B. ein Benutzername in einem Freitext der Windows-Ereignisprotokolle) erkennt es nicht; vierteilige Versionsnummern nach „Version“, „v“, „Build“ bleiben bewusst unberührt.
   - „Zuletzt geöffnet“ speichert weiter echte Gerätenamen im `localStorage` (der Modus ändert nur die Anzeige).
+  - **Änderungsprotokoll:** Konten erscheinen als Pseudonym. Den Namen des geänderten Objekts verbirgt die App nur, wenn sein Typ nach Gerät oder Benutzer klingt – Microsoft dokumentiert für diesen Typ keine Werteliste. Vor einem Screenshot der Tabelle kurz hinsehen.
+  - Generische Gerätenamen wie „iPhone“ oder „iPad“ (so meldet sie iOS ab Version 16 im App-Schutz) bleiben stehen; sie bezeichnen kein bestimmtes Gerät.
 - Technik und Anschluss neuer Ansichten: `src/privacy/`, `docs/tasks/M19-praesentationsmodus.md`.
 
 ## Bekannte Grenzen

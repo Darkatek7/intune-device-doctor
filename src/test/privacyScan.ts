@@ -9,7 +9,12 @@
  * `unclassifiedKeys` ist der Gegenpart: Er meldet verdächtig benannte Felder, die weder als sensibel noch als
  * bewusst sichtbar eingeordnet sind – neue Datenfelder können so nicht unbemerkt durchrutschen.
  */
-import { SENSITIVE_KEYS, VISIBLE_KEYS } from '../privacy/keys';
+import {
+  auditResourceKind,
+  isGenericDeviceName,
+  SENSITIVE_KEYS,
+  VISIBLE_KEYS,
+} from '../privacy/keys';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { MockProvider } from '../providers/mock/MockProvider';
 import { scenarios } from '../providers/mock/scenarios';
@@ -47,7 +52,8 @@ export function collectSensitiveValues(roots: readonly unknown[]): string[] {
   const add = (value: unknown) => {
     if (typeof value !== 'string') return;
     const v = value.trim().toLowerCase();
-    if (v.length >= 4) values.add(v);
+    // „iPhone“/„iPad“ als gemeldeter Gerätename (iOS 16+) ist keine Kennung
+    if (v.length >= 4 && !isGenericDeviceName(v)) values.add(v);
   };
   for (const root of roots) {
     walkAll(root, (value, key) => {
@@ -64,6 +70,12 @@ export function collectSensitiveValues(roots: readonly unknown[]): string[] {
         // Geräte-ähnliche Objekte: auch die (nicht-GUID-)ID
         if ('deviceName' in record || 'deviceDisplayName' in record) add(record['id']);
         if ('objectId' in record) add(record['displayName']);
+        // Änderungsprotokoll (M20): Benutzer als Auslöser, Geräte/Benutzer als betroffenes Objekt
+        if ('actorType' in record && record['kind'] === 'user') {
+          add(record['name']);
+          if (typeof record['name'] === 'string') add(record['name'].split('@')[0]);
+        }
+        if ('resourceId' in record && auditResourceKind(record['type'])) add(record['displayName']);
       }
     });
   }
@@ -119,10 +131,13 @@ export async function loadAllMockData(
         provider.getEnrollmentLimits(device),
         provider.getSecurityAlerts(device),
         provider.getEnrollmentFailures(device),
+        provider.getAppProtection(device),
       ]),
     );
   }
   out.push(await provider.getTenantStatus());
+  out.push(await provider.getServiceHealth());
+  out.push(await provider.getAuditEvents());
   const policies = await provider.getTenantPolicies();
   out.push(policies);
   for (const list of [policies.configurations, policies.compliancePolicies]) {

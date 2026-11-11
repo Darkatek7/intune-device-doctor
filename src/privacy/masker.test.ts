@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectKnown } from './collect';
+import { auditResourceKind } from './keys';
 import { createMasker, PSEUDONYM_DOMAIN } from './masker';
 import { createView } from './view';
 
@@ -164,6 +165,72 @@ describe('collectKnown', () => {
     // Richtliniennamen bleiben sichtbar
     expect(known.some((k) => k.value.includes('Baseline'))).toBe(false);
     expect(known.some((k) => k.value === 'pol-1')).toBe(false);
+  });
+
+  it('Änderungsprotokoll (M20): Benutzer als Auslöser; Objektname nur bei Geräten und Benutzern', () => {
+    const event = (
+      actor: { kind: string; name: string },
+      resource: { displayName: string; type: string },
+    ) => ({
+      id: 'audit-1',
+      actor: { ...actor, actorType: 'ItPro' },
+      resources: [{ resourceId: 'res-1', ...resource }],
+    });
+    const known = collectKnown({
+      events: [
+        event(
+          { kind: 'user', name: 'anna.schmidt@contoso.com' },
+          { displayName: 'Contoso – VPN Always On', type: 'DeviceConfiguration' },
+        ),
+        event(
+          { kind: 'application', name: 'Contoso Automation' },
+          { displayName: 'CONTOSO-PC042', type: 'ManagedDevice' },
+        ),
+        event({ kind: 'user', name: 'Tim Wagner' }, { displayName: 'Jonas Weber', type: 'User' }),
+      ],
+    });
+    const has = (kind: string, value: string) =>
+      known.some((k) => k.kind === kind && k.value === value);
+    expect(has('upn', 'anna.schmidt@contoso.com')).toBe(true);
+    expect(has('upnLocal', 'anna.schmidt')).toBe(true);
+    expect(has('user', 'Tim Wagner')).toBe(true);
+    expect(has('device', 'CONTOSO-PC042')).toBe(true);
+    expect(has('user', 'Jonas Weber')).toBe(true);
+    // Anwendungs- und Richtliniennamen bleiben sichtbar
+    expect(known.some((k) => k.value === 'Contoso Automation')).toBe(false);
+    expect(known.some((k) => k.value.includes('VPN Always On'))).toBe(false);
+  });
+
+  it('auditResourceKind: Typ ist eine freie Zeichenkette – vorsichtige Einordnung', () => {
+    expect(auditResourceKind('ManagedDevice')).toBe('device');
+    expect(auditResourceKind('WindowsAutopilotDeviceIdentity')).toBe('device');
+    expect(auditResourceKind('User')).toBe('user');
+    for (const type of [
+      'DeviceConfiguration',
+      'DeviceCompliancePolicy',
+      'DeviceEnrollmentConfiguration',
+      'MobileApp',
+      'ManagedAppProtection',
+      'Group',
+      'RoleDefinition',
+      'DeviceCategory',
+      'DeviceManagementScript',
+      'Unbekannt',
+    ]) {
+      expect(auditResourceKind(type)).toBeNull();
+    }
+    expect(auditResourceKind(null)).toBeNull();
+  });
+
+  it('generische Gerätenamen (iOS 16+: „iPhone“) sind keine Kennung', () => {
+    const known = collectKnown({
+      registrations: [
+        { deviceName: 'iPhone' },
+        { deviceName: 'iPad' },
+        { deviceName: 'CONTOSO-IP015' },
+      ],
+    });
+    expect(known).toEqual([{ kind: 'device', value: 'CONTOSO-IP015' }]);
   });
 
   it('übersteht Zyklen', () => {

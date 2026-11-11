@@ -22,7 +22,14 @@ Anlass: Screenshots aus dem Live-Modus enthalten echte Gerätenamen, Benutzernam
 - `src/privacy/storage.ts`, `fileName.ts`; UI `src/ui/PrivacyToggle.tsx` (Schalter + `PrivacyNotice`), `src/ui/PrivateLink.tsx`; Texte `src/i18n/de-privacy.ts` (`de.privacy`).
 - Anschluss: `DeviceView`, `ZipView`, `TenantView` (Kacheln, Zeitachse, Ticket-Notiz, Export, Titel), `AppShell` (Suchfeld, Fortschritt), Listen/Köpfe (`ResultPicker`, `RecentDevices`, `Landing`, `SearchField`, `DeviceHeader`, `ZipHeader`, `MergeOffer`, `BulkView`, `PolicyDetailView`, `ConnectionTestView`, `AccountButton`), Dialoge (`TicketNoteDialog`, `CompareDialog`, `EvidenceTable`, `HeaderActions`, `ErrorState`).
 
-## Neue Ansicht anschließen (z. B. M20: Änderungsprotokoll, App-Schutz, Compliance-Übersicht)
+## Angeschlossen: M20 (Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen)
+
+- **Änderungsprotokoll** (Mandant › „Letzte Änderungen“, Richtlinien-Detail › „Änderungen an dieser Richtlinie“): Wer geändert hat, erscheint bei Benutzern als Pseudonym-UPN; Anwendungsnamen bleiben sichtbar (wie App-Namen). Der Name des betroffenen Objekts wird nur verborgen, wenn sein Typ nach Gerät oder Benutzer klingt (`auditResourceKind` in `src/privacy/keys.ts`) – Richtlinien-, Profil-, App- und Gruppennamen bleiben sichtbar.
+- **App-Schutz** (Gerätekachel): der gemeldete Gerätename wird verborgen. Generische Namen („iPhone“, „iPad“ – iOS 16+ meldet nur diese) sind keine Kennung und bleiben stehen (`isGenericDeviceName`), sonst würden Modellbezeichnungen wie „iPhone 15“ verstümmelt.
+- **Compliance-Übersicht, Remote-Aktionen:** enthalten nur Zähler, Einstellungs- und Aktionsnamen – nichts zu verbergen.
+- Der Leck-Scanner öffnet jede Mandanten-Kachel samt Detail-Sheet und das Richtlinien-Detail mit Änderungen; die Demo-Daten von M20 laufen in `loadAllMockData` mit.
+
+## Neue Ansicht anschließen
 
 1. **Neue Datenfelder** mit Personen-/Gerätebezug: eine Zeile in `SENSITIVE_KEYS` (`src/privacy/keys.ts`), z. B. `initiatedbyuserprincipalname`; bewusst sichtbare Felder in `VISIBLE_KEYS`. Der Test `src/privacy/coverage.test.ts` läuft über alle Demo-Daten und **schlägt fehl**, solange ein verdächtig benanntes Feld (Name, UPN, Mail, Seriennummer, User, Device, IP, Tenant, Owner …) unklassifiziert ist – neue Demo-Daten müssen dafür in `loadAllMockData` (`src/test/privacyScan.ts`) abgelaufen werden (neue Provider-Methode = eine Zeile).
 2. **Kacheln/Befunde/Tabellen** (reine Daten): in der Ansicht `const view = useBuildPrivacyView(daten)`, dann `view.deep(evaluate…(daten))` und `<PrivacyViewProvider view={view}>` um den Rückgabewert. Neue Kacheln sind damit automatisch abgedeckt (Beispiel: `TenantView`).
@@ -52,3 +59,4 @@ Anlass: Screenshots aus dem Live-Modus enthalten echte Gerätenamen, Benutzernam
 - Organisationsname eines VPP-Tokens sowie Richtlinien-/Gruppen-/App-Namen bleiben sichtbar (können den Firmennamen enthalten).
 - „Zuletzt geöffnet“ liegt weiter mit echten Namen im `localStorage`; nur die Anzeige ist maskiert.
 - Hash-Pseudonyme mit 4 Hex-Zeichen können bei sehr langen Listen kollidieren (Unterscheidbarkeit, keine Identität).
+- Änderungsprotokoll: `auditResource.type` ist eine freie Zeichenkette ohne dokumentierte Werteliste. Ob ein Objektname ein Gerät oder einen Benutzer bezeichnet, erkennt die App nur am Typnamen (Heuristik) – live zu verifizieren, welche Typen Microsoft für Geräte-Ereignisse liefert. Die Aktivität selbst (Microsoft-Rohtext) wird nicht verändert.

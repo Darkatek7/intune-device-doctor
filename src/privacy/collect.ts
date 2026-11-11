@@ -3,7 +3,7 @@
  * Anmeldungen, ZIP-Bericht …) aus den Rohdaten. Schlüsselgetrieben (keys.ts) und strukturblind: Jede neue
  * Datenstruktur mit bekannten Feldnamen ist automatisch abgedeckt.
  */
-import { SENSITIVE_KEYS } from './keys';
+import { auditResourceKind, isGenericDeviceName, SENSITIVE_KEYS } from './keys';
 import type { KnownValue, SensitiveKind } from './masker';
 
 const MAX_DEPTH = 14;
@@ -29,6 +29,7 @@ export function collectKnown(root: unknown, extra: readonly KnownValue[] = []): 
     if (typeof value !== 'string') return;
     const trimmed = value.trim();
     if (!trimmed) return;
+    if (kind === 'device' && isGenericDeviceName(trimmed)) return;
     const key = `${kind}\u0000${trimmed.toLowerCase()}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -64,6 +65,15 @@ export function collectKnown(root: unknown, extra: readonly KnownValue[] = []): 
     // Entra-Geräteobjekt: `displayName` ist der Gerätename (bei Richtlinien/Gruppen/Apps dagegen sichtbar).
     if ('objectId' in record && typeof record['displayName'] === 'string') {
       add('device', record['displayName']);
+    }
+    // Änderungsprotokoll (M20): wer geändert hat – bei Benutzern steht dort die UPN
+    if ('actorType' in record && record['kind'] === 'user' && typeof record['name'] === 'string') {
+      add(record['name'].includes('@') ? 'upn' : 'user', record['name']);
+    }
+    // Änderungsprotokoll (M20): betroffenes Objekt – nur bei Geräten und Benutzern ist der Name eine Kennung
+    if ('resourceId' in record && typeof record['displayName'] === 'string') {
+      const kind = auditResourceKind(record['type']);
+      if (kind) add(kind, record['displayName']);
     }
     // dsregcmd und ähnliche Schlüssel/Wert-Listen
     if (typeof record['key'] === 'string' && typeof record['value'] === 'string') {

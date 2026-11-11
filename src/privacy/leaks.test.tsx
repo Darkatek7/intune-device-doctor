@@ -15,6 +15,7 @@ import { de } from '../i18n/de';
 import { MockProvider } from '../providers/mock/MockProvider';
 import { scenarios } from '../providers/mock/scenarios';
 import { buildSnapshotFile } from '../rules/snapshotCompare';
+import { TENANT_SECTIONS } from '../rules/tenant';
 import { liveMockProvider, renderApp } from '../test/renderApp';
 import {
   collectSensitiveValues,
@@ -273,26 +274,45 @@ describe('Ausgaben', () => {
 });
 
 describe('Mandant, Richtlinien, Sammelprüfung', () => {
-  it('Mandant', async () => {
+  const tenantTiles = () =>
+    screen
+      .queryAllByRole('button')
+      .filter((b) => b.getAttribute('data-tile-id')?.startsWith('tenant'));
+  const TENANT_TILE_IDS = TENANT_SECTIONS.flatMap((section) => section.tiles);
+
+  it('Mandant: jede Kachel samt Detail-Sheet (Registrierungsfehler, Änderungsprotokoll …)', async () => {
     const user = userEvent.setup();
     renderApp({ privacy: true });
     await user.click(screen.getByRole('button', { name: de.toolbar.tenantShort }));
-    await waitFor(() =>
-      expect(
-        screen
-          .queryAllByRole('button')
-          .filter((b) => b.getAttribute('data-tile-id')?.startsWith('tenant')),
-      ).toHaveLength(5),
-    );
+    await waitFor(() => expect(tenantTiles()).toHaveLength(TENANT_TILE_IDS.length));
     expect(noLeaks('Mandant')).toEqual([]);
-    // Registrierungsfehler mit Benutzer-IDs
-    await user.click(
-      screen
-        .queryAllByRole('button')
-        .find((b) => b.getAttribute('data-tile-id') === 'tenantEnrollmentFailures')!,
+    for (const tileId of TENANT_TILE_IDS) {
+      act(() =>
+        navigateTo(
+          { device: null, view: 'tenant', tile: tileId, mode: 'demo' },
+          { tileOpened: true },
+        ),
+      );
+      const dialog = await screen.findByRole('dialog');
+      for (const toggle of within(dialog).queryAllByRole('button', { name: /Rohdaten/ })) {
+        if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
+      }
+      expect(noLeaks(`Mandant: Sheet ${tileId}`)).toEqual([]);
+      if (tileId === 'tenantChanges') {
+        // Wer geändert hat, steht als Pseudonym-UPN in der Tabelle
+        expect(dialog.textContent).toMatch(/benutzer-[0-9a-f]{4}@beispiel\.example/i);
+      }
+    }
+  });
+
+  it('Gegenprobe: ohne Modus zeigt das Änderungsprotokoll das Konto', async () => {
+    window.history.replaceState({}, '', '/?view=tenant&tile=tenantChanges&mode=demo');
+    renderApp();
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('anna.schmidt@contoso.com'));
+    expect(scanDom(document, values).map((leak) => leak.value)).toContain(
+      'anna.schmidt@contoso.com',
     );
-    await screen.findByRole('dialog');
-    expect(noLeaks('Mandant: Registrierungsfehler')).toEqual([]);
   });
 
   it('Richtlinien-Liste und -Detail, Gerät öffnen', async () => {
@@ -319,6 +339,21 @@ describe('Mandant, Richtlinien, Sammelprüfung', () => {
     await user.click(deviceButton);
     await settled();
     expect(noLeaks('Gerät aus Richtlinie')).toEqual([]);
+  });
+
+  it('Richtlinien-Detail: „Änderungen an dieser Richtlinie“ (M20) zeigt Konten nur als Pseudonym', async () => {
+    const user = userEvent.setup();
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.toolbar.policiesShort }));
+    await waitFor(() => expect(screen.queryAllByTestId('policy-row').length).toBeGreaterThan(0));
+    const row = screen
+      .getAllByTestId('policy-row')
+      .find((r) => r.textContent?.includes('Contoso – VPN Always On'))!;
+    await user.click(row);
+    const changes = await screen.findByTestId('policy-changes');
+    expect((await within(changes).findAllByTestId('policy-change-row')).length).toBeGreaterThan(0);
+    expect(changes.textContent).toMatch(/benutzer-[0-9a-f]{4}@beispiel\.example/i);
+    expect(noLeaks('Richtlinien-Detail mit Änderungen')).toEqual([]);
   });
 
   it('Sammelprüfung: Eingabeliste verschwindet nach dem Start, Tabelle und CSV sind maskiert', async () => {
