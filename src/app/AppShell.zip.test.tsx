@@ -13,10 +13,14 @@ const tile = (id: string) => document.querySelector<HTMLButtonElement>(`[data-ti
 const tileButtons = () =>
   screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-tile-id'));
 
+const WAIT_MS = 5000;
+
 async function openExampleZip(user: ReturnType<typeof userEvent.setup>) {
   renderApp();
   await user.click(screen.getByRole('button', { name: new RegExp(de.zipView.exampleChip) }));
-  return screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC042' });
+  // Die ZIP-Ansicht wird nachgeladen und die Analyse läuft im Hintergrund – unter Last dauert das länger
+  // als die Standardfrist von einer Sekunde.
+  return screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC042' }, { timeout: WAIT_MS });
 }
 
 afterEach(() => {
@@ -33,7 +37,7 @@ describe('ZIP-Analyse in der App', () => {
 
     await openExampleZip(user);
 
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(7), { timeout: WAIT_MS });
     expect(screen.getByText(new RegExp(de.zipView.kind))).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_FILE_NAME)).toBeInTheDocument();
 
@@ -105,7 +109,7 @@ describe('ZIP-Analyse in der App', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'CONTOSO-PC042' }),
     ).toBeInTheDocument();
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(7), { timeout: WAIT_MS });
     expect(tile('win32Apps')).toBeInTheDocument();
     expect(await screen.findByText(de.zipView.merge.action)).toBeInTheDocument();
   });
@@ -139,7 +143,7 @@ describe('ZIP-Analyse in der App', () => {
   it('Browser-Zurück führt aus der ZIP-Ansicht zur Startseite', async () => {
     const user = userEvent.setup();
     await openExampleZip(user);
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(7), { timeout: WAIT_MS });
 
     await act(async () => {
       window.history.back();
@@ -182,7 +186,7 @@ describe('Ticket-Notiz mit ZIP-Befunden', () => {
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await openExampleZip(user);
-    await waitFor(() => expect(tileButtons()).toHaveLength(7));
+    await waitFor(() => expect(tileButtons()).toHaveLength(7), { timeout: WAIT_MS });
 
     await user.click(screen.getByRole('button', { name: de.ticket.button }));
     const note = writeText.mock.calls[0]![0];
