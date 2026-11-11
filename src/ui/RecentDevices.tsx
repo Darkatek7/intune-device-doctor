@@ -4,6 +4,7 @@ import { formatDateTime, formatRelativeTime } from '../domain/format';
 import type { DataMode } from '../domain/types';
 import type { RecentDevice } from '../hooks/useRecentDevices';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { EXAMPLE_CHIP_CLASS } from './chipStyles';
 import { DEVICE_ICON, osIconKind } from './deviceIcon';
 
@@ -16,6 +17,7 @@ interface Props {
 
 /** "Zuletzt geöffnet" unter dem Suchfeld der Startseite. Bei leerem Verlauf: nichts. */
 export function RecentDevices({ devices, mode, onOpen, onClear }: Props) {
+  const { enabled, masker } = usePrivacy();
   // Relative Zeiten beziehen sich auf den Moment, in dem die Startseite erscheint.
   const [now] = useState(() => new Date());
   if (devices.length === 0) return null;
@@ -46,21 +48,20 @@ export function RecentDevices({ devices, mode, onOpen, onClear }: Props) {
       >
         {devices.map((device) => {
           const Icon = DEVICE_ICON[osIconKind(device.osFamily)];
+          const name = enabled ? masker.device(device.deviceName) : device.deviceName;
           return (
             <li key={device.id} className="min-w-0">
               <button
                 type="button"
                 onClick={() => onOpen(device)}
-                aria-label={de.comfort.recentOpen(device.deviceName)}
+                aria-label={de.comfort.recentOpen(name)}
                 className={EXAMPLE_CHIP_CLASS}
               >
                 <span aria-hidden="true" className="squircle size-8 bg-fill text-secondary-label">
                   <Icon size={17} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-semibold text-label">
-                    {device.deviceName}
-                  </span>
+                  <span className="truncate text-sm font-semibold text-label">{name}</span>
                   <span
                     title={formatDateTime(device.openedAt)}
                     className="truncate text-xs text-secondary-label"

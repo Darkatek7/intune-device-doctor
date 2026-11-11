@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import type { DiagnosticsReport } from '../diagnostics/types';
 import type { Tile, TileId } from '../domain/types';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import type { SnapshotFile } from '../rules/snapshotCompare';
 import type { TimelineEvent } from '../rules/timeline';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
@@ -42,6 +43,7 @@ export function HeaderActions({
   disabled = false,
   onOpenConnectionTest,
 }: Props) {
+  const { enabled: privacyOn } = usePrivacy();
   const moreRef = useRef<HTMLButtonElement>(null);
   const ticketRef = useRef<TicketNoteHandle>(null);
   const compareRef = useRef<CompareControlsHandle>(null);
@@ -68,7 +70,9 @@ export function HeaderActions({
             id: 'export',
             label: de.compare.exportButton,
             icon: Download,
-            hint: de.compare.exportHint,
+            hint: privacyOn
+              ? `${de.compare.exportHint} ${de.privacy.output.export}`
+              : de.compare.exportHint,
             disabled,
             onSelect: exportSnapshot,
           },

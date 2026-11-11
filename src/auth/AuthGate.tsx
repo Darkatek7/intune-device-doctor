@@ -8,6 +8,7 @@ import type { IPublicClientApplication } from '@azure/msal-browser';
 import { LogOut } from 'lucide-react';
 import { appConfig, isLiveConfigured } from '../config';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { describeAuthError } from './describeAuthError';
 import { IdleLogout } from './IdleLogout';
 import { getMsalInstance } from './msalConfig';
@@ -139,12 +140,19 @@ export function AuthGate({
 
 function ConfiguredAccountButton({ instance }: { instance: IPublicClientApplication }) {
   const auth = useMsalAccount(instance);
+  const privacy = usePrivacy();
   if (auth.status !== 'signedIn') return null;
   const { account } = auth;
-  const label = account.name || account.username;
+  // Präsentationsmodus: Name und UPN des angemeldeten Kontos verbergen.
+  const label = privacy.enabled
+    ? account.name
+      ? privacy.masker.user(account.name)
+      : privacy.masker.upn(account.username)
+    : account.name || account.username;
+  const title = privacy.enabled ? privacy.masker.upn(account.username) : account.username;
   return (
     <div className="flex items-center gap-2 text-sm" aria-label={de.auth.account}>
-      <span className="max-w-[12rem] truncate text-secondary-label" title={account.username}>
+      <span className="max-w-[12rem] truncate text-secondary-label" title={title}>
         {label}
       </span>
       <button

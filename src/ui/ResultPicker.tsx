@@ -3,6 +3,7 @@ import type { DeviceSearchResult } from '../domain/types';
 import { formatDateTime, formatRelativeTime } from '../domain/format';
 import { matchesSerialNumber } from '../domain/search';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 
 interface Props {
   results: DeviceSearchResult[];
@@ -13,56 +14,68 @@ interface Props {
 
 /** Auswahl bei mehrdeutiger Suche: Name, Nutzer, OS, Compliance (Text), letzter Sync relativ. */
 export function ResultPicker({ results, query, now, onSelect }: Props) {
+  const { enabled, masker } = usePrivacy();
   return (
     <section className="mx-auto max-w-2xl">
       <h1 className="text-title font-semibold text-label">{de.picker.title}</h1>
       <p className="mt-1 text-sm text-secondary-label">
-        {de.picker.subtitle(results.length, query)}
+        {enabled
+          ? de.privacy.picker.subtitle(results.length)
+          : de.picker.subtitle(results.length, query)}
       </p>
       <ul
         aria-label={de.picker.list}
         className="mt-4 divide-y divide-separator hc-edge overflow-hidden rounded-tile material-card"
       >
-        {results.map((r) => (
-          <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(r)}
-              aria-label={de.picker.select(r.deviceName)}
-              className="flex w-full items-center gap-3 px-5 py-3 text-left outline-none transition-colors hover:bg-fill focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:scale-[0.99]"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-base font-semibold text-label">
-                  {r.deviceName}
+        {results.map((r) => {
+          const name = enabled ? masker.device(r.deviceName) : r.deviceName;
+          const user = enabled
+            ? r.userDisplayName
+              ? masker.user(r.userDisplayName)
+              : r.userPrincipalName
+                ? masker.upn(r.userPrincipalName)
+                : null
+            : (r.userDisplayName ?? r.userPrincipalName);
+          const serial = r.serialNumber && enabled ? masker.serial(r.serialNumber) : r.serialNumber;
+          return (
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(r)}
+                aria-label={de.picker.select(name)}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left outline-none transition-colors hover:bg-fill focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:scale-[0.99]"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-base font-semibold text-label">{name}</span>
+                  <span className="block truncate text-sm text-secondary-label">
+                    {[
+                      serial && r.serialNumber && matchesSerialNumber(r.serialNumber, query)
+                        ? de.picker.serial(serial)
+                        : null,
+                      user ?? de.picker.noUser,
+                      [r.operatingSystem, r.osVersion].filter(Boolean).join(' ') || null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                 </span>
-                <span className="block truncate text-sm text-secondary-label">
-                  {[
-                    r.serialNumber && matchesSerialNumber(r.serialNumber, query)
-                      ? de.picker.serial(r.serialNumber)
-                      : null,
-                    r.userDisplayName ?? r.userPrincipalName ?? de.picker.noUser,
-                    [r.operatingSystem, r.osVersion].filter(Boolean).join(' ') || null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
+                <span className="flex shrink-0 flex-col items-end text-xs text-secondary-label">
+                  <span className="font-medium text-label">
+                    {de.picker.compliance[r.complianceState]}
+                  </span>
+                  <span title={formatDateTime(r.lastSyncDateTime)}>
+                    {de.picker.lastSync}: {formatRelativeTime(r.lastSyncDateTime, now)}
+                  </span>
                 </span>
-              </span>
-              <span className="flex shrink-0 flex-col items-end text-xs text-secondary-label">
-                <span className="font-medium text-label">
-                  {de.picker.compliance[r.complianceState]}
-                </span>
-                <span title={formatDateTime(r.lastSyncDateTime)}>
-                  {de.picker.lastSync}: {formatRelativeTime(r.lastSyncDateTime, now)}
-                </span>
-              </span>
-              <ChevronRight
-                aria-hidden="true"
-                size={16}
-                className="shrink-0 text-secondary-label"
-              />
-            </button>
-          </li>
-        ))}
+                <ChevronRight
+                  aria-hidden="true"
+                  size={16}
+                  className="shrink-0 text-secondary-label"
+                />
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

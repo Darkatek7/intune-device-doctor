@@ -10,6 +10,7 @@ import { formatDateTime } from '../domain/format';
 import type { PolicyDeviceStatusEntry } from '../domain/types';
 import { useAuditEvents } from '../hooks/useTenantPolicies';
 import { de } from '../i18n/de';
+import { useBuildPrivacyView } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import {
   AUDIT_COLUMNS,
@@ -38,6 +39,9 @@ export function PolicyChanges({ provider, policyId, title, problems }: Props) {
     [section, policyId],
   );
   const hint = useMemo(() => changeBeforeProblems(changes, problems), [changes, problems]);
+  // Präsentationsmodus (M19): Konten und – bei Geräte-Ereignissen – Objektnamen erst in der Anzeige verbergen
+  const view = useBuildPrivacyView(section?.status === 'ok' ? section.data : null);
+  const rows = useMemo(() => view.deep(auditRows(changes)), [view, changes]);
 
   return (
     <section
@@ -122,7 +126,7 @@ export function PolicyChanges({ provider, policyId, title, problems }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-separator">
-                {auditRows(changes).map((cells, index) => (
+                {rows.map((cells, index) => (
                   <tr key={changes[index]!.id} data-testid="policy-change-row">
                     {cells.map((value, column) => (
                       <td

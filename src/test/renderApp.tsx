@@ -3,16 +3,24 @@ import { AppShell } from '../app/AppShell';
 import { ProviderContextProvider } from '../app/providerContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import { MockProvider } from '../providers/mock/MockProvider';
+import { PrivacyProvider } from '../privacy/PrivacyProvider';
 
 /** Rendert die App mit einem MockProvider ohne künstliche Latenz; Live nicht konfiguriert. */
 export function renderApp(
-  options: { liveAvailable?: boolean; provider?: DeviceDataProvider } = {},
+  options: {
+    liveAvailable?: boolean;
+    provider?: DeviceDataProvider;
+    /** Präsentationsmodus (M19) – Standard aus */
+    privacy?: boolean;
+  } = {},
 ) {
   const provider = options.provider ?? new MockProvider({ latency: false });
   return render(
-    <ProviderContextProvider provider={provider} liveAvailable={options.liveAvailable ?? false}>
-      <AppShell />
-    </ProviderContextProvider>,
+    <PrivacyProvider initialEnabled={options.privacy ?? false} salt="test-salt">
+      <ProviderContextProvider provider={provider} liveAvailable={options.liveAvailable ?? false}>
+        <AppShell />
+      </ProviderContextProvider>
+    </PrivacyProvider>,
   );
 }
 

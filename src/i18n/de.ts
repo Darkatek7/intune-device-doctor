@@ -4,6 +4,7 @@
  */
 import { deAnalysis } from './de-analysis';
 import { dePolicies } from './de-policies';
+import { dePrivacy } from './de-privacy';
 import { deRules } from './de-rules';
 import { deFleet } from './de-fleet';
 import { deService } from './de-service';
@@ -121,6 +122,8 @@ export const de = {
   service: deService,
   /** Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen (M20) – siehe ./de-fleet.ts */
   fleet: deFleet,
+  /** Präsentationsmodus (M19) – siehe ./de-privacy.ts */
+  privacy: dePrivacy,
   analysis: deAnalysis,
   policies: dePolicies,
   /** Begründungen für SectionResult notApplicable/unavailable (Provider) */

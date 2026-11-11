@@ -7,10 +7,12 @@ import type { Tile } from '../domain/types';
 import { isZipFileName, useDiagnosticsAnalysis } from '../hooks/useDiagnosticsAnalysis';
 import { useResolvedApps } from '../hooks/useResolvedApps';
 import { de } from '../i18n/de';
+import { maskFileName } from '../privacy/fileName';
+import { usePrivacy } from '../privacy/privacyContext';
 import { evaluateDiagnosticsTiles } from '../rules/tiles/diagnostics';
 import { buildSnapshotFile, type SnapshotFile } from '../rules/snapshotCompare';
 import { CompareDialog } from './CompareDialog';
-import { zipTitle } from './zipTitle';
+import { maskedZipTitle } from './zipTitle';
 
 interface Props {
   /** Die geöffnete ZIP samt ihren bereits ausgewerteten Kacheln */
@@ -53,6 +55,8 @@ export function CompareZipControls({
   ref,
 }: Props) {
   const { provider } = useProviderContext();
+  const { enabled: privacyOn, masker } = usePrivacy();
+  const shownName = (name: string) => (privacyOn ? maskFileName(masker, name) : name);
   const { state, analyze, reset } = useDiagnosticsAnalysis();
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -138,7 +142,7 @@ export function CompareZipControls({
         aria-live="polite"
         className="text-sm text-secondary-label empty:sr-only max-sm:basis-full"
       >
-        {running ? de.compare.zipAnalyzing(state.fileName ?? '') : ''}
+        {running ? de.compare.zipAnalyzing(shownName(state.fileName ?? '')) : ''}
       </p>
       <p role="alert" className="text-sm text-critical empty:hidden max-sm:basis-full">
         {errorText}
@@ -149,8 +153,11 @@ export function CompareZipControls({
             key="compare-zip-dialog"
             before={pair.before}
             after={pair.after}
-            beforeLabel={pair.beforeLabel || zipTitle(report)}
-            afterLabel={pair.afterLabel}
+            // Ohne eigenes Etikett: derselbe Titel wie im Kopf der ZIP-Ansicht (Gerät-…, nicht Datei-…)
+            beforeLabel={
+              shownName(pair.beforeLabel) || maskedZipTitle(report, { enabled: privacyOn, masker })
+            }
+            afterLabel={shownName(pair.afterLabel)}
             onClose={close}
           />
         )}

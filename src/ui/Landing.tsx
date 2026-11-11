@@ -1,6 +1,7 @@
 import { ChevronRight, Stethoscope } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import type { DataMode } from '../domain/types';
 import type { RecentDevice } from '../hooks/useRecentDevices';
 import type { ExampleDevice } from '../hooks/useExampleDevices';
@@ -40,6 +41,7 @@ export function Landing({
   onClearRecent,
   tools,
 }: Props) {
+  const { enabled, masker } = usePrivacy();
   return (
     <section className="mx-auto flex max-w-3xl flex-col items-center gap-9 py-8 sm:py-16">
       <div className="flex flex-col items-center text-center">
@@ -80,7 +82,7 @@ export function Landing({
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-sm font-semibold text-label">
-                        {scenario.deviceName}
+                        {enabled ? masker.device(scenario.deviceName) : scenario.deviceName}
                       </span>
                       <span className="text-xs text-secondary-label">{scenario.label}</span>
                     </span>

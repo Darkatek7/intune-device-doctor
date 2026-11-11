@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { DataSource, Finding, FindingTable } from '../domain/types';
 import { de } from '../i18n/de';
 import { EvidenceTable } from './EvidenceTable';
+import { PrivateLink } from './PrivateLink';
 import { SeverityBadge, SeverityIcon } from './SeverityBadge';
 
 /** "Quelle: GET …" – Demo-Daten werden ausdrücklich gekennzeichnet; optional mit Docs-Link. */
@@ -152,7 +153,7 @@ export function FindingCard({ finding }: { finding: Finding }) {
       {finding.links && finding.links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {finding.links.map((link) => (
-            <a
+            <PrivateLink
               key={link.url}
               href={link.url}
               target="_blank"
@@ -161,7 +162,7 @@ export function FindingCard({ finding }: { finding: Finding }) {
             >
               {link.label}
               <ExternalLink aria-hidden="true" size={14} />
-            </a>
+            </PrivateLink>
           ))}
         </div>
       )}

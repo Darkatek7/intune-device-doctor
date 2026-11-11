@@ -2,6 +2,7 @@ import { Link2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useId } from 'react';
 import { de } from '../i18n/de';
+import { usePrivacy } from '../privacy/privacyContext';
 import { fade, spring } from './motion';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 /** Hinweiskarte: Das Gerät aus der ZIP ist im aktuellen Modus vorhanden – Befunde zusammenführen. */
 export function MergeOffer({ deviceName, onMerge }: Props) {
   const reduced = useReducedMotion();
+  const { enabled, masker } = usePrivacy();
   const titleId = useId();
   return (
     <motion.section
@@ -24,7 +26,7 @@ export function MergeOffer({ deviceName, onMerge }: Props) {
       <Link2 aria-hidden="true" size={20} className="hidden shrink-0 text-accent sm:block" />
       <div className="min-w-0 flex-1">
         <h2 id={titleId} className="text-base font-semibold text-label">
-          {de.zipView.merge.title(deviceName)}
+          {de.zipView.merge.title(enabled ? masker.device(deviceName) : deviceName)}
         </h2>
         <p className="mt-0.5 text-sm text-secondary-label">{de.zipView.merge.body}</p>
       </div>
