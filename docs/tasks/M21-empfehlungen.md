@@ -66,10 +66,10 @@ Quellen, jeweils auf Learn verifizieren (Endpunkt, Felder, Enums, Scope) und in
 
 ### Akzeptanz S1
 
-- [x] Jeder Endpunkt, jedes Feld und jeder Enum-Wert auf Learn verifiziert, mit Link dokumentiert
-- [x] Nur GET; Beta-Endpunkte als freigegebene Ausnahme dokumentiert und im Modell erkennbar
-- [x] Keine Benutzer-/Gruppen-/Mandanten-IDs im Modell (Test)
-- [x] Tests je Quelle: ok, 403, 404, 429, Seitengrenze
+- [ ] Jeder Endpunkt, jedes Feld und jeder Enum-Wert auf Learn verifiziert, mit Link dokumentiert
+- [ ] Nur GET; Beta-Endpunkte als freigegebene Ausnahme dokumentiert und im Modell erkennbar
+- [ ] Keine Benutzer-/Gruppen-/Mandanten-IDs im Modell (Test)
+- [ ] Tests je Quelle: ok, 403, 404, 429, Seitengrenze
 
 ## S2 – Regelwerk und Texte (Katalog der Empfehlungen)
 
@@ -103,9 +103,9 @@ einzeln bewertet (nicht zusammengeführt – welche Richtlinie für ein Gerät g
 
 ### Akzeptanz S2
 
-- [x] Jede Prüfung trägt `docsUrl` auf die Learn-Seite, die den Sollwert nennt
-- [x] Tests je Prüfung: erfüllt, abweichend, nicht konfiguriert, Quelle nicht verfügbar (403/unavailable)
-- [x] Keine Aussage ohne Datenbasis: fehlende Quelle → Kachel „nicht prüfbar“ mit Grund und Scope
+- [ ] Jede Prüfung trägt `docsUrl` auf die Learn-Seite, die den Sollwert nennt
+- [ ] Tests je Prüfung: erfüllt, abweichend, nicht konfiguriert, Quelle nicht verfügbar (403/unavailable)
+- [ ] Keine Aussage ohne Datenbasis: fehlende Quelle → Kachel „nicht prüfbar“ mit Grund und Scope
 
 ## S3 – Demo-Daten (`mock-data-writer`)
 
