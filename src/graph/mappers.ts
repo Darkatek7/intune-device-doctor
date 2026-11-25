@@ -1856,12 +1856,19 @@ function decodeEntity(match: string, body: string): string {
  */
 export function htmlToPlainText(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  const stripped = value
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ')
-    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/\s*(p|div|li|ul|ol|tr|h[1-6])\s*>/gi, '\n')
-    .replace(/<[^>]*>/g, '');
+  // Wiederholen, bis sich nichts mehr ändert: Ein einzelner Durchlauf könnte aus verschachtelten Resten
+  // (`<scr<script>…</script>ipt>`) wieder ein Tag entstehen lassen.
+  let stripped = value;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ')
+      .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+      .replace(/<\/\s*(p|div|li|ul|ol|tr|h[1-6])\s*>/gi, '\n')
+      .replace(/<[^>]*>/g, '');
+  } while (stripped !== previous);
   const decoded = stripped.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z]+);/g, decodeEntity);
   const lines = decoded
     .split('\n')

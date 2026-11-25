@@ -389,6 +389,11 @@ describe('htmlToPlainText', () => {
     expect(htmlToPlainText('x<script>alert(1)</script><style>p{}</style><!-- c -->y')).toBe('x y');
     expect(htmlToPlainText('&lt;img src=x onerror=1&gt;')).toBe('<img src=x onerror=1>');
   });
+  it('lässt aus verschachtelten Resten kein Tag entstehen', () => {
+    expect(htmlToPlainText('a<scr<script>x</script>ipt>b</script>c')).toBe('abc');
+    expect(htmlToPlainText('a<<b>script>c')).toBe('ascript>c');
+    expect(htmlToPlainText('<!-<!-- x -->- y -->z')).toBe('z');
+  });
   it('leer, nicht-String → null; constructor-Entität wird nicht aufgelöst', () => {
     expect(htmlToPlainText('  <p> </p> ')).toBeNull();
     expect(htmlToPlainText(null)).toBeNull();

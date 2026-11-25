@@ -131,7 +131,7 @@ describe('Ansicht „Empfehlungen“', () => {
     expect(
       within(dialog)
         .getAllByRole('link')
-        .some((a) => (a.getAttribute('href') ?? '').startsWith('https://learn.microsoft.com')),
+        .some((a) => new URL((a as HTMLAnchorElement).href).hostname === 'learn.microsoft.com'),
     ).toBe(true);
 
     await user.keyboard('{Escape}');
