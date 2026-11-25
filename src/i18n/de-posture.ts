@@ -38,6 +38,40 @@ export const dePosture = {
   intro:
     'Vergleich der Konfiguration mit den auf Microsoft Learn dokumentierten Empfehlungen. Microsoft nennt diese Werte selbst einen Ausgangspunkt – eine Abweichung kann bewusst entschieden sein.',
 
+  /** Ansicht „Empfehlungen“ (S4): Kopf, Gesamtbild, Stufenwahl */
+  view: {
+    title: 'Empfehlungen',
+    subtitle: 'Abgleich mit den von Microsoft dokumentierten Empfehlungen',
+    back: 'Startseite',
+    refresh: 'Aktualisieren',
+    note: 'Die Werte sind laut Microsoft ein Ausgangspunkt – eine Abweichung kann bewusst entschieden sein. Die App liest nur und ändert nichts.',
+    a11y: {
+      loading: 'Empfehlungen werden geladen …',
+      done: (summary: string) => `Empfehlungen geladen: ${summary}`,
+    },
+    overall: {
+      title: 'Gesamtbild',
+      headline: (met: number, total: number) =>
+        `${met} von ${total} ${total === 1 ? 'Empfehlung' : 'Empfehlungen'} erfüllt`,
+      empty: 'Keine prüfbaren Empfehlungen vorhanden.',
+      barLabel: (met: number, deviating: number, notChecked: number, total: number) =>
+        `Anteil der Empfehlungen: ${met} von ${total} erfüllt, ${deviating} weichen ab, ${notChecked} nicht prüfbar`,
+      legend: 'Legende des Gesamtbilds',
+      met: 'Erfüllt',
+      deviating: 'Weicht ab',
+      notChecked: 'Nicht prüfbar',
+    },
+    level: {
+      label: 'Stufe der Empfehlungen',
+      hint: 'Die Stufe betrifft nur Frameworks mit Stufen: Compliance für iOS und Android sowie App-Schutz. Die übrigen Prüfungen sind stufenunabhängig.',
+      options: {
+        1: 'Basis',
+        2: 'Erweitert',
+        3: 'Hoch',
+      } satisfies Record<PostureLevel, string>,
+    },
+  },
+
   levels: {
     1: 'Stufe 1 (Basis)',
     2: 'Stufe 2 (erweitert)',

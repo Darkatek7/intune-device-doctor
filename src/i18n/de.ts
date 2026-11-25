@@ -370,6 +370,7 @@ export const de = {
     devices: 'Geräte',
     policies: 'Richtlinien',
     tenant: 'Mandant',
+    recommendations: 'Empfehlungen',
   },
   toolbar: {
     tenant: 'Mandanten-Status',

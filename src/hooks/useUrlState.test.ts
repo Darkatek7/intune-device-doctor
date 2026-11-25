@@ -28,3 +28,33 @@ describe('URL-State', () => {
     expect(parseUrl('?view=unbekannt').view).toBeNull();
   });
 });
+
+describe('URL-State: Ansicht „Empfehlungen“', () => {
+  it('liest und schreibt view, level (nur ≠ Standard) und Kachel', () => {
+    const state = parseUrl('?view=recommendations&level=3&mode=demo&tile=postureAppProtectionIos');
+    expect(state).toMatchObject({
+      device: null,
+      view: 'recommendations',
+      level: 3,
+      tile: 'postureAppProtectionIos',
+    });
+    expect(buildSearch(state)).toBe(
+      '?view=recommendations&level=3&mode=demo&tile=postureAppProtectionIos',
+    );
+  });
+
+  it('lässt die Standardstufe weg und ignoriert ungültige Stufen', () => {
+    expect(
+      buildSearch({ device: null, tile: null, mode: null, view: 'recommendations', level: 2 }),
+    ).toBe('?view=recommendations');
+    expect(parseUrl('?view=recommendations&level=7').level).toBeNull();
+    expect(parseUrl('?view=recommendations&level=abc').level).toBeNull();
+  });
+
+  it('schreibt level nur in der Ansicht „Empfehlungen“', () => {
+    expect(buildSearch({ device: null, tile: null, mode: null, view: 'tenant', level: 3 })).toBe(
+      '?view=tenant',
+    );
+    expect(buildSearch({ device: 'abc', tile: null, mode: null, level: 3 })).toBe('?device=abc');
+  });
+});

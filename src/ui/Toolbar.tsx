@@ -58,7 +58,7 @@ export function Toolbar({
           {navItems && navItems.length > 0 && (
             <nav
               aria-label={de.nav.label}
-              className="order-4 flex w-full min-w-0 gap-1 lg:order-none lg:w-auto"
+              className="order-4 flex w-full min-w-0 gap-0.5 sm:gap-1 lg:order-none lg:w-auto"
             >
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -68,13 +68,13 @@ export function Toolbar({
                     type="button"
                     onClick={item.onSelect}
                     aria-current={item.active ? 'page' : undefined}
-                    className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] sm:flex-none ${
+                    className={`inline-flex h-9 min-w-0 flex-auto items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-medium sm:px-3.5 sm:text-sm outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] sm:flex-none ${
                       item.active
                         ? 'bg-accent/15 text-accent'
                         : 'text-secondary-label hover:bg-fill hover:text-label'
                     }`}
                   >
-                    <Icon aria-hidden="true" size={16} />
+                    <Icon aria-hidden="true" size={16} className="max-[479px]:hidden" />
                     {item.label}
                   </button>
                 );
