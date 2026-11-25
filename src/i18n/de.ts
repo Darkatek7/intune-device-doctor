@@ -7,6 +7,7 @@ import { dePolicies } from './de-policies';
 import { dePrivacy } from './de-privacy';
 import { deRules } from './de-rules';
 import { deFleet } from './de-fleet';
+import { dePosture } from './de-posture';
 import { deService } from './de-service';
 
 export const de = {
@@ -135,6 +136,8 @@ export const de = {
   service: deService,
   /** Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen (M20) – siehe ./de-fleet.ts */
   fleet: deFleet,
+  /** Ansicht „Empfehlungen“ (M21) – siehe ./de-posture.ts */
+  posture: dePosture,
   /** Präsentationsmodus (M19) – siehe ./de-privacy.ts */
   privacy: dePrivacy,
   analysis: deAnalysis,

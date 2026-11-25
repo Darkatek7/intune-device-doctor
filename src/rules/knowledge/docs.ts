@@ -298,4 +298,113 @@ export const Docs = {
   /** „Why does Wipe or Retire sometimes show as Pending indefinitely?“ */
   deviceActionsTroubleshooting:
     'https://learn.microsoft.com/troubleshoot/mem/intune/device-management/troubleshoot-device-actions#wipe-and-retire-actions',
+  // M21: Ansicht „Empfehlungen“ – Sollwerte, gegengeprüft 2026-11-25 (Tabellen auf den Seiten gelesen)
+  /** „Mark devices with no compliance policy assigned as“ → „Not compliant“ bei Bedingtem Zugriff; Gültigkeit Standard 30 Tage (1–120) */
+  postureComplianceSettings:
+    'https://learn.microsoft.com/intune/device-security/compliance/overview#compliance-policy-settings',
+  /** Zero Trust, gemeinsame Richtlinien: Stufen Starting point/Enterprise/Specialized */
+  postureZeroTrustCommon:
+    'https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common',
+  /** Tabelle „Recommended compliance settings for Windows 10 and later“ */
+  postureWindowsCompliance:
+    'https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common#recommended-compliance-settings-for-windows-10-and-later',
+  /** „Apply Application Protection Policies (APP) … One Intune APP per mobile device platform“ */
+  postureAppProtectionPerPlatform:
+    'https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common#deployment',
+  /** „Require compliant PCs and mobile devices“ */
+  postureRequireCompliantDevices:
+    'https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common#require-compliant-pcs-and-mobile-devices',
+  /** „Require approved apps or app protection policies“ */
+  postureRequireApprovedApps:
+    'https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common#require-approved-apps-or-app-protection-policies',
+  /** Richtlinie: Include All users, Target All resources, Grant „Require device to be marked as compliant“ */
+  postureCaDeviceCompliance:
+    'https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-device-compliance#create-a-conditional-access-policy',
+  /** Bedingter Zugriff: grantControls.builtInControls (compliantDevice, approvedApplication, compliantApplication …) */
+  postureCaGrantControls:
+    'https://learn.microsoft.com/graph/api/resources/conditionalaccessgrantcontrols?view=graph-rest-1.0',
+  /** iOS/iPadOS-Compliance: keine Stufe 1; Tabelle Stufe 2 */
+  postureIosComplianceLevel2:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/ios-ipados-compliance#enhanced-security-level-2',
+  postureIosComplianceLevel3:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/ios-ipados-compliance#high-security-level-3',
+  /** Android Enterprise, persönliches Gerät mit Arbeitsprofil: keine Stufe 1; Tabelle „Device compliance (level 2)“ */
+  postureAndroidWorkProfileLevel2:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-personally-owned#personally-owned-work-profile-enhanced-security-level-2',
+  postureAndroidWorkProfileLevel3:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-personally-owned#personally-owned-work-profile-high-security-level-3',
+  /** Android Enterprise vollständig verwaltet, Stufe 1–3 (Compliance-Typ nur in beta dokumentiert) */
+  postureAndroidFullyManaged:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed',
+  /** „Mark device noncompliant“: Standardaktion, 0 Tage = sofort; Hinweis: Android-Geräteadministrator eingestellt */
+  postureNoncomplianceActions:
+    'https://learn.microsoft.com/intune/device-security/compliance/configure-noncompliance-actions#available-actions-for-noncompliance',
+  /** macOS-Compliance-Einstellungen (kein Sollwert dokumentiert) */
+  postureMacosComplianceSettings:
+    'https://learn.microsoft.com/intune/device-security/compliance/ref-macos-settings',
+  /** App-Schutz: Data Protection Framework Stufe 1–3 */
+  postureDataProtectionLevel1:
+    'https://learn.microsoft.com/intune/app-management/protection/data-protection-framework#level-1-enterprise-basic-data-protection',
+  postureDataProtectionLevel2:
+    'https://learn.microsoft.com/intune/app-management/protection/data-protection-framework#level-2-enterprise-enhanced-data-protection',
+  postureDataProtectionLevel3:
+    'https://learn.microsoft.com/intune/app-management/protection/data-protection-framework#level-3-enterprise-high-data-protection',
+  /** App-Schutz-Richtlinien: Apps › Schutz */
+  postureAppProtectionCreate:
+    'https://learn.microsoft.com/intune/app-management/protection/create-policy#app-protection-policies-for-ios-ipados-and-android-apps',
+  /** Zero Trust für Intune-Mandanten: Compliance-Richtlinien je Plattform „configured and assigned“ */
+  postureCoverageWindows:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-windows-devices',
+  postureCoverageMacos:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-macos-devices',
+  postureCoverageIos:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-iosipados-devices',
+  postureCoverageAndroid:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-personally-owned-android-devices',
+  /** Zero Trust für Geräte: Endpunktsicherheit und Baselines „configured and assigned“ */
+  postureZtAntivirusWindows:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#defender-antivirus-policies-protect-windows-devices-from-malware',
+  postureZtAntivirusMacos:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#defender-antivirus-policies-protect-macos-devices-from-malware',
+  postureZtBitLocker:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#data-on-windows-is-protected-by-bitlocker-encryption',
+  postureZtFileVault:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#filevault-encryption-protects-data-on-macos-devices',
+  postureZtFirewallWindows:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#windows-firewall-policies-protect-against-unauthorized-network-access',
+  postureZtFirewallMacos:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#macos-firewall-policies-protect-against-unauthorized-network-access',
+  postureZtAsr:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#attack-surface-reduction-rules-are-applied-to-windows-devices-to-prevent-exploitation-of-vulnerable-system-components',
+  postureZtLocalAccounts:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#local-account-usage-on-windows-is-restricted-to-reduce-unauthorized-access',
+  postureZtBaselines:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#security-baselines-are-applied-to-windows-devices-to-strengthen-security-posture',
+  /** „We recommend updating older baseline versions to the latest version as soon as it's practical“ */
+  postureBaselineVersions:
+    'https://learn.microsoft.com/intune/device-security/security-baselines/configure-baselines#overview-of-security-baselines',
+  /** „The default presets found in a baseline represent the recommended security posture“ */
+  postureBaselineDefaults:
+    'https://learn.microsoft.com/intune/device-security/security-baselines/configure-baselines#create-a-profile-for-a-security-baseline',
+  /** Punkte je Empfehlung, Teilpunkte; „not every recommendation can work for your environment“ */
+  postureSecureScore:
+    'https://learn.microsoft.com/defender-xdr/microsoft-secure-score#how-recommended-actions-are-scored',
+  postureSecureScoreActions:
+    'https://learn.microsoft.com/defender-xdr/microsoft-secure-score-improvement-actions#take-action-to-improve-your-score',
+  postureSecureScoreControlProfile:
+    'https://learn.microsoft.com/graph/api/resources/securescorecontrolprofile?view=graph-rest-1.0',
+  /** Graph-Typen, deren Eigenschaftsnamen der Katalog verwendet (v1.0) */
+  postureGraphWindows10Compliance:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-windows10compliancepolicy?view=graph-rest-1.0',
+  postureGraphIosCompliance:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-ioscompliancepolicy?view=graph-rest-1.0',
+  postureGraphAndroidWorkProfileCompliance:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androidworkprofilecompliancepolicy?view=graph-rest-1.0',
+  postureGraphIosAppProtection:
+    'https://learn.microsoft.com/graph/api/resources/intune-mam-iosmanagedappprotection?view=graph-rest-1.0',
+  postureGraphAndroidAppProtection:
+    'https://learn.microsoft.com/graph/api/resources/intune-mam-androidmanagedappprotection?view=graph-rest-1.0',
+  /** deviceComplianceActionType: `block` = „Block the device in AAD“ */
+  postureGraphComplianceActionType:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-devicecomplianceactiontype?view=graph-rest-1.0',
 } as const;

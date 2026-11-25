@@ -55,6 +55,24 @@ import type {
 } from '../domain/types';
 import { osFamilyFrom } from '../domain/format';
 import type {
+  AppProtectionPolicyConfig,
+  BaselineComparisonInfo,
+  BaselineDeviation,
+  CatalogPolicyConfig,
+  ComplianceScheduledAction,
+  CompliancePolicyConfig,
+  CompliancePolicyType,
+  ComplianceTenantSettings,
+  ConditionalAccessPolicyConfig,
+  ConditionalAccessState,
+  PlatformDeviceCounts,
+  PolicyTemplateInfo,
+  PostureSettings,
+  PostureValue,
+  SecureScoreControl,
+  SecureScoreInfo,
+} from '../domain/posture';
+import type {
   AppliedConditionalAccessPolicyResult,
   AutopilotEnrollmentState,
   ComplianceState,
@@ -105,6 +123,19 @@ import type {
   GraphAuditEvent,
   GraphManagedAppRegistration,
   GraphDeviceActionResult,
+  GraphDeviceManagementSettingsResponse,
+  GraphManagedDeviceOverview,
+  GraphCompliancePolicy,
+  GraphComplianceScheduledActionRule,
+  GraphComplianceActionItem,
+  GraphAppProtectionPolicy,
+  GraphConditionalAccessPolicy,
+  GraphSecureScore,
+  GraphSecureScoreControlProfile,
+  GraphConfigurationPolicy,
+  GraphConfigurationPolicyTemplate,
+  GraphConfigurationSetting,
+  GraphConfigurationSettingTemplate,
 } from './dto';
 import {
   ACTION_STATES,
@@ -115,6 +146,12 @@ import {
   SERVICE_HEALTH_CLASSIFICATIONS,
   SERVICE_HEALTH_STATUSES,
   TROUBLESHOOTING_ENROLLMENT_TYPES,
+  WINDOWS10_COMPLIANCE_SETTING_FIELDS,
+  IOS_COMPLIANCE_SETTING_FIELDS,
+  MACOS_COMPLIANCE_SETTING_FIELDS,
+  ANDROID_COMPLIANCE_SETTING_FIELDS,
+  IOS_APP_PROTECTION_FIELDS,
+  ANDROID_APP_PROTECTION_FIELDS,
 } from './dto';
 import { Endpoints, type EndpointId } from './endpoints';
 
@@ -1523,4 +1560,501 @@ export function mapDeviceActionResults(
       lastUpdatedDateTime: validDate(entry.lastUpdatedDateTime),
     }))
     .sort((a, b) => time(b) - time(a));
+}
+
+// ---------- Empfehlungen (M21) ----------
+
+/** Aus einem Objekt (Single oder `value`-Hülle) das Objekt selbst. */
+function unwrapObject<T extends object>(dto: T | { value?: T } | null | undefined): T | null {
+  if (!dto || typeof dto !== 'object') return null;
+  const inner = (dto as { value?: unknown }).value;
+  return inner && typeof inner === 'object' && !Array.isArray(inner) ? (inner as T) : (dto as T);
+}
+
+/** `deviceManagement?$select=settings` → mandantenweite Compliance-Einstellungen; ohne `settings` → null. */
+export function mapComplianceTenantSettings(
+  dto: GraphDeviceManagementSettingsResponse | null | undefined,
+): ComplianceTenantSettings | null {
+  const settings = unwrapObject(dto)?.settings;
+  if (!settings || typeof settings !== 'object') return null;
+  const days = num(settings.deviceComplianceCheckinThresholdDays);
+  return {
+    secureByDefault: bool(settings.secureByDefault),
+    deviceComplianceCheckinThresholdDays: days === null ? null : Math.trunc(days),
+  };
+}
+
+const nonNegative = (value: unknown): number | null => {
+  const n = num(value);
+  return n === null || n < 0 ? null : Math.trunc(n);
+};
+
+/**
+ * managedDeviceOverview → Zähler je Plattform. Android: höchster Wert aus `androidCount` und der Summe der
+ * Android-Untertypen (die Doku sagt nicht, ob `androidCount` die Untertypen enthält; so wird weder doppelt
+ * gezählt noch ein vorhandenes Gerät übersehen). `total` = `enrolledDeviceCount`.
+ */
+export function mapPlatformCounts(
+  dto: GraphManagedDeviceOverview | { value?: GraphManagedDeviceOverview } | null | undefined,
+): PlatformDeviceCounts {
+  const overview = unwrapObject(dto);
+  const os = overview?.deviceOperatingSystemSummary ?? null;
+  const subtypes = [
+    os?.androidDedicatedCount,
+    os?.androidDeviceAdminCount,
+    os?.androidFullyManagedCount,
+    os?.androidWorkProfileCount,
+    os?.androidCorporateWorkProfileCount,
+  ]
+    .map(nonNegative)
+    .filter((n): n is number => n !== null);
+  const androidTotal = nonNegative(os?.androidCount);
+  const subtypeSum = subtypes.length ? subtypes.reduce((a, b) => a + b, 0) : null;
+  const android =
+    androidTotal === null && subtypeSum === null
+      ? null
+      : Math.max(androidTotal ?? 0, subtypeSum ?? 0);
+  return {
+    windows: nonNegative(os?.windowsCount),
+    ios: nonNegative(os?.iosCount),
+    macos: nonNegative(os?.macOSCount),
+    android,
+    total: nonNegative(overview?.enrolledDeviceCount),
+  };
+}
+
+/** `@odata.type` ohne `#` und ohne Namespace, kleingeschrieben. */
+function odataTypeName(value: unknown): string {
+  const raw = typeof value === 'string' ? value : '';
+  return raw
+    .replace(/^#/, '')
+    .replace(/^microsoft\.graph\./i, '')
+    .toLowerCase();
+}
+
+const COMPLIANCE_TYPES: Record<
+  string,
+  { type: Exclude<CompliancePolicyType, 'other'>; fields: readonly string[] }
+> = {
+  windows10compliancepolicy: { type: 'windows10', fields: WINDOWS10_COMPLIANCE_SETTING_FIELDS },
+  ioscompliancepolicy: { type: 'ios', fields: IOS_COMPLIANCE_SETTING_FIELDS },
+  macoscompliancepolicy: { type: 'macos', fields: MACOS_COMPLIANCE_SETTING_FIELDS },
+  androidcompliancepolicy: {
+    type: 'androidDeviceAdministrator',
+    fields: ANDROID_COMPLIANCE_SETTING_FIELDS,
+  },
+  androidworkprofilecompliancepolicy: {
+    type: 'androidWorkProfile',
+    fields: ANDROID_COMPLIANCE_SETTING_FIELDS,
+  },
+};
+
+/** Boolean/Zahl/String bzw. null unverändert; alles andere (Objekte, undefined) → nicht übernommen. */
+function postureScalar(value: unknown): { value: PostureValue } | null {
+  if (value === null) return { value: null };
+  if (typeof value === 'boolean' || typeof value === 'string') return { value };
+  if (typeof value === 'number' && Number.isFinite(value)) return { value };
+  return null;
+}
+
+/** Nur die Felder der Allowlist, unter ihrem Graph-Namen; fehlende Schlüssel bleiben fehlend. */
+function pickSettings(dto: object, fields: readonly string[]): PostureSettings {
+  const source = dto as Record<string, unknown>;
+  const settings: Record<string, PostureValue> = {};
+  for (const field of fields) {
+    if (!Object.hasOwn(source, field)) continue;
+    const scalar = postureScalar(source[field]);
+    if (scalar) settings[field] = scalar.value;
+  }
+  return settings;
+}
+
+/**
+ * deviceCompliancePolicies → Domain. Nur die fünf in v1.0 dokumentierten Typen bekommen Einstellungen,
+ * alle anderen `type: 'other'` mit leeren Einstellungen. Zuweisungen und Aktionen füllt der Provider.
+ */
+export function mapCompliancePolicies(
+  entries: GraphCompliancePolicy[] | null | undefined,
+): CompliancePolicyConfig[] {
+  const policies: CompliancePolicyConfig[] = [];
+  for (const dto of Array.isArray(entries) ? entries : []) {
+    const id = text(dto?.id);
+    if (!id) continue;
+    const typeName = odataTypeName(dto['@odata.type']);
+    const known = Object.hasOwn(COMPLIANCE_TYPES, typeName)
+      ? COMPLIANCE_TYPES[typeName]
+      : undefined;
+    policies.push({
+      id,
+      displayName: text(dto.displayName) ?? id,
+      type: known?.type ?? 'other',
+      odataType: text(dto['@odata.type']),
+      lastModifiedDateTime: validDate(dto.lastModifiedDateTime),
+      settings: known ? pickSettings(dto, known.fields) : {},
+      assigned: null,
+      scheduledActions: null,
+    });
+  }
+  return policies;
+}
+
+/** Regeln der Aktionen → Kennungen (nur zum Nachladen der Aktionen). */
+export function mapScheduledActionRuleIds(
+  entries: GraphComplianceScheduledActionRule[] | null | undefined,
+): string[] {
+  return (Array.isArray(entries) ? entries : [])
+    .map((rule) => text(rule?.id))
+    .filter((id): id is string => id !== null);
+}
+
+/** deviceComplianceActionItem → Aktion; Benachrichtigungsvorlage und CC-Gruppen bleiben außen vor. */
+export function mapScheduledActionItems(
+  entries: GraphComplianceActionItem[] | null | undefined,
+): ComplianceScheduledAction[] {
+  const actions: ComplianceScheduledAction[] = [];
+  for (const item of Array.isArray(entries) ? entries : []) {
+    const actionType = text(item?.actionType);
+    if (!actionType) continue;
+    actions.push({ actionType, gracePeriodHours: nonNegative(item.gracePeriodHours) });
+  }
+  return actions;
+}
+
+/**
+ * App-Schutzrichtlinien beider Plattformen → Domain. `allowedDataStorageLocations` (Liste von Enum-Werten)
+ * wird in Graph-Reihenfolge mit Komma verbunden (leere Liste → ""), alle anderen Werte unverändert.
+ */
+export function mapAppProtectionPolicies(
+  entries: GraphAppProtectionPolicy[] | null | undefined,
+  platform: AppProtectionPolicyConfig['platform'],
+): AppProtectionPolicyConfig[] {
+  const fields = platform === 'ios' ? IOS_APP_PROTECTION_FIELDS : ANDROID_APP_PROTECTION_FIELDS;
+  const policies: AppProtectionPolicyConfig[] = [];
+  for (const dto of Array.isArray(entries) ? entries : []) {
+    const id = text(dto?.id);
+    if (!id) continue;
+    const source = dto as Record<string, unknown>;
+    const settings: Record<string, PostureValue> = {};
+    for (const field of fields) {
+      if (!Object.hasOwn(source, field)) continue;
+      const raw = source[field];
+      if (Array.isArray(raw)) {
+        settings[field] = raw.filter((v): v is string => typeof v === 'string').join(',');
+        continue;
+      }
+      const scalar = postureScalar(raw);
+      if (scalar) settings[field] = scalar.value;
+    }
+    policies.push({
+      id,
+      displayName: text(dto.displayName) ?? id,
+      platform,
+      lastModifiedDateTime: validDate(dto.lastModifiedDateTime),
+      settings,
+      assigned: bool(dto.isAssigned),
+      deployedAppCount: nonNegative(dto.deployedAppCount),
+    });
+  }
+  return policies;
+}
+
+const CONDITIONAL_ACCESS_STATES: readonly Exclude<ConditionalAccessState, 'unknown'>[] = [
+  'enabled',
+  'disabled',
+  'enabledForReportingButNotEnforced',
+];
+
+const hasEntries = (value: unknown): boolean => Array.isArray(value) && value.length > 0;
+const includesAll = (value: unknown, keyword: string): boolean =>
+  Array.isArray(value) && value.some((v) => typeof v === 'string' && v.toLowerCase() === keyword);
+
+/**
+ * conditionalAccessPolicy → nur boolesche Merkmale und Steuerelemente. Benutzer-, Gruppen-, Rollen- und
+ * App-Kennungen werden ausgewertet und nie übernommen (auch `id`/`displayName` sind die der Richtlinie).
+ */
+export function mapConditionalAccessPolicies(
+  entries: GraphConditionalAccessPolicy[] | null | undefined,
+): ConditionalAccessPolicyConfig[] {
+  const policies: ConditionalAccessPolicyConfig[] = [];
+  for (const dto of Array.isArray(entries) ? entries : []) {
+    const id = text(dto?.id);
+    if (!id) continue;
+    const users = dto.conditions?.users;
+    const operator = text(dto.grantControls?.operator);
+    policies.push({
+      id,
+      displayName: text(dto.displayName) ?? id,
+      state: pick(dto.state, CONDITIONAL_ACCESS_STATES, 'unknown'),
+      builtInControls: strings(dto.grantControls?.builtInControls),
+      grantOperator: operator === 'AND' || operator === 'OR' ? operator : null,
+      includesAllUsers: includesAll(users?.includeUsers, 'all'),
+      includesAllApplications: includesAll(
+        dto.conditions?.applications?.includeApplications,
+        'all',
+      ),
+      hasUserExclusions:
+        hasEntries(users?.excludeUsers) ||
+        hasEntries(users?.excludeGroups) ||
+        hasEntries(users?.excludeRoles) ||
+        (users?.excludeGuestsOrExternalUsers !== null &&
+          users?.excludeGuestsOrExternalUsers !== undefined),
+      includePlatforms: strings(dto.conditions?.platforms?.includePlatforms),
+    });
+  }
+  return policies;
+}
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+function decodeEntity(match: string, body: string): string {
+  if (body.startsWith('#')) {
+    const hex = body[1] === 'x' || body[1] === 'X';
+    const code = Number.parseInt(body.slice(hex ? 2 : 1), hex ? 16 : 10);
+    if (
+      Number.isInteger(code) &&
+      code > 0 &&
+      code <= 0x10ffff &&
+      !(code >= 0xd800 && code <= 0xdfff)
+    ) {
+      return String.fromCodePoint(code);
+    }
+    return match;
+  }
+  const name = body.toLowerCase();
+  return Object.hasOwn(NAMED_ENTITIES, name) ? NAMED_ENTITIES[name]! : match;
+}
+
+/**
+ * HTML → reiner Text, ohne DOM (Trusted Types sind erzwungen: kein innerHTML, kein DOMParser). Skript-/
+ * Stilblöcke und Kommentare entfallen samt Inhalt, Block-Tags werden zu Zeilenumbrüchen, alle übrigen Tags
+ * entfallen, danach werden Entitäten GENAU EINMAL dekodiert (`&amp;lt;` → `&lt;`, nie `<`). Das Ergebnis ist
+ * Text und wird nur als Text angezeigt. Leer → null.
+ */
+export function htmlToPlainText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const stripped = value
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|ul|ol|tr|h[1-6])\s*>/gi, '\n')
+    .replace(/<[^>]*>/g, '');
+  const decoded = stripped.replace(/&(#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z]+);/g, decodeEntity);
+  const lines = decoded
+    .split('\n')
+    .map((line) => line.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .filter((line, index, all) => line || (index > 0 && all[index - 1] !== ''));
+  const result = lines.join('\n').trim();
+  return result || null;
+}
+
+/** Nur https-Links werden als `actionUrl` übernommen. */
+const httpsUrl = (value: unknown): string | null => {
+  const raw = text(value);
+  return raw && /^https:\/\//i.test(raw) ? raw : null;
+};
+
+/**
+ * Jüngster Secure Score + Kontrollprofile (Profil-`id` = `controlName`). `azureTenantId`, Zähler und
+ * `controlStateUpdates` werden nie gelesen. `description` (controlScore) und `remediation` (Profil) können
+ * HTML enthalten → reiner Text.
+ */
+export function mapSecureScore(
+  score: GraphSecureScore | null | undefined,
+  profiles: GraphSecureScoreControlProfile[] | null | undefined,
+): SecureScoreInfo | null {
+  if (!score || typeof score !== 'object') return null;
+  const byName = new Map<string, GraphSecureScoreControlProfile>();
+  for (const profile of Array.isArray(profiles) ? profiles : []) {
+    const id = text(profile?.id);
+    if (id) byName.set(id, profile);
+  }
+  const controls: SecureScoreControl[] = [];
+  for (const control of Array.isArray(score.controlScores) ? score.controlScores : []) {
+    const id = text(control?.controlName);
+    if (!id) continue;
+    const profile = byName.get(id);
+    controls.push({
+      id,
+      title: text(profile?.title),
+      category: text(profile?.controlCategory) ?? text(control.controlCategory),
+      service: text(profile?.service),
+      score: num(control.score),
+      maxScore: num(profile?.maxScore),
+      description: htmlToPlainText(control.description),
+      remediation: htmlToPlainText(profile?.remediation),
+      actionUrl: httpsUrl(profile?.actionUrl),
+      implementationCost: text(profile?.implementationCost),
+      userImpact: text(profile?.userImpact),
+      deprecated: profile?.deprecated === true,
+    });
+  }
+  return {
+    currentScore: num(score.currentScore),
+    maxScore: num(score.maxScore),
+    createdDateTime: validDate(score.createdDateTime),
+    controls,
+  };
+}
+
+/** Richtlinien des Einstellungskatalogs (beta); `comparison` setzt der Provider nur für Baselines. */
+export function mapCatalogPolicies(
+  entries: GraphConfigurationPolicy[] | null | undefined,
+): CatalogPolicyConfig[] {
+  const policies: CatalogPolicyConfig[] = [];
+  for (const dto of Array.isArray(entries) ? entries : []) {
+    const id = text(dto?.id);
+    if (!id) continue;
+    const reference = dto.templateReference;
+    policies.push({
+      id,
+      name: text(dto.name) ?? id,
+      platforms: text(dto.platforms),
+      technologies: text(dto.technologies),
+      templateFamily: text(reference?.templateFamily) ?? 'none',
+      templateId: text(reference?.templateId),
+      templateDisplayName: text(reference?.templateDisplayName),
+      templateDisplayVersion: text(reference?.templateDisplayVersion),
+      settingCount: nonNegative(dto.settingCount),
+      isAssigned: bool(dto.isAssigned),
+      lastModifiedDateTime: validDate(dto.lastModifiedDateTime),
+      comparison: null,
+    });
+  }
+  return policies;
+}
+
+/** Richtlinienvorlagen (beta). */
+export function mapPolicyTemplates(
+  entries: GraphConfigurationPolicyTemplate[] | null | undefined,
+): PolicyTemplateInfo[] {
+  const templates: PolicyTemplateInfo[] = [];
+  for (const dto of Array.isArray(entries) ? entries : []) {
+    const id = text(dto?.id);
+    if (!id) continue;
+    templates.push({
+      id,
+      baseId: text(dto.baseId),
+      displayName: text(dto.displayName),
+      displayVersion: text(dto.displayVersion),
+      lifecycleState: text(dto.lifecycleState),
+      templateFamily: text(dto.templateFamily),
+      platforms: text(dto.platforms),
+    });
+  }
+  return templates;
+}
+
+type ComparableValue = { kind: 'choice' | 'simple'; value: string };
+
+/** Standardwert der Vorlage (Auswahl: Options-ID, Einfachwert: Konstante) und Anzahl der Unter-Vorlagen. */
+function templateDefault(
+  instance: NonNullable<GraphConfigurationSettingTemplate['settingInstanceTemplate']>,
+): { value: ComparableValue | null; children: number } {
+  const choice = instance.choiceSettingValueTemplate?.defaultValue;
+  if (choice) {
+    const optionId = text(choice.settingDefinitionOptionId);
+    return {
+      value: optionId ? { kind: 'choice', value: optionId } : null,
+      children: Array.isArray(choice.children) ? choice.children.length : 0,
+    };
+  }
+  const constant = instance.simpleSettingValueTemplate?.defaultValue?.constantValue;
+  if (typeof constant === 'string' || (typeof constant === 'number' && Number.isFinite(constant))) {
+    return { value: { kind: 'simple', value: String(constant) }, children: 0 };
+  }
+  return { value: null, children: 0 };
+}
+
+/** Wert der Richtlinien-Einstellung (Auswahl: gewählte Options-ID; String-/Integer-Wert). */
+function settingValue(
+  instance: NonNullable<GraphConfigurationSetting['settingInstance']>,
+): ComparableValue | null {
+  const choice = text(instance.choiceSettingValue?.value);
+  if (choice) return { kind: 'choice', value: choice };
+  const simple = instance.simpleSettingValue?.value;
+  if (typeof simple === 'string' || (typeof simple === 'number' && Number.isFinite(simple))) {
+    return { kind: 'simple', value: String(simple) };
+  }
+  return null;
+}
+
+/**
+ * Vergleicht die obersten Einstellungen einer Baseline-Richtlinie mit den Standardwerten ihrer Vorlage
+ * (Zuordnung über `settingDefinitionId`, auf beiden Seiten dokumentiert). Verglichen werden nur Auswahl-
+ * und Einfachwerte (String/Integer). Alles andere – unbekannte Typen, fehlender Standardwert, Typkonflikt,
+ * nicht erforderliche und in der Richtlinie fehlende Einstellungen, Unter-Einstellungen – zählt in
+ * `skippedCount`. Anzeigenamen sind ohne dokumentiertes `$expand=settingDefinitions` nicht verfügbar
+ * (`settingName: null`, Roh-IDs). War die Einstellungsliste der Richtlinie abgeschnitten, gilt „fehlt“
+ * nicht als Abweichung.
+ */
+export function mapBaselineComparison(
+  policySettings: GraphConfigurationSetting[] | null | undefined,
+  templateSettings: GraphConfigurationSettingTemplate[] | null | undefined,
+  options: { policySettingsTruncated: boolean; templateSettingsTruncated: boolean },
+): BaselineComparisonInfo {
+  const configured = new Map<string, NonNullable<GraphConfigurationSetting['settingInstance']>>();
+  for (const setting of Array.isArray(policySettings) ? policySettings : []) {
+    const instance = setting?.settingInstance;
+    const definitionId = text(instance?.settingDefinitionId);
+    if (instance && definitionId) configured.set(definitionId, instance);
+  }
+  const deviations: BaselineDeviation[] = [];
+  let comparedCount = 0;
+  let skippedCount = 0;
+  for (const template of Array.isArray(templateSettings) ? templateSettings : []) {
+    const definition = template?.settingInstanceTemplate;
+    const definitionId = text(definition?.settingDefinitionId);
+    if (!definition || !definitionId) {
+      skippedCount += 1;
+      continue;
+    }
+    const expected = templateDefault(definition);
+    skippedCount += expected.children;
+    if (!expected.value) {
+      skippedCount += 1;
+      continue;
+    }
+    const instance = configured.get(definitionId);
+    if (!instance) {
+      if (definition.isRequired === true && !options.policySettingsTruncated) {
+        comparedCount += 1;
+        deviations.push({
+          settingDefinitionId: definitionId,
+          settingName: null,
+          configuredValue: null,
+          defaultValue: expected.value.value,
+        });
+      } else {
+        skippedCount += 1;
+      }
+      continue;
+    }
+    const actual = settingValue(instance);
+    if (!actual || actual.kind !== expected.value.kind) {
+      skippedCount += 1;
+      continue;
+    }
+    comparedCount += 1;
+    if (actual.value !== expected.value.value) {
+      deviations.push({
+        settingDefinitionId: definitionId,
+        settingName: null,
+        configuredValue: actual.value,
+        defaultValue: expected.value.value,
+      });
+    }
+  }
+  return {
+    comparedCount,
+    deviations,
+    truncated: options.policySettingsTruncated || options.templateSettingsTruncated,
+    skippedCount,
+  };
 }
