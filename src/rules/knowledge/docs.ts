@@ -351,7 +351,7 @@ export const Docs = {
     'https://learn.microsoft.com/intune/app-management/protection/data-protection-framework#level-3-enterprise-high-data-protection',
   /** App-Schutz-Richtlinien: Apps › Schutz */
   postureAppProtectionCreate:
-    'https://learn.microsoft.com/intune/app-management/protection/create-policy#app-protection-policies-for-ios-ipados-and-android-apps',
+    'https://learn.microsoft.com/intune/app-management/protection/create-policy#app-protection-policies-for-iosipados-and-android-apps',
   /** Zero Trust für Intune-Mandanten: Compliance-Richtlinien je Plattform „configured and assigned“ */
   postureCoverageWindows:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-windows-devices',

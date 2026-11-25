@@ -96,6 +96,60 @@ export const dePosture = {
         3: 'Hoch',
       } satisfies Record<PostureLevel, string>,
     },
+    /** Stand der Sollwerte (Katalog dieser App-Version) – `date` ist deutsch formatiert */
+    catalog: {
+      verified: (date: string) =>
+        `Sollwerte der Frameworks: Stand ${date}, gegen Microsoft Learn geprüft. Die Konfiguration des Mandanten, Secure Score und Baseline-Vorlagen kommen bei jedem Laden live von Microsoft.`,
+      stale: (days: number) =>
+        `Die Sollwerte dieser App-Version sind älter als ${days} Tage. Bitte die App aktualisieren, damit der Abgleich mit den Empfehlungen aktuell bleibt.`,
+    },
+    /** CSV-Export der Prüfungen */
+    export: {
+      button: 'Exportieren (CSV)',
+      yes: 'Ja',
+      no: 'Nein',
+      columns: {
+        section: 'Abschnitt',
+        tile: 'Kachel',
+        policy: 'Richtlinie',
+        setting: 'Einstellung',
+        property: 'Graph-Eigenschaft',
+        actual: 'Ist',
+        expected: 'Empfehlung',
+        level: 'Stufe',
+        status: 'Status',
+        note: 'Hinweis',
+        counted: 'Zählt zum Gesamtbild',
+        source: 'Quelle',
+      },
+    },
+    /** Liste „Alle Empfehlungen“ im Detail-Sheet */
+    checks: {
+      title: 'Alle Empfehlungen',
+      intro: 'Jede einzelne Prüfung dieser Kachel mit Ist-Wert, Empfehlung und Quelle.',
+      filterLabel: 'Prüfungen filtern',
+      filters: {
+        deviating: 'Abweichungen',
+        notChecked: 'Nicht prüfbar',
+        met: 'Erfüllt',
+        all: 'Alle',
+      },
+      empty: {
+        deviating: 'Keine Abweichungen – alle prüfbaren Empfehlungen sind erfüllt.',
+        notChecked: 'Alle Empfehlungen dieser Kachel sind prüfbar.',
+        met: 'Noch keine Empfehlung erfüllt.',
+        all: 'Für diese Kachel gibt es keine Einzelprüfungen.',
+      },
+      general: 'Allgemeine Prüfungen',
+      setting: 'Einstellung',
+      actual: 'Ist',
+      expected: 'Empfehlung',
+      reason: 'Grund',
+      technicalName: 'Technischer Name',
+      notCounted: 'Zählt nicht zum Gesamtbild',
+      learn: 'Microsoft Learn',
+      sourceLabel: (setting: string) => `Quelle auf Microsoft Learn: ${setting}`,
+    },
   },
 
   levels: {

@@ -28,6 +28,7 @@ One-Click Intune Device Troubleshooter: Gerätename eingeben → Status-Kacheln 
 - `npm run dev` – Dev-Server (Port 5173)
 - `npm run check` – **Definition of Done**: lint + typecheck + test + build müssen grün sein
 - `npm run fixture` – synthetisches DiagLogs-ZIP nach `tests/fixtures/` schreiben (gitignored)
+- `npm run posture:sources` – Learn-Quellen der Empfehlungen gegen `docs/posture-sources.lock.json` prüfen (`-- --update` nach Prüfung der Werte; Exit 1 = Befund, 2 = nicht prüfbar)
 
 ## Arbeitsweise (Cloud-Session)
 

@@ -6,7 +6,7 @@
 - **Demo-Modus** mit realistischen, fiktiven Daten (Contoso) – keine Anmeldung nötig.
 - **Live-Modus** über Microsoft Graph (MSAL, Authorization Code + PKCE), ausschließlich offiziell dokumentierte Endpunkte (`docs/graph-api-reference.md`).
 - **ZIP-Analyse lokal** – Diagnose-Archive verlassen den Browser nie.
-- **Empfehlungen** – eigene Ansicht, die die Konfiguration des Mandanten mit den auf Microsoft Learn dokumentierten Empfehlungen (Compliance, App-Schutz, Bedingter Zugriff, Baselines, Secure Score) vergleicht – je Prüfung mit Ist-Wert, Sollwert und Learn-Link, ebenfalls nur lesend.
+- **Empfehlungen** – eigene Ansicht, die die Konfiguration des Mandanten mit den auf Microsoft Learn dokumentierten Empfehlungen (Compliance, App-Schutz, Bedingter Zugriff, Baselines, Secure Score) vergleicht – je Empfehlung mit Ist-Wert, Sollwert, Stufe, technischem Namen und eigenem Learn-Link (auch für erfüllte und nicht prüfbare Empfehlungen), filterbar und als CSV exportierbar; ebenfalls nur lesend. Zur Aktualität der Sollwerte siehe „Aktualität der Empfehlungen“.
 
 > Status: Meilensteine M1–M15 sind gemergt (Aufgaben und Akzeptanzkriterien je Meilenstein in [`docs/tasks/`](docs/tasks/)), M16 (Sicherheits-Härtung) ist in Arbeit. Die Abnahme des MVP (M1–M7) steht in [`docs/acceptance.md`](docs/acceptance.md); der Live-Modus wurde nur teilweise gegen einen echten Tenant geprüft – offene Punkte in [`docs/live-verification.md`](docs/live-verification.md) und unter „Bekannte Grenzen“.
 
@@ -130,15 +130,26 @@ Der Live-Modus liest Gerätedaten **read-only** (nur HTTP GET) über Microsoft G
 
 Hinweise: Bei Drosselung (HTTP 429/503) wartet der Client gemäß `Retry-After` (sonst Backoff 1 s, 2 s) und versucht es insgesamt bis zu dreimal. Die Teilstring-Suche nutzt `contains(deviceName, …)`; lehnt Graph den Filter mit HTTP 400 ab, wird clientseitig über die paginierte Geräteliste (max. 5 Seiten) gefiltert. Konfigurationsprofile aus dem Settings Catalog sind über die dokumentierten v1.0-APIs nicht abrufbar; nur die Ansicht „Empfehlungen“ liest sie über die freigegebene Beta-Ausnahme (siehe „Bekannte Grenzen“). Die verwendeten Endpunkte stehen in `docs/graph-api-reference.md`.
 
+## Aktualität der Empfehlungen
+
+Die Ansicht „Empfehlungen“ vergleicht die Intune-Konfiguration mit Sollwerten, die Microsoft auf Learn dokumentiert.
+
+- **Live von Microsoft** (bei jedem Laden): die Konfiguration des Mandanten, die Secure-Score-Empfehlungen und die Baseline-Vorlagen samt Versionsstand.
+- **Statisch in der App**: die Sollwerte der Frameworks (Compliance, App-Schutz, Zero Trust), jeweils mit Link auf die Learn-Seite. Das Stand-Datum steht in der Ansicht (`POSTURE_CATALOG_VERIFIED_ON` in `src/rules/posture/sources.ts`) und zeigt, wann die Werte zuletzt geprüft wurden. Sind sie älter als 180 Tage, weist die Ansicht darauf hin.
+- **Quellenprüfung**: Ein wöchentlicher GitHub-Workflow (`posture-sources.yml`) ruft die Learn-Seiten ab, bildet je Seite einen Hash über den Artikeltext und prüft die Sprungmarken der Links. Weicht etwas von `docs/posture-sources.lock.json` ab (Inhalt geändert, Anker fehlt, Seite weg), legt er ein Issue an. Lokal: `npm run posture:sources` (Exit 0 = unverändert, 1 = Befund, 2 = nur Abruffehler); nach erneuter Prüfung der Werte `npm run posture:sources -- --update` und Datum anheben.
+- **Keine automatische Übernahme**: Werte ändert immer ein Mensch nach Prüfung mit Quelle. Die App ruft Learn zur Laufzeit nicht ab.
+- Eine laufende Installation bekommt neue Sollwerte erst mit einem App- bzw. Image-Update.
+
 ## Befehle
 
-| Befehl               | Zweck                                                      |
-| -------------------- | ---------------------------------------------------------- |
-| `npm run dev`        | Entwicklungsserver                                         |
-| `npm run check`      | Lint, Typecheck, Tests, Build (Definition of Done)         |
-| `npm run fixture`    | Synthetisches DiagLogs-Test-ZIP erzeugen                   |
-| `npm run test:e2e`   | Playwright-E2E inkl. axe-Scan und Screenshots (4 Projekte) |
-| `npm run check:full` | `check` + E2E                                              |
+| Befehl                    | Zweck                                                      |
+| ------------------------- | ---------------------------------------------------------- |
+| `npm run dev`             | Entwicklungsserver                                         |
+| `npm run check`           | Lint, Typecheck, Tests, Build (Definition of Done)         |
+| `npm run fixture`         | Synthetisches DiagLogs-Test-ZIP erzeugen                   |
+| `npm run test:e2e`        | Playwright-E2E inkl. axe-Scan und Screenshots (4 Projekte) |
+| `npm run check:full`      | `check` + E2E                                              |
+| `npm run posture:sources` | Learn-Quellen der Empfehlungen auf Änderungen prüfen       |
 
 ## Datenschutz
 

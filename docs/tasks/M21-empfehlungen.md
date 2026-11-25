@@ -143,6 +143,21 @@ E2E inkl. axe, Review.
 - [x] `docs/live-verification.md` Abschnitt 9 (Prüfschritte gegen einen echten Mandanten)
 - [x] E2E inkl. axe, unabhängige Prüfung (siehe unten)
 
+## S6 – Vollständige Liste, Export, Aktualität
+
+Nachtrag auf Wunsch des Auftraggebers: Jede einzelne Empfehlung soll mit Wert und Quelle sichtbar sein, und
+die Aktualität der Sollwerte soll nachvollziehbar und überwacht sein.
+
+### Akzeptanz S6
+
+- [x] Detail-Sheet: Liste „Alle Empfehlungen“ mit **jeder** Einzelprüfung (erfüllt, weicht ab, nicht prüfbar), nach Richtlinie gruppiert; je Zeile Status, Ist, Empfehlung, Stufe, Grund, technischer Name (Graph-Eigenschaft) und eigener Learn-Link; Filter mit Zählern
+- [x] Export „Exportieren (CSV)“: alle Einzelprüfungen der gewählten Stufe, so wie angezeigt (Präsentationsmodus wirkt), mit Schutz vor Formel-Injektion
+- [x] Stand der Sollwerte in der Ansicht (`POSTURE_CATALOG_VERIFIED_ON`), Hinweis ab 180 Tagen
+- [x] `npm run posture:sources` + wöchentlicher Workflow: Hash je Learn-Seite und Prüfung jeder Sprungmarke gegen `docs/posture-sources.lock.json`; Befund → Issue, nie automatische Übernahme
+- [x] Erster Lauf fand einen toten Anker (`create-policy#app-protection-policies-for-iosipados-and-android-apps`, von Microsoft umbenannt) – korrigiert
+
+Offen: Der Workflow lief noch nie auf GitHub (erst nach dem Merge auf `main` möglich).
+
 ## Ergebnis der unabhängigen Prüfung
 
 Eine unabhängige Prüfung des Regelwerks gegen die Learn-Quellen hat neun Befunde ergeben; alle sind behoben:

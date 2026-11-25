@@ -381,10 +381,31 @@ describe('Mandant, Richtlinien, Sammelprüfung', () => {
         for (const toggle of within(dialog).queryAllByRole('button', { name: /Rohdaten/ })) {
           if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
         }
+        // Liste „Alle Empfehlungen“ vollständig anzeigen (Standard: nur Abweichungen)
+        const all = within(dialog).queryByRole('radio', { name: /^Alle/ });
+        if (all) fireEvent.click(all);
         expect(noLeaks(`Empfehlungen: Sheet ${tileId} (Stufe ${level})`)).toEqual([]);
       }
     }
   }, 60_000);
+
+  it('Empfehlungen: der CSV-Export enthält im Präsentationsmodus keine Klarwerte', async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    captureDownloads(blobs);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.nav.recommendations }));
+    const exportButton = await screen.findByRole('button', {
+      name: de.posture.view.export.button,
+    });
+    await waitFor(() => expect(exportButton).toBeEnabled(), { timeout: 5000 });
+    await user.click(exportButton);
+    expect(blobs).toHaveLength(1);
+    const csv = await blobs[0]!.text();
+    expect(csv.split('\r\n').length).toBeGreaterThan(20);
+    expect(describeLeaks(scanText(csv, values, 'Empfehlungen-CSV'))).toEqual([]);
+  });
 
   it('Sammelprüfung: Eingabeliste verschwindet nach dem Start, Tabelle und CSV sind maskiert', async () => {
     const user = userEvent.setup();

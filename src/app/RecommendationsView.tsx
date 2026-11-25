@@ -4,11 +4,13 @@
  * ausschließlich über useTenantPosture (Provider-Schnittstelle); die Stufenwahl wertet nur neu aus.
  */
 import { AnimatePresence } from 'motion/react';
-import { BadgeCheck, ChevronLeft, RotateCw } from 'lucide-react';
+import { BadgeCheck, ChevronLeft, Download, RotateCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatDate } from '../domain/format';
 import { DEFAULT_POSTURE_LEVEL, type PostureLevel } from '../domain/posture';
 import type { Tile } from '../domain/types';
 import { useTenantPosture } from '../hooks/useTenantPosture';
+import { downloadTextFile } from '../lib/download';
 import { de } from '../i18n/de';
 import { PrivacyViewProvider } from '../privacy/PrivacyProvider';
 import { useBuildPrivacyView } from '../privacy/privacyContext';
@@ -17,12 +19,18 @@ import { summarize } from '../rules/evaluate';
 import {
   evaluatePosture,
   groupPostureTiles,
+  isPostureCatalogStale,
+  isPostureTile,
+  POSTURE_CATALOG_STALE_AFTER_DAYS,
+  POSTURE_CATALOG_VERIFIED_ON,
   POSTURE_SECTIONS,
   postureScore,
 } from '../rules/posture';
+import { postureChecksCsv, postureExportFileName } from '../rules/posture/export';
 import type { AmbientTone } from '../ui/AmbientGlow';
 import { DetailSheet } from '../ui/DetailSheet';
 import { ErrorState } from '../ui/ErrorState';
+import { PostureCheckList } from '../ui/PostureCheckList';
 import { PostureLevelSelect } from '../ui/PostureLevelSelect';
 import { PostureScoreBar } from '../ui/PostureScoreBar';
 import { SummaryPills } from '../ui/SummaryPills';
@@ -33,6 +41,9 @@ import { TileSkeleton } from '../ui/TileSkeleton';
 import { TONE_CLASS } from '../ui/tone';
 
 const t = de.posture.view;
+
+const ACTION_BUTTON =
+  'inline-flex items-center gap-1.5 rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
 
 interface Props {
   provider: DeviceDataProvider;
@@ -113,6 +124,16 @@ export function RecommendationsView({
     [onOpenTile],
   );
 
+  // Exportiert wird, was angezeigt wird: die (ggf. maskierten) Kacheln, nie `rawTiles`.
+  const exportCsv = () => {
+    if (state.status !== 'done') return;
+    downloadTextFile(
+      postureExportFileName(level, state.now),
+      postureChecksCsv(tiles),
+      'text/csv;charset=utf-8',
+    );
+  };
+
   if (state.status === 'error') {
     return <ErrorState error={state.error} onRetry={reload} />;
   }
@@ -156,18 +177,39 @@ export function RecommendationsView({
                   <SummaryPills summary={summary} />
                 </div>
               )}
-              <button
-                type="button"
-                onClick={reload}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 self-start rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:self-end"
-              >
-                <RotateCw aria-hidden="true" size={15} className={loading ? 'animate-spin' : ''} />
-                {t.refresh}
-              </button>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={loading}
+                  className={ACTION_BUTTON}
+                >
+                  <Download aria-hidden="true" size={15} />
+                  {t.export.button}
+                </button>
+                <button type="button" onClick={reload} disabled={loading} className={ACTION_BUTTON}>
+                  <RotateCw
+                    aria-hidden="true"
+                    size={15}
+                    className={loading ? 'animate-spin' : ''}
+                  />
+                  {t.refresh}
+                </button>
+              </div>
             </div>
           </div>
           <p className="max-w-3xl text-sm text-secondary-label">{t.note}</p>
+          <p data-testid="posture-catalog-note" className="max-w-3xl text-xs text-secondary-label">
+            {t.catalog.verified(formatDate(POSTURE_CATALOG_VERIFIED_ON, 'UTC'))}
+            {state.status === 'done' && isPostureCatalogStale(state.now) && (
+              <>
+                {' '}
+                <span data-testid="posture-catalog-stale" className="font-medium text-label">
+                  {t.catalog.stale(POSTURE_CATALOG_STALE_AFTER_DAYS)}
+                </span>
+              </>
+            )}
+          </p>
           <p className="sr-only" role="status" aria-live="polite">
             {loading ? t.a11y.loading : t.a11y.done(summarySentence(summary))}
           </p>
@@ -231,6 +273,11 @@ export function RecommendationsView({
               notices={[]}
               onClose={onCloseTile}
               onRetry={reload}
+              extra={
+                isPostureTile(openTile) ? (
+                  <PostureCheckList key={openTile.id} checks={openTile.checks} />
+                ) : undefined
+              }
             />
           )}
         </AnimatePresence>

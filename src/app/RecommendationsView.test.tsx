@@ -1,10 +1,18 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { downloadTextFile } from '../lib/download';
 import { de } from '../i18n/de';
 import { MockProvider } from '../providers/mock/MockProvider';
-import { POSTURE_SECTIONS } from '../rules/posture';
+import { POSTURE_CATALOG_STALE_AFTER_DAYS, POSTURE_SECTIONS } from '../rules/posture';
 import { renderApp } from '../test/renderApp';
+
+vi.mock('../lib/download', () => ({ downloadTextFile: vi.fn() }));
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.mocked(downloadTextFile).mockClear();
+});
 
 const IDS = POSTURE_SECTIONS.flatMap((section) => section.tiles);
 const t = de.posture.view;
@@ -196,5 +204,77 @@ describe('Ansicht „Empfehlungen“', () => {
     await user.click(screen.getByRole('button', { name: t.back }));
     expect(await screen.findByRole('heading', { name: de.hero.title })).toBeInTheDocument();
     expect(window.location.search).not.toContain('view=');
+  });
+
+  it('das Detail-Sheet listet jede Prüfung der Kachel, auch erfüllte, mit eigenem Learn-Link', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openView(user);
+    await user.click(tileById('postureComplianceWindows'));
+    const dialog = await screen.findByRole('dialog');
+    const list = within(dialog).getByTestId('posture-check-list');
+    await user.click(within(list).getByRole('radio', { name: /^Alle/ }));
+    const rows = within(list).getAllByTestId('posture-check');
+    const statuses = new Set(rows.map((row) => row.getAttribute('data-status')));
+    expect(statuses.has('met')).toBe(true);
+    expect(statuses.has('deviating')).toBe(true);
+    for (const row of rows) {
+      const link = within(row).getByRole('link');
+      expect(link.getAttribute('href')).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    const counts = within(list)
+      .getAllByRole('radio')
+      .map((r) => Number(/\((\d+)\)/.exec(r.textContent ?? '')![1]));
+    expect(counts[3]).toBe(rows.length);
+    expect(counts[0]! + counts[1]! + counts[2]!).toBe(rows.length);
+  });
+
+  it('„Exportieren (CSV)“ lädt die angezeigten Prüfungen unter dem erwarteten Dateinamen', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openView(user);
+    await user.click(screen.getByRole('button', { name: t.export.button }));
+    expect(downloadTextFile).toHaveBeenCalledTimes(1);
+    const [fileName, text, mime] = vi.mocked(downloadTextFile).mock.calls[0]!;
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    expect(fileName).toBe(
+      `mdm-doctor-empfehlungen-stufe-2-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.csv`,
+    );
+    expect(mime).toContain('text/csv');
+    expect(text.startsWith('\uFEFF"Abschnitt";"Kachel"')).toBe(true);
+    expect(text.split('\r\n').length).toBeGreaterThan(20);
+  });
+
+  it('der Export-Knopf ist während des Ladens deaktiviert', async () => {
+    const inner = new MockProvider({ latency: false });
+    const provider = Object.assign(Object.create(inner) as MockProvider, {
+      getTenantPosture: () => new Promise<never>(() => {}),
+    });
+    window.history.replaceState({}, '', '/?view=recommendations&mode=demo');
+    renderApp({ provider });
+    expect(await screen.findByRole('button', { name: t.export.button })).toBeDisabled();
+  });
+
+  it('nennt den Stand der Sollwerte, ohne Warnung solange der Katalog aktuell ist', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openView(user);
+    const note = screen.getByTestId('posture-catalog-note');
+    expect(note.textContent).toContain('Stand 25.11.2026');
+    expect(note.textContent).toContain('gegen Microsoft Learn geprüft');
+    expect(screen.queryByTestId('posture-catalog-stale')).not.toBeInTheDocument();
+  });
+
+  it('weist auf veraltete Sollwerte hin', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-08-01T12:00:00Z'));
+    const user = userEvent.setup();
+    renderApp();
+    await openView(user);
+    const stale = screen.getByTestId('posture-catalog-stale');
+    expect(stale.textContent).toContain(`${POSTURE_CATALOG_STALE_AFTER_DAYS} Tage`);
+    expect(stale.textContent).toContain('aktualisieren');
   });
 });

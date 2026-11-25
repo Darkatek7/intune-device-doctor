@@ -100,4 +100,66 @@ test.describe('Ansicht „Empfehlungen“', () => {
     await settleSheet(page);
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
+
+  test('Detail-Sheet: Liste „Alle Empfehlungen“ mit Filter und Learn-Link je Zeile', async ({
+    page,
+  }) => {
+    await page.goto('/?view=recommendations&mode=demo');
+    await waitForTilesReady(page);
+    await tile(page, 'Compliance: Windows').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await settleSheet(page);
+    const list = dialog.getByTestId('posture-check-list');
+    await list.scrollIntoViewIfNeeded();
+    await expect(list.getByRole('heading', { name: 'Alle Empfehlungen' })).toBeVisible();
+    const rows = list.getByTestId('posture-check');
+    await expect(rows.first()).toBeVisible();
+    const deviating = await rows.count();
+
+    await list.getByRole('radio', { name: /^Alle/ }).click();
+    await expect(rows).not.toHaveCount(deviating);
+    await expect(list.locator('[data-status="met"]').first()).toBeVisible();
+    await list.getByRole('radio', { name: /^Erfüllt/ }).click();
+    expect(await list.locator('[data-status="deviating"]').count()).toBe(0);
+
+    const link = rows.first().getByRole('link', { name: /^Quelle auf Microsoft Learn: / });
+    await expect(link).toHaveAttribute('href', /^https:\/\/learn\.microsoft\.com\//);
+    await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  test('Export-Knopf lädt eine CSV-Datei herunter', async ({ page }) => {
+    await page.goto('/?view=recommendations&mode=demo');
+    await waitForTilesReady(page);
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Exportieren (CSV)' }).click();
+    expect((await download).suggestedFilename()).toMatch(
+      /^mdm-doctor-empfehlungen-stufe-2-\d{4}-\d{2}-\d{2}\.csv$/,
+    );
+  });
+
+  test('Barrierefreiheit und kein horizontales Scrollen mit geöffneter Liste (390 px)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/?view=recommendations&mode=demo');
+    await waitForTilesReady(page);
+    await tile(page, 'Compliance: Windows').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await settleSheet(page);
+    const list = dialog.getByTestId('posture-check-list');
+    await list.getByRole('radio', { name: /^Alle/ }).click();
+    await expectNoSevereViolations(page, 'Empfehlungen – Liste „Alle Empfehlungen“');
+    const overflow = await page.evaluate<number>(
+      'document.documentElement.scrollWidth - document.documentElement.clientWidth',
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    // Keine Zeile der Liste ragt über den Rand des Fensters hinaus
+    const beyondEdge = await page.evaluate<number>(
+      "Array.from(document.querySelectorAll('[data-testid=posture-check-list] *')).filter((n) => n.getBoundingClientRect().right > window.innerWidth + 0.5).length",
+    );
+    expect(beyondEdge).toBe(0);
+  });
 });
