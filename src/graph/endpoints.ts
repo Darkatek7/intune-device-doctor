@@ -12,6 +12,7 @@ import {
   LICENSE_DETAILS_SELECT,
   LAPS_SELECT,
   USER_DEVICES_SELECT,
+  FLEET_DEVICE_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
   MOBILE_APP_SELECT,
 } from './dto';
@@ -54,6 +55,11 @@ export const SIGN_IN_WINDOW_DAYS = 7;
 export const SIGN_IN_PAGE_SIZE = 200;
 /** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
 export const MAX_LIST_PAGES = 5;
+/**
+ * Flotte (M22): höchstens so viele Seiten der Geräteliste (danach `truncated`). Die Seitengröße bestimmt
+ * Graph – `$top` ist für `managedDevices` nicht dokumentiert.
+ */
+export const MAX_FLEET_PAGES = 10;
 /** Zuweisungen (M14/S2): höchstens so viele Objekte je Gerät nachschlagen, höchstens so viele parallel. */
 export const MAX_ASSIGNMENT_LOOKUPS = 30;
 export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
@@ -178,6 +184,23 @@ export const Endpoints = {
     path: () =>
       withQuery('/deviceManagement/managedDevices', {
         $select: MANAGED_DEVICE_LIST_SELECT.join(','),
+      }),
+  },
+  /**
+   * Flotte (M22): dieselbe dokumentierte Liste ohne $filter, mit den Feldern für die Bewertung je Gerät.
+   * Paginierung über `@odata.nextLink`, höchstens MAX_FLEET_PAGES Seiten.
+   */
+  managedDevicesFleet: {
+    id: 'managedDevicesFleet',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDevices?$select=… (alle Geräte)',
+    path: () =>
+      withQuery('/deviceManagement/managedDevices', {
+        $select: FLEET_DEVICE_SELECT.join(','),
       }),
   },
   managedDevice: {

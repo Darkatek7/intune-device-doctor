@@ -41,6 +41,7 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import type { FleetDevice, FleetDevicesInfo } from '../../domain/fleetDevices';
 import type { TenantPosture } from '../../domain/posture';
 import {
   ASSIGNMENTS_DISPLAY,
@@ -500,6 +501,26 @@ export class MockProvider implements DeviceDataProvider {
       this.tenant.auditEvents ?? { status: 'ok', data: defaultAuditEvents(this.now()) },
       'auditEvents',
       sourceFor('auditEvents'),
+    );
+  }
+
+  /** Flotte (M22): alle Demo-Geräte als Liste oder `options.tenant.fleetDevices`. */
+  async getFleetDevices(options: RequestOptions = {}): Promise<SectionResult<FleetDevicesInfo>> {
+    await this.delay('fleetDevices', options.signal);
+    const devices: FleetDevice[] = this.fixtures().map(({ device }) => ({
+      ...toSearchResult(device),
+      manufacturer: device.manufacturer,
+      enrolledDateTime: device.enrolledDateTime,
+      isEncrypted: device.isEncrypted,
+      jailBroken: device.jailBroken,
+    }));
+    return this.fromSpec<FleetDevicesInfo>(
+      this.tenant.fleetDevices ?? {
+        status: 'ok',
+        data: { devices, truncated: false, pagesRead: 1 },
+      },
+      'managedDevicesFleet',
+      sourceFor('managedDevicesFleet'),
     );
   }
 

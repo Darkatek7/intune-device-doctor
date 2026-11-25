@@ -8,6 +8,7 @@
  * - Alle get*-Section-Methoden werfen NIE (außer bei Abort) – sie liefern SectionResult mit
  *   status forbidden / notApplicable / unavailable / error.
  */
+import type { FleetDevicesInfo } from '../domain/fleetDevices';
 import type {
   AuditEventsInfo,
   AssignmentLookup,
@@ -217,6 +218,13 @@ export interface DeviceDataProvider {
    * nur bei Abbruch.
    */
   getTenantPosture(options?: RequestOptions): Promise<TenantPosture>;
+
+  /**
+   * Alle verwalteten Geräte des Mandanten für die Ansicht „Flotte“ (M22): die dokumentierte v1.0-Liste
+   * `managedDevices` mit `$select`, höchstens MAX_FLEET_PAGES Seiten (danach `truncated`). Kein
+   * Nachladen je Gerät. 403/Fehler → SectionResult; wirft nur bei Abbruch.
+   */
+  getFleetDevices(options?: RequestOptions): Promise<SectionResult<FleetDevicesInfo>>;
 
   /**
    * Gerätestatus einer Richtlinie (M15): `…/{id}/deviceStatuses`, höchstens MAX_POLICY_STATUS_PAGES

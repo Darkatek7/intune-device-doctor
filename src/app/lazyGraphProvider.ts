@@ -36,6 +36,7 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
+import type { FleetDevicesInfo } from '../domain/fleetDevices';
 import { uniformPosture, type TenantPosture } from '../domain/posture';
 import { de } from '../i18n/de';
 import {
@@ -182,6 +183,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
       };
     }
     return provider.getTenantStatus(options);
+  }
+
+  getFleetDevices(options?: RequestOptions) {
+    return this.section<FleetDevicesInfo>((p) => p.getFleetDevices(options));
   }
 
   getAuditEvents(options?: RequestOptions) {

@@ -59,6 +59,7 @@ import type {
   SecureScoreInfo,
   TenantPosture,
 } from '../../domain/posture';
+import type { FleetDevicesInfo } from '../../domain/fleetDevices';
 import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
@@ -690,6 +691,17 @@ export class GraphProvider implements DeviceDataProvider {
   }
 
   // ---------- Änderungsprotokoll (M20/S2) ----------
+
+  /** Flotte (M22) – Platzhalter, wird in M22/S1 umgesetzt. */
+  getFleetDevices(_options: RequestOptions = {}): Promise<SectionResult<FleetDevicesInfo>> {
+    void _options;
+    const endpoint = Endpoints.managedDevicesFleet;
+    return Promise.resolve({
+      status: 'unavailable',
+      reason: de.errors.network,
+      source: { kind: 'graph', label: endpoint.display, docsUrl: endpoint.docsUrl },
+    });
+  }
 
   /** auditEvents: höchstens MAX_AUDIT_EVENT_PAGES Seiten (kein Filter/keine Sortierung dokumentiert). */
   getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
