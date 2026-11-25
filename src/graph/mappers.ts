@@ -2,6 +2,7 @@
  * Graph-DTO → Domain-Modell. Null-sicher: Graph liefert fehlende Werte oft als null oder lässt
  * Felder weg. Unbekannte Enum-Werte werden – wo der Domain-Typ es zulässt – zu 'unknown'.
  */
+import type { FleetDevice, FleetDevicesInfo } from '../domain/fleetDevices';
 import type {
   AppliedPolicyInfo,
   EnrollmentLimitInfo,
@@ -376,6 +377,44 @@ export function mapSearchResult(
     complianceState: pick(dto.complianceState, COMPLIANCE_STATES, 'unknown'),
     lastSyncDateTime: str(dto.lastSyncDateTime),
   };
+}
+
+// ---------- Flotte (M22) ----------
+
+/** Eine Zeile der Flottenliste (nur $select-Felder aus FLEET_DEVICE_SELECT); ohne `id` → null. */
+export function mapFleetDevice(
+  dto: Partial<GraphManagedDevice> | null | undefined,
+): FleetDevice | null {
+  const id = str(dto?.id)?.trim();
+  if (!dto || !id) return null;
+  return {
+    id,
+    deviceName: str(dto.deviceName)?.trim() || '–',
+    userPrincipalName: str(dto.userPrincipalName),
+    userDisplayName: str(dto.userDisplayName),
+    operatingSystem: str(dto.operatingSystem),
+    osVersion: str(dto.osVersion),
+    model: str(dto.model),
+    manufacturer: str(dto.manufacturer),
+    serialNumber: str(dto.serialNumber)?.trim() || null,
+    complianceState: pick(dto.complianceState, COMPLIANCE_STATES, 'unknown'),
+    lastSyncDateTime: validDate(dto.lastSyncDateTime),
+    enrolledDateTime: validDate(dto.enrolledDateTime),
+    isEncrypted: bool(dto.isEncrypted),
+    jailBroken: str(dto.jailBroken)?.trim() || null,
+  };
+}
+
+export function mapFleetDevices(
+  entries: ReadonlyArray<Partial<GraphManagedDevice> | null | undefined>,
+  meta: { pagesRead: number; truncated: boolean },
+): FleetDevicesInfo {
+  const devices: FleetDevice[] = [];
+  for (const entry of entries) {
+    const device = mapFleetDevice(entry);
+    if (device) devices.push(device);
+  }
+  return { devices, truncated: meta.truncated, pagesRead: meta.pagesRead };
 }
 
 // ---------- Defender ----------

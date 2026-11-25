@@ -112,6 +112,18 @@ Checkliste: `docs/graph-api-reference.md` › „Live zu verifizieren (M21)“ (
 - **Drosselung und Seitengrenzen:** Verhalten der Beta-Endpunkte bei 429 (`Retry-After` vorhanden?). In einem großen Mandanten prüfen, ob die Grenzen (5 Seiten je Liste, 30 Compliance-Richtlinien mit Einzelabrufen, 5 Baseline-Vergleiche) erreicht werden: Dann muss die Kachel „Nicht alle Richtlinien gelesen“ zeigen und keine Richtlinie als „fehlend“ behaupten.
 - **Fehlerverhalten allgemein:** Ohne einen der optionalen Scopes (`Policy.Read.All`, `SecurityEvents.Read.All`, `DeviceManagementApps.Read.All`) bricht nie die ganze Ansicht ab – nur die betroffene Kachel zeigt „Fehlende Berechtigung“ mit dem Scope. Die Beta-Kacheln tragen die Kennzeichnung „Beta“.
 
+## 10. Ansicht „Flotte“ (M22)
+
+Voraussetzung: `DeviceManagementManagedDevices.Read.All` (wie die Gerätesuche). Gegen einen echten Mandanten prüfen:
+
+- [ ] **`isEncrypted`/`jailBroken` mit `$select`:** liefert die Liste die Werte tatsächlich mit oder nur Standardwerte (`false`/leer)? Stichprobe gegen `GET /deviceManagement/managedDevices/{id}` (Geräte-Dashboard). Falls Standardwerte: Auffälligkeiten „unverschlüsselt“ und „Jailbreak“ dürfen aus der Liste nicht abgeleitet werden.
+- [ ] **Seitengröße:** wie viele Geräte je Seite, wie viele Seiten bei Ihrem Bestand? Reichen `MAX_FLEET_PAGES` (10) Seiten – oder erscheint der Hinweis „Liste unvollständig“ bereits bei mittleren Beständen?
+- [ ] **`@odata.nextLink`:** zeigt er auf `https://graph.microsoft.com/…` und enthält er `$select` weiter (Spalten bleiben auf Seite 2+ gefüllt)?
+- [ ] **Dauer und Last:** Ladezeit bei großen Beständen (mehrere tausend Geräte), Verhalten bei 429 (`Retry-After` wird abgewartet, höchstens 3 Versuche je Seite), Speicherbedarf im Browser.
+- [ ] **Datumswerte:** `lastSyncDateTime`/`enrolledDateTime` für nie synchronisierte Geräte (z. B. `0001-01-01`) erscheinen als „–“, nicht als Datum.
+- [ ] **403:** ohne Berechtigung zeigt die Ansicht den Hinweis mit dem benötigten Scope, die übrigen Ansichten bleiben nutzbar.
+- [ ] Netzwerk-Tab: nur `GET /v1.0/deviceManagement/managedDevices?$select=…` (und `nextLink`-Seiten), kein `$top`/`$filter`/`$orderby`.
+
 ## Abschluss
 
 - Alle Punkte mit Datum und Ergebnis (nur Status/Struktur, keine Tenant-Daten) in einem PR festhalten und die genannten Dokumentationsstellen anpassen.

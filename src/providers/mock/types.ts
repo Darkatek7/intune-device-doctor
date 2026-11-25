@@ -2,6 +2,7 @@
  * Form der Demo-Szenarien. Szenarien liefern Domain-Daten (Enum-Werte exakt wie Graph),
  * der MockProvider ergänzt Quelle/Zeitstempel und verpackt alles in SectionResult.
  */
+import type { FleetDevicesInfo } from '../../domain/fleetDevices';
 import type {
   AssignmentEntry,
   AssignmentsInfo,
@@ -113,6 +114,8 @@ export interface MockScenario {
 
 /** Demo-Daten der Ansicht „Mandant“ (M14/S5). Ohne Angabe: gültiges Push-Zertifikat, zwei VPP-Tokens (eines läuft in 20 Tagen ab). */
 export interface MockTenantFixture {
+  /** M22: Geräteliste der Ansicht „Flotte“ (Standard: aus den Demo-Geräten abgeleitet) */
+  fleetDevices?: MockSection<FleetDevicesInfo>;
   applePushCertificate?: MockSection<ApplePushCertificateInfo>;
   vppTokens?: MockSection<VppTokenInfo[]>;
   /** M18: Dienststatus (Standard: offener Intune-Vorfall, siehe ../mock/service.ts) */

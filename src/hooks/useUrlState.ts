@@ -4,22 +4,28 @@
  * Der Verbindungstest (M14/S6, nur Live) ist ?view=connection-test&device=<id> (ohne Kachel-Sheet).
  * Die Ansicht „Richtlinien“ (M15) ist ?view=policies (+ &policy=<kind>:<id> für den Gerätestatus einer Richtlinie).
  * Die Ansicht „Empfehlungen“ (M21) ist ?view=recommendations (+ &level=1|2|3, nur wenn ≠ Standard; &tile=<tileId>).
+ * Die Ansicht „Flotte“ (M22) ist ?view=fleet (+ &issue=<FleetIssue|any>, &platform=<OsFamily>; ungültige Werte entfallen).
  * Änderungen laufen über history.pushState/replaceState; Browser-Zurück (popstate) wird mitgeführt.
  */
 import { useMemo, useSyncExternalStore } from 'react';
 import { DEFAULT_POSTURE_LEVEL, type PostureLevel } from '../domain/posture';
-import type { DataMode } from '../domain/types';
+import type { DataMode, OsFamily } from '../domain/types';
+import { FLEET_PLATFORMS, isFleetIssue, type FleetIssue } from '../rules/fleetDevices';
 
 export interface UrlState {
   device: string | null;
   tile: string | null;
   mode: DataMode | null;
   /** Ansicht „Mandant“ bzw. „Verbindungstest“; fehlt/null = Start- bzw. Geräteansicht */
-  view?: 'tenant' | 'connectionTest' | 'policies' | 'recommendations' | null;
+  view?: 'tenant' | 'connectionTest' | 'policies' | 'recommendations' | 'fleet' | null;
   /** Nur in der Ansicht „Richtlinien“: geöffnete Richtlinie als `configuration:<id>` bzw. `compliance:<id>` */
   policy?: string | null;
   /** Nur in der Ansicht „Empfehlungen“: gewählte Stufe; fehlt/null = Standard */
   level?: PostureLevel | null;
+  /** Nur in der Ansicht „Flotte“: Auffälligkeit (`any` = nur auffällige); fehlt/null = alle Geräte */
+  issue?: FleetIssue | 'any' | null;
+  /** Nur in der Ansicht „Flotte“: Plattformfilter; fehlt/null = alle */
+  platform?: OsFamily | null;
 }
 
 function parseView(value: string | null): UrlState['view'] {
@@ -27,11 +33,21 @@ function parseView(value: string | null): UrlState['view'] {
   if (value === 'connection-test') return 'connectionTest';
   if (value === 'policies') return 'policies';
   if (value === 'recommendations') return 'recommendations';
+  if (value === 'fleet') return 'fleet';
   return null;
 }
 
 function parseLevel(value: string | null): PostureLevel | null {
   return value === '1' ? 1 : value === '2' ? 2 : value === '3' ? 3 : null;
+}
+
+function parseIssue(value: string | null): FleetIssue | 'any' | null {
+  if (value === 'any') return 'any';
+  return isFleetIssue(value) ? value : null;
+}
+
+function parsePlatform(value: string | null): OsFamily | null {
+  return FLEET_PLATFORMS.find((platform) => platform === value) ?? null;
 }
 
 export function parseUrl(search: string): UrlState {
@@ -44,6 +60,8 @@ export function parseUrl(search: string): UrlState {
     view: parseView(params.get('view')),
     policy: params.get('policy') || null,
     level: parseLevel(params.get('level')),
+    issue: parseIssue(params.get('issue')),
+    platform: parsePlatform(params.get('platform')),
   };
 }
 
@@ -54,6 +72,7 @@ export function buildSearch(state: UrlState): string {
   else if (state.view === 'tenant') params.set('view', 'tenant');
   else if (state.view === 'policies') params.set('view', 'policies');
   else if (state.view === 'recommendations') params.set('view', 'recommendations');
+  else if (state.view === 'fleet') params.set('view', 'fleet');
   if (connectionTest) params.set('view', 'connection-test');
   if (!state.device && state.view === 'policies' && state.policy) {
     params.set('policy', state.policy);
@@ -65,6 +84,10 @@ export function buildSearch(state: UrlState): string {
     state.level !== DEFAULT_POSTURE_LEVEL
   ) {
     params.set('level', String(state.level));
+  }
+  if (!state.device && state.view === 'fleet') {
+    if (state.issue) params.set('issue', state.issue);
+    if (state.platform) params.set('platform', state.platform);
   }
   if (state.mode) params.set('mode', state.mode);
   // Kachel-Sheets gibt es nur in der Geräte-, der Mandanten- und der Empfehlungen-Ansicht

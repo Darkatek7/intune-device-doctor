@@ -154,6 +154,17 @@ export const MANAGED_DEVICE_LIST_SELECT = [
   'lastSyncDateTime',
 ] as const;
 
+/**
+ * Felder der Ansicht „Flotte“ (M22): die Trefferliste plus die Eigenschaften, die die Liste zur
+ * Bewertung braucht. Alle sind v1.0-Eigenschaften von `managedDevice`.
+ */
+export const FLEET_DEVICE_SELECT = [
+  ...MANAGED_DEVICE_LIST_SELECT,
+  'enrolledDateTime',
+  'isEncrypted',
+  'jailBroken',
+] as const;
+
 /** Weitere Geräte desselben Benutzers (Geräte-Header): nur das Nötigste. */
 export const USER_DEVICES_SELECT = [
   'id',

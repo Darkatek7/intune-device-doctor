@@ -48,9 +48,10 @@ describe('Hauptnavigation (Toolbar)', () => {
     expect(screen.queryByRole('navigation', { name: de.nav.label })).not.toBeInTheDocument();
   });
 
-  it('NAV_ITEMS: Geräte, Richtlinien, Mandant, Empfehlungen mit eindeutigen IDs', () => {
+  it('NAV_ITEMS: Geräte, Flotte, Richtlinien, Mandant, Empfehlungen mit eindeutigen IDs', () => {
     expect(NAV_ITEMS.map((i) => i.label)).toEqual([
       'Geräte',
+      'Flotte',
       'Richtlinien',
       'Mandant',
       'Empfehlungen',

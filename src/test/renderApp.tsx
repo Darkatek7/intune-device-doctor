@@ -56,6 +56,7 @@ export function liveMockProvider(overrides: Partial<DeviceDataProvider> = {}): D
     getEnrollmentFailures: (device, options) => inner.getEnrollmentFailures(device, options),
     getTenantPolicies: (options) => inner.getTenantPolicies(options),
     getTenantPosture: (options) => inner.getTenantPosture(options),
+    getFleetDevices: (options) => inner.getFleetDevices(options),
     getPolicyDeviceStatuses: (policy, options) => inner.getPolicyDeviceStatuses(policy, options),
     getSecurityAlerts: (device, options) => inner.getSecurityAlerts(device, options),
     getAppProtection: (device, options) => inner.getAppProtection(device, options),

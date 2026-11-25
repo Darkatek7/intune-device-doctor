@@ -9,6 +9,7 @@ export const BulkView = lazy(() => import('../ui/BulkView').then((m) => ({ defau
 export const ConnectionTestView = lazy(() =>
   import('./ConnectionTestView').then((m) => ({ default: m.ConnectionTestView })),
 );
+export const FleetView = lazy(() => import('./FleetView').then((m) => ({ default: m.FleetView })));
 export const PoliciesView = lazy(() =>
   import('./PoliciesView').then((m) => ({ default: m.PoliciesView })),
 );

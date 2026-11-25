@@ -21,6 +21,7 @@ One-Click Intune Device Troubleshooter: Gerätename eingeben → Status-Kacheln 
 - `src/diagnostics/` – ZIP-Reader (`@zip.js/zip.js`, lazy), Web Worker, Parser, `analyze.ts`.
 - `src/rules/` – reine Funktionen `DeviceSnapshot → Tile`, Wissensbasis.
 - `src/domain/posture.ts` / `src/rules/posture/` – Ansicht „Empfehlungen“: Rohdaten `TenantPosture` und reine Funktionen `TenantPosture → Tile[]` (Katalog der Learn-Sollwerte, Details in `docs/tasks/M21-empfehlungen.md`).
+- `src/domain/fleetDevices.ts` / `src/rules/fleetDevices.ts` – Ansicht „Flotte“: Geräteliste des Mandanten und reine Funktionen `FleetDevicesInfo → FleetOverview` (gleiche Maßstäbe wie die Geräteansicht, Details in `docs/tasks/M22-flotte.md`).
 - `src/ui/` – Komponenten. Kein Datenzugriff in Komponenten außer über Hooks/Provider.
 
 ## Befehle

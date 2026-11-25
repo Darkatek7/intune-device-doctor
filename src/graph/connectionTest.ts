@@ -157,6 +157,7 @@ export const Probes: Record<EndpointId, Probe> = {
     }),
   },
   managedDevicesList: { request: () => ({ path: Endpoints.managedDevicesList.path() }) },
+  managedDevicesFleet: { request: () => ({ path: Endpoints.managedDevicesFleet.path() }) },
   managedDevice: { request: byDeviceId('managedDevice') },
   windowsProtectionState: { windowsOnly: true, request: byDeviceId('windowsProtectionState') },
   detectedMalwareState: { windowsOnly: true, request: byDeviceId('detectedMalwareState') },

@@ -59,6 +59,7 @@ import type {
   SecureScoreInfo,
   TenantPosture,
 } from '../../domain/posture';
+import type { FleetDevicesInfo } from '../../domain/fleetDevices';
 import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
@@ -128,6 +129,7 @@ import {
   MAX_TROUBLESHOOTING_EVENT_PAGES,
   MAX_SETTING_SUMMARY_PAGES,
   MAX_AUDIT_EVENT_PAGES,
+  MAX_FLEET_PAGES,
   MAX_APP_REGISTRATION_PAGES,
   MAX_BASELINE_COMPARISONS,
   MAX_BASELINE_SETTING_PAGES,
@@ -170,6 +172,7 @@ import {
   mapComplianceSettingSummaries,
   mapDeviceStateSummary,
   mapAuditEvents,
+  mapFleetDevices,
   mapAppProtectionPolicies,
   mapBaselineComparison,
   mapCatalogPolicies,
@@ -690,6 +693,27 @@ export class GraphProvider implements DeviceDataProvider {
   }
 
   // ---------- Änderungsprotokoll (M20/S2) ----------
+
+  /**
+   * Flotte (M22): alle managedDevices, nur mit $select (kein $top/$filter/$orderby dokumentiert genutzt),
+   * höchstens MAX_FLEET_PAGES Seiten über @odata.nextLink; `truncated` = Seitenlimit erreicht.
+   */
+  getFleetDevices(options: RequestOptions = {}): Promise<SectionResult<FleetDevicesInfo>> {
+    const endpoint = Endpoints.managedDevicesFleet;
+    return this.run<FleetDevicesInfo>(
+      'managedDevicesFleet',
+      async (source) => {
+        const { entries, pagesRead, truncated } = await this.readPages<GraphManagedDevice>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_FLEET_PAGES,
+          options,
+        );
+        return this.ok(mapFleetDevices(entries, { pagesRead, truncated }), source);
+      },
+      (source) => ({ status: 'unavailable', reason: de.errors.network, source }),
+    );
+  }
 
   /** auditEvents: höchstens MAX_AUDIT_EVENT_PAGES Seiten (kein Filter/keine Sortierung dokumentiert). */
   getAuditEvents(options: RequestOptions = {}): Promise<SectionResult<AuditEventsInfo>> {
