@@ -44,6 +44,7 @@ import type {
   VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { uniformPosture, type TenantPosture } from '../../domain/posture';
 import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
@@ -812,6 +813,18 @@ export class GraphProvider implements DeviceDataProvider {
   }
 
   // ---------- Richtlinien → Geräte (M15) ----------
+
+  /**
+   * M21 – PLATZHALTER: wird durch die echte Graph-Anbindung ersetzt (siehe docs/tasks/M21-empfehlungen.md).
+   */
+  async getTenantPosture(options: RequestOptions = {}): Promise<TenantPosture> {
+    void options;
+    return uniformPosture({
+      status: 'unavailable',
+      reason: 'noch nicht implementiert',
+      source: { kind: 'graph', label: 'M21' },
+    });
+  }
 
   /**
    * Richtlinien des Mandanten mit Zählern. Beide Listen unabhängig (403/Fehler betreffen nur ihre

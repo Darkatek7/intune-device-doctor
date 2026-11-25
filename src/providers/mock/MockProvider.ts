@@ -41,6 +41,7 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import { uniformPosture, type TenantPosture } from '../../domain/posture';
 import {
   ASSIGNMENTS_DISPLAY,
   Endpoints,
@@ -545,6 +546,18 @@ export class MockProvider implements DeviceDataProvider {
    * Richtlinien (M15): aus den Demo-Geräten abgeleitet (siehe policies.ts) oder `options.tenant`. Wie
    * live: Zähler nur für die `policyOverviewLimit` zuletzt geänderten Richtlinien, der Rest null.
    */
+  /**
+   * M21 – PLATZHALTER: wird durch die echte Graph-Anbindung ersetzt (siehe docs/tasks/M21-empfehlungen.md).
+   */
+  async getTenantPosture(options: RequestOptions = {}): Promise<TenantPosture> {
+    void options;
+    return uniformPosture({
+      status: 'unavailable',
+      reason: 'noch nicht implementiert',
+      source: { kind: 'mock', label: 'M21' },
+    });
+  }
+
   async getTenantPolicies(options: RequestOptions = {}): Promise<TenantPolicies> {
     await this.delay('policies', options.signal);
     const now = this.now();
