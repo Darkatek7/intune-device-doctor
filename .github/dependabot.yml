@@ -16,6 +16,13 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      # init und analyze müssen dieselbe Version haben – getrennte Updates schlagen immer fehl.
+      codeql-action:
+        patterns: ['github/codeql-action*']
+      # configure-pages, upload-pages-artifact und deploy-pages gehören zusammen.
+      pages:
+        patterns: ['actions/*pages*']
   - package-ecosystem: docker
     directory: /
     schedule:

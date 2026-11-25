@@ -12,8 +12,10 @@ on:
 permissions:
   contents: read
 
+# Pull Requests: ein neuer Push bricht den alten Lauf ab. Auf main (Push, Zeitplan) läuft jeder Lauf zu
+# Ende – sonst erscheinen bei kurz aufeinanderfolgenden Merges abgebrochene Läufe.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -46,10 +48,15 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
 
   e2e:
-    # Playwright gegen den Produktions-Build; nur auf main, manuell und nachts
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # Playwright gegen den Produktions-Build, je Projekt ein eigener Job (parallel statt nacheinander:
+    # rund 6 statt über 20 Minuten, weit weg vom Zeitlimit). Läuft auch bei Pull Requests, damit ein
+    # roter E2E-Test vor dem Merge auffällt und nicht erst danach auf main.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop-light, desktop-dark, mobile, reduced-motion]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -58,12 +65,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npx playwright test --project=${{ matrix.project }}
       - name: Playwright-Report hochladen
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: |
             playwright-report/
             test-results/
