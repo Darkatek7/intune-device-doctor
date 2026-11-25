@@ -1034,3 +1034,420 @@ export interface GraphManagedAppRegistration {
   userId?: string | null;
   appIdentifier?: GraphMobileAppIdentifier | null;
 }
+
+// ---------- Empfehlungen (M21) ----------
+// Quellen und Learn-Links je Abschnitt: docs/graph-api-reference.md → „Empfehlungen (M21)“.
+
+/** Einstellungswert wie von Graph geliefert (Boolean, Zahl, String-Enum/-Dauer); null = nicht gesetzt. */
+export type GraphSettingScalar = string | number | boolean | null;
+
+/**
+ * deviceManagementSettings (v1.0), erreichbar über `GET /deviceManagement?$select=settings`.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicemanagementsettings?view=graph-rest-1.0
+ */
+export interface GraphDeviceManagementSettings {
+  deviceComplianceCheckinThresholdDays?: number | null;
+  isScheduledActionEnabled?: boolean | null;
+  secureByDefault?: boolean | null;
+}
+
+export interface GraphDeviceManagementSettingsResponse {
+  settings?: GraphDeviceManagementSettings | null;
+}
+
+/**
+ * deviceOperatingSystemSummary (v1.0) innerhalb von managedDeviceOverview.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-deviceoperatingsystemsummary?view=graph-rest-1.0
+ */
+export interface GraphDeviceOperatingSystemSummary {
+  androidCount?: number | null;
+  iosCount?: number | null;
+  macOSCount?: number | null;
+  windowsMobileCount?: number | null;
+  windowsCount?: number | null;
+  unknownCount?: number | null;
+  androidDedicatedCount?: number | null;
+  androidDeviceAdminCount?: number | null;
+  androidFullyManagedCount?: number | null;
+  androidWorkProfileCount?: number | null;
+  androidCorporateWorkProfileCount?: number | null;
+  configMgrDeviceCount?: number | null;
+}
+
+/** https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddeviceoverview?view=graph-rest-1.0 */
+export interface GraphManagedDeviceOverview {
+  enrolledDeviceCount?: number | null;
+  deviceOperatingSystemSummary?: GraphDeviceOperatingSystemSummary | null;
+}
+
+/**
+ * Einstellungs-Eigenschaften der abgeleiteten Compliance-Typen (v1.0), jeweils ohne die geerbten
+ * Basiseigenschaften (id, displayName, description, version, Zeitstempel). Die Listen sind zugleich die
+ * Allowlist des Mappers – nichts anderes wird ins Modell übernommen.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-windows10compliancepolicy?view=graph-rest-1.0
+ */
+export const WINDOWS10_COMPLIANCE_SETTING_FIELDS = [
+  'passwordRequired',
+  'passwordBlockSimple',
+  'passwordRequiredToUnlockFromIdle',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordExpirationDays',
+  'passwordMinimumLength',
+  'passwordMinimumCharacterSetCount',
+  'passwordRequiredType',
+  'passwordPreviousPasswordBlockCount',
+  'requireHealthyDeviceReport',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'mobileOsMinimumVersion',
+  'mobileOsMaximumVersion',
+  'earlyLaunchAntiMalwareDriverEnabled',
+  'bitLockerEnabled',
+  'secureBootEnabled',
+  'codeIntegrityEnabled',
+  'storageRequireEncryption',
+] as const;
+
+/** https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-ioscompliancepolicy?view=graph-rest-1.0 */
+export const IOS_COMPLIANCE_SETTING_FIELDS = [
+  'passcodeBlockSimple',
+  'passcodeExpirationDays',
+  'passcodeMinimumLength',
+  'passcodeMinutesOfInactivityBeforeLock',
+  'passcodePreviousPasscodeBlockCount',
+  'passcodeMinimumCharacterSetCount',
+  'passcodeRequiredType',
+  'passcodeRequired',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'securityBlockJailbrokenDevices',
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'managedEmailProfileRequired',
+] as const;
+
+/** https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-macoscompliancepolicy?view=graph-rest-1.0 */
+export const MACOS_COMPLIANCE_SETTING_FIELDS = [
+  'passwordRequired',
+  'passwordBlockSimple',
+  'passwordExpirationDays',
+  'passwordMinimumLength',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordPreviousPasswordBlockCount',
+  'passwordMinimumCharacterSetCount',
+  'passwordRequiredType',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'systemIntegrityProtectionEnabled',
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'storageRequireEncryption',
+  'firewallEnabled',
+  'firewallBlockAllIncoming',
+  'firewallEnableStealthMode',
+] as const;
+
+/**
+ * androidCompliancePolicy und androidWorkProfileCompliancePolicy haben dieselben Eigenschaften.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-androidcompliancepolicy?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-androidworkprofilecompliancepolicy?view=graph-rest-1.0
+ */
+export const ANDROID_COMPLIANCE_SETTING_FIELDS = [
+  'passwordRequired',
+  'passwordMinimumLength',
+  'passwordRequiredType',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordExpirationDays',
+  'passwordPreviousPasswordBlockCount',
+  'securityPreventInstallAppsFromUnknownSources',
+  'securityDisableUsbDebugging',
+  'securityRequireVerifyApps',
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'securityBlockJailbrokenDevices',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'minAndroidSecurityPatchLevel',
+  'storageRequireEncryption',
+  'securityRequireSafetyNetAttestationBasicIntegrity',
+  'securityRequireSafetyNetAttestationCertifiedDevice',
+  'securityRequireGooglePlayServices',
+  'securityRequireUpToDateSecurityProviders',
+  'securityRequireCompanyPortalAppIntegrity',
+] as const;
+
+/** Basis jeder Compliance-Richtlinie (deviceCompliancePolicy, v1.0). */
+export interface GraphCompliancePolicyBase {
+  '@odata.type'?: string | null;
+  id: string;
+  displayName?: string | null;
+  lastModifiedDateTime?: string | null;
+}
+
+type SettingFields<K extends readonly string[]> = { [P in K[number]]?: GraphSettingScalar };
+
+export type GraphWindows10CompliancePolicy = GraphCompliancePolicyBase &
+  SettingFields<typeof WINDOWS10_COMPLIANCE_SETTING_FIELDS>;
+export type GraphIosCompliancePolicy = GraphCompliancePolicyBase &
+  SettingFields<typeof IOS_COMPLIANCE_SETTING_FIELDS>;
+export type GraphMacOsCompliancePolicy = GraphCompliancePolicyBase &
+  SettingFields<typeof MACOS_COMPLIANCE_SETTING_FIELDS>;
+export type GraphAndroidCompliancePolicy = GraphCompliancePolicyBase &
+  SettingFields<typeof ANDROID_COMPLIANCE_SETTING_FIELDS>;
+
+/** Eintrag der Liste `deviceCompliancePolicies` (Basis + Felder aller abgeleiteten Typen). */
+export type GraphCompliancePolicy = GraphCompliancePolicyBase &
+  Partial<
+    Record<
+      | (typeof WINDOWS10_COMPLIANCE_SETTING_FIELDS)[number]
+      | (typeof IOS_COMPLIANCE_SETTING_FIELDS)[number]
+      | (typeof MACOS_COMPLIANCE_SETTING_FIELDS)[number]
+      | (typeof ANDROID_COMPLIANCE_SETTING_FIELDS)[number],
+      GraphSettingScalar
+    >
+  >;
+
+/**
+ * deviceComplianceScheduledActionForRule: `scheduledActionConfigurations` ist nur über den eigenen
+ * Endpunkt lesbar (kein $expand dokumentiert); die Regel liefert nur id und ruleName.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecompliancescheduledactionforrule?view=graph-rest-1.0
+ */
+export interface GraphComplianceScheduledActionRule {
+  id: string;
+  ruleName?: string | null;
+}
+
+/**
+ * deviceComplianceActionItem (v1.0) – `notificationTemplateId` und `notificationMessageCCList`
+ * (Gruppen-IDs) werden bewusst nicht gelesen.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicecomplianceactionitem?view=graph-rest-1.0
+ */
+export interface GraphComplianceActionItem {
+  id?: string;
+  gracePeriodHours?: number | null;
+  actionType?: string | null;
+}
+
+/**
+ * App-Schutz: Einstellungs-Eigenschaften von managedAppProtection (geerbt) und der abgeleiteten Typen.
+ * Ohne displayName, description, Zeitstempel, id, version, isAssigned, deployedAppCount (eigene Felder).
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-mam-iosmanagedappprotection?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-mam-androidmanagedappprotection?view=graph-rest-1.0
+ */
+export const MANAGED_APP_PROTECTION_COMMON_FIELDS = [
+  'periodOfflineBeforeAccessCheck',
+  'periodOnlineBeforeAccessCheck',
+  'allowedInboundDataTransferSources',
+  'allowedOutboundDataTransferDestinations',
+  'organizationalCredentialsRequired',
+  'allowedOutboundClipboardSharingLevel',
+  'dataBackupBlocked',
+  'deviceComplianceRequired',
+  'managedBrowserToOpenLinksRequired',
+  'saveAsBlocked',
+  'periodOfflineBeforeWipeIsEnforced',
+  'pinRequired',
+  'maximumPinRetries',
+  'simplePinBlocked',
+  'minimumPinLength',
+  'pinCharacterSet',
+  'periodBeforePinReset',
+  'allowedDataStorageLocations',
+  'contactSyncBlocked',
+  'printBlocked',
+  'fingerprintBlocked',
+  'disableAppPinIfDevicePinIsSet',
+  'minimumRequiredOsVersion',
+  'minimumWarningOsVersion',
+  'minimumRequiredAppVersion',
+  'minimumWarningAppVersion',
+  'managedBrowser',
+] as const;
+
+export const IOS_APP_PROTECTION_FIELDS = [
+  ...MANAGED_APP_PROTECTION_COMMON_FIELDS,
+  'appDataEncryptionType',
+  'minimumRequiredSdkVersion',
+  'faceIdBlocked',
+  'customBrowserProtocol',
+] as const;
+
+export const ANDROID_APP_PROTECTION_FIELDS = [
+  ...MANAGED_APP_PROTECTION_COMMON_FIELDS,
+  'screenCaptureBlocked',
+  'disableAppEncryptionIfDeviceEncryptionIsEnabled',
+  'encryptAppData',
+  'minimumRequiredPatchVersion',
+  'minimumWarningPatchVersion',
+  'customBrowserPackageId',
+  'customBrowserDisplayName',
+] as const;
+
+/** Eintrag von iosManagedAppProtections bzw. androidManagedAppProtections (v1.0). */
+export type GraphAppProtectionPolicy = {
+  id: string;
+  displayName?: string | null;
+  lastModifiedDateTime?: string | null;
+  isAssigned?: boolean | null;
+  deployedAppCount?: number | null;
+} & Partial<
+  Record<
+    (typeof IOS_APP_PROTECTION_FIELDS)[number] | (typeof ANDROID_APP_PROTECTION_FIELDS)[number],
+    GraphSettingScalar | string[]
+  >
+>;
+
+/**
+ * conditionalAccessPolicy (v1.0) – nur die für den Abgleich gelesenen Teile. Die Listen mit Benutzer-,
+ * Gruppen-, Rollen- und App-IDs werden vom Mapper ausgewertet (Merkmal „leer/nicht leer“, enthält `All`)
+ * und nie übernommen.
+ * https://learn.microsoft.com/en-us/graph/api/resources/conditionalaccesspolicy?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/conditionalaccessgrantcontrols?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/conditionalaccessusers?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/conditionalaccessapplications?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/conditionalaccessplatforms?view=graph-rest-1.0
+ */
+export interface GraphConditionalAccessPolicy {
+  id: string;
+  displayName?: string | null;
+  /** `enabled`, `disabled`, `enabledForReportingButNotEnforced` */
+  state?: string | null;
+  conditions?: {
+    users?: {
+      includeUsers?: string[] | null;
+      excludeUsers?: string[] | null;
+      excludeGroups?: string[] | null;
+      excludeRoles?: string[] | null;
+      excludeGuestsOrExternalUsers?: unknown;
+    } | null;
+    applications?: { includeApplications?: string[] | null } | null;
+    platforms?: { includePlatforms?: string[] | null } | null;
+  } | null;
+  grantControls?: {
+    operator?: string | null;
+    builtInControls?: string[] | null;
+  } | null;
+}
+
+/**
+ * secureScore (v1.0) – `azureTenantId` und die Zähler werden nicht gelesen.
+ * https://learn.microsoft.com/en-us/graph/api/resources/securescore?view=graph-rest-1.0
+ * https://learn.microsoft.com/en-us/graph/api/resources/controlscore?view=graph-rest-1.0
+ */
+export interface GraphControlScore {
+  controlCategory?: string | null;
+  controlName?: string | null;
+  description?: string | null;
+  score?: number | null;
+}
+
+export interface GraphSecureScore {
+  id?: string;
+  createdDateTime?: string | null;
+  currentScore?: number | null;
+  maxScore?: number | null;
+  controlScores?: GraphControlScore[] | null;
+}
+
+/**
+ * secureScoreControlProfile (v1.0) – nur gelesene Felder; `azureTenantId` und `controlStateUpdates`
+ * (enthält `updatedBy`) werden nie gelesen. Beim Profil ist `id` der Kontrollname (Beispiel der Doku:
+ * `"id": "DLPEnabled"`).
+ * https://learn.microsoft.com/en-us/graph/api/resources/securescorecontrolprofile?view=graph-rest-1.0
+ */
+export interface GraphSecureScoreControlProfile {
+  id: string;
+  title?: string | null;
+  controlCategory?: string | null;
+  service?: string | null;
+  maxScore?: number | null;
+  remediation?: string | null;
+  actionUrl?: string | null;
+  implementationCost?: string | null;
+  userImpact?: string | null;
+  deprecated?: boolean | null;
+}
+
+/**
+ * deviceManagementConfigurationPolicy (beta, freigegebene Ausnahme M21) – nur gelesene Felder.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationpolicy?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationpolicytemplatereference?view=graph-rest-beta
+ */
+export interface GraphConfigurationPolicy {
+  id: string;
+  name?: string | null;
+  platforms?: string | null;
+  technologies?: string | null;
+  lastModifiedDateTime?: string | null;
+  settingCount?: number | null;
+  isAssigned?: boolean | null;
+  templateReference?: {
+    templateId?: string | null;
+    templateFamily?: string | null;
+    templateDisplayName?: string | null;
+    templateDisplayVersion?: string | null;
+  } | null;
+}
+
+/**
+ * deviceManagementConfigurationPolicyTemplate (beta).
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationpolicytemplate?view=graph-rest-beta
+ */
+export interface GraphConfigurationPolicyTemplate {
+  id: string;
+  baseId?: string | null;
+  displayName?: string | null;
+  displayVersion?: string | null;
+  lifecycleState?: string | null;
+  platforms?: string | null;
+  templateFamily?: string | null;
+}
+
+/**
+ * deviceManagementConfigurationSetting (beta) mit Auswahl-/Einfachwert-Instanz. Weitere Werttypen
+ * (Gruppen, Sammlungen, Geheimnisse …) werden nicht gelesen. `children` dient nur der Zählung.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationsetting?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationchoicesettingvalue?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationintegersettingvalue?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationstringsettingvalue?view=graph-rest-beta
+ */
+export interface GraphConfigurationSetting {
+  id?: string;
+  settingInstance?: {
+    '@odata.type'?: string | null;
+    settingDefinitionId?: string | null;
+    /** Auswahl: `value` ist die itemId der gewählten Option */
+    choiceSettingValue?: { value?: string | null; children?: unknown[] | null } | null;
+    /** Einfachwert: `value` gibt es nur bei String-/Integer-Wert */
+    simpleSettingValue?: { '@odata.type'?: string | null; value?: string | number | null } | null;
+  } | null;
+}
+
+/**
+ * deviceManagementConfigurationSettingTemplate (beta): Standardwerte der Vorlage.
+ * Auswahl: `choiceSettingValueTemplate.defaultValue.settingDefinitionOptionId`; Einfachwert:
+ * `simpleSettingValueTemplate.defaultValue.constantValue`.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationsettingtemplate?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationchoicesettingvaluetemplate?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationchoicesettingvalueconstantdefaulttemplate?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationstringsettingvalueconstantdefaulttemplate?view=graph-rest-beta
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfigv2-devicemanagementconfigurationintegersettingvalueconstantdefaulttemplate?view=graph-rest-beta
+ */
+export interface GraphConfigurationSettingTemplate {
+  id?: string;
+  settingInstanceTemplate?: {
+    '@odata.type'?: string | null;
+    settingDefinitionId?: string | null;
+    isRequired?: boolean | null;
+    choiceSettingValueTemplate?: {
+      defaultValue?: {
+        settingDefinitionOptionId?: string | null;
+        /** Vorlagen der Unter-Einstellungen; nur gezählt */
+        children?: unknown[] | null;
+      } | null;
+    } | null;
+    simpleSettingValueTemplate?: {
+      defaultValue?: { constantValue?: string | number | null } | null;
+    } | null;
+  } | null;
+}

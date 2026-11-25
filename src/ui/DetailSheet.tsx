@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { DataSource, Tile } from '../domain/types';
@@ -27,6 +28,8 @@ interface Props {
   onClose: () => void;
   /** Lädt die fehlgeschlagenen Sections der Kachel neu */
   onRetry?: () => void;
+  /** Zusätzlicher Inhalt nach den Befunden (Slot, z. B. Liste aller Empfehlungen) */
+  extra?: ReactNode;
 }
 
 const NOTICE_ICON = {
@@ -63,7 +66,7 @@ function uniqueSources(sources: DataSource[]): DataSource[] {
  * Öffnet aus der Kachel heraus (Bounding-Box) und schließt auf demselben Weg zurück.
  * Muss unter <AnimatePresence> stehen, damit die Austritts-Animation laufen kann.
  */
-export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) {
+export function DetailSheet({ tile, origin, notices, onClose, onRetry, extra }: Props) {
   const reduced = useReducedMotion();
   const desktop = useMediaQuery('(min-width: 40rem)', true);
   const [isPresent, safeToRemove] = usePresence();
@@ -377,10 +380,13 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                           key={fact.label}
                           className="flex items-baseline justify-between gap-4 py-2"
                         >
-                          <dt className="shrink-0 text-secondary-label">{fact.label}</dt>
+                          {/* Lange Bezeichnungen (z. B. Richtliniennamen) umbrechen, statt den Wert zu verdrängen. */}
+                          <dt className="max-w-[62%] min-w-0 break-words text-secondary-label">
+                            {fact.label}
+                          </dt>
                           <dd
                             title={fact.title}
-                            className={`min-w-0 break-words text-right text-label ${
+                            className={`min-w-0 flex-1 break-words text-right text-label ${
                               fact.mono ? 'break-all font-mono text-xs tabular-nums' : ''
                             }`}
                           >
@@ -395,6 +401,8 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                 {tile.findings.map((finding) => (
                   <FindingCard key={finding.id} finding={finding} />
                 ))}
+
+                {extra}
 
                 {sources.length > 0 && (
                   <section aria-label={de.sheet.sources} className="space-y-1">

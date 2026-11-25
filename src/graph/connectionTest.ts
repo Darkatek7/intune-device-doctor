@@ -41,6 +41,10 @@ interface Derived {
   /** Erste ID aus den Mandanten-Listen (M15) */
   tenantConfigurationId?: string;
   tenantCompliancePolicyId?: string;
+  /** M21: Regel der Aktionen der ersten Compliance-Richtlinie, erste Katalog-Richtlinie und -Vorlage */
+  tenantScheduledActionRuleId?: string;
+  catalogPolicyId?: string;
+  policyTemplateId?: string;
 }
 
 interface ProbeContext {
@@ -299,6 +303,61 @@ export const Probes: Record<EndpointId, Probe> = {
     request: () => ({ path: Endpoints.deviceConfigurationDeviceStateSummaries.path() }),
   },
   auditEvents: { request: () => ({ path: Endpoints.auditEvents.path() }) },
+  // M21: Empfehlungen – mandantenweit, kein Gerät nötig; Kennungen nur flüchtig für abhängige Aufrufe
+  deviceManagementSettings: {
+    request: () => ({ path: Endpoints.deviceManagementSettings.path() }),
+  },
+  managedDeviceOverview: { request: () => ({ path: Endpoints.managedDeviceOverview.path() }) },
+  deviceCompliancePolicyScheduledActions: {
+    request: needsDerived('tenantCompliancePolicyId', (id) =>
+      Endpoints.deviceCompliancePolicyScheduledActions.path(id),
+    ),
+    capture: (entries, derived) => {
+      derived.tenantScheduledActionRuleId = firstId(entries);
+    },
+  },
+  deviceCompliancePolicyScheduledActionItems: {
+    request: (ctx) => {
+      const { tenantCompliancePolicyId: policyId, tenantScheduledActionRuleId: ruleId } =
+        ctx.derived;
+      return policyId && ruleId
+        ? { path: Endpoints.deviceCompliancePolicyScheduledActionItems.path(policyId, ruleId) }
+        : { skip: 'noSource' };
+    },
+  },
+  iosManagedAppProtections: {
+    request: () => ({ path: Endpoints.iosManagedAppProtections.path() }),
+  },
+  androidManagedAppProtections: {
+    request: () => ({ path: Endpoints.androidManagedAppProtections.path() }),
+  },
+  conditionalAccessPolicies: {
+    request: () => ({ path: Endpoints.conditionalAccessPolicies.path() }),
+  },
+  secureScores: { request: () => ({ path: Endpoints.secureScores.path() }) },
+  secureScoreControlProfiles: {
+    request: () => ({ path: Endpoints.secureScoreControlProfiles.path() }),
+  },
+  catalogPolicies: {
+    request: () => ({ path: Endpoints.catalogPolicies.path() }),
+    capture: (entries, derived) => {
+      derived.catalogPolicyId = firstId(entries);
+    },
+  },
+  catalogPolicySettings: {
+    request: needsDerived('catalogPolicyId', (id) => Endpoints.catalogPolicySettings.path(id)),
+  },
+  policyTemplates: {
+    request: () => ({ path: Endpoints.policyTemplates.path() }),
+    capture: (entries, derived) => {
+      derived.policyTemplateId = firstId(entries);
+    },
+  },
+  policyTemplateSettingTemplates: {
+    request: needsDerived('policyTemplateId', (id) =>
+      Endpoints.policyTemplateSettingTemplates.path(id),
+    ),
+  },
 };
 
 /** Endpunkte in Testreihenfolge. */

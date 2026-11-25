@@ -44,6 +44,21 @@ import type {
   VppTokenInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import type {
+  AppProtectionPolicyConfigList,
+  BaselineComparisonInfo,
+  CatalogPolicyConfig,
+  CatalogPolicyList,
+  CompliancePolicyConfig,
+  CompliancePolicyConfigList,
+  ComplianceScheduledAction,
+  ComplianceTenantSettings,
+  ConditionalAccessInfo,
+  PlatformDeviceCounts,
+  PolicyTemplateList,
+  SecureScoreInfo,
+  TenantPosture,
+} from '../../domain/posture';
 import { matchesSerialNumber } from '../../domain/search';
 import { runConnectionTest } from '../../graph/connectionTest';
 import {
@@ -82,10 +97,25 @@ import type {
   GraphDeviceStateSummary,
   GraphAuditEvent,
   GraphManagedAppRegistration,
+  GraphDeviceManagementSettingsResponse,
+  GraphManagedDeviceOverview,
+  GraphCompliancePolicy,
+  GraphComplianceScheduledActionRule,
+  GraphComplianceActionItem,
+  GraphAppProtectionPolicy,
+  GraphConditionalAccessPolicy,
+  GraphSecureScore,
+  GraphSecureScoreControlProfile,
+  GraphConfigurationPolicy,
+  GraphConfigurationPolicyTemplate,
+  GraphConfigurationSetting,
+  GraphConfigurationSettingTemplate,
 } from '../../graph/dto';
 import {
   ASSIGNMENTS_DISPLAY,
   ASSIGNMENT_LOOKUP_CONCURRENCY,
+  BASELINE_COMPARISON_CONCURRENCY,
+  COMPLIANCE_DETAIL_CONCURRENCY,
   Endpoints,
   MAX_ASSIGNMENT_LOOKUPS,
   MAX_ENROLLMENT_LIMIT_CONFIGS,
@@ -99,6 +129,10 @@ import {
   MAX_SETTING_SUMMARY_PAGES,
   MAX_AUDIT_EVENT_PAGES,
   MAX_APP_REGISTRATION_PAGES,
+  MAX_BASELINE_COMPARISONS,
+  MAX_BASELINE_SETTING_PAGES,
+  MAX_COMPLIANCE_POLICY_DETAILS,
+  MAX_SECURE_SCORE_PROFILE_PAGES,
   SIGN_IN_WINDOW_DAYS,
   type EndpointId,
 } from '../../graph/endpoints';
@@ -136,8 +170,20 @@ import {
   mapComplianceSettingSummaries,
   mapDeviceStateSummary,
   mapAuditEvents,
+  mapAppProtectionPolicies,
+  mapBaselineComparison,
+  mapCatalogPolicies,
+  mapComplianceTenantSettings,
+  mapCompliancePolicies,
+  mapConditionalAccessPolicies,
+  mapPlatformCounts,
+  mapPolicyTemplates,
+  mapScheduledActionItems,
+  mapScheduledActionRuleIds,
+  mapSecureScore,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
+import { dePosture } from '../../i18n/de-posture';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 
 const MAX_SEARCH_RESULTS = 25;
@@ -169,6 +215,12 @@ function toAppError(error: unknown): AppError {
 function usableAzureAdId(device: ManagedDeviceInfo): string | null {
   const id = device.azureADDeviceId?.trim();
   return id && id !== EMPTY_GUID ? id : null;
+}
+
+/** Neueste zuerst (`lastModifiedDateTime`); ohne Zeitstempel zuletzt. Ändert die Eingabe nicht. */
+function byRecency<T extends { lastModifiedDateTime: string | null }>(items: readonly T[]): T[] {
+  const time = (item: T) => (item.lastModifiedDateTime ? Date.parse(item.lastModifiedDateTime) : 0);
+  return [...items].sort((a, b) => time(b) - time(a));
 }
 
 export class GraphProvider implements DeviceDataProvider {
@@ -812,6 +864,444 @@ export class GraphProvider implements DeviceDataProvider {
   }
 
   // ---------- Richtlinien → Geräte (M15) ----------
+
+  // ---------- Empfehlungen (M21) ----------
+
+  /**
+   * Alle acht Quellen der Ansicht „Empfehlungen“, jede als eigenes SectionResult (eine fehlende
+   * Berechtigung betrifft nur ihre Kachel). Wirft nur bei Abbruch. Nur GET; `catalogPolicies` und
+   * `policyTemplates` stammen aus der freigegebenen Beta-Ausnahme.
+   */
+  async getTenantPosture(options: RequestOptions = {}): Promise<TenantPosture> {
+    const [
+      complianceSettings,
+      platformCounts,
+      compliancePolicies,
+      appProtectionPolicies,
+      conditionalAccess,
+      secureScore,
+      catalogPolicies,
+      policyTemplates,
+    ] = await Promise.all([
+      this.readComplianceTenantSettings(options),
+      this.readPlatformCounts(options),
+      this.readCompliancePolicyConfigs(options),
+      this.readAppProtectionPolicies(options),
+      this.readConditionalAccess(options),
+      this.readSecureScore(options),
+      this.readCatalogPolicies(options),
+      this.readPolicyTemplates(options),
+    ]);
+    return {
+      complianceSettings,
+      platformCounts,
+      compliancePolicies,
+      appProtectionPolicies,
+      conditionalAccess,
+      secureScore,
+      catalogPolicies,
+      policyTemplates,
+    };
+  }
+
+  private readComplianceTenantSettings(
+    options: RequestOptions,
+  ): Promise<SectionResult<ComplianceTenantSettings>> {
+    const endpoint = Endpoints.deviceManagementSettings;
+    const reason = dePosture.reasons.complianceSettingsNotReported;
+    return this.run<ComplianceTenantSettings>(
+      'deviceManagementSettings',
+      async (source) => {
+        const dto = await this.client.get<GraphDeviceManagementSettingsResponse>(endpoint.path(), {
+          signal: options.signal,
+          scope: endpoint.scope,
+        });
+        const data = mapComplianceTenantSettings(dto);
+        return data ? this.ok(data, source) : { status: 'unavailable', reason, source };
+      },
+      (source) => ({ status: 'unavailable', reason, source }),
+    );
+  }
+
+  private readPlatformCounts(
+    options: RequestOptions,
+  ): Promise<SectionResult<PlatformDeviceCounts>> {
+    const endpoint = Endpoints.managedDeviceOverview;
+    const reason = dePosture.reasons.platformCountsNotReported;
+    return this.run<PlatformDeviceCounts>(
+      'managedDeviceOverview',
+      async (source) => {
+        const dto = await this.client.get<GraphManagedDeviceOverview>(endpoint.path(), {
+          signal: options.signal,
+          scope: endpoint.scope,
+        });
+        return this.ok(mapPlatformCounts(dto), source);
+      },
+      (source) => ({ status: 'unavailable', reason, source }),
+    );
+  }
+
+  /**
+   * Compliance-Richtlinien mit allen dokumentierten Einstellungen (Listenantwort). Zuweisungen und Aktionen
+   * bei Nichtkonformität: kein `$expand` dokumentiert → Einzelabrufe für die MAX_COMPLIANCE_POLICY_DETAILS
+   * zuletzt geänderten Richtlinien (COMPLIANCE_DETAIL_CONCURRENCY parallel); alle weiteren bleiben `null`
+   * und setzen `truncated`.
+   */
+  private readCompliancePolicyConfigs(
+    options: RequestOptions,
+  ): Promise<SectionResult<CompliancePolicyConfigList>> {
+    const endpoint = Endpoints.deviceCompliancePolicies;
+    return this.run<CompliancePolicyConfigList>(
+      'deviceCompliancePolicies',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphCompliancePolicy>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_LIST_PAGES,
+          options,
+        );
+        const policies = mapCompliancePolicies(entries);
+        const chosen = byRecency(policies).slice(0, MAX_COMPLIANCE_POLICY_DETAILS);
+        const details = new Map<
+          string,
+          Pick<CompliancePolicyConfig, 'assigned' | 'scheduledActions'>
+        >();
+        for (let i = 0; i < chosen.length; i += COMPLIANCE_DETAIL_CONCURRENCY) {
+          const batch = chosen.slice(i, i + COMPLIANCE_DETAIL_CONCURRENCY);
+          const results = await Promise.all(
+            batch.map((policy) => this.readComplianceDetail(policy.id, options)),
+          );
+          batch.forEach((policy, index) => details.set(policy.id, results[index]!));
+        }
+        return this.ok(
+          {
+            policies: policies.map((policy) => ({ ...policy, ...details.get(policy.id) })),
+            truncated: truncated || policies.length > chosen.length,
+          },
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.compliancePoliciesNotFound,
+        source,
+      }),
+    );
+  }
+
+  /** Zuweisungen (ja/nein) und Aktionen einer Richtlinie; nicht lesbar → null, nie ein Fehler. */
+  private async readComplianceDetail(
+    policyId: string,
+    options: RequestOptions,
+  ): Promise<Pick<CompliancePolicyConfig, 'assigned' | 'scheduledActions'>> {
+    const [assigned, scheduledActions] = await Promise.all([
+      this.softly(async () => {
+        const endpoint = Endpoints.deviceCompliancePolicyAssignments;
+        const page = await this.client.get<GraphCollection<unknown>>(endpoint.path(policyId), {
+          signal: options.signal,
+          scope: endpoint.scope,
+        });
+        return Array.isArray(page?.value) ? page.value.length > 0 : null;
+      }),
+      this.softly<ComplianceScheduledAction[]>(async () => {
+        const rulesEndpoint = Endpoints.deviceCompliancePolicyScheduledActions;
+        const rules = await this.client.get<GraphCollection<GraphComplianceScheduledActionRule>>(
+          rulesEndpoint.path(policyId),
+          { signal: options.signal, scope: rulesEndpoint.scope },
+        );
+        if (!Array.isArray(rules?.value)) return null;
+        const itemsEndpoint = Endpoints.deviceCompliancePolicyScheduledActionItems;
+        const actions: ComplianceScheduledAction[] = [];
+        for (const ruleId of mapScheduledActionRuleIds(rules.value)) {
+          const items = await this.client.get<GraphCollection<GraphComplianceActionItem>>(
+            itemsEndpoint.path(policyId, ruleId),
+            { signal: options.signal, scope: itemsEndpoint.scope },
+          );
+          actions.push(...mapScheduledActionItems(items?.value));
+        }
+        return actions;
+      }),
+    ]);
+    return { assigned, scheduledActions };
+  }
+
+  /** Führt einen Nebenabruf aus; jeder Fehler außer Abbruch → null. */
+  private async softly<T>(load: () => Promise<T | null>): Promise<T | null> {
+    try {
+      return await load();
+    } catch (error) {
+      if (isAbort(error)) throw error;
+      return null;
+    }
+  }
+
+  /**
+   * iOS- und Android-App-Schutzrichtlinien als eine Quelle. Schlägt eine der beiden Listen fehl, ist das
+   * Ergebnis der Quelle dieser Fehler (iOS zuerst) – eine halbe Liste würde sonst „keine Android-Richtlinie“
+   * vortäuschen.
+   */
+  private async readAppProtectionPolicies(
+    options: RequestOptions,
+  ): Promise<SectionResult<AppProtectionPolicyConfigList>> {
+    const [ios, android] = await Promise.all([
+      this.readAppProtectionList('iosManagedAppProtections', 'ios', options),
+      this.readAppProtectionList('androidManagedAppProtections', 'android', options),
+    ]);
+    if (ios.status !== 'ok') return ios;
+    if (android.status !== 'ok') return android;
+    return {
+      status: 'ok',
+      data: {
+        policies: [...ios.data.policies, ...android.data.policies],
+        truncated: ios.data.truncated || android.data.truncated,
+      },
+      source: {
+        kind: 'graph',
+        label: `${ios.source.label} + ${android.source.label}`,
+        docsUrl: ios.source.docsUrl,
+      },
+      fetchedAt: this.now().toISOString(),
+    };
+  }
+
+  private readAppProtectionList(
+    id: 'iosManagedAppProtections' | 'androidManagedAppProtections',
+    platform: 'ios' | 'android',
+    options: RequestOptions,
+  ): Promise<SectionResult<AppProtectionPolicyConfigList>> {
+    const endpoint = Endpoints[id];
+    return this.run<AppProtectionPolicyConfigList>(
+      id,
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphAppProtectionPolicy>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_LIST_PAGES,
+          options,
+        );
+        return this.ok(
+          { policies: mapAppProtectionPolicies(entries, platform), truncated },
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.appProtectionNotFound,
+        source,
+      }),
+    );
+  }
+
+  private readConditionalAccess(
+    options: RequestOptions,
+  ): Promise<SectionResult<ConditionalAccessInfo>> {
+    const endpoint = Endpoints.conditionalAccessPolicies;
+    return this.run<ConditionalAccessInfo>(
+      'conditionalAccessPolicies',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphConditionalAccessPolicy>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_LIST_PAGES,
+          options,
+        );
+        return this.ok({ policies: mapConditionalAccessPolicies(entries), truncated }, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.conditionalAccessNotFound,
+        source,
+      }),
+    );
+  }
+
+  /**
+   * Jüngster Secure Score (`$top=1`) plus Kontrollprofile. Beide Abrufe müssen gelingen (ohne Profil lässt
+   * sich die Empfehlung weder nach Dienst filtern noch beschreiben); sonst ist das Ergebnis der Quelle der
+   * erste Fehler. Der Mandanten-GUID des Scores (`azureTenantId`) wird nie gelesen.
+   */
+  private async readSecureScore(options: RequestOptions): Promise<SectionResult<SecureScoreInfo>> {
+    const scoreEndpoint = Endpoints.secureScores;
+    const scoreReason = dePosture.reasons.secureScoreNotReported;
+    const score = await this.run<GraphSecureScore | null>(
+      'secureScores',
+      async (source) => {
+        const page = await this.client.get<GraphCollection<GraphSecureScore>>(
+          scoreEndpoint.path(),
+          {
+            signal: options.signal,
+            scope: scoreEndpoint.scope,
+          },
+        );
+        return this.ok(page?.value?.[0] ?? null, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.secureScoreNotFound,
+        source,
+      }),
+    );
+    if (score.status !== 'ok') return score;
+    if (!score.data) return { status: 'unavailable', reason: scoreReason, source: score.source };
+
+    const profileEndpoint = Endpoints.secureScoreControlProfiles;
+    const profiles = await this.run<GraphSecureScoreControlProfile[]>(
+      'secureScoreControlProfiles',
+      async (source) => {
+        const { entries } = await this.readPages<GraphSecureScoreControlProfile>(
+          profileEndpoint.path(),
+          profileEndpoint.scope,
+          MAX_SECURE_SCORE_PROFILE_PAGES,
+          options,
+        );
+        return this.ok(entries, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.secureScoreNotFound,
+        source,
+      }),
+    );
+    if (profiles.status !== 'ok') return profiles;
+    const info = mapSecureScore(score.data, profiles.data);
+    return info
+      ? this.ok(info, score.source)
+      : { status: 'unavailable', reason: scoreReason, source: score.source };
+  }
+
+  /**
+   * BETA (freigegebene Ausnahme): Einstellungskatalog, Endpunktsicherheit, Sicherheitsbaselines. Für die
+   * MAX_BASELINE_COMPARISONS zuletzt geänderten Richtlinien mit `templateFamily: baseline` folgt der
+   * Vergleich mit den Standardwerten ihrer Vorlage; alle anderen behalten `comparison: null`.
+   */
+  private readCatalogPolicies(options: RequestOptions): Promise<SectionResult<CatalogPolicyList>> {
+    const endpoint = Endpoints.catalogPolicies;
+    return this.run<CatalogPolicyList>(
+      'catalogPolicies',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphConfigurationPolicy>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_LIST_PAGES,
+          options,
+        );
+        const policies = mapCatalogPolicies(entries);
+        const chosen = byRecency(
+          policies.filter((policy) => policy.templateFamily === 'baseline'),
+        ).slice(0, MAX_BASELINE_COMPARISONS);
+        const comparisons = new Map<string, SectionResult<BaselineComparisonInfo>>();
+        for (let i = 0; i < chosen.length; i += BASELINE_COMPARISON_CONCURRENCY) {
+          const batch = chosen.slice(i, i + BASELINE_COMPARISON_CONCURRENCY);
+          const results = await Promise.all(
+            batch.map((policy) => this.readBaselineComparison(policy, options)),
+          );
+          batch.forEach((policy, index) => comparisons.set(policy.id, results[index]!));
+        }
+        return this.ok(
+          {
+            policies: policies.map((policy) => ({
+              ...policy,
+              comparison: comparisons.get(policy.id) ?? null,
+            })),
+            truncated,
+          },
+          source,
+        );
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.catalogPoliciesNotFound,
+        source,
+      }),
+    );
+  }
+
+  /** Einstellungen der Richtlinie gegen die Einstellungsvorlagen ihrer Vorlage (beide beta, jeweils gepaged). */
+  private async readBaselineComparison(
+    policy: CatalogPolicyConfig,
+    options: RequestOptions,
+  ): Promise<SectionResult<BaselineComparisonInfo>> {
+    if (!policy.templateId) {
+      return {
+        status: 'unavailable',
+        reason: dePosture.reasons.baselineNoTemplate,
+        source: graphSource('catalogPolicySettings'),
+      };
+    }
+    const templateId = policy.templateId;
+    const settingsEndpoint = Endpoints.catalogPolicySettings;
+    const settings = await this.run<{ entries: GraphConfigurationSetting[]; truncated: boolean }>(
+      'catalogPolicySettings',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphConfigurationSetting>(
+          settingsEndpoint.path(policy.id),
+          settingsEndpoint.scope,
+          MAX_BASELINE_SETTING_PAGES,
+          options,
+        );
+        return this.ok({ entries, truncated }, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.baselineSettingsNotFound,
+        source,
+      }),
+    );
+    if (settings.status !== 'ok') return settings;
+
+    const templatesEndpoint = Endpoints.policyTemplateSettingTemplates;
+    const templates = await this.run<{
+      entries: GraphConfigurationSettingTemplate[];
+      truncated: boolean;
+    }>(
+      'policyTemplateSettingTemplates',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphConfigurationSettingTemplate>(
+          templatesEndpoint.path(templateId),
+          templatesEndpoint.scope,
+          MAX_BASELINE_SETTING_PAGES,
+          options,
+        );
+        return this.ok({ entries, truncated }, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.baselineTemplateNotFound,
+        source,
+      }),
+    );
+    if (templates.status !== 'ok') return templates;
+
+    return this.ok(
+      mapBaselineComparison(settings.data.entries, templates.data.entries, {
+        policySettingsTruncated: settings.data.truncated,
+        templateSettingsTruncated: templates.data.truncated,
+      }),
+      settings.source,
+    );
+  }
+
+  /** BETA (freigegebene Ausnahme): Richtlinienvorlagen mit `lifecycleState`. */
+  private readPolicyTemplates(options: RequestOptions): Promise<SectionResult<PolicyTemplateList>> {
+    const endpoint = Endpoints.policyTemplates;
+    return this.run<PolicyTemplateList>(
+      'policyTemplates',
+      async (source) => {
+        const { entries, truncated } = await this.readPages<GraphConfigurationPolicyTemplate>(
+          endpoint.path(),
+          endpoint.scope,
+          MAX_LIST_PAGES,
+          options,
+        );
+        return this.ok({ templates: mapPolicyTemplates(entries), truncated }, source);
+      },
+      (source) => ({
+        status: 'unavailable',
+        reason: dePosture.reasons.policyTemplatesNotFound,
+        source,
+      }),
+    );
+  }
 
   /**
    * Richtlinien des Mandanten mit Zählern. Beide Listen unabhängig (403/Fehler betreffen nur ihre

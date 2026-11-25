@@ -3,9 +3,11 @@
  * Die Ansicht „Mandant“ (M14/S5) ist ?view=tenant (ohne Gerät; &tile=<tileId> öffnet auch dort ein Sheet).
  * Der Verbindungstest (M14/S6, nur Live) ist ?view=connection-test&device=<id> (ohne Kachel-Sheet).
  * Die Ansicht „Richtlinien“ (M15) ist ?view=policies (+ &policy=<kind>:<id> für den Gerätestatus einer Richtlinie).
+ * Die Ansicht „Empfehlungen“ (M21) ist ?view=recommendations (+ &level=1|2|3, nur wenn ≠ Standard; &tile=<tileId>).
  * Änderungen laufen über history.pushState/replaceState; Browser-Zurück (popstate) wird mitgeführt.
  */
 import { useMemo, useSyncExternalStore } from 'react';
+import { DEFAULT_POSTURE_LEVEL, type PostureLevel } from '../domain/posture';
 import type { DataMode } from '../domain/types';
 
 export interface UrlState {
@@ -13,16 +15,23 @@ export interface UrlState {
   tile: string | null;
   mode: DataMode | null;
   /** Ansicht „Mandant“ bzw. „Verbindungstest“; fehlt/null = Start- bzw. Geräteansicht */
-  view?: 'tenant' | 'connectionTest' | 'policies' | null;
+  view?: 'tenant' | 'connectionTest' | 'policies' | 'recommendations' | null;
   /** Nur in der Ansicht „Richtlinien“: geöffnete Richtlinie als `configuration:<id>` bzw. `compliance:<id>` */
   policy?: string | null;
+  /** Nur in der Ansicht „Empfehlungen“: gewählte Stufe; fehlt/null = Standard */
+  level?: PostureLevel | null;
 }
 
 function parseView(value: string | null): UrlState['view'] {
   if (value === 'tenant') return 'tenant';
   if (value === 'connection-test') return 'connectionTest';
   if (value === 'policies') return 'policies';
+  if (value === 'recommendations') return 'recommendations';
   return null;
+}
+
+function parseLevel(value: string | null): PostureLevel | null {
+  return value === '1' ? 1 : value === '2' ? 2 : value === '3' ? 3 : null;
 }
 
 export function parseUrl(search: string): UrlState {
@@ -34,6 +43,7 @@ export function parseUrl(search: string): UrlState {
     mode: mode === 'demo' || mode === 'live' ? mode : null,
     view: parseView(params.get('view')),
     policy: params.get('policy') || null,
+    level: parseLevel(params.get('level')),
   };
 }
 
@@ -43,13 +53,26 @@ export function buildSearch(state: UrlState): string {
   if (state.device) params.set('device', state.device);
   else if (state.view === 'tenant') params.set('view', 'tenant');
   else if (state.view === 'policies') params.set('view', 'policies');
+  else if (state.view === 'recommendations') params.set('view', 'recommendations');
   if (connectionTest) params.set('view', 'connection-test');
   if (!state.device && state.view === 'policies' && state.policy) {
     params.set('policy', state.policy);
   }
+  if (
+    !state.device &&
+    state.view === 'recommendations' &&
+    state.level &&
+    state.level !== DEFAULT_POSTURE_LEVEL
+  ) {
+    params.set('level', String(state.level));
+  }
   if (state.mode) params.set('mode', state.mode);
-  // Kachel-Sheets gibt es nur in der Geräte- und der Mandanten-Ansicht
-  if (!connectionTest && (state.device || state.view === 'tenant') && state.tile) {
+  // Kachel-Sheets gibt es nur in der Geräte-, der Mandanten- und der Empfehlungen-Ansicht
+  if (
+    !connectionTest &&
+    (state.device || state.view === 'tenant' || state.view === 'recommendations') &&
+    state.tile
+  ) {
     params.set('tile', state.tile);
   }
   const s = params.toString();

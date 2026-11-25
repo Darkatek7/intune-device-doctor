@@ -131,7 +131,7 @@ describe('Verbindungstest – Vollständigkeit', () => {
     expect(new Set(calls.map((call) => call.url)).size).toBe(calls.length);
   });
 
-  it('sendet ausschließlich GET an graph.microsoft.com; beta nur für den freigegebenen Endpunkt', async () => {
+  it('sendet ausschließlich GET an graph.microsoft.com; beta nur für die freigegebenen Endpunkte', async () => {
     const { run, calls } = setup();
     await run();
     for (const call of calls) {
@@ -139,10 +139,33 @@ describe('Verbindungstest – Vollständigkeit', () => {
       expect(call.parsed.protocol).toBe('https:');
       expect(call.parsed.host).toBe('graph.microsoft.com');
     }
-    const beta = calls.filter((call) => call.parsed.pathname.startsWith('/beta/'));
-    expect(beta).toHaveLength(1);
-    expect(beta[0]?.parsed.pathname).toBe(`/beta/users/${USER_ID}/mobileAppIntentAndStates`);
-    expect(Object.values(Endpoints).filter((e) => e.version === 'beta')).toHaveLength(1);
+    const betaPaths = calls
+      .filter((call) => call.parsed.pathname.startsWith('/beta/'))
+      .map((call) => decodeURIComponent(call.parsed.pathname))
+      .sort();
+    expect(betaPaths).toEqual(
+      [
+        `/beta/users/${USER_ID}/mobileAppIntentAndStates`,
+        '/beta/deviceManagement/configurationPolicies',
+        '/beta/deviceManagement/configurationPolicies/e1/settings',
+        '/beta/deviceManagement/configurationPolicyTemplates',
+        '/beta/deviceManagement/configurationPolicyTemplates/e1/settingTemplates',
+      ].sort(),
+    );
+    expect(
+      Object.values(Endpoints)
+        .filter((e) => e.version === 'beta')
+        .map((e) => e.id)
+        .sort(),
+    ).toEqual(
+      [
+        'mobileAppIntentAndStates',
+        'catalogPolicies',
+        'catalogPolicySettings',
+        'policyTemplates',
+        'policyTemplateSettingTemplates',
+      ].sort(),
+    );
   });
 
   it('nimmt Kennungen für abhängige Aufrufe aus den vorherigen Antworten', async () => {

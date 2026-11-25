@@ -15,6 +15,9 @@ export const PoliciesView = lazy(() =>
 export const PolicyDetailView = lazy(() =>
   import('./PolicyDetailView').then((m) => ({ default: m.PolicyDetailView })),
 );
+export const RecommendationsView = lazy(() =>
+  import('./RecommendationsView').then((m) => ({ default: m.RecommendationsView })),
+);
 export const TenantView = lazy(() =>
   import('./TenantView').then((m) => ({ default: m.TenantView })),
 );

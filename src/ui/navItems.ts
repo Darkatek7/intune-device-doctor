@@ -1,4 +1,4 @@
-import { Landmark, Laptop, ListChecks, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Landmark, Laptop, ListChecks, type LucideIcon } from 'lucide-react';
 import { de } from '../i18n/de';
 
 /**
@@ -10,6 +10,12 @@ export const NAV_ITEMS = [
   { id: 'devices', label: de.nav.devices, icon: Laptop, view: null },
   { id: 'policies', label: de.nav.policies, icon: ListChecks, view: 'policies' },
   { id: 'tenant', label: de.nav.tenant, icon: Landmark, view: 'tenant' },
+  {
+    id: 'recommendations',
+    label: de.nav.recommendations,
+    icon: BadgeCheck,
+    view: 'recommendations',
+  },
 ] as const satisfies readonly {
   id: string;
   label: string;

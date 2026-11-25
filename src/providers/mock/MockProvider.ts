@@ -41,6 +41,7 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../../domain/types';
+import type { TenantPosture } from '../../domain/posture';
 import {
   ASSIGNMENTS_DISPLAY,
   Endpoints,
@@ -53,6 +54,7 @@ import { de } from '../../i18n/de';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 import { findMockApp } from './apps';
 import { buildMockPolicies, policyKey } from './policies';
+import { POSTURE_DEFAULTS } from './posture';
 import {
   defaultComplianceSettings,
   defaultComplianceSummary,
@@ -77,7 +79,13 @@ import {
   defaultLocalAdmin,
   defaultSignIns,
 } from './scenarios/helpers';
-import type { MockDeviceFixture, MockScenario, MockSection, MockTenantFixture } from './types';
+import type {
+  MockDeviceFixture,
+  MockScenario,
+  MockSection,
+  MockTenantFixture,
+  PostureDataByKey,
+} from './types';
 
 export interface MockProviderOptions {
   scenarios?: MockScenario[];
@@ -545,6 +553,37 @@ export class MockProvider implements DeviceDataProvider {
    * Richtlinien (M15): aus den Demo-Geräten abgeleitet (siehe policies.ts) oder `options.tenant`. Wie
    * live: Zähler nur für die `policyOverviewLimit` zuletzt geänderten Richtlinien, der Rest null.
    */
+  /**
+   * Ansicht „Empfehlungen“ (M21): je Quelle Standard-Demodaten (./posture.ts) oder die Überschreibung aus
+   * `options.tenant.posture`; Status, Scope und Quelle kommen wie bei den anderen Quellen aus `fromSpec`.
+   */
+  async getTenantPosture(options: RequestOptions = {}): Promise<TenantPosture> {
+    await this.delay('posture', options.signal);
+    const now = this.now();
+    const overrides = this.tenant.posture ?? {};
+    const section = <K extends keyof PostureDataByKey>(
+      key: K,
+      endpoint: EndpointId,
+    ): SectionResult<PostureDataByKey[K]> => {
+      const standard = POSTURE_DEFAULTS[key] as (at: Date) => PostureDataByKey[K];
+      const spec: MockSection<PostureDataByKey[K]> = overrides[key] ?? {
+        status: 'ok',
+        data: standard(now),
+      };
+      return this.fromSpec(spec, endpoint, sourceFor(endpoint));
+    };
+    return {
+      complianceSettings: section('complianceSettings', 'deviceManagementSettings'),
+      platformCounts: section('platformCounts', 'managedDeviceOverview'),
+      compliancePolicies: section('compliancePolicies', 'deviceCompliancePolicies'),
+      appProtectionPolicies: section('appProtectionPolicies', 'iosManagedAppProtections'),
+      conditionalAccess: section('conditionalAccess', 'conditionalAccessPolicies'),
+      secureScore: section('secureScore', 'secureScores'),
+      catalogPolicies: section('catalogPolicies', 'catalogPolicies'),
+      policyTemplates: section('policyTemplates', 'policyTemplates'),
+    };
+  }
+
   async getTenantPolicies(options: RequestOptions = {}): Promise<TenantPolicies> {
     await this.delay('policies', options.signal);
     const now = this.now();

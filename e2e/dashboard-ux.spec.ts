@@ -173,7 +173,7 @@ test.describe('Hauptnavigation (U4)', () => {
   }) => {
     await page.goto('/');
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
-    for (const label of ['Geräte', 'Richtlinien', 'Mandant']) {
+    for (const label of ['Geräte', 'Richtlinien', 'Mandant', 'Empfehlungen']) {
       const entry = nav.getByRole('button', { name: label, exact: true });
       await expect(entry).toBeVisible();
       // Sichtbarer Text, keine reine Symbol-Schaltfläche (auch mobil)
