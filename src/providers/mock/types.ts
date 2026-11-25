@@ -33,6 +33,16 @@ import type {
   PolicyDeviceStatusesInfo,
   TenantPolicyList,
 } from '../../domain/types';
+import type {
+  AppProtectionPolicyConfigList,
+  CatalogPolicyList,
+  CompliancePolicyConfigList,
+  ComplianceTenantSettings,
+  ConditionalAccessInfo,
+  PlatformDeviceCounts,
+  PolicyTemplateList,
+  SecureScoreInfo,
+} from '../../domain/posture';
 
 /** Wie eine Section im Demo-Modus antwortet. */
 export type MockSection<T> =
@@ -124,4 +134,26 @@ export interface MockTenantFixture {
   policyStatuses?: Record<string, MockSection<PolicyDeviceStatusesInfo>>;
   /** Höchstzahl abgefragter Zähler (Standard MAX_POLICY_OVERVIEWS) – für Tests der Grenze. */
   policyOverviewLimit?: number;
+  /**
+   * M21: Demo-Daten der Ansicht „Empfehlungen“ je Quelle (Standard: siehe ./posture.ts). Jeder Eintrag
+   * kann einzeln überschrieben werden (z. B. `forbidden`, `error`, `unavailable`).
+   * Achtung: `complianceSettings` auf oberster Ebene ist die Mandanten-Übersicht (M20), nicht dieser Eintrag.
+   */
+  posture?: MockPostureFixture;
 }
+
+/** Nutzdaten je Quelle der Ansicht „Empfehlungen“ (Schlüssel = Feld von `TenantPosture`). */
+export interface PostureDataByKey {
+  complianceSettings: ComplianceTenantSettings;
+  platformCounts: PlatformDeviceCounts;
+  compliancePolicies: CompliancePolicyConfigList;
+  appProtectionPolicies: AppProtectionPolicyConfigList;
+  conditionalAccess: ConditionalAccessInfo;
+  secureScore: SecureScoreInfo;
+  catalogPolicies: CatalogPolicyList;
+  policyTemplates: PolicyTemplateList;
+}
+
+export type MockPostureFixture = {
+  [K in keyof PostureDataByKey]?: MockSection<PostureDataByKey[K]>;
+};
