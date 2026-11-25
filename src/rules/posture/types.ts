@@ -85,6 +85,11 @@ export interface PostureCheckResult {
   docsUrl: string;
   /** Betroffene Richtlinie (Anzeigename), falls die Prüfung zu einer Richtlinie gehört */
   subject?: string;
+  /**
+   * Exakte Graph-Eigenschaftsnamen der geprüften Einstellung (technischer Name, z. B.
+   * `passwordMinimumLength`) – nur bei Katalogprüfungen, die eine Eigenschaft lesen.
+   */
+  properties?: readonly string[];
   reason?: string;
   /**
    * false = wird angezeigt, zählt aber nicht zum Gesamtbild (z. B. nicht zugewiesene Richtlinie, gilt

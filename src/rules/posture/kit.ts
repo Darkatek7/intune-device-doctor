@@ -271,6 +271,7 @@ export function policyCheckResults(
       expected: text.expected,
       docsUrl: check.docsUrl,
       subject: policy.name,
+      ...(check.properties.length > 0 ? { properties: check.properties } : {}),
       ...(outcome.reason ? { reason: outcome.reason } : {}),
       // Nicht zugewiesene Richtlinien gelten für kein Gerät → angezeigt, aber nicht gezählt
       counted: policy.assigned !== false,

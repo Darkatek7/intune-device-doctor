@@ -36,6 +36,14 @@ import type { PostureCheckResult, PostureOptions, PostureTile } from './types';
 export type { PostureCheckResult, PostureTile } from './types';
 export { parseIsoDurationMinutes } from './duration';
 export { ALL_FRAMEWORKS } from './catalog';
+export {
+  isPostureCatalogStale,
+  POSTURE_CATALOG_STALE_AFTER_DAYS,
+  POSTURE_CATALOG_VERIFIED_ON,
+  postureCatalogAgeDays,
+  postureSourceLinks,
+  postureSourcePages,
+} from './sources';
 
 /** Kacheln der Ansicht in fester Reihenfolge. */
 export function evaluatePosture(
