@@ -555,7 +555,7 @@ export const dePosture = {
       'Die Mandanteneinstellung „Geräte ohne zugewiesene Compliance-Richtlinie markieren als“ steht auf „Konform“ (Standardwert).',
     remediation: [
       'Im Intune Admin Center unter Endpunktsicherheit › Gerätekonformität › Compliance-Richtlinieneinstellungen den Wert „Geräte ohne zugewiesene Compliance-Richtlinie markieren als“ prüfen.',
-      'Vor einer Änderung sicherstellen, dass jede genutzte Plattform eine zugewiesene Compliance-Richtlinie hat (Kachel „Abdeckung der Plattformen“) – sonst verlieren Geräte den Zugriff.',
+      'Vor einer Änderung sicherstellen, dass jede genutzte Plattform eine zugewiesene Compliance-Richtlinie hat (Kachel „Abdeckung der Geräte“) – sonst verlieren Geräte den Zugriff.',
     ],
     notUsedTitle: 'Empfehlung gilt nur mit Bedingtem Zugriff',
     notUsedDetail:
@@ -629,7 +629,7 @@ export const dePosture = {
       'Die Kachel „Compliance“ der Plattform zeigt, wie vorhandene Richtlinien von der Empfehlung abweichen.',
     ],
     windowsNote: 'Für Windows zählen nur Richtlinien vom Typ „Windows 10 und neuer“.',
-    value: (covered: number, used: number) => `${covered} von ${used} Gerätegruppen abgedeckt`,
+    value: (covered: number, used: number) => `${covered} von ${used} abgedeckt`,
     summary: (used: number) =>
       used === 0
         ? 'Keine Gerätegruppe mit verwalteten Geräten gemeldet.'
@@ -712,14 +712,14 @@ export const dePosture = {
     ],
     noPolicyTitle: 'Keine Compliance-Richtlinie für diese Plattform',
     noPolicyDetail:
-      'Es gibt verwaltete Geräte, aber keine Compliance-Richtlinie dieser Plattform. Die Bewertung steht in der Kachel „Abdeckung der Plattformen“.',
+      'Es gibt verwaltete Geräte, aber keine Compliance-Richtlinie dieser Plattform. Die Bewertung steht in der Kachel „Abdeckung der Geräte“.',
     noPolicyCause: 'Keine Richtlinie angelegt.',
     noPolicyRemediation: [
       'Im Intune Admin Center unter Geräte › Compliance eine Richtlinie für die Plattform anlegen und zuweisen.',
     ],
     noTargetTitle: 'Microsoft dokumentiert dafür keinen Sollwert',
     noTargetMacos:
-      'Für macOS-Compliance-Richtlinien nennt Microsoft Learn keine Sicherheitskonfiguration mit Sollwerten. Geprüft wird nur, ob eine Richtlinie zugewiesen ist (Kachel „Abdeckung der Plattformen“).',
+      'Für macOS-Compliance-Richtlinien nennt Microsoft Learn keine Sicherheitskonfiguration mit Sollwerten. Geprüft wird nur, ob eine Richtlinie zugewiesen ist (Kachel „Abdeckung der Geräte“).',
     noTargetDeviceAdmin: (names: string[]) =>
       `Für Android-Geräteadministrator-Richtlinien (${names.join(', ')}) gibt es keine Microsoft-Sicherheitskonfiguration. Microsoft hat die Verwaltung per Geräteadministrator für Geräte mit Google Mobile Services eingestellt.`,
     noTargetWindowsOther: (names: string[]) =>
@@ -883,7 +883,7 @@ export const dePosture = {
     ],
     edrFact: 'Endpunkterkennung und -reaktion (EDR)',
     edrValue: (n: number) => `${policies(n)} (Microsoft nennt hier keinen Sollwert)`,
-    value: (met: number, total: number) => `${met} von ${total} Bereichen abgedeckt`,
+    value: (met: number, total: number) => `${met} von ${total} abgedeckt`,
   },
 
   secureScore: {

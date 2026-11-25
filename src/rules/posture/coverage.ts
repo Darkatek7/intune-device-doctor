@@ -1,5 +1,5 @@
 /**
- * Kachel „Abdeckung der Plattformen“: Jede Gerätegruppe mit verwalteten Geräten hat mindestens eine
+ * Kachel „Abdeckung der Geräte“: Jede Gerätegruppe mit verwalteten Geräten hat mindestens eine
  * **zugewiesene** Compliance-Richtlinie (Zero-Trust-Empfehlungen für Intune-Mandanten, „Compliance
  * policies protect … devices“).
  *

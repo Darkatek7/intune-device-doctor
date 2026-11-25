@@ -377,10 +377,13 @@ export function DetailSheet({ tile, origin, notices, onClose, onRetry }: Props) 
                           key={fact.label}
                           className="flex items-baseline justify-between gap-4 py-2"
                         >
-                          <dt className="shrink-0 text-secondary-label">{fact.label}</dt>
+                          {/* Lange Bezeichnungen (z. B. Richtliniennamen) umbrechen, statt den Wert zu verdrängen. */}
+                          <dt className="max-w-[62%] min-w-0 break-words text-secondary-label">
+                            {fact.label}
+                          </dt>
                           <dd
                             title={fact.title}
-                            className={`min-w-0 break-words text-right text-label ${
+                            className={`min-w-0 flex-1 break-words text-right text-label ${
                               fact.mono ? 'break-all font-mono text-xs tabular-nums' : ''
                             }`}
                           >

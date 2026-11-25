@@ -8,7 +8,7 @@
  * - Android: bewertet wird das Framework „persönliches Gerät mit Arbeitsprofil“ (Stufe 2/3);
  *   Android-Geräteadministrator → kein Sollwert (Verwaltung von Microsoft eingestellt); nur in beta
  *   dokumentierte Typen (z. B. vollständig verwaltet/unternehmenseigen) → nicht prüfbar. Ob unternehmens-
- *   eigene Geräte überhaupt abgedeckt sind, bewertet die Kachel „Abdeckung der Plattformen“ getrennt.
+ *   eigene Geräte überhaupt abgedeckt sind, bewertet die Kachel „Abdeckung der Geräte“ getrennt.
  * - „Stufe N erreicht“: nicht prüfbare Empfehlungen verhindern die Stufe nicht und bestätigen sie nicht –
  *   gibt es welche, lautet der Wert „Stufe N erreicht, soweit prüfbar“.
  * - macOS → Microsoft dokumentiert keinen Sollwert; nur Abdeckung (eigene Kachel).

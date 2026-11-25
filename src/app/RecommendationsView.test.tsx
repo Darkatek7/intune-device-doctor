@@ -30,7 +30,17 @@ describe('Ansicht „Empfehlungen“', () => {
       await screen.findByRole('heading', { level: 1, name: t.title }, LONG),
     ).toBeInTheDocument();
     await waitFor(() => expect(postureTiles()).toHaveLength(12), LONG);
-    expect(postureTiles().map((b) => b.getAttribute('data-tile-id'))).toEqual(IDS);
+    // Je Abschnitt stehen auffällige Kacheln zuerst – deshalb ohne Reihenfolge vergleichen.
+    expect(
+      postureTiles()
+        .map((b) => b.getAttribute('data-tile-id'))
+        .sort(),
+    ).toEqual([...IDS].sort());
+    // Die unauffällige iOS-Kachel steht in ihrem Abschnitt hinter den auffälligen.
+    const order = postureTiles().map((b) => b.getAttribute('data-tile-id'));
+    expect(order.indexOf('postureComplianceIos')).toBeGreaterThan(
+      order.indexOf('postureComplianceMacos'),
+    );
     for (const section of POSTURE_SECTIONS) {
       expect(
         screen.getByRole('heading', { level: 2, name: de.posture.sections[section.key] }),

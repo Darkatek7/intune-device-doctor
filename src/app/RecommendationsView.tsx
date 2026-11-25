@@ -28,6 +28,7 @@ import { PostureScoreBar } from '../ui/PostureScoreBar';
 import { SummaryPills } from '../ui/SummaryPills';
 import { summarySentence } from '../ui/summaryText';
 import { TileGrid } from '../ui/TileGrid';
+import { isHealthyTile } from '../ui/tileGroups';
 import { TileSkeleton } from '../ui/TileSkeleton';
 import { TONE_CLASS } from '../ui/tone';
 
@@ -45,6 +46,14 @@ interface Props {
   onBack: () => void;
   /** Gesamtzustand für das Umgebungslicht (accent, solange geladen wird) */
   onToneChange?: (tone: AmbientTone) => void;
+}
+
+/**
+ * Auffällige Kacheln zuerst, unauffällige am Ende (Reihenfolge sonst unverändert): `TileGrid` setzt
+ * den kompakten Abschnitt „In Ordnung“ vor die erste unauffällige Kachel.
+ */
+function attentionFirst<T extends Tile>(tiles: T[]): T[] {
+  return [...tiles.filter((tile) => !isHealthyTile(tile)), ...tiles.filter(isHealthyTile)];
 }
 
 export function RecommendationsView({
@@ -210,7 +219,7 @@ export function RecommendationsView({
                 >
                   {de.posture.sections[section.key]}
                 </h2>
-                <TileGrid tiles={section.tiles} onOpen={handleOpen} />
+                <TileGrid tiles={attentionFirst(section.tiles)} onOpen={handleOpen} />
               </section>
             ))}
         <AnimatePresence>

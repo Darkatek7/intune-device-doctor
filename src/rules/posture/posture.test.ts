@@ -369,7 +369,7 @@ describe('postureCoverage', () => {
       ['postureCoverage:androidPersonal', 'met'],
     ]);
     expect(t.severity).toBe('ok');
-    expect(t.value).toBe('3 von 3 Gerätegruppen abgedeckt');
+    expect(t.value).toBe('3 von 3 abgedeckt');
   });
 
   it('Plattform mit Geräten ohne Richtlinie → critical', () => {
@@ -1032,7 +1032,7 @@ describe('postureEndpointSecurity', () => {
     const t = tile(list);
     expect(t.checks).toHaveLength(8);
     expect(t.checks.every((c) => c.status === 'met')).toBe(true);
-    expect(t.value).toBe('8 von 8 Bereichen abgedeckt');
+    expect(t.value).toBe('8 von 8 abgedeckt');
     expect(t.summary).toContain('Beta-API');
   });
 

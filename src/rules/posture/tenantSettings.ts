@@ -1,5 +1,5 @@
 /**
- * Kachel „Compliance-Einstellungen des Mandanten“ (Intune › Compliance › Übersicht, „Compliance policy
+ * Kachel „Mandanten-Einstellungen“ (Intune › Compliance › Übersicht, „Compliance policy
  * settings“).
  *
  * - „Mark devices with no compliance policy assigned as“ (`secureByDefault`): Learn empfiehlt „Not

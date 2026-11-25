@@ -52,8 +52,8 @@ export const de = {
     tenantVpp: 'Apple-VPP-Token',
     tenantUnavailable: 'Weitere Konnektoren und Token',
     // Ansicht „Empfehlungen“ (M21)
-    postureTenantSettings: 'Compliance-Einstellungen des Mandanten',
-    postureCoverage: 'Abdeckung der Plattformen',
+    postureTenantSettings: 'Mandanten-Einstellungen',
+    postureCoverage: 'Abdeckung der Geräte',
     postureAccess: 'Bedingter Zugriff',
     postureComplianceWindows: 'Compliance: Windows',
     postureComplianceIos: 'Compliance: iOS/iPadOS',
