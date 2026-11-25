@@ -56,6 +56,7 @@ import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../
 import { findMockApp } from './apps';
 import { buildMockPolicies, policyKey } from './policies';
 import { POSTURE_DEFAULTS } from './posture';
+import { generatedFleetFixtures } from './fleetDevices';
 import {
   defaultComplianceSettings,
   defaultComplianceSummary,
@@ -185,9 +186,12 @@ export class MockProvider implements DeviceDataProvider {
   private readonly latency: { min: number; max: number } | false;
   private readonly seed: number;
   private readonly tenant: MockTenantFixture;
+  /** M22/S2: erzeugte Flottengeräte nur ohne eigene `scenarios` (Tests bleiben auf ihren Szenarien). */
+  private readonly withFleet: boolean;
 
   constructor(options: MockProviderOptions = {}) {
     this.scenarios = options.scenarios ?? defaultScenarios;
+    this.withFleet = options.scenarios === undefined;
     this.now = options.now ?? (() => new Date());
     this.latency = options.latency ?? { min: 120, max: 600 };
     this.seed = options.seed ?? 42;
@@ -201,7 +205,21 @@ export class MockProvider implements DeviceDataProvider {
     return sleep(ms, signal);
   }
 
+  /**
+   * Alle Demo-Geräte: Szenarien plus – ohne eigene `scenarios` – die erzeugte Flotte (M22/S2).
+   * Mit eigenen Szenarien gilt genau diese Liste.
+   */
   private fixtures(): MockDeviceFixture[] {
+    const now = this.now();
+    const scenarioFixtures = this.scenarios.map((s) => s.build(now));
+    return this.withFleet ? [...scenarioFixtures, ...generatedFleetFixtures(now)] : scenarioFixtures;
+  }
+
+  /**
+   * Nur die Szenario-Geräte. Grundlage der abgeleiteten Richtlinien, damit deren Zähler und Listen durch
+   * die erzeugte Flotte nicht verändert werden.
+   */
+  private scenarioFixtures(): MockDeviceFixture[] {
     const now = this.now();
     return this.scenarios.map((s) => s.build(now));
   }
@@ -608,7 +626,7 @@ export class MockProvider implements DeviceDataProvider {
   async getTenantPolicies(options: RequestOptions = {}): Promise<TenantPolicies> {
     await this.delay('policies', options.signal);
     const now = this.now();
-    const derived = buildMockPolicies(this.fixtures(), now);
+    const derived = buildMockPolicies(this.scenarioFixtures(), now);
     const limit = this.tenant.policyOverviewLimit ?? MAX_POLICY_OVERVIEWS;
     const listOf = (kind: TenantPolicyKind): TenantPolicyList => ({
       policies: [...derived.values()]
@@ -678,7 +696,7 @@ export class MockProvider implements DeviceDataProvider {
     const key = policyKey(policy.kind, policy.id);
     const override = this.tenant.policyStatuses?.[key];
     if (override) return this.fromSpec(override, endpoint, sourceFor(endpoint));
-    const entry = buildMockPolicies(this.fixtures(), this.now()).get(key);
+    const entry = buildMockPolicies(this.scenarioFixtures(), this.now()).get(key);
     if (!entry) {
       return {
         status: 'unavailable',

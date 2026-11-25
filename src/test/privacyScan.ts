@@ -139,6 +139,7 @@ export async function loadAllMockData(
   out.push(await provider.getServiceHealth());
   out.push(await provider.getAuditEvents());
   out.push(await provider.getTenantPosture());
+  out.push(await provider.getFleetDevices());
   const policies = await provider.getTenantPolicies();
   out.push(policies);
   for (const list of [policies.configurations, policies.compliancePolicies]) {

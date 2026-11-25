@@ -40,10 +40,10 @@ ganzen Bestand.
 
 ### Akzeptanz S1
 
-- [ ] Liste wird seitenweise gelesen, `truncated` stimmt; 403 → `forbidden`, 429 respektiert `Retry-After`, Abbruch bricht ab
-- [ ] Nur GET, nur `$select`; kein `$top`/`$filter`/`$orderby`
-- [ ] Mapper- und Provider-Tests; Vertragstest Mock ↔ Graph
-- [ ] Doku-Abschnitte ergänzt, offene Punkte für den Live-Test benannt
+- [x] Liste wird seitenweise gelesen, `truncated` stimmt; 403 → `forbidden`, 429 respektiert `Retry-After`, Abbruch bricht ab
+- [x] Nur GET, nur `$select`; kein `$top`/`$filter`/`$orderby`
+- [x] Mapper- und Provider-Tests; Vertragstest Mock ↔ Graph
+- [x] Doku-Abschnitte ergänzt, offene Punkte für den Live-Test benannt
 
 ## S2 – Demo-Daten (`mock-data-writer`)
 
@@ -53,25 +53,26 @@ ganzen Bestand.
 
 ### Akzeptanz S2
 
-- [ ] Verteilung der Compliance-Zustände entspricht `defaultComplianceSummary()`
-- [ ] Jede Auffälligkeit kommt vor, auch Kombinationen; alle Plattformen; mehrere OS-Versionen je Plattform
-- [ ] Öffnen eines erzeugten Geräts zeigt ein Dashboard, das zur Listenzeile passt
-- [ ] Nur fiktive Daten (Contoso), Tests
+- [x] Verteilung der Compliance-Zustände entspricht `defaultComplianceSummary()`
+- [x] Jede Auffälligkeit kommt vor, auch Kombinationen; alle Plattformen; mehrere OS-Versionen je Plattform
+- [x] Öffnen eines erzeugten Geräts zeigt ein Dashboard, das zur Listenzeile passt
+- [x] Nur fiktive Daten (Contoso), Tests
 
 ## S3 – Oberfläche (`ui-builder`)
 
-- Ansicht `src/app/FleetView.tsx` (lazy), Navigationseintrag „Flotte“, Hook `useFleetDevices`.
+- Ansicht `src/app/FleetView.tsx` (lazy), Navigationseintrag „Flotte“, Hook `useFleetDevices`. E2E in
+  `e2e/fleet-devices.spec.ts` (`e2e/fleet.spec.ts` gehört zu M20).
 - Kopf mit Gesamtzahl und Auffälligen; Kacheln je Auffälligkeit als Filter; Plattform-Filter; Suche;
   Geräteliste (auffällige zuerst, seitenweise anzeigen), Klick öffnet das Gerät; Versionsverteilung je
   Plattform; CSV-Export der gefilterten Liste; Hinweis bei unvollständiger Liste.
 
 ### Akzeptanz S3
 
-- [ ] Filter stehen in der URL und überleben Neuladen und Zurück
-- [ ] 390 px: kein horizontales Scrollen, Navigation mit fünf Einträgen nicht abgeschnitten
-- [ ] Tastatur und Screenreader: Filter, Liste, Zustände (lädt, leer, Fehler, keine Berechtigung)
-- [ ] Präsentationsmodus deckt Liste, Suche und Export ab (Leck-Scanner, Abdeckungstest)
-- [ ] Texte in `src/i18n/`, E2E inkl. axe
+- [x] Filter stehen in der URL und überleben Neuladen und Zurück
+- [x] 390 px: kein horizontales Scrollen, Navigation mit fünf Einträgen nicht abgeschnitten
+- [x] Tastatur und Screenreader: Filter, Liste, Zustände (lädt, leer, Fehler, keine Berechtigung)
+- [x] Präsentationsmodus deckt Liste, Suche und Export ab (Leck-Scanner, Abdeckungstest)
+- [x] Texte in `src/i18n/`, E2E inkl. axe
 
 ## S4 – Abschluss (Hauptsession)
 
@@ -79,5 +80,8 @@ README, Regel-Check, vollständige E2E-Suite, PR.
 
 ### Akzeptanz S4
 
-- [ ] README (Funktionsliste, Demo-Schritt, Grenzen), `npm run check` grün, E2E grün
-- [ ] Regel-Check gegen CLAUDE.md ohne Verstoß
+- [x] README (Funktionsliste, Demo-Schritt, Grenzen), `npm run check` grün, E2E grün (493 bestanden, 3 übersprungen)
+- [x] Regel-Check gegen CLAUDE.md ohne Verstoß
+
+Offen: gegen einen echten Mandanten nicht geprüft (`docs/live-verification.md`, Abschnitt 10) – vor allem, ob die
+Liste `isEncrypted` und `jailBroken` mit `$select` tatsächlich liefert.

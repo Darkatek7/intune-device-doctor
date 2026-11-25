@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FLEET_DEVICE_SELECT } from './dto';
 import { Endpoints, SIGN_IN_PAGE_SIZE } from './endpoints';
 import { GraphScope, LOGIN_SCOPES, OPTIONAL_SCOPES } from './scopes';
 
@@ -288,5 +289,17 @@ describe('Endpunkte – Richtlinien → Geräte (M15)', () => {
         expect(path).not.toMatch(/configurationPolic/);
       }
     }
+  });
+});
+
+describe('Endpunkt managedDevicesFleet (M22)', () => {
+  it('GET v1.0, nur $select mit den Flottenfeldern', () => {
+    const def = Endpoints.managedDevicesFleet;
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    const url = new URL(`https://graph.microsoft.com/v1.0${def.path()}`);
+    expect(url.pathname).toBe('/v1.0/deviceManagement/managedDevices');
+    expect([...url.searchParams.keys()]).toEqual(['$select']);
+    expect(url.searchParams.get('$select')?.split(',')).toEqual([...FLEET_DEVICE_SELECT]);
   });
 });

@@ -7,6 +7,7 @@ import { dePolicies } from './de-policies';
 import { dePrivacy } from './de-privacy';
 import { deRules } from './de-rules';
 import { deFleet } from './de-fleet';
+import { deFleetDevices } from './de-fleet-devices';
 import { dePosture } from './de-posture';
 import { deService } from './de-service';
 
@@ -136,6 +137,8 @@ export const de = {
   service: deService,
   /** Übersicht, Änderungsprotokoll, App-Schutz, Remote-Aktionen (M20) – siehe ./de-fleet.ts */
   fleet: deFleet,
+  /** Ansicht „Flotte“ (M22) – siehe ./de-fleet-devices.ts */
+  fleetDevices: deFleetDevices,
   /** Ansicht „Empfehlungen“ (M21) – siehe ./de-posture.ts */
   posture: dePosture,
   /** Präsentationsmodus (M19) – siehe ./de-privacy.ts */
@@ -368,6 +371,7 @@ export const de = {
   nav: {
     label: 'Hauptnavigation',
     devices: 'Geräte',
+    fleet: 'Flotte',
     policies: 'Richtlinien',
     tenant: 'Mandant',
     recommendations: 'Empfehlungen',

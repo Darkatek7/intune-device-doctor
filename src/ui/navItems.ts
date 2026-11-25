@@ -1,4 +1,11 @@
-import { BadgeCheck, Landmark, Laptop, ListChecks, type LucideIcon } from 'lucide-react';
+import {
+  BadgeCheck,
+  Landmark,
+  Laptop,
+  ListChecks,
+  MonitorSmartphone,
+  type LucideIcon,
+} from 'lucide-react';
 import { de } from '../i18n/de';
 
 /**
@@ -8,6 +15,7 @@ import { de } from '../i18n/de';
  */
 export const NAV_ITEMS = [
   { id: 'devices', label: de.nav.devices, icon: Laptop, view: null },
+  { id: 'fleet', label: de.nav.fleet, icon: MonitorSmartphone, view: 'fleet' },
   { id: 'policies', label: de.nav.policies, icon: ListChecks, view: 'policies' },
   { id: 'tenant', label: de.nav.tenant, icon: Landmark, view: 'tenant' },
   {

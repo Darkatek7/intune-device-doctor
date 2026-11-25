@@ -21,7 +21,7 @@ export interface FleetDevice {
   manufacturer: string | null;
   serialNumber: string | null;
   complianceState: ComplianceState;
-  /** null = von Graph nicht geliefert bzw. Datum ohne Aussage (Jahr 0001/9999) */
+  /** null = von Graph nicht geliefert bzw. Datum ohne Aussage (Platzhalter wie das Jahr 0001) */
   lastSyncDateTime: string | null;
   enrolledDateTime: string | null;
   /** null = nicht geliefert */

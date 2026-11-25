@@ -91,9 +91,19 @@ test.describe('Ansicht „Empfehlungen“', () => {
     await page.goto('/?view=recommendations&mode=demo');
     await waitForTilesReady(page);
     expect(await overflow()).toBeLessThanOrEqual(0);
-    // Hauptnavigation: kein Eintrag wird abgeschnitten
+    // Hauptnavigation: alle fünf Einträge, keiner wird abgeschnitten (weder die Leiste noch ein Text)
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
     expect(await nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    await expect(nav.getByRole('button')).toHaveText([
+      'Geräte',
+      'Flotte',
+      'Richtlinien',
+      'Mandant',
+      'Empfehlungen',
+    ]);
+    for (const button of await nav.getByRole('button').all()) {
+      expect(await button.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+    }
 
     await tile(page, 'Compliance: Windows').click();
     await expect(page.getByRole('dialog')).toBeVisible();

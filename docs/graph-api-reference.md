@@ -323,6 +323,20 @@ Ansicht „Empfehlungen“ – vergleicht die Mandanten-Konfiguration mit den au
 
 Mengengrenzen (Konstanten in `src/graph/endpoints.ts`): Listen höchstens `MAX_LIST_PAGES` (5) Seiten; Zuweisungen/Aktionen für höchstens `MAX_COMPLIANCE_POLICY_DETAILS` (30) Compliance-Richtlinien (zuletzt geänderte zuerst, 4 parallel) – darüber hinaus `assigned`/`scheduledActions` = `null` und `truncated`; Secure-Score-Profile höchstens 5 Seiten; Baseline-Vergleich höchstens `MAX_BASELINE_COMPARISONS` (5) Richtlinien, je Liste höchstens 10 Seiten, 2 Vergleiche parallel. Keine der Listen dokumentiert `$top`/`$filter` (außer `secureScores?$top=1`).
 
+## Flotte (M22)
+
+Ansicht „Flotte“ – die mandantenweite Geräteliste (`GraphProvider.getFleetDevices`, Vertrag `src/domain/fleetDevices.ts`). Nur GET, ein `SectionResult` (403 → `forbidden` mit `requiredScope`, `Retry-After` bei 429/503, höchstens 3 Versuche).
+
+| Endpunkt                                         | Version | Scope                                     | Quelle                                                                                                                   |
+| ------------------------------------------------ | ------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET /deviceManagement/managedDevices?$select=…` | v1.0    | `DeviceManagementManagedDevices.Read.All` | [List managedDevices](https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0) |
+
+- `$select` (`FLEET_DEVICE_SELECT`): `id, deviceName, userPrincipalName, userDisplayName, operatingSystem, osVersion, model, manufacturer, serialNumber, complianceState, lastSyncDateTime` plus `enrolledDateTime, isEncrypted, jailBroken`. Alle sind Eigenschaften der Ressource [managedDevice](https://learn.microsoft.com/en-us/graph/api/resources/intune-devices-manageddevice?view=graph-rest-1.0) (v1.0): `enrolledDateTime` (DateTimeOffset), `isEncrypted` (Boolean), `jailBroken` (String; laut Learn „Default is an empty string“).
+- Learn nennt zur Liste **keine** Query-Optionen, keine Seitengröße und kein Paginierungsverhalten (die Seite zeigt nur `GET /deviceManagement/managedDevices` und die Antwort-Collection). Deshalb: kein `$top`, `$filter`, `$orderby`, `$count`. `$select` nennt Learn nur bei einzelnen Eigenschaften ausdrücklich („Supports: $select“, z. B. `notes`, `udid`); dass die Liste `$select` für die Felder der Flotte beachtet, ist live zu verifizieren (s. `docs/live-verification.md` Abschnitt 10).
+- Paginierung: nur über `@odata.nextLink` der Antwort (Standardverhalten von Graph-Collections, auf der Listen-Seite nicht beschrieben); höchstens `MAX_FLEET_PAGES` (10) Seiten, danach `truncated: true` und Hinweis „Liste unvollständig“. Der `nextLink` wird nur akzeptiert, wenn er auf `https://graph.microsoft.com/` zeigt.
+- Behandlung im Mapper: Datumswerte vor dem Jahr 2000 (z. B. `0001-01-01`) und ungültige Daten → `null`; unbekannter `complianceState` → `unknown`; leerer `jailBroken` → `null`; Einträge ohne `id` werden verworfen; fehlender `deviceName` → „–“.
+- Die Learn-Seite der Ressource nennt für `enrolledDateTime`, `lastSyncDateTime`, `complianceState`, `jailBroken`, `managementAgent`, `deviceCategoryDisplayName` Filterunterstützung; sie wird **nicht** genutzt (Flotte lädt alles und filtert im Browser).
+
 ## Bewusst NICHT verwendet
 
 | API                                                                           | Grund                                                                                                                     |

@@ -407,6 +407,35 @@ describe('Mandant, Richtlinien, Sammelprüfung', () => {
     expect(describeLeaks(scanText(csv, values, 'Empfehlungen-CSV'))).toEqual([]);
   });
 
+  it('Flotte: Liste, Suche und CSV-Export zeigen im Präsentationsmodus keine Klarwerte', async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    captureDownloads(blobs);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.nav.fleet }));
+    await waitFor(
+      () =>
+        expect(
+          screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-fleet-row')).length,
+        ).toBeGreaterThan(0),
+      { timeout: 5000 },
+    );
+    expect(document.title).toContain(de.fleetDevices.title);
+    expect(noLeaks('Flotte')).toEqual([]);
+    // Suche nach einem Klarwert findet im Präsentationsmodus nichts (durchsucht wird die maskierte Sicht)
+    await user.type(screen.getByRole('searchbox'), 'contoso-pc042');
+    expect(screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-fleet-row'))).toEqual(
+      [],
+    );
+    await user.clear(screen.getByRole('searchbox'));
+    await user.click(screen.getByRole('button', { name: de.fleetDevices.export.button }));
+    expect(blobs).toHaveLength(1);
+    const csv = await blobs[0]!.text();
+    expect(csv.split('\r\n').length).toBeGreaterThan(5);
+    expect(describeLeaks(scanText(csv, values, 'Flotte-CSV'))).toEqual([]);
+  }, 30_000);
+
   it('Sammelprüfung: Eingabeliste verschwindet nach dem Start, Tabelle und CSV sind maskiert', async () => {
     const user = userEvent.setup();
     const blobs: Blob[] = [];

@@ -58,3 +58,36 @@ describe('URL-State: Ansicht „Empfehlungen“', () => {
     expect(buildSearch({ device: 'abc', tile: null, mode: null, level: 3 })).toBe('?device=abc');
   });
 });
+
+describe('URL-State: Ansicht „Flotte“', () => {
+  it('liest und schreibt view, issue und platform', () => {
+    const state = parseUrl('?view=fleet&issue=notEncrypted&platform=macos&mode=demo');
+    expect(state).toMatchObject({
+      device: null,
+      view: 'fleet',
+      issue: 'notEncrypted',
+      platform: 'macos',
+    });
+    expect(buildSearch(state)).toBe('?view=fleet&issue=notEncrypted&platform=macos&mode=demo');
+    expect(parseUrl('?view=fleet&issue=any').issue).toBe('any');
+    expect(buildSearch({ device: null, tile: null, mode: null, view: 'fleet' })).toBe(
+      '?view=fleet',
+    );
+  });
+
+  it('ignoriert ungültige Werte', () => {
+    const state = parseUrl('?view=fleet&issue=kaputt&platform=beos');
+    expect(state.issue).toBeNull();
+    expect(state.platform).toBeNull();
+    expect(buildSearch(state)).toBe('?view=fleet');
+  });
+
+  it('schreibt die Filter nur in der Ansicht „Flotte“', () => {
+    expect(
+      buildSearch({ device: null, tile: null, mode: null, view: 'tenant', issue: 'any' }),
+    ).toBe('?view=tenant');
+    expect(
+      buildSearch({ device: 'abc', tile: null, mode: null, view: 'fleet', platform: 'ios' }),
+    ).toBe('?device=abc');
+  });
+});
