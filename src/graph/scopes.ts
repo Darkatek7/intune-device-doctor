@@ -31,6 +31,17 @@ export const GraphScope = {
    * Intune-Rolle mit „Audit data – Read“ bzw. „Managed apps – Read“ (oder Intune Administrator).
    */
   ManagementAppsRead: 'DeviceManagementApps.Read.All',
+  /**
+   * Secure Score und Kontrollprofile (Ansicht „Empfehlungen“, M21) – optional. Laut Doku least privileged
+   * für `GET /security/secureScores` und `…/secureScoreControlProfiles`.
+   */
+  SecurityEventsRead: 'SecurityEvents.Read.All',
+  /**
+   * Richtlinien für Bedingten Zugriff (Ansicht „Empfehlungen“, M21) – optional. Laut Doku least privileged
+   * für `GET /identity/conditionalAccess/policies`; das Konto braucht zusätzlich eine unterstützte
+   * Entra-Rolle (z. B. Security Reader, Global Reader, Conditional Access Administrator).
+   */
+  PolicyRead: 'Policy.Read.All',
 } as const;
 
 export type GraphScope = (typeof GraphScope)[keyof typeof GraphScope];
@@ -49,6 +60,8 @@ export const OPTIONAL_SCOPES: readonly GraphScope[] = [
   GraphScope.SecurityAlertRead,
   GraphScope.ServiceHealthRead,
   GraphScope.ManagementAppsRead,
+  GraphScope.SecurityEventsRead,
+  GraphScope.PolicyRead,
 ];
 
 /** Scopes, die beim Login angefragt werden. */

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "pages": {
+    "https://learn.microsoft.com/defender-xdr/microsoft-secure-score": {
+      "sha256": "f6bab721d95f637dcce7445fe189712526b421b114cc5928f40682be71529c15",
+      "reportedDate": "2026-03-07",
+      "fragments": [
+        "how-recommended-actions-are-scored"
+      ]
+    },
+    "https://learn.microsoft.com/defender-xdr/microsoft-secure-score-improvement-actions": {
+      "sha256": "753feb1c44c16653523ce2f536a8359d8eb7f1d9748b07fc48fcfc25d656c670",
+      "reportedDate": "2025-04-28",
+      "fragments": [
+        "take-action-to-improve-your-score"
+      ]
+    },
+    "https://learn.microsoft.com/entra/identity/conditional-access/policy-all-users-device-compliance": {
+      "sha256": "f7c62403604a705a1861065068ee2425134bca5a990690c4c408cd9504ad7ee7",
+      "reportedDate": "2026-03-24",
+      "fragments": [
+        "create-a-conditional-access-policy"
+      ]
+    },
+    "https://learn.microsoft.com/graph/api/resources/conditionalaccessgrantcontrols?view=graph-rest-1.0": {
+      "sha256": "94638416cc1cfe9eaebe042a1150876da80721ccd235d1675c41cbaea34281b0",
+      "reportedDate": "2026-04-06",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androidworkprofilecompliancepolicy?view=graph-rest-1.0": {
+      "sha256": "e025d46bb0e76d99452376fb4f4cfacb9907f87d24c83c919726e036334ed3ba",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-devicecomplianceactiontype?view=graph-rest-1.0": {
+      "sha256": "7ac80e68ef5aebb4f85159fe35e4837bafb7df6d6fffed28d0d85bcce36cff89",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-ioscompliancepolicy?view=graph-rest-1.0": {
+      "sha256": "5c20ff29453477932c73caa4cc6f789606d358b96c7830ed3668e8fbeeed31b2",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-windows10compliancepolicy?view=graph-rest-1.0": {
+      "sha256": "ba7a4ea666070dc8b6ce5bd4cc9cece1a23fddee56d44aaf18dd47be5b76a1bb",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-mam-androidmanagedappprotection?view=graph-rest-1.0": {
+      "sha256": "34fae090b74605fb922a45e334360d298caff2ca563b010fee7f940cf2f0cd06",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-mam-iosmanagedappprotection?view=graph-rest-1.0": {
+      "sha256": "8bc446dc637fa3c8bad20a7404c4f5289f94b3a6903b69ced0eb531614042b34",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/securescorecontrolprofile?view=graph-rest-1.0": {
+      "sha256": "381f43315a784389a056f6522cc6b2b3771c65f320004e4b9775f3ed55407e7d",
+      "reportedDate": "2024-07-22",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/intune/app-management/protection/create-policy": {
+      "sha256": "80b86d2f6eb59179ae072005f8b8ee077113f926050928d54f690a037f00c377",
+      "reportedDate": "2025-06-12",
+      "fragments": [
+        "app-protection-policies-for-iosipados-and-android-apps"
+      ]
+    },
+    "https://learn.microsoft.com/intune/app-management/protection/data-protection-framework": {
+      "sha256": "fe185b62fbd21fcc7cb941accf47ca30c479c7c0c278357825c8f304487c912f",
+      "reportedDate": "2025-06-12",
+      "fragments": [
+        "level-1-enterprise-basic-data-protection",
+        "level-2-enterprise-enhanced-data-protection",
+        "level-3-enterprise-high-data-protection"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-configuration/endpoint-security/account-protection": {
+      "sha256": "5d67a859ca5b80dc59bc015f6328d19fca93e5983edbba5fa1663f87a2eee9dc",
+      "reportedDate": "2025-10-01",
+      "fragments": [
+        "account-protection-profiles"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-configuration/endpoint-security/antivirus": {
+      "sha256": "afb95d2903ecb6fef2f9cda3710fd451302ce33ae629361d506783d39b847deb",
+      "reportedDate": "2026-11-11",
+      "fragments": [
+        "antivirus-profiles"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-configuration/endpoint-security/attack-surface-reduction": {
+      "sha256": "0c26bc1e7eb0c64726c2b5f8c11a1385d0352d4ba537981af7ace24d0e941faf",
+      "reportedDate": "2026-03-06",
+      "fragments": [
+        "attack-surface-reduction-profiles"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-configuration/endpoint-security/disk-encryption": {
+      "sha256": "3e0a7f5be6a0074eea762337e6a270aec44a37696d0537fb7ba4ac3439a4a3ad",
+      "reportedDate": "2024-09-23",
+      "fragments": [
+        "disk-encryption-profiles"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-configuration/endpoint-security/firewall": {
+      "sha256": "9b2ccc445ea96e743e5792f6e1abdb816ec7d926d73ec44eeaffd4ba42eaf20c",
+      "reportedDate": "2026-11-11",
+      "fragments": [
+        "firewall-profiles"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/compliance/configure-noncompliance-actions": {
+      "sha256": "a2bdb8b8d494c0789ce506d0c9687219fe1aa39fbd0bfec864052e40c2e82fac",
+      "reportedDate": "2026-11-11",
+      "fragments": [
+        "available-actions-for-noncompliance"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/compliance/overview": {
+      "sha256": "9ddcb409181c0e02f764402699670af240803b0f10ace3c069a987953475d185",
+      "reportedDate": "2026-07-02",
+      "fragments": [
+        "compliance-policy-settings"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/compliance/ref-macos-settings": {
+      "sha256": "9f3126425f38a1f28b5c41827ead3ef2a91688d704cd31f66825e76adcb53034",
+      "reportedDate": "2025-09-05",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices": {
+      "sha256": "4e0837fdabae01fc1246f96c21a59ce66c72577450ac7f4f3816869a658d9dc7",
+      "reportedDate": "2025-10-20",
+      "fragments": [
+        "attack-surface-reduction-rules-are-applied-to-windows-devices-to-prevent-exploitation-of-vulnerable-system-components",
+        "data-on-windows-is-protected-by-bitlocker-encryption",
+        "defender-antivirus-policies-protect-macos-devices-from-malware",
+        "defender-antivirus-policies-protect-windows-devices-from-malware",
+        "filevault-encryption-protects-data-on-macos-devices",
+        "local-account-usage-on-windows-is-restricted-to-reduce-unauthorized-access",
+        "macos-firewall-policies-protect-against-unauthorized-network-access",
+        "security-baselines-are-applied-to-windows-devices-to-strengthen-security-posture",
+        "windows-firewall-policies-protect-against-unauthorized-network-access"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant": {
+      "sha256": "4607b9b9398d4d1f8280107c45f17229e95ec3bdc9f2062338ee98d506d14a52",
+      "reportedDate": "2025-10-20",
+      "fragments": [
+        "compliance-policies-protect-fully-managed-and-corporate-owned-android-devices",
+        "compliance-policies-protect-iosipados-devices",
+        "compliance-policies-protect-macos-devices",
+        "compliance-policies-protect-personally-owned-android-devices",
+        "compliance-policies-protect-windows-devices"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/security-baselines/configure-baselines": {
+      "sha256": "2aca7224984a775cc9f1904374a85a15f7118333809fb69f30555ecf8bb73e51",
+      "reportedDate": "2026-11-12",
+      "fragments": [
+        "create-a-profile-for-a-security-baseline",
+        "overview-of-security-baselines"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed": {
+      "sha256": "6850ce614308c918b475da8d6dbfe26cdc9f8cf87cc0a700a611a6774bf63a6f",
+      "reportedDate": "2025-03-26",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/intune/device-security/security-configurations/android-personally-owned": {
+      "sha256": "4e155f6348191fb648648a797b91abc1280fafab49cc6460da4f4e05a4f5e296",
+      "reportedDate": "2025-03-26",
+      "fragments": [
+        "personally-owned-work-profile-enhanced-security-level-2",
+        "personally-owned-work-profile-high-security-level-3"
+      ]
+    },
+    "https://learn.microsoft.com/intune/device-security/security-configurations/ios-ipados-compliance": {
+      "sha256": "84ab9cb14fd853c383716a8688a7adf0cbaf7a7344bc88773befd552258e1885",
+      "reportedDate": "2025-03-20",
+      "fragments": [
+        "enhanced-security-level-2",
+        "high-security-level-3"
+      ]
+    },
+    "https://learn.microsoft.com/security/zero-trust/zero-trust-identity-device-access-policies-common": {
+      "sha256": "79c3bfc7795866c4b9736933540bd4dd517922a2434c43ad62572c23ee3f8d93",
+      "reportedDate": "2025-06-18",
+      "fragments": [
+        "deployment",
+        "recommended-compliance-settings-for-windows-10-and-later",
+        "require-approved-apps-or-app-protection-policies",
+        "require-compliant-pcs-and-mobile-devices"
+      ]
+    }
+  }
+}

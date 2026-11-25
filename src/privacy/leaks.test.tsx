@@ -15,6 +15,7 @@ import { de } from '../i18n/de';
 import { MockProvider } from '../providers/mock/MockProvider';
 import { scenarios } from '../providers/mock/scenarios';
 import { buildSnapshotFile } from '../rules/snapshotCompare';
+import { POSTURE_SECTIONS } from '../rules/posture';
 import { TENANT_SECTIONS } from '../rules/tenant';
 import { liveMockProvider, renderApp } from '../test/renderApp';
 import {
@@ -355,6 +356,85 @@ describe('Mandant, Richtlinien, Sammelprüfung', () => {
     expect(changes.textContent).toMatch(/benutzer-[0-9a-f]{4}@beispiel\.example/i);
     expect(noLeaks('Richtlinien-Detail mit Änderungen')).toEqual([]);
   });
+
+  it('Empfehlungen: Ansicht und jede Kachel samt Detail-Sheet (in jeder Stufe)', async () => {
+    const user = userEvent.setup();
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.nav.recommendations }));
+    const postureTiles = () =>
+      screen
+        .queryAllByRole('button')
+        .filter((b) => b.getAttribute('data-tile-id')?.startsWith('posture'));
+    const ids = POSTURE_SECTIONS.flatMap((section) => section.tiles);
+    await waitFor(() => expect(postureTiles()).toHaveLength(ids.length), { timeout: 5000 });
+    expect(document.title).toContain(de.posture.view.title);
+    expect(noLeaks('Empfehlungen')).toEqual([]);
+    for (const level of [1, 3] as const) {
+      for (const tileId of ids) {
+        act(() =>
+          navigateTo(
+            { device: null, view: 'recommendations', tile: tileId, mode: 'demo', level },
+            { tileOpened: true },
+          ),
+        );
+        const dialog = await screen.findByRole('dialog');
+        for (const toggle of within(dialog).queryAllByRole('button', { name: /Rohdaten/ })) {
+          if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
+        }
+        // Liste „Alle Empfehlungen“ vollständig anzeigen (Standard: nur Abweichungen)
+        const all = within(dialog).queryByRole('radio', { name: /^Alle/ });
+        if (all) fireEvent.click(all);
+        expect(noLeaks(`Empfehlungen: Sheet ${tileId} (Stufe ${level})`)).toEqual([]);
+      }
+    }
+  }, 60_000);
+
+  it('Empfehlungen: der CSV-Export enthält im Präsentationsmodus keine Klarwerte', async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    captureDownloads(blobs);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.nav.recommendations }));
+    const exportButton = await screen.findByRole('button', {
+      name: de.posture.view.export.button,
+    });
+    await waitFor(() => expect(exportButton).toBeEnabled(), { timeout: 5000 });
+    await user.click(exportButton);
+    expect(blobs).toHaveLength(1);
+    const csv = await blobs[0]!.text();
+    expect(csv.split('\r\n').length).toBeGreaterThan(20);
+    expect(describeLeaks(scanText(csv, values, 'Empfehlungen-CSV'))).toEqual([]);
+  });
+
+  it('Flotte: Liste, Suche und CSV-Export zeigen im Präsentationsmodus keine Klarwerte', async () => {
+    const user = userEvent.setup();
+    const blobs: Blob[] = [];
+    captureDownloads(blobs);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderApp({ privacy: true });
+    await user.click(screen.getByRole('button', { name: de.nav.fleet }));
+    await waitFor(
+      () =>
+        expect(
+          screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-fleet-row')).length,
+        ).toBeGreaterThan(0),
+      { timeout: 5000 },
+    );
+    expect(document.title).toContain(de.fleetDevices.title);
+    expect(noLeaks('Flotte')).toEqual([]);
+    // Suche nach einem Klarwert findet im Präsentationsmodus nichts (durchsucht wird die maskierte Sicht)
+    await user.type(screen.getByRole('searchbox'), 'contoso-pc042');
+    expect(screen.queryAllByRole('button').filter((b) => b.hasAttribute('data-fleet-row'))).toEqual(
+      [],
+    );
+    await user.clear(screen.getByRole('searchbox'));
+    await user.click(screen.getByRole('button', { name: de.fleetDevices.export.button }));
+    expect(blobs).toHaveLength(1);
+    const csv = await blobs[0]!.text();
+    expect(csv.split('\r\n').length).toBeGreaterThan(5);
+    expect(describeLeaks(scanText(csv, values, 'Flotte-CSV'))).toEqual([]);
+  }, 30_000);
 
   it('Sammelprüfung: Eingabeliste verschwindet nach dem Start, Tabelle und CSV sind maskiert', async () => {
     const user = userEvent.setup();

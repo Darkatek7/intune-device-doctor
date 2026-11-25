@@ -57,6 +57,18 @@ test.describe('Content-Security-Policy', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Mandant' })).toBeVisible();
     await waitForTilesReady(page);
 
+    // Ansicht „Flotte“
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Flotte', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Flotte' })).toBeVisible();
+    await expect(page.locator('[data-fleet-row]').first()).toBeVisible();
+
+    // Ansicht „Empfehlungen“
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Empfehlungen', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Empfehlungen' })).toBeVisible();
+    await waitForTilesReady(page);
+
     // Ansicht „Richtlinien“ inkl. Unterseite
     await page.goto('/');
     await page.getByRole('button', { name: 'Richtlinien', exact: true }).click();

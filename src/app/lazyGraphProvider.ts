@@ -36,6 +36,8 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
+import type { FleetDevicesInfo } from '../domain/fleetDevices';
+import { uniformPosture, type TenantPosture } from '../domain/posture';
 import { de } from '../i18n/de';
 import {
   ProviderError,
@@ -183,6 +185,10 @@ export class LazyGraphProvider implements DeviceDataProvider {
     return provider.getTenantStatus(options);
   }
 
+  getFleetDevices(options?: RequestOptions) {
+    return this.section<FleetDevicesInfo>((p) => p.getFleetDevices(options));
+  }
+
   getAuditEvents(options?: RequestOptions) {
     return this.section<AuditEventsInfo>((p) => p.getAuditEvents(options));
   }
@@ -208,6 +214,20 @@ export class LazyGraphProvider implements DeviceDataProvider {
       return { configurations: failed, compliancePolicies: failed, overviewLimit: 0 };
     }
     return provider.getTenantPolicies(options);
+  }
+
+  async getTenantPosture(options?: RequestOptions): Promise<TenantPosture> {
+    let provider: DeviceDataProvider;
+    try {
+      provider = await this.load();
+    } catch {
+      return uniformPosture({
+        status: 'error',
+        error: { code: 'network', message: de.errors.network },
+        source: SOURCE,
+      });
+    }
+    return provider.getTenantPosture(options);
   }
 
   getPolicyDeviceStatuses(

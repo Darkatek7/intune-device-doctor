@@ -248,3 +248,26 @@ describe('Mock und Graph liefern dieselbe Snapshot-Form', () => {
     expect(sameShape(graph!.device, mock!.device)).toBe(true);
   });
 });
+
+describe('Mock und Graph liefern dieselbe Flottenliste-Form (M22)', () => {
+  it('getFleetDevices: ok, gleiche Schlüssel je Gerät, Pflichtfelder gesetzt', async () => {
+    const [mock, graph] = await Promise.all(
+      factories.map(([, create]) => create().getFleetDevices()),
+    );
+    if (!mock || !graph) throw new Error('Provider fehlt');
+    expect(mock.status).toBe('ok');
+    expect(graph.status).toBe('ok');
+    if (mock.status !== 'ok' || graph.status !== 'ok') return;
+    expect(sortedKeys(graph.data)).toEqual(sortedKeys(mock.data));
+    expect(graph.data.devices.length).toBeGreaterThan(0);
+    expect(mock.data.devices.length).toBeGreaterThan(0);
+    expect(sortedKeys(graph.data.devices[0]!)).toEqual(sortedKeys(mock.data.devices[0]!));
+    for (const info of [mock.data, graph.data]) {
+      for (const d of info.devices) {
+        expect(d.id).toBeTruthy();
+        expect(d.deviceName).toBeTruthy();
+      }
+    }
+    expect(sortedKeys(graph.source)).toEqual(sortedKeys(mock.source));
+  });
+});

@@ -41,7 +41,15 @@ import { ViewFallback } from '../ui/ViewFallback';
 import { ZipProgress } from '../ui/ZipProgress';
 import { maskFileName } from '../privacy/fileName';
 import { DeviceView } from './DeviceView';
-import { BulkView, ConnectionTestView, PoliciesView, TenantView, ZipView } from './lazyViews';
+import {
+  BulkView,
+  ConnectionTestView,
+  PoliciesView,
+  FleetView,
+  RecommendationsView,
+  TenantView,
+  ZipView,
+} from './lazyViews';
 import { useProviderContext } from './providerContextValue';
 import { EnrollmentFailuresHint } from '../ui/EnrollmentFailuresHint';
 
@@ -182,7 +190,13 @@ function Shell({ account, extraChips }: Props) {
       if (zip.status !== 'idle') discardZip();
       setBulkOpen(false);
       // Eine Suche verlässt die Ansicht „Mandant“ bzw. den Verbindungstest, damit die Trefferliste sichtbar wird.
-      if (url.view === 'tenant' || url.view === 'connectionTest' || url.view === 'policies') {
+      if (
+        url.view === 'tenant' ||
+        url.view === 'connectionTest' ||
+        url.view === 'policies' ||
+        url.view === 'recommendations' ||
+        url.view === 'fleet'
+      ) {
         navigateTo({ device: null, tile: null, mode });
       }
       const results = await search(value);
@@ -207,6 +221,22 @@ function Shell({ account, extraChips }: Props) {
     reset();
     setQuery('');
     navigateTo({ device: null, tile: null, mode, view: 'tenant' });
+  };
+
+  const openRecommendations = () => {
+    setBulkOpen(false);
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'recommendations' });
+  };
+
+  const openFleet = () => {
+    setBulkOpen(false);
+    discardZip();
+    reset();
+    setQuery('');
+    navigateTo({ device: null, tile: null, mode, view: 'fleet' });
   };
 
   /** Öffnet eine Kachel der Ansicht „Mandant“ direkt (M18: Dienststatus, Registrierungsfehler). */
@@ -291,7 +321,9 @@ function Shell({ account, extraChips }: Props) {
   const showTenant = Boolean(provider && !url.device && url.view === 'tenant');
   // Ansicht „Richtlinien“ (M15) teilt sich mit „Mandant“ die Ausschlüsse der übrigen Ansichten.
   const showPolicies = Boolean(provider && !url.device && url.view === 'policies');
-  const showTenantLike = showTenant || showPolicies;
+  const showRecommendations = Boolean(provider && !url.device && url.view === 'recommendations');
+  const showFleet = Boolean(provider && !url.device && url.view === 'fleet');
+  const showTenantLike = showTenant || showPolicies || showRecommendations || showFleet;
   const showZip =
     !showDeviceArea && !showTenantLike && !liveWithoutProvider && zip.status !== 'idle';
   const showBulk =
@@ -398,6 +430,55 @@ function Shell({ account, extraChips }: Props) {
           const current = parseUrl(window.location.search);
           if (current.tile) closeTileInHistory(current);
         }}
+        onBack={goHome}
+        onToneChange={setDeviceTone}
+      />
+    );
+  } else if (showRecommendations && provider) {
+    content = (
+      <RecommendationsView
+        provider={provider}
+        level={url.level ?? null}
+        onLevelChange={(level) =>
+          navigateTo(
+            { device: null, tile: null, mode, view: 'recommendations', level },
+            { replace: true },
+          )
+        }
+        openTileId={url.tile}
+        onOpenTile={(tileId) =>
+          navigateTo(
+            {
+              device: null,
+              tile: tileId,
+              mode,
+              view: 'recommendations',
+              level: url.level ?? null,
+            },
+            { tileOpened: true },
+          )
+        }
+        onCloseTile={() => {
+          const current = parseUrl(window.location.search);
+          if (current.tile) closeTileInHistory(current);
+        }}
+        onBack={goHome}
+        onToneChange={setDeviceTone}
+      />
+    );
+  } else if (showFleet && provider) {
+    content = (
+      <FleetView
+        provider={provider}
+        issue={url.issue ?? null}
+        platform={url.platform ?? null}
+        onFilterChange={({ issue, platform }) =>
+          navigateTo(
+            { device: null, tile: null, mode, view: 'fleet', issue, platform },
+            { replace: true },
+          )
+        }
+        onOpenDevice={openDevice}
         onBack={goHome}
         onToneChange={setDeviceTone}
       />
@@ -546,10 +627,20 @@ function Shell({ account, extraChips }: Props) {
   // Hauptnavigation: Einträge stehen in NAV_ITEMS, hier nur Handler und aktiver Eintrag.
   const navHandlers: Record<NavId, () => void> = {
     devices: goHome,
+    fleet: openFleet,
     policies: openPolicies,
     tenant: openTenant,
+    recommendations: openRecommendations,
   };
-  const activeView = showPolicies ? 'policies' : showTenant ? 'tenant' : null;
+  const activeView = showFleet
+    ? 'fleet'
+    : showPolicies
+      ? 'policies'
+      : showTenant
+        ? 'tenant'
+        : showRecommendations
+          ? 'recommendations'
+          : null;
   const navItems = NAV_ITEMS.map((item) => ({
     id: item.id,
     label: item.label,

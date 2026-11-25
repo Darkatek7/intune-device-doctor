@@ -5,6 +5,8 @@ import {
   mapAuditEvents,
   mapComplianceSettingSummaries,
   mapDeviceStateSummary,
+  mapFleetDevice,
+  mapFleetDevices,
 } from './mappers';
 
 describe('mapDeviceStateSummary (M20/S1)', () => {
@@ -174,5 +176,56 @@ describe('mapAppProtection (M20/S3)', () => {
     });
     expect(info).toMatchObject({ pagesRead: 3, truncated: true });
     expect(mapAppProtection(null, options).registrations).toEqual([]);
+  });
+});
+
+describe('mapFleetDevice / mapFleetDevices (M22/S1)', () => {
+  const base = { id: 'dev-1', deviceName: 'CONTOSO-PC042' };
+
+  it('übernimmt Felder; fehlende Werte → null, unbekannter complianceState → unknown', () => {
+    expect(
+      mapFleetDevice({
+        ...base,
+        complianceState: 'compliant',
+        isEncrypted: false,
+        jailBroken: 'Unknown',
+        serialNumber: '  ',
+        lastSyncDateTime: '2026-11-24T08:00:00Z',
+      }),
+    ).toMatchObject({
+      id: 'dev-1',
+      complianceState: 'compliant',
+      isEncrypted: false,
+      jailBroken: 'Unknown',
+      serialNumber: null,
+      userPrincipalName: null,
+      enrolledDateTime: null,
+    });
+    const bare = mapFleetDevice(base)!;
+    expect(bare).toMatchObject({ complianceState: 'unknown', isEncrypted: null, jailBroken: null });
+    expect(mapFleetDevice({ ...base, complianceState: 'bogus' as never })!.complianceState).toBe(
+      'unknown',
+    );
+    expect(mapFleetDevice({ ...base, jailBroken: '' })!.jailBroken).toBeNull();
+  });
+
+  it('Datum ohne Aussage (Jahr 0001) → null; fehlender Name → Gedankenstrich', () => {
+    const device = mapFleetDevice({
+      id: 'dev-2',
+      lastSyncDateTime: '0001-01-01T00:00:00Z',
+      enrolledDateTime: 'kein Datum',
+    })!;
+    expect(device.lastSyncDateTime).toBeNull();
+    expect(device.enrolledDateTime).toBeNull();
+    expect(device.deviceName).toBe('–');
+  });
+
+  it('verwirft Einträge ohne id und übernimmt die Metadaten', () => {
+    const info = mapFleetDevices([base, { deviceName: 'x' }, null, { id: ' ' }], {
+      pagesRead: 2,
+      truncated: true,
+    });
+    expect(info.devices.map((d) => d.id)).toEqual(['dev-1']);
+    expect(info).toMatchObject({ pagesRead: 2, truncated: true });
   });
 });

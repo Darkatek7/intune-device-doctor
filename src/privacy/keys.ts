@@ -79,6 +79,11 @@ export const VISIBLE_KEYS: readonly string[] = [
   'name',
   'actionname',
   'componentname',
+  // M21 (Empfehlungen): Einstellungswerte und Metadaten von Richtlinien bzw. Vorlagen – Richtlinien- und
+  // Vorlagennamen sind wie in „Richtlinien“ keine personenbezogenen Daten
+  'devicethreatprotectionrequiredsecuritylevel',
+  'templatedisplayname',
+  'userimpact',
 ];
 
 /**

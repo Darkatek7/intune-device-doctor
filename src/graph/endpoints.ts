@@ -12,6 +12,7 @@ import {
   LICENSE_DETAILS_SELECT,
   LAPS_SELECT,
   USER_DEVICES_SELECT,
+  FLEET_DEVICE_SELECT,
   MANAGED_DEVICE_LIST_SELECT,
   MOBILE_APP_SELECT,
 } from './dto';
@@ -54,6 +55,11 @@ export const SIGN_IN_WINDOW_DAYS = 7;
 export const SIGN_IN_PAGE_SIZE = 200;
 /** Autopilot-Liste: höchstens so viele Seiten lesen (wie die Gerätesuche). */
 export const MAX_LIST_PAGES = 5;
+/**
+ * Flotte (M22): höchstens so viele Seiten der Geräteliste (danach `truncated`). Die Seitengröße bestimmt
+ * Graph – `$top` ist für `managedDevices` nicht dokumentiert.
+ */
+export const MAX_FLEET_PAGES = 10;
 /** Zuweisungen (M14/S2): höchstens so viele Objekte je Gerät nachschlagen, höchstens so viele parallel. */
 export const MAX_ASSIGNMENT_LOOKUPS = 30;
 export const ASSIGNMENT_LOOKUP_CONCURRENCY = 4;
@@ -97,6 +103,24 @@ export const MAX_AUDIT_EVENT_PAGES = 5;
 export const MAX_APP_REGISTRATION_PAGES = 3;
 /** Sammelbezeichnung der Quelle für die Zuweisungen (drei Endpunkte). */
 export const ASSIGNMENTS_DISPLAY = 'GET …/{id}/assignments';
+/**
+ * Empfehlungen (M21): Für die Listen sind weder `$top` noch `$filter` dokumentiert → Paging über
+ * `@odata.nextLink`, höchstens MAX_LIST_PAGES Seiten (Compliance, App-Schutz, Bedingter Zugriff, Katalog,
+ * Vorlagen). `$expand` ist für Zuweisungen und `scheduledActionsForRule` nicht dokumentiert → je Richtlinie
+ * Einzelabrufe, höchstens für MAX_COMPLIANCE_POLICY_DETAILS Richtlinien (die zuletzt geänderten zuerst),
+ * COMPLIANCE_DETAIL_CONCURRENCY parallel.
+ */
+export const MAX_COMPLIANCE_POLICY_DETAILS = 30;
+export const COMPLIANCE_DETAIL_CONCURRENCY = 4;
+/** Secure-Score-Kontrollprofile: Seiten über `@odata.nextLink` (Seitengröße nicht dokumentiert). */
+export const MAX_SECURE_SCORE_PROFILE_PAGES = 5;
+/**
+ * Baseline-Vergleich (beta): höchstens so viele Baseline-Richtlinien (zuletzt geänderte zuerst), je
+ * Richtlinie höchstens so viele Seiten Einstellungen bzw. Einstellungsvorlagen, so viele Vergleiche parallel.
+ */
+export const MAX_BASELINE_COMPARISONS = 5;
+export const MAX_BASELINE_SETTING_PAGES = 10;
+export const BASELINE_COMPARISON_CONCURRENCY = 2;
 
 export const Endpoints = {
   /** Exakte Suche. $filter deviceName eq ist in der Beta-Ressource dokumentiert; live verifizieren. */
@@ -160,6 +184,23 @@ export const Endpoints = {
     path: () =>
       withQuery('/deviceManagement/managedDevices', {
         $select: MANAGED_DEVICE_LIST_SELECT.join(','),
+      }),
+  },
+  /**
+   * Flotte (M22): dieselbe dokumentierte Liste ohne $filter, mit den Feldern für die Bewertung je Gerät.
+   * Paginierung über `@odata.nextLink`, höchstens MAX_FLEET_PAGES Seiten.
+   */
+  managedDevicesFleet: {
+    id: 'managedDevicesFleet',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddevice-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDevices?$select=… (alle Geräte)',
+    path: () =>
+      withQuery('/deviceManagement/managedDevices', {
+        $select: FLEET_DEVICE_SELECT.join(','),
       }),
   },
   managedDevice: {
@@ -716,6 +757,170 @@ export const Endpoints = {
       'https://learn.microsoft.com/en-us/graph/api/intune-mam-managedappregistration-list?view=graph-rest-1.0',
     display: 'GET /deviceAppManagement/managedAppRegistrations',
     path: () => '/deviceAppManagement/managedAppRegistrations',
+  },
+  /**
+   * Mandantenweite Compliance-Einstellungen (M21): `deviceManagement.settings` (deviceManagementSettings).
+   * Die REST-Seite „Get deviceManagement“ ist nicht abrufbar; Route und Eigenschaft `settings` stützen sich
+   * auf das v1.0-PowerShell-SDK (Get-MgDeviceManagement, Parameter -Settings). Scope: Get-MgDeviceManagement
+   * nennt u. a. DeviceManagementConfiguration.Read.All. Live verifizieren.
+   */
+  deviceManagementSettings: {
+    id: 'deviceManagementSettings',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-devicemanagementsettings?view=graph-rest-1.0',
+    display: 'GET /deviceManagement?$select=settings',
+    path: () => withQuery('/deviceManagement', { $select: 'settings' }),
+  },
+  /** Verwaltete Geräte je Betriebssystem (M21, ein Objekt). Least privileged laut Doku: ManagedDevices.Read.All. */
+  managedDeviceOverview: {
+    id: 'managedDeviceOverview',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagedDevicesRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-devices-manageddeviceoverview-get?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/managedDeviceOverview',
+    path: () => '/deviceManagement/managedDeviceOverview',
+  },
+  /** Regeln der Aktionen bei Nichtkonformität einer Compliance-Richtlinie (M21). Kein `$expand` dokumentiert. */
+  deviceCompliancePolicyScheduledActions: {
+    id: 'deviceCompliancePolicyScheduledActions',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancescheduledactionforrule-list?view=graph-rest-1.0',
+    display: 'GET /deviceManagement/deviceCompliancePolicies/{id}/scheduledActionsForRule',
+    path: (policyId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/scheduledActionsForRule`,
+  },
+  /** Aktionen (actionType, gracePeriodHours) einer Regel (M21). Kein `$expand` dokumentiert. */
+  deviceCompliancePolicyScheduledActionItems: {
+    id: 'deviceCompliancePolicyScheduledActionItems',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecomplianceactionitem-list?view=graph-rest-1.0',
+    display:
+      'GET /deviceManagement/deviceCompliancePolicies/{id}/scheduledActionsForRule/{ruleId}/scheduledActionConfigurations',
+    path: (policyId: string, ruleId: string) =>
+      `/deviceManagement/deviceCompliancePolicies/${enc(policyId)}/scheduledActionsForRule/${enc(ruleId)}/scheduledActionConfigurations`,
+  },
+  /** iOS-App-Schutzrichtlinien (M21). Optionaler Scope DeviceManagementApps.Read.All (least privileged). */
+  iosManagedAppProtections: {
+    id: 'iosManagedAppProtections',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagementAppsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-mam-iosmanagedappprotection-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/iosManagedAppProtections',
+    path: () => '/deviceAppManagement/iosManagedAppProtections',
+  },
+  /** Android-App-Schutzrichtlinien (M21). Optionaler Scope DeviceManagementApps.Read.All (least privileged). */
+  androidManagedAppProtections: {
+    id: 'androidManagedAppProtections',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.ManagementAppsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-mam-androidmanagedappprotection-list?view=graph-rest-1.0',
+    display: 'GET /deviceAppManagement/androidManagedAppProtections',
+    path: () => '/deviceAppManagement/androidManagedAppProtections',
+  },
+  /**
+   * Richtlinien für Bedingten Zugriff (M21). `$select` ist laut Doku unterstützt; so bleiben
+   * `sessionControls` und Zeitstempel außen vor. Optionaler Scope Policy.Read.All (least privileged); das
+   * Konto braucht eine unterstützte Entra-Rolle.
+   */
+  conditionalAccessPolicies: {
+    id: 'conditionalAccessPolicies',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.PolicyRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/conditionalaccessroot-list-policies?view=graph-rest-1.0',
+    display: 'GET /identity/conditionalAccess/policies?$select=…',
+    path: () =>
+      withQuery('/identity/conditionalAccess/policies', {
+        $select: 'id,displayName,state,conditions,grantControls',
+      }),
+  },
+  /** Jüngster Secure Score (`$top=1` ist dokumentiert; neueste zuerst). Optionaler Scope SecurityEvents.Read.All. */
+  secureScores: {
+    id: 'secureScores',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.SecurityEventsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/security-list-securescores?view=graph-rest-1.0',
+    display: 'GET /security/secureScores?$top=1',
+    path: () => withQuery('/security/secureScores', { $top: '1' }),
+  },
+  /** Kontrollprofile des Secure Score (Titel, Dienst, Maßnahme). Optionaler Scope SecurityEvents.Read.All. */
+  secureScoreControlProfiles: {
+    id: 'secureScoreControlProfiles',
+    method: 'GET',
+    version: 'v1.0',
+    scope: GraphScope.SecurityEventsRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/security-list-securescorecontrolprofiles?view=graph-rest-1.0',
+    display: 'GET /security/secureScoreControlProfiles',
+    path: () => '/security/secureScoreControlProfiles',
+  },
+  /**
+   * BETA – freigegebene Ausnahme (2026-11-25): Richtlinien des Einstellungskatalogs, der Endpunktsicherheit
+   * und der Sicherheitsbaselines. Keine Query-Optionen dokumentiert. Least privileged laut Doku:
+   * DeviceManagementConfiguration.Read.All.
+   */
+  catalogPolicies: {
+    id: 'catalogPolicies',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfigv2-devicemanagementconfigurationpolicy-list?view=graph-rest-beta',
+    display: 'GET /beta/deviceManagement/configurationPolicies',
+    path: () => `${GRAPH_BETA_URL}/deviceManagement/configurationPolicies`,
+  },
+  /** BETA (freigegebene Ausnahme): Einstellungen einer Katalog-Richtlinie (Baseline-Vergleich). */
+  catalogPolicySettings: {
+    id: 'catalogPolicySettings',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfigv2-devicemanagementconfigurationsetting-list?view=graph-rest-beta',
+    display: 'GET /beta/deviceManagement/configurationPolicies/{id}/settings',
+    path: (policyId: string) =>
+      `${GRAPH_BETA_URL}/deviceManagement/configurationPolicies/${enc(policyId)}/settings`,
+  },
+  /** BETA (freigegebene Ausnahme): Richtlinienvorlagen inkl. `lifecycleState` (Baseline-Version aktuell?). */
+  policyTemplates: {
+    id: 'policyTemplates',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfigv2-devicemanagementconfigurationpolicytemplate-list?view=graph-rest-beta',
+    display: 'GET /beta/deviceManagement/configurationPolicyTemplates',
+    path: () => `${GRAPH_BETA_URL}/deviceManagement/configurationPolicyTemplates`,
+  },
+  /** BETA (freigegebene Ausnahme): Einstellungsvorlagen (Standardwerte) einer Richtlinienvorlage. */
+  policyTemplateSettingTemplates: {
+    id: 'policyTemplateSettingTemplates',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfigv2-devicemanagementconfigurationsettingtemplate-list?view=graph-rest-beta',
+    display: 'GET /beta/deviceManagement/configurationPolicyTemplates/{id}/settingTemplates',
+    path: (templateId: string) =>
+      `${GRAPH_BETA_URL}/deviceManagement/configurationPolicyTemplates/${enc(templateId)}/settingTemplates`,
   },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 

@@ -8,6 +8,7 @@
  * - Alle get*-Section-Methoden werfen NIE (außer bei Abort) – sie liefern SectionResult mit
  *   status forbidden / notApplicable / unavailable / error.
  */
+import type { FleetDevicesInfo } from '../domain/fleetDevices';
 import type {
   AuditEventsInfo,
   AssignmentLookup,
@@ -42,6 +43,7 @@ import type {
   SignInsInfo,
   WindowsProtectionInfo,
 } from '../domain/types';
+import type { TenantPosture } from '../domain/posture';
 
 export interface RequestOptions {
   signal?: AbortSignal;
@@ -206,6 +208,23 @@ export interface DeviceDataProvider {
    * abgefragt“). Settings-Catalog/Endpoint-Security fehlen (nur beta). Wirft nur bei Abbruch.
    */
   getTenantPolicies(options?: RequestOptions): Promise<TenantPolicies>;
+
+  /**
+   * Rohdaten für die Ansicht „Empfehlungen“ (M21): mandantenweite Compliance-Einstellungen,
+   * Compliance- und App-Schutz-Richtlinien mit ihren Einstellungen, Bedingter Zugriff, Secure Score
+   * sowie – aus der Beta-API – Einstellungskatalog/Endpunktsicherheit/Baselines samt Vorlagen. Jede
+   * Quelle ist ein eigenes SectionResult (403/404/Fehler betreffen nur ihre Kachel). Der Vergleich
+   * einer Baseline mit ihrer Vorlage läuft für höchstens MAX_BASELINE_COMPARISONS Richtlinien. Wirft
+   * nur bei Abbruch.
+   */
+  getTenantPosture(options?: RequestOptions): Promise<TenantPosture>;
+
+  /**
+   * Alle verwalteten Geräte des Mandanten für die Ansicht „Flotte“ (M22): die dokumentierte v1.0-Liste
+   * `managedDevices` mit `$select`, höchstens MAX_FLEET_PAGES Seiten (danach `truncated`). Kein
+   * Nachladen je Gerät. 403/Fehler → SectionResult; wirft nur bei Abbruch.
+   */
+  getFleetDevices(options?: RequestOptions): Promise<SectionResult<FleetDevicesInfo>>;
 
   /**
    * Gerätestatus einer Richtlinie (M15): `…/{id}/deviceStatuses`, höchstens MAX_POLICY_STATUS_PAGES

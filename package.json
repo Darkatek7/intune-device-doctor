@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "fixture": "tsx scripts/make-fixture-zip.ts",
+    "posture:sources": "tsx scripts/check-posture-sources.ts",
     "check": "npm run lint && npm run typecheck && npm test && vite build",
     "test:e2e": "playwright test",
     "check:full": "npm run check && npm run test:e2e",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FLEET_DEVICE_SELECT } from './dto';
 import { Endpoints, SIGN_IN_PAGE_SIZE } from './endpoints';
 import { GraphScope, LOGIN_SCOPES, OPTIONAL_SCOPES } from './scopes';
 
@@ -269,10 +270,36 @@ describe('Endpunkte – Richtlinien → Geräte (M15)', () => {
     for (const id of ids) expect(Endpoints[id].path('x')).not.toContain('?');
   });
 
-  it('keine Beta-Endpunkte (Settings-Katalog/Endpunktsicherheit)', () => {
+  it('Settings-Katalog nur über die vier in M21 freigegebenen Beta-Endpunkte; nie /intents', () => {
+    const catalog = new Set<string>([
+      'catalogPolicies',
+      'catalogPolicySettings',
+      'policyTemplates',
+      'policyTemplateSettingTemplates',
+    ]);
     for (const def of Object.values(Endpoints)) {
       const path = (def.path as (...args: string[]) => string)('x', '2026-10-08T12:00:00Z');
-      expect(path).not.toMatch(/configurationPolicies|\/intents/);
+      expect(path).not.toMatch(/\/intents/);
+      if (catalog.has(def.id)) {
+        expect(def.version).toBe('beta');
+        expect(path).toMatch(
+          /^https:\/\/graph\.microsoft\.com\/beta\/deviceManagement\/configurationPolic(ies|yTemplates)/,
+        );
+      } else {
+        expect(path).not.toMatch(/configurationPolic/);
+      }
     }
+  });
+});
+
+describe('Endpunkt managedDevicesFleet (M22)', () => {
+  it('GET v1.0, nur $select mit den Flottenfeldern', () => {
+    const def = Endpoints.managedDevicesFleet;
+    expect(def.method).toBe('GET');
+    expect(def.version).toBe('v1.0');
+    const url = new URL(`https://graph.microsoft.com/v1.0${def.path()}`);
+    expect(url.pathname).toBe('/v1.0/deviceManagement/managedDevices');
+    expect([...url.searchParams.keys()]).toEqual(['$select']);
+    expect(url.searchParams.get('$select')?.split(',')).toEqual([...FLEET_DEVICE_SELECT]);
   });
 });

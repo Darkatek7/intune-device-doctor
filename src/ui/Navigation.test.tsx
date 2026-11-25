@@ -48,8 +48,14 @@ describe('Hauptnavigation (Toolbar)', () => {
     expect(screen.queryByRole('navigation', { name: de.nav.label })).not.toBeInTheDocument();
   });
 
-  it('NAV_ITEMS: Geräte, Richtlinien, Mandant mit eindeutigen IDs', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Geräte', 'Richtlinien', 'Mandant']);
+  it('NAV_ITEMS: Geräte, Flotte, Richtlinien, Mandant, Empfehlungen mit eindeutigen IDs', () => {
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
+      'Geräte',
+      'Flotte',
+      'Richtlinien',
+      'Mandant',
+      'Empfehlungen',
+    ]);
     expect(new Set(NAV_ITEMS.map((i) => i.id)).size).toBe(NAV_ITEMS.length);
   });
 });
