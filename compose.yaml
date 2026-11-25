@@ -1,0 +1,19 @@
+# MDM Doctor als Container – fertiges Image aus der GitHub Container Registry, kein eigener Build.
+#
+#   docker compose up -d                       # starten → http://localhost:5173
+#   docker compose pull && docker compose up -d   # aktualisieren
+#
+# Konfiguration aus .env.local (gleiche Variablen wie .env.example, VITE_*). Ohne Datei startet
+# der Demo-Modus. Port 5173 passt zur Redirect-URI http://localhost:5173 der Entra-App; ein anderer
+# Host-Port: MDM_DOCTOR_PORT=8080 docker compose up -d (Redirect-URI entsprechend anpassen).
+# Selbst gebautes Image statt ghcr.io: npm run docker:up (compose.build.yaml).
+name: mdm-doctor
+services:
+  mdm-doctor:
+    image: ${MDM_DOCTOR_IMAGE:-ghcr.io/darkatek7/intune-device-doctor:latest}
+    ports:
+      - '${MDM_DOCTOR_PORT:-5173}:80'
+    env_file:
+      - path: .env.local
+        required: false
+    restart: unless-stopped

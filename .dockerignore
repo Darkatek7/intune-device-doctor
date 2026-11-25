@@ -1,0 +1,5 @@
+# Nur dist/ und die Container-Dateien gehören in den Build-Kontext.
+*
+!dist/
+!docker/nginx.conf
+!docker/40-mdm-doctor-config.sh

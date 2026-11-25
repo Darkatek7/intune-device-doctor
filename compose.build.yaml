@@ -1,0 +1,7 @@
+# Ergänzung zu compose.yaml: Image lokal aus dist/ bauen statt von ghcr.io zu ziehen.
+# Wird von npm run docker:up verwendet (baut dist/ vorher auf dem Host).
+services:
+  mdm-doctor:
+    build: .
+    image: mdm-doctor:local
+    pull_policy: build
