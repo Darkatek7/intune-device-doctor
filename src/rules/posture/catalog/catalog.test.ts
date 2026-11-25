@@ -140,6 +140,13 @@ const ALLOWED_PROPERTIES = new Map([
   ],
 ]);
 
+/**
+ * Prüfungen, bei denen „nicht konfiguriert“ (null) bewusst nicht prüfbar ist: Bedrohungsstufe nicht
+ * aktiviert – Learn empfiehlt Defender for Endpoint ODER Mobile Threat Defense, die Defender-Bewertung ist
+ * über v1.0 nicht lesbar.
+ */
+const NULL_NOT_CHECKED = new Set(['iosThreatLevel', 'awpThreatLevel']);
+
 const allChecks = ALL_FRAMEWORKS.flatMap((framework) =>
   framework.checks.map((check) => ({ framework, check })),
 );
@@ -207,6 +214,31 @@ describe('Katalog – Quellen und Texte', () => {
   });
 });
 
+describe('Katalog – App-Schutz-Tabellen vollständig', () => {
+  const uncheckable = (framework: typeof APP_PROTECTION_IOS) =>
+    framework.uncheckable.map((item) => [item.id, item.level, item.reason]);
+
+  it('Stufe 2 „Kopien in ausgewählten Diensten speichern“ und Stufe 3 „Daten aus Diensten öffnen“', () => {
+    for (const framework of [APP_PROTECTION_IOS, APP_PROTECTION_ANDROID]) {
+      expect(uncheckable(framework)).toEqual(
+        expect.arrayContaining([
+          ['appSaveToServices', 2, 'enumIncomplete'],
+          ['appOpenFromServices', 3, 'noV1Property'],
+        ]),
+      );
+    }
+    expect(dePosture.uncheckable.appSaveToServices.expected).toContain('Fotobibliothek');
+    expect(dePosture.uncheckable.appOpenFromServices.expected).toContain('Kamera');
+  });
+
+  it('iOS Stufe 2 „Apps auswählen, die ausgenommen werden sollen“ nur für iOS', () => {
+    expect(uncheckable(APP_PROTECTION_IOS)).toContainEqual(['appExemptApps', 2, 'noV1Property']);
+    expect(APP_PROTECTION_ANDROID.uncheckable.map((item) => item.id)).not.toContain(
+      'appExemptApps',
+    );
+  });
+});
+
 describe('Katalog – Vergleichsrichtung', () => {
   it.each(allChecks.map(({ framework, check }) => [`${framework.id}/${check.id}`, check] as const))(
     '%s: Beispiel erfüllt, Gegenbeispiel weicht ab, null weicht ab, fehlender Wert nicht prüfbar',
@@ -214,7 +246,9 @@ describe('Katalog – Vergleichsrichtung', () => {
       expect(check.evaluate(check.satisfiedBy).status).toBe('met');
       expect(check.evaluate(check.deviatingWith).status).toBe('deviating');
       if (check.properties.length > 0) {
-        expect(check.evaluate(withNull(check.satisfiedBy, check)).status).toBe('deviating');
+        expect(check.evaluate(withNull(check.satisfiedBy, check)).status).toBe(
+          NULL_NOT_CHECKED.has(check.id) ? 'notChecked' : 'deviating',
+        );
         expect(check.evaluate(withoutKeys(check.satisfiedBy, check)).status).toBe('notChecked');
       }
     },
@@ -266,17 +300,45 @@ describe('Katalog – Vergleichsrichtung', () => {
     );
   });
 
-  it('Bedrohungsstufe: nur „secured“ erfüllt', () => {
-    const check = byId('iosThreatLevel');
-    const subject = (level: string, enabled = true) => ({
-      settings: {
-        deviceThreatProtectionEnabled: enabled,
-        deviceThreatProtectionRequiredSecurityLevel: level,
-      },
-    });
-    expect(check?.evaluate(subject('secured')).status).toBe('met');
-    expect(check?.evaluate(subject('low')).status).toBe('deviating');
-    expect(check?.evaluate(subject('secured', false)).status).toBe('deviating');
+  it.each(['iosThreatLevel', 'awpThreatLevel'])(
+    '%s: aktiviert → nur „secured“ erfüllt; nicht aktiviert → nicht prüfbar (Defender ODER MTD)',
+    (id) => {
+      const check = byId(id);
+      const subject = (level: string | null, enabled: boolean | null = true) => ({
+        settings: {
+          deviceThreatProtectionEnabled: enabled,
+          deviceThreatProtectionRequiredSecurityLevel: level,
+        },
+      });
+      expect(check?.level).toBe(3);
+      expect(check?.evaluate(subject('secured')).status).toBe('met');
+      expect(check?.evaluate(subject('low')).status).toBe('deviating');
+      expect(check?.evaluate(subject(null)).status).toBe('deviating');
+      const off = check?.evaluate(subject('secured', false));
+      expect(off?.status).toBe('notChecked');
+      expect(off?.reason).toContain('Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung');
+      expect(check?.evaluate(subject(null, null)).status).toBe('notChecked');
+      expect(check?.evaluate({ settings: {} }).status).toBe('notChecked');
+    },
+  );
+
+  it('„höchstens“: 0 ist nur bei iOS „nach Bildschirmsperre“ mehrdeutig (Portal kennt „Sofort“)', () => {
+    const s = (property: string, value: number | null) => ({ settings: { [property]: value } });
+    const afterLock = byId('iosPasscodeAfterLock');
+    expect(afterLock?.evaluate(s('passcodeMinutesOfInactivityBeforeLock', 0)).status).toBe(
+      'notChecked',
+    );
+    expect(afterLock?.evaluate(s('passcodeMinutesOfInactivityBeforeLock', 1)).status).toBe('met');
+    expect(afterLock?.evaluate(s('passcodeMinutesOfInactivityBeforeLock', null)).status).toBe(
+      'deviating',
+    );
+    // Android-Arbeitsprofil (1 Minute bis 8 Stunden) und Windows kennen laut Learn kein „Sofort“
+    expect(
+      byId('awpPasswordInactivity')?.evaluate(s('passwordMinutesOfInactivityBeforeLock', 0)).status,
+    ).toBe('deviating');
+    expect(
+      byId('winPasswordInactivity')?.evaluate(s('passwordMinutesOfInactivityBeforeLock', 0)).status,
+    ).toBe('deviating');
   });
 
   it('„Gerät als nicht konform markieren“: block-Aktion mit 0 Stunden', () => {

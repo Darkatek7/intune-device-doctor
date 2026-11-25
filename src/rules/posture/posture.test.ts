@@ -5,6 +5,7 @@ import type {
   CatalogPolicyConfig,
   CompliancePolicyConfig,
   ConditionalAccessPolicyConfig,
+  PlatformDeviceCounts,
   PostureLevel,
   PostureSettings,
   SecureScoreControl,
@@ -26,13 +27,24 @@ import {
   IOS_COMPLIANCE,
   WINDOWS_COMPLIANCE,
 } from './catalog';
-import type { PostureFramework, PostureTile } from './types';
+import { evaluateFramework } from './kit';
+import type { CatalogCheck, CheckOutcome, PostureFramework, PostureTile } from './types';
 
 const LEARN = /^https:\/\/learn\.microsoft\.com\//;
 const NOW = new Date('2026-11-25T12:00:00Z');
 const SOURCE: DataSource = { kind: 'mock', label: 'Contoso (Demo)' };
 
 // ---------- Builder ----------
+
+/** Gerätezähler; Android standardmäßig komplett persönlich (Arbeitsprofil). */
+function counts(overrides: Partial<PlatformDeviceCounts> = {}): PlatformDeviceCounts {
+  const base = { windows: 10, ios: 5, macos: 0, android: 3, total: 18, ...overrides };
+  return {
+    androidPersonal: base.android,
+    androidCorporate: base.android === null ? null : 0,
+    ...base,
+  };
+}
 
 const ok = <T>(data: T): SectionResult<T> => ({
   status: 'ok',
@@ -64,7 +76,7 @@ const ISSUES = [
 function posture(overrides: Partial<TenantPosture> = {}): TenantPosture {
   return {
     complianceSettings: ok({ secureByDefault: true, deviceComplianceCheckinThresholdDays: 30 }),
-    platformCounts: ok({ windows: 10, ios: 5, macos: 0, android: 3, total: 18 }),
+    platformCounts: ok(counts()),
     compliancePolicies: ok({ policies: [], truncated: false }),
     appProtectionPolicies: ok({ policies: [], truncated: false }),
     conditionalAccess: ok({ policies: [], truncated: false }),
@@ -295,6 +307,16 @@ describe('postureTenantSettings', () => {
     ).toMatch(/compliance\/overview#compliance-policy-settings/);
   });
 
+  it('„konform“ + aktive ODER-Richtlinie (Konformität als Alternative) → ebenfalls critical', () => {
+    // Konsistent mit postureAccess: Die ODER-Richtlinie wirkt auf den Zugriff – ein Gerät ohne Richtlinie
+    // gilt als konform und erfüllt damit die Alternative
+    const t = tile({
+      complianceSettings: settings(false),
+      conditionalAccess: ca([caPolicy({ builtInControls: ['compliantDevice', 'mfa'] })]),
+    });
+    expect(t.severity).toBe('critical');
+  });
+
   it('„konform“ + nur Berichtsmodus → warning', () => {
     const t = tile({
       complianceSettings: settings(false),
@@ -344,10 +366,10 @@ describe('postureCoverage', () => {
     expect(t.checks.map((c) => [c.id, c.status])).toEqual([
       ['postureCoverage:windows', 'met'],
       ['postureCoverage:ios', 'met'],
-      ['postureCoverage:android', 'met'],
+      ['postureCoverage:androidPersonal', 'met'],
     ]);
     expect(t.severity).toBe('ok');
-    expect(t.value).toBe('3 von 3 Plattformen abgedeckt');
+    expect(t.value).toBe('3 von 3 Gerätegruppen abgedeckt');
   });
 
   it('Plattform mit Geräten ohne Richtlinie → critical', () => {
@@ -366,17 +388,82 @@ describe('postureCoverage', () => {
     expect(t.checks.find((c) => c.id === 'postureCoverage:windows')?.status).toBe('deviating');
   });
 
-  it('beta-Typ (vollständig verwaltet) zählt für Android', () => {
-    const t = tile({
-      compliancePolicies: policies([
-        compliance(
-          'other',
-          {},
-          { odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy' },
-        ),
-      ]),
+  describe('Android: zwei getrennte Empfehlungen', () => {
+    const android = (personal: number | null, corporate: number | null) =>
+      ok(
+        counts({
+          windows: 0,
+          ios: 0,
+          android: (personal ?? 0) + (corporate ?? 0),
+          androidPersonal: personal,
+          androidCorporate: corporate,
+        }),
+      );
+    const deviceOwner = (overrides: Partial<CompliancePolicyConfig> = {}) =>
+      compliance(
+        'other',
+        {},
+        { odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy', ...overrides },
+      );
+    const status = (t: PostureTile, id: string) =>
+      t.checks.find((c) => c.id === `postureCoverage:${id}`)?.status;
+
+    it('Arbeitsprofil-Richtlinie deckt nur persönliche Geräte ab, nicht unternehmenseigene', () => {
+      const t = tile({
+        platformCounts: android(11, 4),
+        compliancePolicies: policies([compliance('androidWorkProfile', {})]),
+      });
+      expect(status(t, 'androidPersonal')).toBe('met');
+      // keine Richtlinie für vollständig verwaltet gefunden → nicht prüfbar (Typ nur beta), keine Abweichung
+      expect(status(t, 'androidCorporate')).toBe('notChecked');
+      expect(t.checks.find((c) => c.id === 'postureCoverage:androidCorporate')?.docsUrl).toContain(
+        '#compliance-policies-protect-fully-managed-and-corporate-owned-android-devices',
+      );
+      expect(t.findings.map((f) => f.id)).toContain('postureCoverage-androidCorporate-beta');
+      expect(t.severity).toBe('ok');
     });
-    expect(t.checks.find((c) => c.id === 'postureCoverage:android')?.status).toBe('met');
+
+    it('Geräteeigner-Richtlinie (beta-Typ) deckt nur unternehmenseigene Geräte ab', () => {
+      const t = tile({
+        platformCounts: android(11, 4),
+        compliancePolicies: policies([deviceOwner()]),
+      });
+      expect(status(t, 'androidCorporate')).toBe('met');
+      expect(status(t, 'androidPersonal')).toBe('deviating');
+      expect(t.findings.map((f) => f.id)).toContain('postureCoverage-missing-androidPersonal');
+      expect(t.severity).toBe('critical');
+    });
+
+    it('Geräteeigner-Richtlinie nicht zugewiesen → weiterhin nicht prüfbar, nie Abweichung', () => {
+      const t = tile({
+        platformCounts: android(0, 4),
+        compliancePolicies: policies([deviceOwner({ assigned: false })]),
+      });
+      expect(status(t, 'androidCorporate')).toBe('notChecked');
+      expect(t.checks.map((c) => c.id)).not.toContain('postureCoverage:androidPersonal');
+    });
+
+    it('Geräteadministrator-Richtlinie deckt keine der beiden Gruppen ab', () => {
+      const t = tile({
+        platformCounts: android(3, 0),
+        compliancePolicies: policies([compliance('androidDeviceAdministrator', {})]),
+      });
+      expect(status(t, 'androidPersonal')).toBe('deviating');
+      expect(t.checks.map((c) => c.id)).not.toContain('postureCoverage:androidCorporate');
+    });
+
+    it('Gruppenzahl nicht geliefert → nicht prüfbar; Android gesamt 0 → beide nicht genutzt', () => {
+      const unknown = tile({
+        platformCounts: ok(counts({ windows: 0, ios: 0, android: 5, androidPersonal: null })),
+        compliancePolicies: policies([]),
+      });
+      expect(status(unknown, 'androidPersonal')).toBe('notChecked');
+      const none = tile({
+        platformCounts: ok(counts({ android: 0, androidPersonal: null, androidCorporate: null })),
+      });
+      expect(none.checks.map((c) => c.id)).not.toContain('postureCoverage:androidPersonal');
+      expect(none.checks.map((c) => c.id)).not.toContain('postureCoverage:androidCorporate');
+    });
   });
 
   it('Zuweisung unbekannt bzw. Liste abgeschnitten → nicht prüfbar statt Abweichung', () => {
@@ -390,7 +477,7 @@ describe('postureCoverage', () => {
 
   it('Geräteanzahl fehlt → nicht prüfbar', () => {
     const t = tile({
-      platformCounts: ok({ windows: null, ios: 0, macos: 0, android: 0, total: null }),
+      platformCounts: ok(counts({ windows: null, ios: 0, macos: 0, android: 0, total: null })),
     });
     expect(t.checks).toHaveLength(1);
     expect(t.checks[0]?.status).toBe('notChecked');
@@ -424,6 +511,17 @@ describe('postureAccess', () => {
       caPolicy({ builtInControls: ['compliantDevice', 'mfa'], grantOperator: 'OR' }),
     ]);
     expect(alternative.checks[0]?.status).toBe('deviating');
+    // eigener Text: Konformität wirkt auf den Zugriff, ist aber nur eine zulässige Alternative
+    const finding = alternative.findings.find((f) => f.id === 'postureAccess-compliantDevice');
+    expect(finding?.title).toBe('Konformes Gerät ist nur eine von mehreren zulässigen Steuerungen');
+    expect(finding?.detail).not.toContain(
+      'wirkt sich das Ergebnis der Compliance-Richtlinien nicht',
+    );
+    expect(finding?.detail).toContain('wirkt sich damit auf den Zugriff aus');
+    const reportOnly = tile([caPolicy({ state: 'enabledForReportingButNotEnforced' })]);
+    expect(
+      reportOnly.findings.find((f) => f.id === 'postureAccess-compliantDevice')?.detail,
+    ).toContain('nicht auf den Zugriff aus');
     const both = tile([
       caPolicy({ builtInControls: ['compliantDevice', 'mfa'], grantOperator: 'AND' }),
     ]);
@@ -507,19 +605,63 @@ describe('Compliance-Kacheln', () => {
     );
     expect(t.checks.every((c) => c.level === null || c.level <= 2)).toBe(true);
     expect(t.facts.find((f) => f.label === 'Bewertete Stufe')?.value).toContain('Stufe 2');
-    expect(t.value).toBe('Stufe 2 erreicht');
+    // iOS Stufe 2 enthält eine Learn-Empfehlung ohne v1.0-Eigenschaft → „soweit prüfbar“
+    expect(t.value).toBe('Stufe 2 erreicht, soweit prüfbar');
   });
 
   it('iOS Stufenlogik: Stufe 3 nicht erreicht, wenn eine Stufe-3-Prüfung abweicht', () => {
     const settings = { ...satisfying(IOS_COMPLIANCE), passcodeExpirationDays: 400 };
     const level2 = tile([compliance('ios', settings)], 'postureComplianceIos', 2);
-    expect(level2.value).toBe('Stufe 2 erreicht');
+    expect(level2.value).toBe('Stufe 2 erreicht, soweit prüfbar');
     expect(level2.facts.some((f) => f.value.includes('Stufe 2 erreicht'))).toBe(true);
     const level3 = tile([compliance('ios', settings)], 'postureComplianceIos', 3);
     expect(level3.severity).toBe('warning');
     expect(level3.value).not.toContain('Stufe');
     const full = tile([compliance('ios', satisfying(IOS_COMPLIANCE))], 'postureComplianceIos', 3);
-    expect(full.value).toBe('Stufe 3 erreicht');
+    expect(full.value).toBe('Stufe 3 erreicht, soweit prüfbar');
+  });
+
+  describe('Stufe 3: Defender for Endpoint ODER Mobile Threat Defense', () => {
+    const level3 = (settings: PostureSettings) =>
+      tile(
+        [compliance('ios', { ...satisfying(IOS_COMPLIANCE), ...settings })],
+        'postureComplianceIos',
+        3,
+      );
+    const threat = (t: PostureTile) => t.checks.find((c) => c.id.includes(':iosThreatLevel:'));
+
+    it('Bedrohungsstufe nicht aktiviert → nicht prüfbar (nicht „weicht ab“), Stufe 3 nicht verhindert', () => {
+      const t = level3({
+        deviceThreatProtectionEnabled: false,
+        deviceThreatProtectionRequiredSecurityLevel: 'notSet',
+      });
+      expect(threat(t)?.status).toBe('notChecked');
+      expect(threat(t)?.reason).toContain(
+        'Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung',
+      );
+      expect(t.checks.filter((c) => c.status === 'deviating')).toEqual([]);
+      // Stufe gilt nur „soweit prüfbar“ als erreicht – nicht fälschlich bestätigt
+      expect(t.value).toBe('Stufe 3 erreicht, soweit prüfbar');
+      expect(t.facts.some((f) => f.value.includes('Stufe 3 erreicht, soweit prüfbar'))).toBe(true);
+      const finding = t.findings.find((f) => f.id.startsWith('postureComplianceIos-policy-'));
+      expect(finding?.severity).toBe('unknown');
+      expect(finding?.detail).toContain('„Soweit prüfbar“');
+    });
+
+    it('aktiviert mit anderer Stufe als „Geschützt“ → weicht ab, Stufe 3 nicht erreicht', () => {
+      const t = level3({
+        deviceThreatProtectionEnabled: true,
+        deviceThreatProtectionRequiredSecurityLevel: 'medium',
+      });
+      expect(threat(t)?.status).toBe('deviating');
+      expect(threat(t)?.actual).toBe('Bedrohungsstufe aktiviert · Mittel');
+      expect(t.value).not.toContain('Stufe 3');
+      expect(t.facts.some((f) => f.value.includes('Stufe 2 erreicht'))).toBe(true);
+    });
+
+    it('aktiviert mit „Geschützt“ → erfüllt', () => {
+      expect(threat(level3({}))?.status).toBe('met');
+    });
   });
 
   it('iOS: keine Stufe erreicht, wenn eine Stufe-2-Prüfung abweicht', () => {
@@ -584,12 +726,43 @@ describe('Compliance-Kacheln', () => {
     );
     expect(t.checks.map((c) => c.status)).toEqual(['notChecked']);
     expect(t.value).toBe('Nicht prüfbar');
+    // Die Kachel sagt, welches Framework sie bewertet
+    expect(t.facts.find((f) => f.label === 'Bewertetes Framework')?.value).toContain(
+      'persönliches Gerät mit Arbeitsprofil',
+    );
+  });
+
+  it('iOS „Maximale Minuten nach Bildschirmsperre“ = 0 → nicht prüfbar (Bedeutung nicht dokumentiert)', () => {
+    const t = tile(
+      [
+        compliance('ios', {
+          ...satisfying(IOS_COMPLIANCE),
+          passcodeMinutesOfInactivityBeforeLock: 0,
+        }),
+      ],
+      'postureComplianceIos',
+    );
+    const check = t.checks.find((c) => c.id.includes(':iosPasscodeAfterLock:'));
+    expect(check?.status).toBe('notChecked');
+    expect(check?.reason).toContain('„Sofort“');
+    const unset = tile(
+      [
+        compliance('ios', {
+          ...satisfying(IOS_COMPLIANCE),
+          passcodeMinutesOfInactivityBeforeLock: null,
+        }),
+      ],
+      'postureComplianceIos',
+    );
+    expect(unset.checks.find((c) => c.id.includes(':iosPasscodeAfterLock:'))?.status).toBe(
+      'deviating',
+    );
   });
 
   it('macOS: Microsoft dokumentiert keinen Sollwert', () => {
     const t = tileOf(
       run({
-        platformCounts: ok({ windows: 0, ios: 0, macos: 4, android: 0, total: 4 }),
+        platformCounts: ok(counts({ windows: 0, ios: 0, macos: 4, android: 0, total: 4 })),
         compliancePolicies: policies([compliance('macos', {})]),
       }),
       'postureComplianceMacos',
@@ -637,7 +810,8 @@ describe('App-Schutz-Kacheln', () => {
     ['android', APP_PROTECTION_ANDROID, 'postureAppProtectionAndroid'],
   ] as const)('%s: Stufe 3 vollständig erfüllt → „Stufe 3 erreicht“', (platform, framework, id) => {
     const t = tile([appPolicy(platform, satisfying(framework))], id, 3);
-    expect(t.value).toBe('Stufe 3 erreicht');
+    // App-Schutz enthält auf jeder Stufe Learn-Empfehlungen ohne v1.0-Eigenschaft
+    expect(t.value).toBe('Stufe 3 erreicht, soweit prüfbar');
     expect(t.severity).toBe('ok');
   });
 
@@ -648,7 +822,7 @@ describe('App-Schutz-Kacheln', () => {
       1,
     );
     expect(t.checks.every((c) => c.level === null || c.level <= 1)).toBe(true);
-    expect(t.value).toBe('Stufe 1 erreicht');
+    expect(t.value).toBe('Stufe 1 erreicht, soweit prüfbar');
   });
 
   it('Abweichung auf Stufe 2 → warning, Tabelle nennt Ist und Empfehlung', () => {
@@ -672,7 +846,7 @@ describe('App-Schutz-Kacheln', () => {
   it('keine Richtlinie bei genutzter Plattform → warning; ohne Geräte „nicht genutzt“', () => {
     expect(tile([], 'postureAppProtectionIos').severity).toBe('warning');
     const unused = tileOf(
-      run({ platformCounts: ok({ windows: 1, ios: 0, macos: 0, android: 0, total: 1 }) }),
+      run({ platformCounts: ok(counts({ windows: 1, ios: 0, macos: 0, android: 0, total: 1 })) }),
       'postureAppProtectionIos',
     );
     expect(unused.value).toBe('Nicht genutzt');
@@ -819,19 +993,36 @@ describe('postureEndpointSecurity', () => {
   ];
   const tile = (
     list: CatalogPolicyConfig[],
-    counts = { windows: 10, ios: 0, macos: 2, android: 0, total: 12 },
+    deviceCounts = counts({ windows: 10, ios: 0, macos: 2, android: 0, total: 12 }),
   ) =>
     tileOf(
       run({
         catalogPolicies: ok({ policies: list, truncated: false }),
-        platformCounts: ok(counts),
+        platformCounts: ok(deviceCounts),
       }),
       'postureEndpointSecurity',
     );
 
+  /** Vorlagenname des empfohlenen Profils je Familie (Windows) laut Learn */
+  const PROFILE: Record<string, string> = {
+    endpointSecurityAntivirus: 'Microsoft Defender Antivirus',
+    endpointSecurityDiskEncryption: 'BitLocker',
+    endpointSecurityFirewall: 'Windows Firewall',
+    endpointSecurityAttackSurfaceReduction: 'Attack Surface Reduction Rules',
+    endpointSecurityAccountProtection: 'Local user group membership',
+  };
+  const status = (t: PostureTile, key: string) =>
+    t.checks.find((c) => c.id === `postureEndpointSecurity:${key}`)?.status;
+
   it('alle Bereiche für Windows und macOS zugewiesen → erfüllt', () => {
     const list = [
-      ...families.map((family) => catalogPolicy({ templateFamily: family })),
+      ...families.map((family) =>
+        // Groß-/Kleinschreibung egal
+        catalogPolicy({
+          templateFamily: family,
+          templateDisplayName: PROFILE[family]?.toUpperCase(),
+        }),
+      ),
       ...[
         'endpointSecurityAntivirus',
         'endpointSecurityDiskEncryption',
@@ -846,13 +1037,15 @@ describe('postureEndpointSecurity', () => {
   });
 
   it('macOS ohne Geräte wird nicht geprüft; fehlende Bereiche → warning', () => {
-    const t = tile([catalogPolicy({ templateFamily: 'endpointSecurityAntivirus' })], {
-      windows: 10,
-      ios: 0,
-      macos: 0,
-      android: 0,
-      total: 10,
-    });
+    const t = tile(
+      [
+        catalogPolicy({
+          templateFamily: 'endpointSecurityAntivirus',
+          templateDisplayName: 'Microsoft Defender Antivirus',
+        }),
+      ],
+      counts({ windows: 10, ios: 0, macos: 0, android: 0, total: 10 }),
+    );
     expect(t.checks).toHaveLength(5);
     expect(t.checks.filter((c) => c.status === 'deviating')).toHaveLength(4);
     expect(t.severity).toBe('warning');
@@ -860,9 +1053,107 @@ describe('postureEndpointSecurity', () => {
 
   it('nicht zugewiesene Richtlinie erfüllt nicht', () => {
     const t = tile([
-      catalogPolicy({ templateFamily: 'endpointSecurityFirewall', isAssigned: false }),
+      catalogPolicy({
+        templateFamily: 'endpointSecurityFirewall',
+        templateDisplayName: 'Windows Firewall',
+        isAssigned: false,
+      }),
     ]);
     expect(t.checks.find((c) => c.id.endsWith('firewallWindows'))?.status).toBe('deviating');
+  });
+
+  describe('Bereich ≠ empfohlenes Profil (Zuordnung über den Vorlagennamen)', () => {
+    it('Windows LAPS erfüllt „lokale Gruppenmitgliedschaft“ nicht → nicht prüfbar mit Liste', () => {
+      const t = tile([
+        catalogPolicy({
+          name: 'Contoso LAPS',
+          templateFamily: 'endpointSecurityAccountProtection',
+          templateDisplayName: 'Local admin password solution (Windows LAPS)',
+        }),
+      ]);
+      expect(status(t, 'accountProtectionWindows')).toBe('notChecked');
+      const check = t.checks.find((c) => c.id.endsWith(':accountProtectionWindows'));
+      expect(check?.expected).toContain('„Local user group membership“');
+      expect(check?.reason).toContain('Profiltyp nicht eindeutig');
+      const finding = t.findings.find(
+        (f) => f.id === 'postureEndpointSecurity-accountProtectionWindows-ambiguous',
+      );
+      expect(finding?.severity).toBe('unknown');
+      expect(finding?.table?.rows[0]?.cells).toEqual([
+        'Contoso LAPS',
+        'Local admin password solution (Windows LAPS)',
+        'Ja',
+      ]);
+      expect(finding?.table?.rows[0]?.cellLangs).toEqual([null, 'en', null]);
+      expect(finding?.docsUrl).toMatch(LEARN);
+    });
+
+    it('Device control erfüllt „ASR-Regeln“ nicht; fehlender Vorlagenname → nicht prüfbar', () => {
+      const t = tile([
+        catalogPolicy({
+          templateFamily: 'endpointSecurityAttackSurfaceReduction',
+          templateDisplayName: 'Device Control',
+        }),
+        catalogPolicy({
+          templateFamily: 'endpointSecurityDiskEncryption',
+          templateDisplayName: null,
+        }),
+      ]);
+      expect(status(t, 'asrWindows')).toBe('notChecked');
+      expect(status(t, 'diskEncryptionWindows')).toBe('notChecked');
+      const disk = t.findings.find(
+        (f) => f.id === 'postureEndpointSecurity-diskEncryptionWindows-ambiguous',
+      );
+      expect(disk?.table?.rows[0]?.cells[1]).toBe('Kein Vorlagenname geliefert');
+    });
+
+    it('passendes Profil zugewiesen → erfüllt, auch neben anderen Profilen der Familie', () => {
+      const t = tile([
+        catalogPolicy({
+          templateFamily: 'endpointSecurityAttackSurfaceReduction',
+          templateDisplayName: 'Device control',
+        }),
+        catalogPolicy({
+          templateFamily: 'endpointSecurityAttackSurfaceReduction',
+          templateDisplayName: ' Attack Surface Reduction Rules ',
+        }),
+      ]);
+      expect(status(t, 'asrWindows')).toBe('met');
+      expect(t.findings.map((f) => f.id)).not.toContain(
+        'postureEndpointSecurity-asrWindows-ambiguous',
+      );
+    });
+
+    it('nur nicht zugewiesene Richtlinien der Familie → weicht ab (wie bisher)', () => {
+      const t = tile([
+        catalogPolicy({
+          templateFamily: 'endpointSecurityAccountProtection',
+          templateDisplayName: 'Account protection',
+          isAssigned: false,
+        }),
+      ]);
+      expect(status(t, 'accountProtectionWindows')).toBe('deviating');
+      const finding = t.findings.find(
+        (f) => f.id === 'postureEndpointSecurity-accountProtectionWindows',
+      );
+      expect(finding?.detail).toContain('„Local user group membership“');
+    });
+
+    it('macOS: FileVault ist das einzige Profil der Familie → kein Namensvergleich', () => {
+      const t = tile([
+        catalogPolicy({
+          templateFamily: 'endpointSecurityDiskEncryption',
+          platforms: 'macOS',
+          templateDisplayName: null,
+        }),
+      ]);
+      expect(status(t, 'diskEncryptionMacos')).toBe('met');
+    });
+
+    it('die Heuristik ist in der Kachel ausgewiesen', () => {
+      const t = tile([]);
+      expect(t.facts.find((f) => f.label === 'Zuordnung zum Profil')?.value).toContain('Heuristik');
+    });
   });
 });
 
@@ -882,15 +1173,23 @@ describe('postureSecureScore', () => {
       'postureSecureScore',
     );
 
-  it('filtert auf Gerät/Intune, zählt volle Punktzahl als erfüllt, Microsoft-Texte als en', () => {
+  it('filtert auf die Kategorie Device, zählt volle Punktzahl als erfüllt, Microsoft-Texte als en', () => {
     const t = tile([
       control({ score: 10, maxScore: 10 }),
       control({ score: 4, maxScore: 10 }),
+      control({ score: null }),
       control({ category: 'Identity', service: 'AzureAD' }),
-      control({ category: 'Apps', service: 'Intune', score: null }),
+      // Dienst „Intune“ allein genügt nicht mehr – nur die Kategorie zählt
+      control({ category: 'Apps', service: 'Intune' }),
       control({ deprecated: true }),
     ]);
     expect(t.checks.map((c) => c.status)).toEqual(['met', 'deviating', 'notChecked']);
+    expect(t.findings.find((f) => f.id === 'postureSecureScore-open')?.detail).toContain(
+      '„Risiko akzeptiert“',
+    );
+    expect(t.facts.find((f) => f.label === 'Bearbeitungsstatus')?.value).toContain(
+      'Risiko akzeptiert',
+    );
     expect(t.severity).toBe('warning');
     const open = t.findings.find((f) => f.id === 'postureSecureScore-open');
     expect(open?.table?.columnLangs).toEqual(['en', null, 'en', 'en']);
@@ -899,14 +1198,99 @@ describe('postureSecureScore', () => {
     expect(detail?.detailLang).toBe('en');
   });
 
-  it('keine Geräte-Empfehlungen → Hinweis', () => {
+  it('keine Geräte-Empfehlungen → ruhiger Hinweis, nie „erfüllt“', () => {
     const t = tile([control({ category: 'Identity', service: 'AzureAD' })]);
     expect(t.severity).toBe('unknown');
     expect(t.checks).toEqual([]);
+    expect(t.value).toBe('Keine Geräte-Empfehlungen gemeldet');
+    expect(t.value).not.toContain('erfüllt');
+    expect(postureScore([t]).total).toBe(0);
   });
 
   it.each(ISSUES)('Quelle %s → Kachel nicht verfügbar', (name, issue) => {
     expect(tileOf(run({ secureScore: issue() }), 'postureSecureScore').availability).toBe(name);
+  });
+});
+
+// ---------- Stufenlogik „soweit prüfbar“ ----------
+
+describe('evaluateFramework – erreichte Stufe soweit prüfbar', () => {
+  const check = (
+    id: CatalogCheck['id'],
+    level: PostureLevel,
+    status: CheckOutcome['status'],
+  ): CatalogCheck => ({
+    id,
+    properties: [],
+    level,
+    docsUrl: 'https://learn.microsoft.com/',
+    satisfiedBy: { settings: {} },
+    deviatingWith: { settings: {} },
+    evaluate: () => ({ status, actual: status }),
+  });
+  const framework = (
+    checks: CatalogCheck[],
+    uncheckable: PostureFramework['uncheckable'] = [],
+  ): PostureFramework => ({
+    id: 'synthetic',
+    levels: [2, 3],
+    docsUrl: 'https://learn.microsoft.com/',
+    checks,
+    uncheckable,
+  });
+
+  it('alles prüfbar und erfüllt → Stufe vollständig erreicht', () => {
+    const result = evaluateFramework(
+      framework([check('iosJailbreak', 2, 'met'), check('iosPasscodeExpiration', 3, 'met')]),
+      { settings: {} },
+      3,
+    );
+    expect(result).toMatchObject({ reached: 3, reachedComplete: true });
+  });
+
+  it('nicht prüfbare Prüfung verhindert die Stufe nicht, bestätigt sie aber nicht', () => {
+    const result = evaluateFramework(
+      framework([check('iosJailbreak', 2, 'met'), check('iosThreatLevel', 3, 'notChecked')]),
+      { settings: {} },
+      3,
+    );
+    expect(result).toMatchObject({ reached: 3, reachedComplete: false });
+  });
+
+  it('Learn-Empfehlung ohne v1.0-Eigenschaft bis zur Stufe → nur soweit prüfbar', () => {
+    const result = evaluateFramework(
+      framework(
+        [check('iosJailbreak', 2, 'met')],
+        [
+          {
+            id: 'iosMdeRisk',
+            level: 3,
+            docsUrl: 'https://learn.microsoft.com/',
+            reason: 'noV1Property',
+          },
+        ],
+      ),
+      { settings: {} },
+      3,
+    );
+    expect(result).toMatchObject({ reached: 3, reachedComplete: false });
+    // Für Stufe 2 allein ist alles prüfbar
+    const level2 = evaluateFramework(
+      framework(
+        [check('iosJailbreak', 2, 'met'), check('iosPasscodeExpiration', 3, 'deviating')],
+        [
+          {
+            id: 'iosMdeRisk',
+            level: 3,
+            docsUrl: 'https://learn.microsoft.com/',
+            reason: 'noV1Property',
+          },
+        ],
+      ),
+      { settings: {} },
+      3,
+    );
+    expect(level2).toMatchObject({ reached: 2, reachedComplete: true });
   });
 });
 

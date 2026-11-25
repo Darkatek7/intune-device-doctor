@@ -187,8 +187,16 @@ export interface FrameworkEvaluation {
   effectiveLevel: PostureLevel | null;
   /** Prüfungen bis einschließlich effectiveLevel */
   included: EvaluatedCheck[];
-  /** Höchste Stufe, deren Prüfungen (soweit prüfbar) alle erfüllt sind; null = keine bzw. ungestuft */
+  /**
+   * Höchste Stufe, deren Prüfungen **soweit prüfbar** alle erfüllt sind; null = keine bzw. ungestuft.
+   * Nicht prüfbare Prüfungen verhindern die Stufe nicht und bestätigen sie nicht – dafür `reachedComplete`.
+   */
   reached: PostureLevel | null;
+  /**
+   * true = bis einschließlich `reached` war jede Empfehlung prüfbar (keine nicht prüfbare Prüfung, keine
+   * Learn-Empfehlung ohne v1.0-Eigenschaft). false = die Stufe gilt nur „soweit prüfbar“ als erreicht.
+   */
+  reachedComplete: boolean;
 }
 
 export function effectiveLevel(
@@ -212,6 +220,7 @@ export function evaluateFramework(
       ? all
       : all.filter((entry) => entry.check.level !== null && entry.check.level <= level);
   let reached: PostureLevel | null = null;
+  let reachedComplete = false;
   if (framework.levels) {
     for (const candidate of [...framework.levels].sort()) {
       const relevant = all.filter(
@@ -219,9 +228,12 @@ export function evaluateFramework(
       );
       if (relevant.some((entry) => entry.outcome.status === 'deviating')) break;
       reached = candidate;
+      reachedComplete =
+        relevant.every((entry) => entry.outcome.status === 'met') &&
+        !framework.uncheckable.some((item) => item.level === null || item.level <= candidate);
     }
   }
-  return { effectiveLevel: level, included, reached };
+  return { effectiveLevel: level, included, reached, reachedComplete };
 }
 
 export function checkText(check: CatalogCheck): { label: string; expected: string } {
@@ -313,7 +325,9 @@ export function policyOutcome(args: {
   const t = dePosture.compliance;
   const evaluated = results.filter((result) => result.status !== 'notChecked');
   const met = evaluated.filter((result) => result.status === 'met').length;
-  const reachedText = args.framework.levels ? c.reachedLevel(evaluation.reached) : null;
+  const reachedText = args.framework.levels
+    ? c.reachedLevel(evaluation.reached, evaluation.reachedComplete)
+    : null;
   const fact: TileFact = {
     label: c.policyFact(policyLabel(policy)),
     value: c.policyFactValue(met, evaluated.length, reachedText),
@@ -338,6 +352,9 @@ export function policyOutcome(args: {
     title,
     detail: [
       reachedText === null ? t.policyDetailUnleveled : t.policyDetail(levelText, reachedText),
+      reachedText !== null && evaluation.reached !== null && !evaluation.reachedComplete
+        ? c.reachedPartialNote
+        : null,
       unassigned ? t.unassignedDetail : null,
     ]
       .filter(Boolean)

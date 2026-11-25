@@ -62,7 +62,51 @@ describe('mapPlatformCounts', () => {
         androidWorkProfileCount: 7,
       },
     });
-    expect(counts).toEqual({ windows: 20, ios: 8, macos: 3, android: 11, total: 42 });
+    // Unternehmenseigen unbekannt: COPE- und Dediziert-Zähler fehlen
+    expect(counts).toEqual({
+      windows: 20,
+      ios: 8,
+      macos: 3,
+      android: 11,
+      androidPersonal: 7,
+      androidCorporate: null,
+      total: 42,
+    });
+  });
+  it('trennt Android in persönlich (Arbeitsprofil) und unternehmenseigen; Geräteadministrator in keiner Gruppe', () => {
+    const counts = mapPlatformCounts({
+      deviceOperatingSystemSummary: {
+        androidCount: 20,
+        androidWorkProfileCount: 11,
+        androidFullyManagedCount: 2,
+        androidCorporateWorkProfileCount: 1,
+        androidDedicatedCount: 1,
+        androidDeviceAdminCount: 5,
+      },
+    });
+    expect(counts.android).toBe(20);
+    expect(counts.androidPersonal).toBe(11);
+    expect(counts.androidCorporate).toBe(4);
+  });
+  it('unternehmenseigen ist unbekannt, wenn ein Teilzähler fehlt oder -1 ist', () => {
+    expect(
+      mapPlatformCounts({
+        deviceOperatingSystemSummary: {
+          androidFullyManagedCount: 0,
+          androidCorporateWorkProfileCount: -1,
+          androidDedicatedCount: 0,
+        },
+      }).androidCorporate,
+    ).toBeNull();
+    expect(
+      mapPlatformCounts({
+        deviceOperatingSystemSummary: {
+          androidFullyManagedCount: 0,
+          androidCorporateWorkProfileCount: 0,
+          androidDedicatedCount: 0,
+        },
+      }).androidCorporate,
+    ).toBe(0);
   });
   it('nutzt die Summe der Untertypen, wenn sie größer ist; fehlende Werte → null', () => {
     expect(
@@ -79,6 +123,8 @@ describe('mapPlatformCounts', () => {
       ios: null,
       macos: null,
       android: null,
+      androidPersonal: null,
+      androidCorporate: null,
       total: null,
     });
     expect(

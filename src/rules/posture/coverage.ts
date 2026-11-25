@@ -1,15 +1,28 @@
 /**
- * Kachel „Abdeckung der Plattformen“: Jede Plattform mit verwalteten Geräten hat mindestens eine
+ * Kachel „Abdeckung der Plattformen“: Jede Gerätegruppe mit verwalteten Geräten hat mindestens eine
  * **zugewiesene** Compliance-Richtlinie (Zero-Trust-Empfehlungen für Intune-Mandanten, „Compliance
  * policies protect … devices“).
  *
- * Severity: Plattform mit Geräten ohne zugewiesene Richtlinie → `critical`. Begründung: Die Learn-Seite
+ * Gerätegruppen = die getrennten Learn-Empfehlungen: Windows, macOS, iOS/iPadOS und Android **zweimal**
+ * („fully managed and corporate-owned“ bzw. „personally owned“):
+ * - Android persönlich (`androidPersonal`) → zugewiesene Richtlinie vom Typ `androidWorkProfile`.
+ * - Android unternehmenseigen (`androidCorporate`) → zugewiesene Richtlinie mit `@odata.type`
+ *   `#microsoft.graph.androidDeviceOwnerCompliancePolicy`. Dieser Typ ist nur in beta dokumentiert (kommt
+ *   als `type: 'other'`). Wird keine zugewiesene gefunden, ist das **keine** Abweichung, sondern nicht
+ *   prüfbar – über v1.0 ist nicht sicher lesbar, ob es solche Richtlinien gibt.
+ * - Android-Geräteadministrator gehört zu keiner Learn-Empfehlung (kein Android Enterprise) → keine Prüfung.
+ *
+ * Severity: Gruppe mit Geräten ohne zugewiesene Richtlinie → `critical`. Begründung: Die Learn-Seite
  * nennt genau diese Lücke ausdrücklich als Risiko („If compliance policies … aren't configured and
  * assigned, threat actors can exploit unmanaged or noncompliant endpoints …“, Docs.postureCoverage*).
  * Windows zählt nur Richtlinien „Windows 10 und neuer“ (ältere Windows-Typen gelten nicht für diese Geräte).
- * Plattform ohne Geräte → „nicht genutzt“, keine Prüfung. Geräteanzahl unbekannt → nicht prüfbar.
+ * Gruppe ohne Geräte → „nicht genutzt“, keine Prüfung. Geräteanzahl unbekannt → nicht prüfbar.
  */
-import type { CompliancePolicyConfig, TenantPosture } from '../../domain/posture';
+import type {
+  CompliancePolicyConfig,
+  PlatformDeviceCounts,
+  TenantPosture,
+} from '../../domain/posture';
 import type { Finding, TileFact } from '../../domain/types';
 import { dePosture } from '../../i18n/de-posture';
 import { sectionIssueFinding } from '../helpers';
@@ -17,9 +30,7 @@ import { Docs } from '../knowledge/docs';
 import {
   buildTile,
   compliancePolicyPlatform,
-  deviceCount,
   issueTile,
-  PLATFORMS,
   truncatedFinding,
   type PosturePlatform,
 } from './kit';
@@ -35,19 +46,58 @@ export const COVERAGE_DOCS: Record<PosturePlatform, string> = {
   macos: Docs.postureCoverageMacos,
 };
 
-/** Richtlinien, die Geräte der Plattform abdecken können. */
+/** Eine Learn-Empfehlung „Compliance policies protect … devices“. */
+export type CoverageGroup = 'windows' | 'ios' | 'androidCorporate' | 'androidPersonal' | 'macos';
+
+export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
+  'windows',
+  'ios',
+  'androidCorporate',
+  'androidPersonal',
+  'macos',
+];
+
+const GROUP_DOCS: Record<CoverageGroup, string> = {
+  windows: Docs.postureCoverageWindows,
+  ios: Docs.postureCoverageIos,
+  androidCorporate: Docs.postureCoverageAndroidCorporate,
+  androidPersonal: Docs.postureCoverageAndroid,
+  macos: Docs.postureCoverageMacos,
+};
+
+/** Nur in beta mit Einstellungen dokumentiert; v1.0 liefert ihn – wenn überhaupt – als `type: 'other'`. */
+export const ANDROID_DEVICE_OWNER_TYPE = '#microsoft.graph.androidDeviceOwnerCompliancePolicy';
+
+/** Richtlinien, die Geräte der Gruppe abdecken können. */
 export function coveringPolicies(
   policies: readonly CompliancePolicyConfig[],
-  platform: PosturePlatform,
+  group: CoverageGroup,
 ): CompliancePolicyConfig[] {
-  return policies.filter(
-    (policy) =>
-      compliancePolicyPlatform(policy) === platform &&
-      (platform !== 'windows' || policy.type === 'windows10'),
-  );
+  switch (group) {
+    case 'windows':
+      return policies.filter((policy) => policy.type === 'windows10');
+    case 'androidPersonal':
+      return policies.filter((policy) => policy.type === 'androidWorkProfile');
+    case 'androidCorporate':
+      return policies.filter(
+        (policy) => policy.odataType?.toLowerCase() === ANDROID_DEVICE_OWNER_TYPE.toLowerCase(),
+      );
+    case 'ios':
+    case 'macos':
+      return policies.filter((policy) => compliancePolicyPlatform(policy) === group);
+  }
+}
+
+/** Geräte der Gruppe: Zahl oder null (nicht geliefert). Android-Gesamtzahl 0 → beide Gruppen 0. */
+function groupDevices(counts: PlatformDeviceCounts, group: CoverageGroup): number | null {
+  if (group === 'androidPersonal' || group === 'androidCorporate') {
+    return counts.android === 0 ? 0 : counts[group];
+  }
+  return counts[group];
 }
 
 function coverageOutcome(
+  group: CoverageGroup,
   devices: number | null,
   covering: CompliancePolicyConfig[],
   truncated: boolean,
@@ -68,17 +118,15 @@ function coverageOutcome(
       reason: t.assignmentUnknownReason,
     };
   }
-  if (truncated) {
-    return {
-      status: 'notChecked',
-      actual: covering.length > 0 ? t.actualUnassigned(covering.length) : t.actualNone,
-      reason: dePosture.common.noPolicyInList,
-    };
+  const actual = covering.length > 0 ? t.actualUnassigned(covering.length) : t.actualNone;
+  // Vollständig verwaltet/unternehmenseigen: Richtlinientyp nur in beta → Fehlen ist keine Abweichung
+  if (group === 'androidCorporate') {
+    return { status: 'notChecked', actual, reason: t.corporateBetaReason };
   }
-  return {
-    status: 'deviating',
-    actual: covering.length > 0 ? t.actualUnassigned(covering.length) : t.actualNone,
-  };
+  if (truncated) {
+    return { status: 'notChecked', actual, reason: dePosture.common.noPolicyInList };
+  }
+  return { status: 'deviating', actual };
 }
 
 export function evaluateCoverage(posture: TenantPosture): PostureTile {
@@ -94,16 +142,17 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
     return issueTile(ID, countsSection, { sources: [policiesSection.source] });
   }
   const { policies, truncated } = policiesSection.data;
+  const counts = countsSection.data;
   const source = policiesSection.source;
   const checks: PostureCheckResult[] = [];
   const findings: Finding[] = truncated ? [truncatedFinding(ID, source)] : [];
   const facts: TileFact[] = [];
   let used = 0;
 
-  for (const platform of PLATFORMS) {
-    const name = t.platforms[platform];
-    const devices = deviceCount(countsSection, platform) ?? null;
-    const covering = coveringPolicies(policies, platform);
+  for (const group of COVERAGE_GROUPS) {
+    const name = t.groups[group];
+    const devices = groupDevices(counts, group);
+    const covering = coveringPolicies(policies, group);
     facts.push({
       label: t.deviceFact(name),
       value:
@@ -113,37 +162,59 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
     });
     if (devices === 0) continue;
     used += 1;
-    const outcome = coverageOutcome(devices, covering, truncated);
+    const outcome = coverageOutcome(group, devices, covering, truncated);
     checks.push({
-      id: `${ID}:${platform}`,
+      id: `${ID}:${group}`,
       tile: ID,
       label: t.checkLabel(name),
       status: outcome.status,
       level: null,
       actual: outcome.actual,
-      expected: t.expected,
-      docsUrl: COVERAGE_DOCS[platform],
+      expected: group === 'androidCorporate' ? t.expectedCorporate : t.expected,
+      docsUrl: GROUP_DOCS[group],
       ...(outcome.reason ? { reason: outcome.reason } : {}),
       counted: true,
     });
     if (outcome.status === 'deviating' && devices !== null) {
       findings.push({
-        id: `${ID}-missing-${platform}`,
+        id: `${ID}-missing-${group}`,
         severity: 'critical',
         title: t.missingTitle(name, devices),
-        detail: platform === 'windows' ? `${t.missingDetail} ${t.windowsNote}` : t.missingDetail,
+        detail:
+          group === 'windows'
+            ? `${t.missingDetail} ${t.windowsNote}`
+            : group === 'androidPersonal'
+              ? `${t.missingDetail} ${t.androidPersonalNote}`
+              : t.missingDetail,
         cause: t.missingCause,
         remediation: [...t.missingRemediation],
         evidence: {
-          platform,
+          group,
           managedDevices: devices,
           policies: covering.length,
           assignedPolicies: 0,
         },
         source,
-        docsUrl: COVERAGE_DOCS[platform],
+        docsUrl: GROUP_DOCS[group],
       });
     }
+    if (group === 'androidCorporate' && outcome.status === 'notChecked' && devices !== null) {
+      findings.push({
+        id: `${ID}-androidCorporate-beta`,
+        severity: 'unknown',
+        title: t.corporateBetaTitle(devices),
+        detail: t.corporateBetaDetail,
+        cause: t.corporateBetaCause,
+        remediation: [...t.corporateBetaRemediation],
+        evidence: { managedDevices: devices, policies: covering.length },
+        source,
+        docsUrl: GROUP_DOCS[group],
+      });
+    }
+  }
+  // Android gesamt (inkl. Geräteadministrator, der zu keiner Learn-Empfehlung gehört)
+  if (counts.android !== null && counts.android > 0) {
+    facts.push({ label: t.androidTotalFact, value: t.androidTotalValue(counts.android) });
   }
 
   const met = checks.filter((check) => check.status === 'met').length;

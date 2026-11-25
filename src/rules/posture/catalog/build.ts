@@ -12,6 +12,7 @@ import {
   durationAtMost,
   isSet,
   oneOf,
+  type AtMostOptions,
   type Evaluator,
   type NumberUnit,
 } from './compare';
@@ -74,12 +75,13 @@ export function maximum(
   value: number,
   unit: NumberUnit,
   where: Where,
+  options: AtMostOptions = {},
 ): CatalogCheck {
   return custom(
     id,
     [property],
     where,
-    atMost(property, value, unit),
+    atMost(property, value, unit, options),
     subject({ [property]: value }),
     subject({ [property]: value + 1 }),
   );

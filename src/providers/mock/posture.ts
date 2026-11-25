@@ -78,9 +78,20 @@ export function complianceSettings(): ComplianceTenantSettings {
   };
 }
 
-/** 274 registrierte Geräte; die Summe der Plattformen ergibt die Gesamtzahl. */
+/**
+ * 274 registrierte Geräte; die Summe der Plattformen ergibt die Gesamtzahl. Android: 11 persönliche Geräte
+ * mit Arbeitsprofil, 4 unternehmenseigene (vollständig verwaltet/COPE/dediziert), kein Geräteadministrator.
+ */
 export function platformCounts(): PlatformDeviceCounts {
-  return { windows: 212, ios: 38, android: 15, macos: 9, total: 274 };
+  return {
+    windows: 212,
+    ios: 38,
+    android: 15,
+    androidPersonal: 11,
+    androidCorporate: 4,
+    macos: 9,
+    total: 274,
+  };
 }
 
 // ---------- Compliance-Richtlinien ----------

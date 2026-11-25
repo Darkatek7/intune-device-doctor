@@ -40,17 +40,17 @@ Endpunktsicherheit und Sicherheitsbaselines (`/beta/deviceManagement/configurati
 Quellen, jeweils auf Learn verifizieren (Endpunkt, Felder, Enums, Scope) und in
 `docs/graph-api-reference.md` mit Link eintragen:
 
-| Quelle | Endpunkt | Scope |
-| --- | --- | --- |
-| `complianceSettings` | `GET /deviceManagement?$select=settings` (deviceManagementSettings) | `DeviceManagementConfiguration.Read.All` (prüfen) |
-| `platformCounts` | `GET /deviceManagement/managedDeviceOverview` | `DeviceManagementManagedDevices.Read.All` |
-| `compliancePolicies` | `GET /deviceManagement/deviceCompliancePolicies` (abgeleitete Typen mit allen Einstellungen), je Richtlinie Zuweisungen und `scheduledActionsForRule` (mit `$expand`, falls dokumentiert – sonst Einzelabrufe mit Obergrenze) | `DeviceManagementConfiguration.Read.All` |
-| `appProtectionPolicies` | `GET /deviceAppManagement/iosManagedAppProtections`, `…/androidManagedAppProtections` | `DeviceManagementApps.Read.All` (optional, vorhanden) |
-| `conditionalAccess` | `GET /identity/conditionalAccess/policies` | `Policy.Read.All` (neu, optional) |
-| `secureScore` | `GET /security/secureScores?$top=1`, `GET /security/secureScoreControlProfiles` | `SecurityEvents.Read.All` (neu, optional) |
-| `catalogPolicies` (beta) | `GET /beta/deviceManagement/configurationPolicies` | `DeviceManagementConfiguration.Read.All` |
-| `policyTemplates` (beta) | `GET /beta/deviceManagement/configurationPolicyTemplates` | `DeviceManagementConfiguration.Read.All` |
-| Baseline-Vergleich (beta) | `GET /beta/deviceManagement/configurationPolicies/{id}/settings`, `GET /beta/deviceManagement/configurationPolicyTemplates/{id}/settingTemplates` | wie oben |
+| Quelle                    | Endpunkt                                                                                                                                                                                                                      | Scope                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `complianceSettings`      | `GET /deviceManagement?$select=settings` (deviceManagementSettings)                                                                                                                                                           | `DeviceManagementConfiguration.Read.All` (prüfen)     |
+| `platformCounts`          | `GET /deviceManagement/managedDeviceOverview`                                                                                                                                                                                 | `DeviceManagementManagedDevices.Read.All`             |
+| `compliancePolicies`      | `GET /deviceManagement/deviceCompliancePolicies` (abgeleitete Typen mit allen Einstellungen), je Richtlinie Zuweisungen und `scheduledActionsForRule` (mit `$expand`, falls dokumentiert – sonst Einzelabrufe mit Obergrenze) | `DeviceManagementConfiguration.Read.All`              |
+| `appProtectionPolicies`   | `GET /deviceAppManagement/iosManagedAppProtections`, `…/androidManagedAppProtections`                                                                                                                                         | `DeviceManagementApps.Read.All` (optional, vorhanden) |
+| `conditionalAccess`       | `GET /identity/conditionalAccess/policies`                                                                                                                                                                                    | `Policy.Read.All` (neu, optional)                     |
+| `secureScore`             | `GET /security/secureScores?$top=1`, `GET /security/secureScoreControlProfiles`                                                                                                                                               | `SecurityEvents.Read.All` (neu, optional)             |
+| `catalogPolicies` (beta)  | `GET /beta/deviceManagement/configurationPolicies`                                                                                                                                                                            | `DeviceManagementConfiguration.Read.All`              |
+| `policyTemplates` (beta)  | `GET /beta/deviceManagement/configurationPolicyTemplates`                                                                                                                                                                     | `DeviceManagementConfiguration.Read.All`              |
+| Baseline-Vergleich (beta) | `GET /beta/deviceManagement/configurationPolicies/{id}/settings`, `GET /beta/deviceManagement/configurationPolicyTemplates/{id}/settingTemplates`                                                                             | wie oben                                              |
 
 - Compliance-Typen: nur die in **v1.0** dokumentierten abgeleiteten Typen bekommen Einstellungen
   (`windows10CompliancePolicy`, `iosCompliancePolicy`, `macOSCompliancePolicy`, `androidCompliancePolicy`,
@@ -66,10 +66,10 @@ Quellen, jeweils auf Learn verifizieren (Endpunkt, Felder, Enums, Scope) und in
 
 ### Akzeptanz S1
 
-- [ ] Jeder Endpunkt, jedes Feld und jeder Enum-Wert auf Learn verifiziert, mit Link dokumentiert
-- [ ] Nur GET; Beta-Endpunkte als freigegebene Ausnahme dokumentiert und im Modell erkennbar
-- [ ] Keine Benutzer-/Gruppen-/Mandanten-IDs im Modell (Test)
-- [ ] Tests je Quelle: ok, 403, 404, 429, Seitengrenze
+- [x] Jeder Endpunkt, jedes Feld und jeder Enum-Wert auf Learn verifiziert, mit Link dokumentiert
+- [x] Nur GET; Beta-Endpunkte als freigegebene Ausnahme dokumentiert und im Modell erkennbar
+- [x] Keine Benutzer-/Gruppen-/Mandanten-IDs im Modell (Test)
+- [x] Tests je Quelle: ok, 403, 404, 429, Seitengrenze
 
 ## S2 – Regelwerk und Texte (Katalog der Empfehlungen)
 
@@ -103,9 +103,9 @@ einzeln bewertet (nicht zusammengeführt – welche Richtlinie für ein Gerät g
 
 ### Akzeptanz S2
 
-- [ ] Jede Prüfung trägt `docsUrl` auf die Learn-Seite, die den Sollwert nennt
-- [ ] Tests je Prüfung: erfüllt, abweichend, nicht konfiguriert, Quelle nicht verfügbar (403/unavailable)
-- [ ] Keine Aussage ohne Datenbasis: fehlende Quelle → Kachel „nicht prüfbar“ mit Grund und Scope
+- [x] Jede Prüfung trägt `docsUrl` auf die Learn-Seite, die den Sollwert nennt
+- [x] Tests je Prüfung: erfüllt, abweichend, nicht konfiguriert, Quelle nicht verfügbar (403/unavailable)
+- [x] Keine Aussage ohne Datenbasis: fehlende Quelle → Kachel „nicht prüfbar“ mit Grund und Scope
 
 ## S3 – Demo-Daten (`mock-data-writer`)
 
@@ -113,13 +113,44 @@ einzeln bewertet (nicht zusammengeführt – welche Richtlinie für ein Gerät g
 bewusst gemischtem Bild (erfüllte, abweichende und nicht prüfbare Fälle in jeder Kachel), über
 `MockTenantFixture` je Quelle überschreibbar (auch `forbidden`/`error`).
 
+### Akzeptanz S3
+
+- [x] Fiktiver Contoso-Mandant mit gemischtem Bild (erfüllte, abweichende und nicht prüfbare Fälle)
+- [x] Je Quelle über `MockTenantFixture` überschreibbar (auch `forbidden`/`error`)
+- [x] Keine echten Daten, keine Benutzer-, Gruppen- oder Mandanten-IDs
+
 ## S4 – Ansicht „Empfehlungen“ (`ui-builder`)
 
 `?view=recommendations` (+ `&level=1|2|3`, `&tile=`), Navigationseintrag „Empfehlungen“, lazy geladen.
 Kopf mit Gesamtbild („x von y Empfehlungen erfüllt“) und Stufenwahl; Abschnitte mit Kacheln; Detail-Sheet
 wie in „Mandant“. Präsentationsmodus (M19) deckt die Ansicht ab; Leck-Scanner und Abdeckungstest grün.
 
+### Akzeptanz S4
+
+- [x] `?view=recommendations` mit `&level=1|2|3` und `&tile=`, Navigationseintrag „Empfehlungen“, lazy geladen
+- [x] Kopf mit Gesamtbild („x von y Empfehlungen erfüllt“) und Stufenwahl; Abschnitte mit Kacheln; Detail-Sheet
+- [x] Präsentationsmodus (M19) deckt die Ansicht ab; Leck-Scanner und Abdeckungstest grün
+
 ## S5 – Abschluss
 
 README (Scopes, Beta-Ausnahme, Demo-Schritt, Grenzen), `docs/live-verification.md`, CLAUDE.md (Beta-Ausnahme),
 E2E inkl. axe, Review.
+
+### Akzeptanz S5
+
+- [x] README: Scope-Tabelle (`Policy.Read.All`, `SecurityEvents.Read.All`), Demo-Schritt, „Bekannte Grenzen“, Datenschutz
+- [x] CLAUDE.md: zwei freigegebene Beta-Ausnahmen, Quellenpflicht für Sollwerte, Architektur-Zeile
+- [x] `docs/live-verification.md` Abschnitt 9 (Prüfschritte gegen einen echten Mandanten)
+- [x] E2E inkl. axe, unabhängige Prüfung (siehe unten)
+
+## Ergebnis der unabhängigen Prüfung
+
+Eine unabhängige Prüfung des Regelwerks gegen die Learn-Quellen hat neun Befunde ergeben; alle sind behoben:
+
+- **Stufe 3 und Mobile Threat Defense:** MTD ist keine Pflicht – Microsoft nennt Defender for Endpoint **oder** MTD; die Defender-Bewertung ist über v1.0 nicht lesbar und deshalb „nicht prüfbar“.
+- **Endpunktsicherheit je Profil:** Die Zuordnung zum empfohlenen Profil erfolgt über den Vorlagennamen (offen ausgewiesene Heuristik) statt über den Bereich allein.
+- **Android-Abdeckung getrennt:** persönliche und unternehmenseigene Geräte werden unterschieden; der Richtlinientyp für vollständig verwaltete Geräte ist nur in Beta dokumentiert und daher „nicht prüfbar“.
+- **iOS-Wert 0:** Bei „Maximum minutes after screen lock“ gilt der Wert 0 jetzt als „nicht prüfbar“ statt als Abweichung – ob Graph damit „Sofort“ oder „nicht konfiguriert“ meint, ist nicht dokumentiert (live zu verifizieren, siehe `docs/live-verification.md`).
+- **Fehlende App-Schutz-Zeilen:** drei Zeilen des Frameworks als „nicht prüfbar“ ergänzt („save copies to selected services“ – das v1.0-Enum kennt „Photo Library“ nicht; „open data from selected services“ und „Select apps to exempt“ – keine v1.0-Eigenschaft).
+- **Vier Textkorrekturen:** Bedingter Zugriff mit Konformität als ODER-Alternative hat einen eigenen, zutreffenden Text; „App-Schutz lässt sich nur zusammen mit Bedingtem Zugriff durchsetzen“ statt „greift erst“; ein nur für iOS belegtes Zitat entfernt; „neuere Baseline-Versionen können …“ statt „enthalten …“.
+- **Secure Score:** Filter nur noch auf die Kategorie „Device“; ohne passende Empfehlungen „Keine Geräte-Empfehlungen gemeldet“ statt „erfüllt“; als „Risiko akzeptiert“ markierte Empfehlungen liest die App bewusst nicht (im Text ausgewiesen).

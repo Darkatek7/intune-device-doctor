@@ -5,8 +5,12 @@
  *
  * - Windows 10 und neuer → Zero-Trust-Tabelle (ungestuft); andere Windows-Typen → kein Sollwert.
  * - iOS/iPadOS → Sicherheitskonfiguration Stufe 2/3 (Stufe 1 bietet Microsoft nicht an → Stufe 2).
- * - Android Arbeitsprofil → Stufe 2/3; Android-Geräteadministrator → kein Sollwert (Verwaltung von
- *   Microsoft eingestellt); nur in beta dokumentierte Typen (z. B. vollständig verwaltet) → nicht prüfbar.
+ * - Android: bewertet wird das Framework „persönliches Gerät mit Arbeitsprofil“ (Stufe 2/3);
+ *   Android-Geräteadministrator → kein Sollwert (Verwaltung von Microsoft eingestellt); nur in beta
+ *   dokumentierte Typen (z. B. vollständig verwaltet/unternehmenseigen) → nicht prüfbar. Ob unternehmens-
+ *   eigene Geräte überhaupt abgedeckt sind, bewertet die Kachel „Abdeckung der Plattformen“ getrennt.
+ * - „Stufe N erreicht“: nicht prüfbare Empfehlungen verhindern die Stufe nicht und bestätigen sie nicht –
+ *   gibt es welche, lautet der Wert „Stufe N erreicht, soweit prüfbar“.
  * - macOS → Microsoft dokumentiert keinen Sollwert; nur Abdeckung (eigene Kachel).
  * Plattform ohne Geräte und ohne Richtlinie → „Nicht genutzt“ (kein Befund).
  */
@@ -163,6 +167,9 @@ export function evaluateComplianceTile(
   >();
   const reachedLevels: Array<PostureLevel | null> = [];
   facts.push({ label: c.facts.policies, value: String(own.length) });
+  // Die Android-Kachel bewertet das Arbeitsprofil-Framework; vollständig verwaltet ist nur beta
+  if (platform === 'android')
+    facts.push({ label: t.androidFrameworkFact, value: t.androidFrameworkValue });
 
   for (const policy of own) {
     const handling = complianceHandling(policy);
@@ -259,7 +266,7 @@ export function evaluateComplianceTile(
         ? c.valueNoTarget
         : c.valueNotChecked
       : allReached
-        ? c.valueLevel(leveled.level as PostureLevel)
+        ? c.valueLevel(leveled.level as PostureLevel, counts.notChecked === 0)
         : valueOfChecks(checks);
   return buildTile({
     id,

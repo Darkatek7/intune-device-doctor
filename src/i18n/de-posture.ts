@@ -38,6 +38,32 @@ export const dePosture = {
   intro:
     'Vergleich der Konfiguration mit den auf Microsoft Learn dokumentierten Empfehlungen. Microsoft nennt diese Werte selbst einen Ausgangspunkt – eine Abweichung kann bewusst entschieden sein.',
 
+  /**
+   * Gründe des Graph-Providers, wenn eine Quelle über die dokumentierte API nichts liefert
+   * (SectionResult `unavailable`).
+   */
+  reasons: {
+    complianceSettingsNotReported:
+      'Graph lieferte keine mandantenweiten Compliance-Einstellungen (deviceManagement.settings).',
+    platformCountsNotReported: 'Graph lieferte keine Übersicht der verwalteten Geräte.',
+    compliancePoliciesNotFound: 'Die Compliance-Richtlinien wurden von Graph nicht gefunden (404).',
+    appProtectionNotFound: 'Die App-Schutzrichtlinien wurden von Graph nicht gefunden (404).',
+    conditionalAccessNotFound:
+      'Die Richtlinien für Bedingten Zugriff wurden von Graph nicht gefunden (404).',
+    secureScoreNotReported: 'Graph lieferte keinen Secure Score für diesen Mandanten.',
+    secureScoreNotFound: 'Der Secure Score wurde von Graph nicht gefunden (404).',
+    catalogPoliciesNotFound:
+      'Die Richtlinien des Einstellungskatalogs wurden von der Beta-API nicht gefunden (404).',
+    policyTemplatesNotFound:
+      'Die Richtlinienvorlagen wurden von der Beta-API nicht gefunden (404).',
+    baselineNoTemplate:
+      'Die Baseline-Richtlinie nennt keine Vorlage; der Vergleich mit den Standardwerten ist nicht möglich.',
+    baselineSettingsNotFound:
+      'Die Einstellungen der Baseline-Richtlinie wurden von der Beta-API nicht gefunden (404).',
+    baselineTemplateNotFound:
+      'Die Einstellungsvorlagen der Baseline wurden von der Beta-API nicht gefunden (404).',
+  },
+
   /** Ansicht „Empfehlungen“ (S4): Kopf, Gesamtbild, Stufenwahl */
   view: {
     title: 'Empfehlungen',
@@ -82,7 +108,9 @@ export const dePosture = {
   /** Gemeinsame Bausteine der Kacheln */
   common: {
     valueMet: (met: number, total: number) => `${met} von ${total} erfüllt`,
-    valueLevel: (level: PostureLevel) => `Stufe ${level} erreicht`,
+    /** complete = false: mindestens eine Empfehlung bis zu dieser Stufe ist nicht prüfbar */
+    valueLevel: (level: PostureLevel, complete: boolean) =>
+      complete ? `Stufe ${level} erreicht` : `Stufe ${level} erreicht, soweit prüfbar`,
     valueNotUsed: 'Nicht genutzt',
     valueNotChecked: 'Nicht prüfbar',
     valueNoPolicy: 'Keine Richtlinie',
@@ -126,8 +154,14 @@ export const dePosture = {
     policyFact: (name: string) => `Richtlinie „${name}“`,
     policyFactValue: (met: number, total: number, levelText: string | null) =>
       [`${met} von ${total} erfüllt`, levelText].filter(Boolean).join(' · '),
-    reachedLevel: (level: PostureLevel | null) =>
-      level === null ? 'keine Stufe vollständig erreicht' : `Stufe ${level} erreicht`,
+    reachedLevel: (level: PostureLevel | null, complete: boolean) =>
+      level === null
+        ? 'keine Stufe vollständig erreicht'
+        : complete
+          ? `Stufe ${level} erreicht`
+          : `Stufe ${level} erreicht, soweit prüfbar`,
+    reachedPartialNote:
+      '„Soweit prüfbar“: Mindestens eine Empfehlung bis zu dieser Stufe ist über die dokumentierte API nicht prüfbar. Sie verhindert die Stufe nicht, bestätigt sie aber auch nicht – bitte im Intune Admin Center selbst prüfen.',
     notDelivered: 'Wert nicht geliefert',
     notDeliveredReason:
       'Microsoft Graph hat die Einstellung für diese Richtlinie nicht geliefert – sie kann nicht bewertet werden.',
@@ -158,6 +192,13 @@ export const dePosture = {
     noBlockAction:
       'Keine Aktion vom Typ „block“ geliefert – die Zuordnung zu „Gerät als nicht konform markieren“ ist dann nicht sicher.',
     actionsNotRead: 'Aktionen bei Nichtkonformität nicht gelesen',
+    zeroUndocumented: '0 (Bedeutung nicht dokumentiert)',
+    zeroUndocumentedReason:
+      'Graph liefert 0. Das Intune Admin Center bietet für diese Einstellung „Sofort“ an, wie Graph das kodiert, ist aber nicht dokumentiert – 0 kann „Sofort“ (strenger als empfohlen) oder „nicht konfiguriert“ bedeuten.',
+    threatEnabled: 'Bedrohungsstufe aktiviert',
+    threatNotEnabled: 'Bedrohungsstufe (Mobile Threat Defense) nicht aktiviert',
+    threatNotEnabledReason:
+      'Microsoft empfiehlt für Stufe 3 Microsoft Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung – beides ist nicht nötig. Die Bedrohungsstufe ist in dieser Richtlinie nicht aktiviert; ob stattdessen die Risikobewertung von Defender for Endpoint verlangt wird, ist über die dokumentierte API (v1.0) nicht lesbar.',
     join: (parts: string[]) => parts.join(' · '),
     /** Enum-Werte laut Graph → deutsch (unbekannte Werte bleiben roh) */
     enums: {
@@ -436,6 +477,19 @@ export const dePosture = {
       label: 'Samsung Knox-Gerätenachweis',
       expected: 'Zugriff blockieren',
     },
+    appExemptApps: {
+      label: 'Apps auswählen, die ausgenommen werden sollen',
+      expected:
+        'Standard (skype;app-settings;calshow;itms;itmss;itms-apps;itms-appss;itms-services;)',
+    },
+    appSaveToServices: {
+      label: 'Benutzern erlauben, Kopien in ausgewählten Diensten zu speichern',
+      expected: 'OneDrive for Business, SharePoint, Fotobibliothek',
+    },
+    appOpenFromServices: {
+      label: 'Benutzern erlauben, Daten aus ausgewählten Diensten zu öffnen',
+      expected: 'OneDrive for Business, SharePoint, Kamera, Fotobibliothek',
+    },
     appOpenIntoOrgDocs: {
       label: 'Daten in Organisationsdokumenten öffnen',
       expected: BLOCK,
@@ -473,6 +527,8 @@ export const dePosture = {
   uncheckableReason: {
     noV1Property: 'Keine Eigenschaft in der v1.0-API',
     noMapping: 'Zuordnung zur v1.0-Eigenschaft nicht dokumentiert',
+    enumIncomplete:
+      'Der Wertebereich der v1.0-Eigenschaft enthält nicht alle empfohlenen Ziele (z. B. „Photo Library“)',
   },
   uncheckableTitle: (n: number) =>
     `${n} ${plural(n, 'Empfehlung ist', 'Empfehlungen sind')} über die dokumentierte API nicht prüfbar`,
@@ -525,14 +581,33 @@ export const dePosture = {
   },
 
   coverage: {
-    platforms: {
+    /** Je eine Learn-Empfehlung „Compliance policies protect … devices“ */
+    groups: {
       windows: 'Windows',
       ios: 'iOS/iPadOS',
-      android: 'Android',
+      androidCorporate: 'Android unternehmenseigen (vollständig verwaltet, COPE, dediziert)',
+      androidPersonal: 'Android persönlich (Arbeitsprofil)',
       macos: 'macOS',
     },
     checkLabel: (platform: string) => `${platform}: zugewiesene Compliance-Richtlinie`,
     expected: 'Mindestens eine zugewiesene Richtlinie',
+    expectedCorporate:
+      'Mindestens eine zugewiesene Richtlinie „Android Enterprise – vollständig verwaltet, dediziert und unternehmenseigenes Arbeitsprofil“',
+    corporateBetaReason:
+      'Der Richtlinientyp für vollständig verwaltete und unternehmenseigene Android-Geräte ist nur in der Beta-API dokumentiert und über v1.0 nicht sicher lesbar – ob eine passende Richtlinie zugewiesen ist, kann die App nicht feststellen.',
+    corporateBetaTitle: (devices: number) =>
+      `Android unternehmenseigen: ${devices} ${plural(devices, 'Gerät', 'Geräte')} – Abdeckung nicht prüfbar`,
+    corporateBetaDetail:
+      'Microsoft führt eine eigene Empfehlung für vollständig verwaltete und unternehmenseigene Android-Geräte („Compliance policies protect fully managed and corporate-owned Android devices“). Der zugehörige Richtlinientyp ist nur in der Beta-API dokumentiert; über die dokumentierte v1.0-API fand die App keine zugewiesene Richtlinie dieses Typs. Das ist kein Nachweis, dass sie fehlt – deshalb „nicht prüfbar“ statt „weicht ab“.',
+    corporateBetaCause: 'Richtlinientyp nur in der Beta-API dokumentiert.',
+    corporateBetaRemediation: [
+      'Im Intune Admin Center unter Geräte › Compliance prüfen, ob eine Richtlinie für „Android Enterprise – vollständig verwaltet, dediziert und unternehmenseigenes Arbeitsprofil“ existiert und zugewiesen ist.',
+    ],
+    androidPersonalNote:
+      'Für persönliche Android-Geräte zählt nur eine Richtlinie „Android Enterprise – persönliches Gerät mit Arbeitsprofil“.',
+    androidTotalFact: 'Android gesamt',
+    androidTotalValue: (n: number) =>
+      `${n} (Geräteadministrator gehört zu keiner der beiden Android-Empfehlungen)`,
     actualAssigned: (n: number) => `${policies(n)} zugewiesen`,
     actualUnassigned: (n: number) => `${policies(n)}, keine zugewiesen`,
     actualNone: 'Keine Richtlinie',
@@ -554,11 +629,11 @@ export const dePosture = {
       'Die Kachel „Compliance“ der Plattform zeigt, wie vorhandene Richtlinien von der Empfehlung abweichen.',
     ],
     windowsNote: 'Für Windows zählen nur Richtlinien vom Typ „Windows 10 und neuer“.',
-    value: (covered: number, used: number) => `${covered} von ${used} Plattformen abgedeckt`,
+    value: (covered: number, used: number) => `${covered} von ${used} Gerätegruppen abgedeckt`,
     summary: (used: number) =>
       used === 0
-        ? 'Keine Plattform mit verwalteten Geräten gemeldet.'
-        : `${used} ${plural(used, 'Plattform', 'Plattformen')} mit verwalteten Geräten`,
+        ? 'Keine Gerätegruppe mit verwalteten Geräten gemeldet.'
+        : `${used} ${plural(used, 'Gerätegruppe', 'Gerätegruppen')} mit verwalteten Geräten`,
   },
 
   access: {
@@ -579,7 +654,12 @@ export const dePosture = {
     compliantDetail:
       'Microsoft empfiehlt eine Richtlinie für Bedingten Zugriff, die für den Zugriff ein konformes Gerät verlangt („Require compliant PCs and mobile devices“). Ohne sie wirkt sich das Ergebnis der Compliance-Richtlinien nicht auf den Zugriff aus.',
     compliantCause:
-      'Keine solche Richtlinie vorhanden, sie ist deaktiviert, läuft nur im Berichtsmodus oder lässt andere Steuerungen als Alternative zu.',
+      'Keine solche Richtlinie vorhanden, sie ist deaktiviert oder läuft nur im Berichtsmodus.',
+    compliantTitleAlternative: 'Konformes Gerät ist nur eine von mehreren zulässigen Steuerungen',
+    compliantDetailAlternative:
+      'Microsoft empfiehlt eine Richtlinie für Bedingten Zugriff, die für den Zugriff ein konformes Gerät verlangt („Require compliant PCs and mobile devices“). Die aktive Richtlinie lässt ein konformes Gerät nur als eine von mehreren Steuerungen zu (ODER), z. B. „konformes Gerät, Hybrid-Join oder MFA“ – Microsoft bietet diese Kombination selbst als Vorlage an. Das Ergebnis der Compliance-Richtlinien wirkt sich damit auf den Zugriff aus (ein konformes Gerät genügt), ist aber nicht zwingend: Ein nicht konformes Gerät erhält über eine andere Steuerung trotzdem Zugriff.',
+    compliantCauseAlternative:
+      'Die Richtlinie verbindet „Gerät als konform markiert“ per ODER mit anderen Steuerungen (z. B. MFA oder Hybrid-Join) – oft bewusst während der Einführung.',
     compliantRemediation: [
       'Im Microsoft Entra Admin Center unter Entra ID › Bedingter Zugriff › Richtlinien prüfen, ob eine Richtlinie „Gerät muss als konform markiert sein“ verlangt und aktiviert ist.',
       'Vor dem Aktivieren das eigene Gerät auf Konformität prüfen und Notfallkonten ausschließen, damit sich niemand aussperrt.',
@@ -593,7 +673,7 @@ export const dePosture = {
     ],
     appTitle: 'Keine aktive Richtlinie verlangt eine genehmigte App oder App-Schutz-Richtlinie',
     appDetail:
-      'App-Schutz-Richtlinien greifen laut Microsoft erst zusammen mit einer Richtlinie für Bedingten Zugriff, die eine genehmigte Client-App oder eine App-Schutz-Richtlinie verlangt.',
+      'App-Schutz-Richtlinien lassen sich laut Microsoft nur zusammen mit einer Richtlinie für Bedingten Zugriff durchsetzen, die eine genehmigte Client-App oder eine App-Schutz-Richtlinie verlangt.',
     appCause: 'Keine solche Richtlinie vorhanden, deaktiviert oder nur im Berichtsmodus.',
     appRemediation: [
       'Im Microsoft Entra Admin Center unter Entra ID › Bedingter Zugriff › Richtlinien prüfen, ob „Genehmigte Client-App“ bzw. „App-Schutz-Richtlinie“ für mobile Geräte verlangt wird.',
@@ -628,7 +708,7 @@ export const dePosture = {
       'Die Richtlinie setzt diese Werte anders als die Microsoft-Sicherheitskonfiguration (oder gar nicht).',
     remediation: [
       'Im Intune Admin Center unter Geräte › Compliance die Richtlinie öffnen und unter Eigenschaften › Compliance-Einstellungen die genannten Werte prüfen.',
-      'Microsoft nennt die Werte einen Ausgangspunkt („Organizations should update this setting to match their password policy“) – Abweichungen bewusst entscheiden.',
+      'Microsoft beschreibt die Werte als Beispielkonfiguration, die an die eigenen Anforderungen (z. B. die Kennwortrichtlinie) angepasst werden kann – Abweichungen bewusst entscheiden und dokumentieren.',
     ],
     noPolicyTitle: 'Keine Compliance-Richtlinie für diese Plattform',
     noPolicyDetail:
@@ -658,6 +738,9 @@ export const dePosture = {
     betaTypeRemediation: [
       'Die Richtlinie im Intune Admin Center unter Geräte › Compliance mit der verlinkten Microsoft-Empfehlung vergleichen.',
     ],
+    androidFrameworkFact: 'Bewertetes Framework',
+    androidFrameworkValue:
+      'Android Enterprise, persönliches Gerät mit Arbeitsprofil (Richtlinien für vollständig verwaltete Geräte sind nur in der Beta-API dokumentiert und werden nicht bewertet)',
     summaryPolicies: (n: number, reached: string | null) =>
       [policies(n), reached].filter(Boolean).join(' · '),
   },
@@ -710,7 +793,7 @@ export const dePosture = {
     versionUnknownReason: 'Die Vorlage der Baseline wurde nicht gefunden oder nicht gelesen.',
     versionTitle: (name: string) => `„${name}“ nutzt eine ältere Baseline-Version`,
     versionDetail:
-      'Microsoft empfiehlt, ältere Baseline-Versionen so bald wie praktikabel auf die neueste Version zu aktualisieren. Neuere Versionen enthalten neue Einstellungen und passen Standardwerte an aktuelle Empfehlungen an.',
+      'Microsoft empfiehlt, ältere Baseline-Versionen so bald wie praktikabel auf die neueste Version zu aktualisieren. Eine neuere Version kann neue Einstellungen enthalten und Standardwerte an aktuelle Empfehlungen anpassen.',
     versionCause: 'Neue Baseline-Versionen werden nicht automatisch übernommen.',
     versionRemediation: [
       'Im Intune Admin Center unter Endpunktsicherheit › Sicherheitsbaselines den Baseline-Typ wählen, das Profil markieren und „Version aktualisieren“ wählen (erstellt eine neue Instanz ohne Zuweisungen).',
@@ -755,10 +838,37 @@ export const dePosture = {
       diskEncryptionMacos: 'Datenträgerverschlüsselung – FileVault (macOS)',
       firewallWindows: 'Firewall (Windows)',
       firewallMacos: 'Firewall (macOS)',
-      asrWindows: 'Verringerung der Angriffsfläche (Windows)',
-      accountProtectionWindows: 'Kontoschutz, z. B. lokale Gruppenmitgliedschaft (Windows)',
+      asrWindows: 'Verringerung der Angriffsfläche – ASR-Regeln (Windows)',
+      accountProtectionWindows: 'Kontoschutz – lokale Gruppenmitgliedschaft (Windows)',
     },
     expected: 'Mindestens eine zugewiesene Richtlinie',
+    expectedProfile: (profiles: readonly string[]) =>
+      `Mindestens eine zugewiesene Richtlinie mit Profil ${profiles.map((p) => `„${p}“`).join(' oder ')}`,
+    actualOtherProfiles: (n: number) =>
+      `${policies(n)} mit anderem oder unbekanntem Profil zugewiesen`,
+    matchingFact: 'Zuordnung zum Profil',
+    matchingValue:
+      'Über den Vorlagennamen der Richtlinie (Heuristik): Microsoft Graph dokumentiert keine Liste der Vorlagen-IDs je Profil.',
+    profileNote: (profiles: readonly string[]) =>
+      `Microsoft nennt dafür ausdrücklich das Profil ${profiles.map((p) => `„${p}“`).join(' oder ')}.`,
+    ambiguousReason:
+      'Profiltyp nicht eindeutig: Es gibt zugewiesene Richtlinien dieses Bereichs, aber keine, deren Vorlagenname zum empfohlenen Profil passt. Die App ordnet Profile nur über den Vorlagennamen zu (Graph dokumentiert keine Liste der Vorlagen-IDs) – im Zweifel „nicht prüfbar“.',
+    ambiguousTitle: (area: string) => `${area}: Profiltyp nicht eindeutig`,
+    ambiguousDetail: (profiles: readonly string[]) =>
+      `Microsoft empfiehlt hier das Profil ${profiles.map((p) => `„${p}“`).join(' oder ')}. Zugewiesen sind nur Richtlinien dieses Bereichs, deren Vorlagenname nicht dazu passt oder fehlt – z. B. ein anderes Profil derselben Familie. Die Zuordnung über den Vorlagennamen ist eine Heuristik; die App rät deshalb nicht und wertet den Bereich als nicht prüfbar.`,
+    ambiguousCause:
+      'Andere Profile desselben Bereichs (z. B. Windows LAPS statt lokaler Gruppenmitgliedschaft) oder ein Vorlagenname, den die App nicht kennt.',
+    ambiguousRemediation: [
+      'Im Intune Admin Center unter Endpunktsicherheit den Bereich öffnen und prüfen, ob eine zugewiesene Richtlinie mit dem genannten Profil existiert.',
+    ],
+    ambiguousColumns: {
+      policy: 'Richtlinie',
+      template: 'Vorlage (Profil)',
+      assigned: 'Zugewiesen',
+    },
+    noTemplateName: 'Kein Vorlagenname geliefert',
+    assignedYes: 'Ja',
+    assignedUnknown: 'Unbekannt',
     actualAssigned: (n: number) => `${policies(n)} zugewiesen`,
     actualUnassigned: (n: number) => `${policies(n)}, keine zugewiesen`,
     actualNone: 'Keine Richtlinie',
@@ -779,7 +889,7 @@ export const dePosture = {
   secureScore: {
     title: 'Offene Empfehlungen für Geräte',
     detail: (open: number, total: number) =>
-      `${open} von ${total} Empfehlungen der Kategorie „Device“ bzw. des Dienstes Intune haben noch nicht die volle Punktzahl. Titel und Texte stammen unverändert von Microsoft.`,
+      `${open} von ${total} Empfehlungen der Kategorie „Device“ haben noch nicht die volle Punktzahl. Titel und Texte stammen unverändert von Microsoft. Ob eine Empfehlung im Defender-Portal als „Risiko akzeptiert“ markiert ist, liest die App bewusst nicht – solche Empfehlungen können hier als offen erscheinen.`,
     cause:
       'Empfehlung nicht oder nur teilweise umgesetzt. Microsoft weist darauf hin, dass nicht jede Empfehlung zu jeder Umgebung passt.',
     remediation: [
@@ -809,15 +919,18 @@ export const dePosture = {
           ? 'nicht geliefert'
           : `${formatNumber(score)} von ${formatNumber(max)} Punkten`,
       date: 'Stand',
+      state: 'Bearbeitungsstatus',
+      stateValue:
+        'Nicht gelesen – als „Risiko akzeptiert“ markierte Empfehlungen können als offen erscheinen',
       deviceControls: 'Empfehlungen für Geräte',
       deviceControlsValue: (met: number, total: number) => `${met} von ${total} umgesetzt`,
     },
-    noneTitle: 'Keine Empfehlungen für Geräte geliefert',
+    noneTitle: 'Keine Geräte-Empfehlungen gemeldet',
     noneDetail:
-      'Der Secure Score enthält keine Empfehlung der Kategorie „Device“ und keine des Dienstes Intune.',
+      'Der Secure Score enthält keine (nicht veraltete) Empfehlung der Kategorie „Device“. Das ist keine Aussage darüber, ob Geräte-Empfehlungen erfüllt sind.',
     noneCause: 'Microsoft liefert für diesen Mandanten keine passenden Empfehlungen.',
     noneRemediation: ['Keine Aktion nötig.'],
-    valueNone: 'Keine Geräte-Empfehlungen',
+    valueNone: 'Keine Geräte-Empfehlungen gemeldet',
   },
 } as const;
 

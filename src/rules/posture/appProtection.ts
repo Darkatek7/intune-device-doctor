@@ -173,7 +173,7 @@ export function evaluateAppProtectionTile(
     id,
     value:
       anyCounted && allReached && counts.deviating === 0
-        ? c.valueLevel(options.level)
+        ? c.valueLevel(options.level, counts.notChecked === 0)
         : valueOfChecks(checks),
     summary: dePosture.compliance.summaryPolicies(own.length, summaryOfChecks(checks)),
     findings,

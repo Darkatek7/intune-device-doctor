@@ -4,7 +4,11 @@
  * androidManagedAppProtection (v1.0, geerbt von managedAppProtection).
  *
  * Nicht als Prüfung aufgenommen: Learn-Werte, die jede Einstellung erfüllt (Stufe 1 „Allow“, „All apps“,
- * „Any app“, „Not required“, „PIN type: Numeric“ – jeder Zeichensatz erfüllt ihn) sowie Windows-Zeilen.
+ * „Any app“, „Not required“, „PIN type: Numeric“ – jeder Zeichensatz erfüllt ihn; Stufe 2 „Transfer
+ * telecommunication data to: Any dialer app“ – die am wenigsten strenge Option), Zeilen ohne festen Wert
+ * (Stufe 3 „Dialer App URL Scheme“, „Select keyboards to approve“ – Teil von appDialerIos bzw.
+ * appApprovedKeyboards) sowie Windows-Zeilen. Alle übrigen Zeilen der drei Tabellen stehen als Prüfung
+ * oder als „nicht prüfbar“ im Katalog (Zeile für Zeile abgeglichen 2026-11-25).
  * Zuordnungen nach Beschreibung der Graph-Eigenschaft (auf Learn so beschrieben):
  * - „Recheck the access requirements after (minutes of inactivity)“ ↔ periodOnlineBeforeAccessCheck
  * - „Offline grace period … Block access“ ↔ periodOfflineBeforeAccessCheck
@@ -214,12 +218,20 @@ const UNCHECKABLE: readonly UncheckableEntry[] = [
   { platforms: ANDROID, id: 'appPlayIntegrity', level: 1 },
   { platforms: ANDROID, id: 'appThreatScan', level: 1 },
   { platforms: ANDROID, id: 'appDeviceLockLow', level: 1 },
+  // „Select apps to exempt: Default / skype;app-settings;…“ – keine v1.0-Eigenschaft
+  { platforms: IOS, id: 'appExemptApps', level: 2 },
+  // „Allow users to save copies to selected services: OneDrive for Business, SharePoint, Photo Library“ –
+  // allowedDataStorageLocations (managedAppDataStorageLocation) kennt „Photo Library“ nicht
+  { platforms: BOTH, id: 'appSaveToServices', level: 2, reason: 'enumIncomplete' },
   { platforms: BOTH, id: 'appOrgDataNotifications', level: 2 },
   { platforms: BOTH, id: 'appDisabledAccount', level: 2 },
   { platforms: ANDROID, id: 'appHardwareAttestation', level: 2 },
   { platforms: ANDROID, id: 'appDeviceLockMedium', level: 2 },
   { platforms: ANDROID, id: 'appSamsungKnox', level: 2 },
   { platforms: BOTH, id: 'appOpenIntoOrgDocs', level: 3 },
+  // „Allow users to open data from selected services: OneDrive for Business, SharePoint, Camera, Photo
+  // Library“ – keine v1.0-Eigenschaft
+  { platforms: BOTH, id: 'appOpenFromServices', level: 3 },
   { platforms: IOS, id: 'appThirdPartyKeyboards', level: 3 },
   { platforms: ANDROID, id: 'appApprovedKeyboards', level: 3 },
   { platforms: ANDROID, id: 'appClass3Biometrics', level: 3 },

@@ -4,7 +4,10 @@
  *
  * Prüfungen (ohne Stufen):
  * 1. Eine **aktivierte** Richtlinie verlangt `compliantDevice` („Require compliant PCs and mobile devices“).
- *    Nur Berichtsmodus oder nur als ODER-Alternative zu anderen Steuerungen → weicht ab.
+ *    Nur Berichtsmodus oder nur als ODER-Alternative zu anderen Steuerungen → weicht ab. Der Alternativ-Fall
+ *    hat einen eigenen Text: Konformität wirkt dann auf den Zugriff (ein konformes Gerät genügt), ist aber
+ *    nicht zwingend (Microsoft bietet „compliant device, hybrid joined device OR MFA“ selbst als Vorlage).
+ *    Konsistent mit tenantSettings.ts, das eine aktive ODER-Richtlinie als durchgesetzt zählt.
  * 2. Geltungsbereich dieser Richtlinie: alle Benutzer und alle Ressourcen (Entra-Vorlage
  *    „Require device compliance“: Include All users, All resources) – nur, wenn 1 erfüllt ist.
  * 3. Eine aktivierte Richtlinie verlangt `approvedApplication` oder `compliantApplication` („Require approved
@@ -72,11 +75,12 @@ const names = (policies: ConditionalAccessPolicyConfig[]) =>
 function usageOutcome(usage: ControlUsage, truncated: boolean): CheckOutcome {
   if (usage.enabled.length > 0)
     return { status: 'met', actual: t.actualEnabled(names(usage.enabled)) };
-  if (usage.reportOnly.length > 0) {
-    return { status: 'deviating', actual: t.actualReportOnly(names(usage.reportOnly)) };
-  }
-  if (usage.alternative.length > 0) {
-    return { status: 'deviating', actual: t.actualAlternative(names(usage.alternative)) };
+  if (usage.reportOnly.length > 0 || usage.alternative.length > 0) {
+    const parts = [
+      usage.alternative.length > 0 ? t.actualAlternative(names(usage.alternative)) : null,
+      usage.reportOnly.length > 0 ? t.actualReportOnly(names(usage.reportOnly)) : null,
+    ].filter((part): part is string => part !== null);
+    return { status: 'deviating', actual: parts.join(' · ') };
   }
   if (truncated) return { status: 'notChecked', actual: t.actualNone, reason: t.truncatedReason };
   return { status: 'deviating', actual: t.actualNone };
@@ -124,12 +128,14 @@ export function evaluateAccess(posture: TenantPosture): PostureTile {
     ),
   );
   if (compliantOutcome.status === 'deviating') {
+    // Aktive ODER-Richtlinie: Konformität wirkt auf den Zugriff, ist aber nicht zwingend – eigener Text
+    const alternative = compliant.alternative.length > 0;
     findings.push({
       id: `${ID}-compliantDevice`,
       severity: 'warning',
-      title: t.compliantTitle,
-      detail: t.compliantDetail,
-      cause: t.compliantCause,
+      title: alternative ? t.compliantTitleAlternative : t.compliantTitle,
+      detail: alternative ? t.compliantDetailAlternative : t.compliantDetail,
+      cause: alternative ? t.compliantCauseAlternative : t.compliantCause,
       remediation: [...t.compliantRemediation],
       evidence: {
         enabled: compliant.enabled.length,

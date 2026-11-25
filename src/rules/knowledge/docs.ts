@@ -359,8 +359,12 @@ export const Docs = {
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-macos-devices',
   postureCoverageIos:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-iosipados-devices',
+  /** „Compliance policies protect personally owned Android devices“ (Android Enterprise, Arbeitsprofil) */
   postureCoverageAndroid:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-personally-owned-android-devices',
+  /** „Compliance policies protect fully managed and corporate-owned Android devices“ (eigene Empfehlung) */
+  postureCoverageAndroidCorporate:
+    'https://learn.microsoft.com/intune/device-security/ref-zero-trust-tenant#compliance-policies-protect-fully-managed-and-corporate-owned-android-devices',
   /** Zero Trust für Geräte: Endpunktsicherheit und Baselines „configured and assigned“ */
   postureZtAntivirusWindows:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#defender-antivirus-policies-protect-windows-devices-from-malware',
@@ -378,6 +382,17 @@ export const Docs = {
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#attack-surface-reduction-rules-are-applied-to-windows-devices-to-prevent-exploitation-of-vulnerable-system-components',
   postureZtLocalAccounts:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#local-account-usage-on-windows-is-restricted-to-reduce-unauthorized-access',
+  /** Profile der Endpunktsicherheit je Richtlinientyp (Profilnamen für die Zuordnung über den Vorlagennamen) */
+  postureEsAntivirusProfiles:
+    'https://learn.microsoft.com/intune/device-configuration/endpoint-security/antivirus#antivirus-profiles',
+  postureEsDiskEncryptionProfiles:
+    'https://learn.microsoft.com/intune/device-configuration/endpoint-security/disk-encryption#disk-encryption-profiles',
+  postureEsFirewallProfiles:
+    'https://learn.microsoft.com/intune/device-configuration/endpoint-security/firewall#firewall-profiles',
+  postureEsAsrProfiles:
+    'https://learn.microsoft.com/intune/device-configuration/endpoint-security/attack-surface-reduction#attack-surface-reduction-profiles',
+  postureEsAccountProtectionProfiles:
+    'https://learn.microsoft.com/intune/device-configuration/endpoint-security/account-protection#account-protection-profiles',
   postureZtBaselines:
     'https://learn.microsoft.com/intune/device-security/ref-zero-trust-devices#security-baselines-are-applied-to-windows-devices-to-strengthen-security-posture',
   /** „We recommend updating older baseline versions to the latest version as soon as it's practical“ */

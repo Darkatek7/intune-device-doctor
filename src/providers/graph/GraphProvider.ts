@@ -183,7 +183,7 @@ import {
   mapSecureScore,
 } from '../../graph/mappers';
 import { de } from '../../i18n/de';
-import { dePostureGraph } from '../../i18n/de-posture-graph';
+import { dePosture } from '../../i18n/de-posture';
 import { ProviderError, type DeviceDataProvider, type RequestOptions } from '../DeviceDataProvider';
 
 const MAX_SEARCH_RESULTS = 25;
@@ -908,7 +908,7 @@ export class GraphProvider implements DeviceDataProvider {
     options: RequestOptions,
   ): Promise<SectionResult<ComplianceTenantSettings>> {
     const endpoint = Endpoints.deviceManagementSettings;
-    const reason = dePostureGraph.reasons.complianceSettingsNotReported;
+    const reason = dePosture.reasons.complianceSettingsNotReported;
     return this.run<ComplianceTenantSettings>(
       'deviceManagementSettings',
       async (source) => {
@@ -927,7 +927,7 @@ export class GraphProvider implements DeviceDataProvider {
     options: RequestOptions,
   ): Promise<SectionResult<PlatformDeviceCounts>> {
     const endpoint = Endpoints.managedDeviceOverview;
-    const reason = dePostureGraph.reasons.platformCountsNotReported;
+    const reason = dePosture.reasons.platformCountsNotReported;
     return this.run<PlatformDeviceCounts>(
       'managedDeviceOverview',
       async (source) => {
@@ -983,7 +983,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.compliancePoliciesNotFound,
+        reason: dePosture.reasons.compliancePoliciesNotFound,
         source,
       }),
     );
@@ -1086,7 +1086,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.appProtectionNotFound,
+        reason: dePosture.reasons.appProtectionNotFound,
         source,
       }),
     );
@@ -1109,7 +1109,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.conditionalAccessNotFound,
+        reason: dePosture.reasons.conditionalAccessNotFound,
         source,
       }),
     );
@@ -1122,7 +1122,7 @@ export class GraphProvider implements DeviceDataProvider {
    */
   private async readSecureScore(options: RequestOptions): Promise<SectionResult<SecureScoreInfo>> {
     const scoreEndpoint = Endpoints.secureScores;
-    const scoreReason = dePostureGraph.reasons.secureScoreNotReported;
+    const scoreReason = dePosture.reasons.secureScoreNotReported;
     const score = await this.run<GraphSecureScore | null>(
       'secureScores',
       async (source) => {
@@ -1137,7 +1137,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.secureScoreNotFound,
+        reason: dePosture.reasons.secureScoreNotFound,
         source,
       }),
     );
@@ -1158,7 +1158,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.secureScoreNotFound,
+        reason: dePosture.reasons.secureScoreNotFound,
         source,
       }),
     );
@@ -1210,7 +1210,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.catalogPoliciesNotFound,
+        reason: dePosture.reasons.catalogPoliciesNotFound,
         source,
       }),
     );
@@ -1224,7 +1224,7 @@ export class GraphProvider implements DeviceDataProvider {
     if (!policy.templateId) {
       return {
         status: 'unavailable',
-        reason: dePostureGraph.reasons.baselineNoTemplate,
+        reason: dePosture.reasons.baselineNoTemplate,
         source: graphSource('catalogPolicySettings'),
       };
     }
@@ -1243,7 +1243,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.baselineSettingsNotFound,
+        reason: dePosture.reasons.baselineSettingsNotFound,
         source,
       }),
     );
@@ -1266,7 +1266,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.baselineTemplateNotFound,
+        reason: dePosture.reasons.baselineTemplateNotFound,
         source,
       }),
     );
@@ -1297,7 +1297,7 @@ export class GraphProvider implements DeviceDataProvider {
       },
       (source) => ({
         status: 'unavailable',
-        reason: dePostureGraph.reasons.policyTemplatesNotFound,
+        reason: dePosture.reasons.policyTemplatesNotFound,
         source,
       }),
     );

@@ -48,7 +48,16 @@ describe('MockProvider.getTenantPosture – Standard-Demodaten', () => {
     const posture = await standardPosture();
     if (posture.platformCounts.status !== 'ok') throw new Error('platformCounts nicht ok');
     const counts = posture.platformCounts.data;
-    expect(counts).toEqual({ windows: 212, ios: 38, android: 15, macos: 9, total: 274 });
+    expect(counts).toEqual({
+      windows: 212,
+      ios: 38,
+      android: 15,
+      androidPersonal: 11,
+      androidCorporate: 4,
+      macos: 9,
+      total: 274,
+    });
+    expect((counts.androidPersonal ?? 0) + (counts.androidCorporate ?? 0)).toBe(counts.android);
     expect(
       (counts.windows ?? 0) + (counts.ios ?? 0) + (counts.android ?? 0) + (counts.macos ?? 0),
     ).toBe(counts.total);

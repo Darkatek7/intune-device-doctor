@@ -7,7 +7,7 @@ import {
   MAX_COMPLIANCE_POLICY_DETAILS,
   MAX_LIST_PAGES,
 } from '../../graph/endpoints';
-import { dePostureGraph } from '../../i18n/de-posture-graph';
+import { dePosture } from '../../i18n/de-posture';
 import { createGraphProvider } from './GraphProvider';
 import {
   collection,
@@ -85,6 +85,10 @@ function contosoPostureHandler(call: FakeCall): Response {
           iosCount: 2,
           macOSCount: 1,
           androidCount: 1,
+          androidWorkProfileCount: 1,
+          androidFullyManagedCount: 0,
+          androidCorporateWorkProfileCount: 0,
+          androidDedicatedCount: 0,
         },
       });
     case '/v1.0/deviceManagement/deviceCompliancePolicies':
@@ -245,6 +249,8 @@ describe('GraphProvider.getTenantPosture – alles ok', () => {
       ios: 2,
       macos: 1,
       android: 1,
+      androidPersonal: 1,
+      androidCorporate: 0,
       total: 10,
     });
 
@@ -421,7 +427,7 @@ describe('GraphProvider.getTenantPosture – 404', () => {
       expect(result.source.kind).toBe('graph');
     }
     expect(expectStatus(posture.catalogPolicies, 'unavailable').reason).toBe(
-      dePostureGraph.reasons.catalogPoliciesNotFound,
+      dePosture.reasons.catalogPoliciesNotFound,
     );
   });
 
@@ -433,7 +439,7 @@ describe('GraphProvider.getTenantPosture – 404', () => {
     const posture = await provider.getTenantPosture();
     expectStatus(posture.complianceSettings, 'unavailable');
     expect(expectStatus(posture.secureScore, 'unavailable').reason).toBe(
-      dePostureGraph.reasons.secureScoreNotReported,
+      dePosture.reasons.secureScoreNotReported,
     );
   });
 
@@ -586,7 +592,7 @@ describe('GraphProvider.getTenantPosture – Baseline-Vergleich', () => {
     const posture = await provider.getTenantPosture();
     const catalog = expectStatus(posture.catalogPolicies, 'ok').data.policies;
     expect(expectStatus(catalog[0]!.comparison!, 'unavailable').reason).toBe(
-      dePostureGraph.reasons.baselineTemplateNotFound,
+      dePosture.reasons.baselineTemplateNotFound,
     );
   });
 
@@ -599,7 +605,7 @@ describe('GraphProvider.getTenantPosture – Baseline-Vergleich', () => {
     const posture = await provider.getTenantPosture();
     const catalog = expectStatus(posture.catalogPolicies, 'ok').data.policies;
     expect(expectStatus(catalog[0]!.comparison!, 'unavailable').reason).toBe(
-      dePostureGraph.reasons.baselineNoTemplate,
+      dePosture.reasons.baselineNoTemplate,
     );
     expect(calls.some((c) => c.parsed.pathname.endsWith('/settings'))).toBe(false);
   });

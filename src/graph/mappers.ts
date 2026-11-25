@@ -1593,6 +1593,13 @@ const nonNegative = (value: unknown): number | null => {
  * managedDeviceOverview → Zähler je Plattform. Android: höchster Wert aus `androidCount` und der Summe der
  * Android-Untertypen (die Doku sagt nicht, ob `androidCount` die Untertypen enthält; so wird weder doppelt
  * gezählt noch ein vorhandenes Gerät übersehen). `total` = `enrolledDeviceCount`.
+ *
+ * Android-Gruppen nach der dokumentierten Beschreibung der Zähler:
+ * - `androidPersonal` = `androidWorkProfileCount` („work profile Android devices“, persönliches Gerät)
+ * - `androidCorporate` = `androidFullyManagedCount` + `androidCorporateWorkProfileCount` („Corporate
+ *   Owned Personally Enabled“) + `androidDedicatedCount`; fehlt einer der drei (oder ist negativ – Learn
+ *   nennt -1 als gültigen Wert ohne Bedeutung), ist die Summe unbekannt → null.
+ * - `androidDeviceAdminCount` bleibt bewusst außen vor (kein Android Enterprise, siehe PlatformDeviceCounts).
  */
 export function mapPlatformCounts(
   dto: GraphManagedDeviceOverview | { value?: GraphManagedDeviceOverview } | null | undefined,
@@ -1614,11 +1621,21 @@ export function mapPlatformCounts(
     androidTotal === null && subtypeSum === null
       ? null
       : Math.max(androidTotal ?? 0, subtypeSum ?? 0);
+  const corporateParts = [
+    os?.androidFullyManagedCount,
+    os?.androidCorporateWorkProfileCount,
+    os?.androidDedicatedCount,
+  ].map(nonNegative);
+  const androidCorporate = corporateParts.every((n): n is number => n !== null)
+    ? corporateParts.reduce((a, b) => a + b, 0)
+    : null;
   return {
     windows: nonNegative(os?.windowsCount),
     ios: nonNegative(os?.iosCount),
     macos: nonNegative(os?.macOSCount),
     android,
+    androidPersonal: nonNegative(os?.androidWorkProfileCount),
+    androidCorporate,
     total: nonNegative(overview?.enrolledDeviceCount),
   };
 }

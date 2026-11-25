@@ -31,13 +31,29 @@ export interface ComplianceTenantSettings {
   deviceComplianceCheckinThresholdDays: number | null;
 }
 
-/** Verwaltete Geräte je Betriebssystem (`managedDeviceOverview.deviceOperatingSystemSummary`, v1.0). */
+/**
+ * Verwaltete Geräte je Betriebssystem (`managedDeviceOverview.deviceOperatingSystemSummary`, v1.0).
+ *
+ * Android ist für die Zero-Trust-Empfehlungen zweigeteilt (Learn führt „fully managed and corporate-owned“
+ * und „personally owned“ als getrennte Empfehlungen). Android-Geräteadministrator
+ * (`androidDeviceAdminCount`) gehört zu keiner der beiden Gruppen: Beide Empfehlungen sprechen von
+ * Android Enterprise, Geräteadministrator ist kein Android-Enterprise-Modus – diese Geräte stecken nur
+ * in `android` (Gesamtzahl).
+ */
 export interface PlatformDeviceCounts {
   windows: number | null;
   ios: number | null;
   macos: number | null;
-  /** Summe aller dokumentierten Android-Zähler */
+  /** Gesamtzahl Android (größerer Wert aus `androidCount` und der Summe der Untertypen) */
   android: number | null;
+  /** Persönliche Geräte mit Arbeitsprofil (`androidWorkProfileCount`); null = nicht geliefert */
+  androidPersonal: number | null;
+  /**
+   * Unternehmenseigene Android-Enterprise-Geräte: vollständig verwaltet (`androidFullyManagedCount`) +
+   * unternehmenseigen mit Arbeitsprofil (`androidCorporateWorkProfileCount`, COPE) + dediziert
+   * (`androidDedicatedCount`). null = mindestens einer der drei Zähler nicht geliefert.
+   */
+  androidCorporate: number | null;
   /** Gesamtzahl der registrierten Geräte, falls geliefert */
   total: number | null;
 }
@@ -153,7 +169,7 @@ export interface SecureScoreInfo {
   currentScore: number | null;
   maxScore: number | null;
   createdDateTime: string | null;
-  /** Alle Empfehlungen des jüngsten Scores; das Regelwerk filtert auf Geräte/Intune */
+  /** Alle Empfehlungen des jüngsten Scores; das Regelwerk filtert auf die Kategorie `Device` */
   controls: SecureScoreControl[];
 }
 

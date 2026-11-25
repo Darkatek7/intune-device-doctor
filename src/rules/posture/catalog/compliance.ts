@@ -8,6 +8,10 @@
  * - Android Enterprise, persönliches Gerät mit Arbeitsprofil: „Device compliance (level 2/3)“ – keine
  *   Stufe 1. Eigenschaften: androidWorkProfileCompliancePolicy (v1.0).
  *
+ * Stufe 3 „Device Threat Level: Secured“: Learn empfiehlt Defender for Endpoint **oder** Mobile Threat
+ * Defense („It isn't necessary to deploy both“) – ist die Bedrohungsstufe nicht aktiviert, ist die
+ * Empfehlung nicht prüfbar (die Defender-Risikobewertung ist über v1.0 nicht lesbar), keine Abweichung.
+ *
  * Bewusst **ohne** Prüfung (kein fester Sollwert oder jede Einstellung erfüllt ihn):
  * Windows „Password type: Device default“, Betriebssystemversionen „Enter appropriate values“,
  * „Require device compliance from Configuration Manager“ (abhängig von Co-Verwaltung), Android
@@ -25,7 +29,7 @@ import {
   requireValue,
   type Where,
 } from './build';
-import { allOf, bool, markNoncompliantImmediately, oneOf } from './compare';
+import { deviceThreatLevelSecured, markNoncompliantImmediately } from './compare';
 
 const enums = dePosture.values.enums;
 
@@ -78,19 +82,15 @@ export const WINDOWS_COMPLIANCE: PostureFramework = {
 const IOS2: Where = { level: 2, docsUrl: Docs.postureIosComplianceLevel2 };
 const IOS3: Where = { level: 3, docsUrl: Docs.postureIosComplianceLevel3 };
 
-/** „Require the device to be at or under the Device Threat Level: Secured“ – nur `secured` erfüllt. */
+/**
+ * „Require the device to be at or under the Device Threat Level: Secured“ – aktiviert: nur `secured`
+ * erfüllt; nicht aktiviert: nicht prüfbar (Learn: Defender for Endpoint **oder** MTD, siehe compare.ts).
+ */
 const threatLevelSecured = custom(
   'iosThreatLevel',
   ['deviceThreatProtectionEnabled', 'deviceThreatProtectionRequiredSecurityLevel'],
   IOS3,
-  allOf(
-    bool('deviceThreatProtectionEnabled', true),
-    oneOf(
-      'deviceThreatProtectionRequiredSecurityLevel',
-      ['secured'],
-      enums.deviceThreatProtectionLevel,
-    ),
-  ),
+  deviceThreatLevelSecured(enums.deviceThreatProtectionLevel),
   {
     settings: {
       deviceThreatProtectionEnabled: true,
@@ -134,8 +134,13 @@ export const IOS_COMPLIANCE: PostureFramework = {
       enums.requiredPasswordType,
       IOS2,
     ),
-    // „Maximum minutes after screen lock before password is required“ ↔ Minutes of inactivity before a passcode is required
-    maximum('iosPasscodeAfterLock', 'passcodeMinutesOfInactivityBeforeLock', 5, 'minutes', IOS2),
+    // „Maximum minutes after screen lock before password is required“ ↔ Minutes of inactivity before a passcode is required.
+    // Das Portal bietet „Immediately“ an (ref-ios-ipados-settings); wie Graph das kodiert, ist nicht
+    // dokumentiert → 0 ist nicht prüfbar. Android-Arbeitsprofil (1 Minute bis 8 Stunden) und Windows
+    // („Enter the idle time“) kennen laut Learn kein „Sofort“ – dort bleibt 0 „nicht konfiguriert“.
+    maximum('iosPasscodeAfterLock', 'passcodeMinutesOfInactivityBeforeLock', 5, 'minutes', IOS2, {
+      zeroUndocumented: true,
+    }),
     markImmediately('iosMarkNoncompliant', IOS2),
     threatLevelSecured,
     maximum('iosPasscodeExpiration', 'passcodeExpirationDays', 365, 'days', IOS3),

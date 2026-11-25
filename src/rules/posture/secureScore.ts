@@ -1,7 +1,12 @@
 /**
  * Kachel „Microsoft Secure Score“: nur, was Microsoft liefert – keine eigenen Sollwerte.
  *
- * - Ausgewertet werden Empfehlungen der Kategorie `Device` bzw. des Dienstes Intune, ohne veraltete.
+ * - Ausgewertet werden Empfehlungen der Kategorie `Device` (`controlCategory`), ohne veraltete. Kein
+ *   Filter auf den Dienst „Intune“: Learn nennt Intune nicht in der Produktliste von Secure Score, ein
+ *   solcher Filter griffe womöglich nie – oder zöge Empfehlungen anderer Kategorien herein.
+ * - Null passende Empfehlungen → ruhiger Hinweis „Keine Geräte-Empfehlungen gemeldet“, nie „erfüllt“.
+ * - Der Bearbeitungsstatus einer Empfehlung (z. B. „Risiko akzeptiert“, `controlStateUpdates`) wird bewusst
+ *   nicht gelesen; solche Empfehlungen können hier als offen erscheinen – das steht im Text der Kachel.
  * - Erfüllt = volle Punktzahl laut Microsoft (`score >= maxScore`); Teilpunkte = offen. Ohne Punktzahl →
  *   nicht prüfbar.
  * - Titel, Beschreibung, Kategorie und Dienst bleiben unverändert englisch (`lang="en"`).
@@ -24,10 +29,7 @@ export const SECURE_SCORE_DETAIL_LIMIT = 5;
 
 export function isDeviceControl(control: SecureScoreControl): boolean {
   if (control.deprecated) return false;
-  return (
-    control.category?.trim().toLowerCase() === 'device' ||
-    (control.service ?? '').toLowerCase().includes('intune')
-  );
+  return control.category?.trim().toLowerCase() === 'device';
 }
 
 function gap(control: SecureScoreControl): number {
@@ -59,6 +61,7 @@ export function evaluateSecureScore(posture: TenantPosture, now: Date): PostureT
 
   const facts: TileFact[] = [
     { label: t.facts.score, value: t.facts.scoreValue(info.currentScore, info.maxScore) },
+    { label: t.facts.state, value: t.facts.stateValue },
   ];
   if (info.createdDateTime) {
     facts.push({

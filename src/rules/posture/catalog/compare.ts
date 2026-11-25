@@ -3,7 +3,9 @@
  * empfohlen“ ist nie eine Abweichung:
  * - `bool`: genau der empfohlene Wahrheitswert
  * - `atLeast`: Ist ≥ Soll (z. B. Mindestlänge 8 bei Empfehlung 6 → erfüllt)
- * - `atMost`: 0 < Ist ≤ Soll (z. B. Kennwortablauf 30 bei Empfehlung 41 → erfüllt; 0 = nicht gesetzt)
+ * - `atMost`: 0 < Ist ≤ Soll (z. B. Kennwortablauf 30 bei Empfehlung 41 → erfüllt; 0 = nicht gesetzt).
+ *   Ausnahme `zeroUndocumented`: Bietet das Portal für die Einstellung „Sofort“ an und dokumentiert Graph
+ *   nicht, wie das kodiert ist, ist 0 mehrdeutig („Sofort“ oder nicht konfiguriert) → nicht prüfbar.
  * - `oneOf`: Ist ist der empfohlene oder ein strengerer Enum-Wert (Liste je Prüfung im Katalog)
  * - `isSet`: ein Wert ist gesetzt (Learn nennt nur ein Beispiel, keinen festen Wert)
  * - `durationAtMost`: 0 < Dauer ≤ Soll
@@ -75,12 +77,25 @@ export function atLeast(property: string, minimum: number, unit: NumberUnit): Ev
   };
 }
 
-export function atMost(property: string, maximum: number, unit: NumberUnit): Evaluator {
+export interface AtMostOptions {
+  /** 0 ist mehrdeutig (Portal kennt „Sofort“, Graph-Kodierung nicht dokumentiert) → nicht prüfbar */
+  zeroUndocumented?: boolean;
+}
+
+export function atMost(
+  property: string,
+  maximum: number,
+  unit: NumberUnit,
+  options: AtMostOptions = {},
+): Evaluator {
   return (subject) => {
     const value = read(subject, property);
     if (value === undefined) return notDelivered();
     if (value === null) return { status: 'deviating', actual: v.notConfigured };
     if (typeof value !== 'number') return notDelivered();
+    if (value === 0 && options.zeroUndocumented) {
+      return { status: 'notChecked', actual: v.zeroUndocumented, reason: v.zeroUndocumentedReason };
+    }
     if (value <= 0) return { status: 'deviating', actual: v.notConfigured };
     return { status: value <= maximum ? 'met' : 'deviating', actual: formatNumber(value, unit) };
   };
@@ -133,6 +148,29 @@ export function durationAtMost(property: string, maximumMinutes: number): Evalua
       status: minutes <= maximumMinutes ? 'met' : 'deviating',
       actual: formatDurationMinutes(minutes),
     };
+  };
+}
+
+/**
+ * Stufe 3 (iOS/iPadOS, Android-Arbeitsprofil): „Require the device to be at or under the Device Threat
+ * Level: Secured“. Learn ergänzt in beiden Tabellen: „Customers should consider implementing Microsoft
+ * Defender for Endpoint or a mobile threat defense solution. It isn't necessary to deploy both.“
+ * - Bedrohungsstufe aktiviert (`deviceThreatProtectionEnabled = true`): nur `secured` erfüllt, jede andere
+ *   Stufe weicht ab.
+ * - Nicht aktiviert (false/null): **nicht prüfbar** – die Alternative (Risikobewertung von Defender for
+ *   Endpoint) ist über v1.0 nicht lesbar; „weicht ab“ wäre eine Behauptung ohne Beleg.
+ */
+export function deviceThreatLevelSecured(labels: Record<string, string>): Evaluator {
+  const level = oneOf('deviceThreatProtectionRequiredSecurityLevel', ['secured'], labels);
+  return (subject) => {
+    const enabled = read(subject, 'deviceThreatProtectionEnabled');
+    if (enabled === undefined) return notDelivered();
+    if (enabled !== null && typeof enabled !== 'boolean') return notDelivered();
+    if (enabled !== true) {
+      return { status: 'notChecked', actual: v.threatNotEnabled, reason: v.threatNotEnabledReason };
+    }
+    const outcome = level(subject);
+    return { ...outcome, actual: v.join([v.threatEnabled, outcome.actual]) };
   };
 }
 
