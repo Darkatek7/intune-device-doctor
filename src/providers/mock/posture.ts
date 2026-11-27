@@ -11,6 +11,7 @@ import type {
   BaselineComparisonInfo,
   CatalogPolicyConfig,
   CompliancePolicyConfig,
+  CompliancePolicyConfigList,
   ComplianceTenantSettings,
   ConditionalAccessPolicyConfig,
   PlatformDeviceCounts,
@@ -29,7 +30,7 @@ const POLICY = {
   winComplianceTest: demoGuid('policy', 2),
   iosCompliance: demoGuid('policy', 3),
   androidWorkProfile: demoGuid('policy', 4),
-  androidOther: demoGuid('policy', 5),
+  androidFullyManaged: demoGuid('policy', 5),
   iosAppProtection: demoGuid('policy', 6),
   androidAppProtection: demoGuid('policy', 7),
   caCompliant: demoGuid('policy', 8),
@@ -145,12 +146,48 @@ const ANDROID_WORK_PROFILE_SETTINGS: PostureSettings = {
   passwordMinutesOfInactivityBeforeLock: 5,
 };
 
+/**
+ * Android Enterprise vollständig verwaltet (`androidDeviceOwnerCompliancePolicy`, nur Beta-API): alle 25
+ * Einstellungs-Eigenschaften des Typs, wie sie der Graph-Provider aus der Beta-Liste übernimmt. Stufe 1
+ * erfüllt; Stufe 2 mit zwei Abweichungen; Stufe 3 nicht prüfbar (Bedrohungsstufe nicht aktiviert).
+ */
+const ANDROID_FULLY_MANAGED_SETTINGS: PostureSettings = {
+  // Stufe 1 erfüllt
+  securityRequireSafetyNetAttestationBasicIntegrity: true,
+  osMinimumVersion: '13.0',
+  passwordRequired: true,
+  passwordRequiredType: 'numericComplex',
+  passwordMinimumLength: 6,
+  passwordMinutesOfInactivityBeforeLock: 5,
+  storageRequireEncryption: true,
+  securityRequireIntuneAppIntegrity: true,
+  // Stufe 2: Kennwortablauf und Geräteintegrität erfüllt …
+  passwordExpirationDays: 365,
+  securityRequireSafetyNetAttestationCertifiedDevice: true,
+  // … Abweichung 1: Wiederverwendung früherer Kennwörter nicht eingeschränkt
+  passwordPreviousPasswordCountToBlock: null,
+  // … Abweichung 2: starke Integrität (hardwaregestützt) nicht verlangt
+  securityRequiredAndroidSafetyNetEvaluationType: 'basic',
+  // Stufe 3: weder Mobile Threat Defense noch Defender-Risikobewertung verlangt
+  deviceThreatProtectionEnabled: false,
+  deviceThreatProtectionRequiredSecurityLevel: 'unavailable',
+  advancedThreatProtectionRequiredSecurityLevel: 'unavailable',
+  // Übrige Eigenschaften des Typs (ohne Learn-Sollwert)
+  securityBlockJailbrokenDevices: false,
+  osMaximumVersion: null,
+  minAndroidSecurityPatchLevel: null,
+  passwordMinimumLetterCharacters: null,
+  passwordMinimumLowerCaseCharacters: null,
+  passwordMinimumNonLetterCharacters: null,
+  passwordMinimumNumericCharacters: null,
+  passwordMinimumSymbolCharacters: null,
+  passwordMinimumUpperCaseCharacters: null,
+  requireNoPendingSystemUpdates: false,
+};
+
 const SCHEDULED_BLOCK_NOW = [{ actionType: 'block', gracePeriodHours: 0 }];
 
-export function compliancePolicies(now: Date): {
-  policies: CompliancePolicyConfig[];
-  truncated: boolean;
-} {
+export function compliancePolicies(now: Date): CompliancePolicyConfigList {
   const modified = (days: number) => ago(now, { days });
   const policies: CompliancePolicyConfig[] = [
     {
@@ -204,18 +241,27 @@ export function compliancePolicies(now: Date): {
       scheduledActions: SCHEDULED_BLOCK_NOW,
     },
     {
-      // Typ, den v1.0 nicht mit Einstellungen dokumentiert → nicht prüfbar
-      id: POLICY.androidOther,
-      displayName: 'Contoso – Android Geräteeigner (Beta-Typ)',
-      type: 'other',
+      // Typ und Einstellungen stammen aus der Beta-Liste (v1.0 dokumentiert den Typ nicht)
+      id: POLICY.androidFullyManaged,
+      displayName: 'Contoso – Android vollständig verwaltet',
+      type: 'androidDeviceOwner',
       odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
       lastModifiedDateTime: modified(90),
-      settings: {},
+      settings: ANDROID_FULLY_MANAGED_SETTINGS,
       assigned: true,
-      scheduledActions: null,
+      scheduledActions: SCHEDULED_BLOCK_NOW,
+      beta: true,
     },
   ];
-  return { policies, truncated: false };
+  return {
+    policies,
+    truncated: false,
+    betaRead: {
+      status: 'ok',
+      source: mockSource('deviceCompliancePoliciesBeta'),
+      truncated: false,
+    },
+  };
 }
 
 // ---------- App-Schutz ----------

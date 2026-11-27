@@ -336,6 +336,13 @@ export const Docs = {
   /** Android Enterprise vollständig verwaltet, Stufe 1–3 (Compliance-Typ nur in beta dokumentiert) */
   postureAndroidFullyManaged:
     'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed',
+  /** Tabellen „Device compliance (level 1/2/3)“ – Sollwerte gegengeprüft 2026-11-27 (dritte Beta-Ausnahme) */
+  postureAndroidFullyManagedLevel1:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#device-compliance-level-1',
+  postureAndroidFullyManagedLevel2:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#device-compliance-level-2',
+  postureAndroidFullyManagedLevel3:
+    'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#device-compliance-level-3',
   /** „Mark device noncompliant“: Standardaktion, 0 Tage = sofort; Hinweis: Android-Geräteadministrator eingestellt */
   postureNoncomplianceActions:
     'https://learn.microsoft.com/intune/device-security/compliance/configure-noncompliance-actions#available-actions-for-noncompliance',
@@ -419,6 +426,16 @@ export const Docs = {
     'https://learn.microsoft.com/graph/api/resources/intune-mam-iosmanagedappprotection?view=graph-rest-1.0',
   postureGraphAndroidAppProtection:
     'https://learn.microsoft.com/graph/api/resources/intune-mam-androidmanagedappprotection?view=graph-rest-1.0',
+  /**
+   * Beta-Typ androidDeviceOwnerCompliancePolicy (dritte freigegebene Beta-Ausnahme, 2026-11-27) samt der
+   * Enum-Seiten, auf denen die Vergleiche beruhen (Kennworttyp, starke Integrität)
+   */
+  postureGraphAndroidDeviceOwnerCompliance:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androiddeviceownercompliancepolicy?view=graph-rest-beta',
+  postureGraphAndroidDeviceOwnerPasswordType:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androiddeviceownerrequiredpasswordtype?view=graph-rest-beta',
+  postureGraphAndroidSafetyNetEvaluationType:
+    'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androidsafetynetevaluationtype?view=graph-rest-beta',
   /** deviceComplianceActionType: `block` = „Block the device in AAD“ */
   postureGraphComplianceActionType:
     'https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-devicecomplianceactiontype?view=graph-rest-1.0',

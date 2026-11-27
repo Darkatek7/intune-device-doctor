@@ -21,6 +21,7 @@ import {
   postureScore,
 } from './index';
 import {
+  ANDROID_FULLY_MANAGED_COMPLIANCE,
   ANDROID_WORK_PROFILE_COMPLIANCE,
   APP_PROTECTION_ANDROID,
   APP_PROTECTION_IOS,
@@ -203,6 +204,23 @@ function run(overrides: Partial<TenantPosture> = {}, level: PostureLevel = 2): P
 
 const policies = (list: CompliancePolicyConfig[], truncated = false) =>
   ok({ policies: list, truncated });
+
+/** Quelle der Beta-Liste der Compliance-Richtlinien (dritte freigegebene Beta-Ausnahme). */
+const BETA_SOURCE: DataSource = {
+  kind: 'mock',
+  label: 'GET /beta/deviceManagement/deviceCompliancePolicies',
+};
+const policiesWithBeta = (
+  list: CompliancePolicyConfig[],
+  status: 'ok' | 'failed' = 'ok',
+  betaTruncated = false,
+) =>
+  ok({
+    policies: list,
+    truncated: false,
+    betaRead: { status, source: BETA_SOURCE, truncated: betaTruncated },
+  });
+const DEVICE_OWNER_TYPE = '#microsoft.graph.androidDeviceOwnerCompliancePolicy';
 
 // ---------- Struktur ----------
 
@@ -432,6 +450,71 @@ describe('postureCoverage', () => {
       expect(status(t, 'androidPersonal')).toBe('deviating');
       expect(t.findings.map((f) => f.id)).toContain('postureCoverage-missing-androidPersonal');
       expect(t.severity).toBe('critical');
+    });
+
+    it('zugewiesene Richtlinie vom Typ androidDeviceOwner (aus der Beta-Liste) → erfüllt, Beta ausgewiesen', () => {
+      const t = tile({
+        platformCounts: android(0, 4),
+        compliancePolicies: policiesWithBeta([
+          compliance('androidDeviceOwner', {}, { odataType: DEVICE_OWNER_TYPE, beta: true }),
+        ]),
+      });
+      expect(status(t, 'androidCorporate')).toBe('met');
+      expect(t.findings.map((f) => f.id)).not.toContain('postureCoverage-androidCorporate-beta');
+      expect(t.sources).toContainEqual(BETA_SOURCE);
+      expect(t.facts).toContainEqual({
+        label: 'Datenquelle',
+        value: 'Microsoft Graph Beta-API (freigegebene Ausnahme)',
+      });
+      // ohne Richtlinie aus der Beta-Liste keine Beta-Kennzeichnung
+      const plain = tile({
+        platformCounts: android(11, 0),
+        compliancePolicies: policies([compliance('androidWorkProfile', {})]),
+      });
+      expect(plain.sources).not.toContainEqual(BETA_SOURCE);
+      expect(plain.facts.map((f) => f.label)).not.toContain('Datenquelle');
+    });
+
+    it('nicht zugewiesene androidDeviceOwner-Richtlinie bzw. keine → nicht prüfbar, nie Abweichung', () => {
+      const unassigned = tile({
+        platformCounts: android(0, 4),
+        compliancePolicies: policiesWithBeta([
+          compliance(
+            'androidDeviceOwner',
+            {},
+            { odataType: DEVICE_OWNER_TYPE, beta: true, assigned: false },
+          ),
+        ]),
+      });
+      expect(status(unassigned, 'androidCorporate')).toBe('notChecked');
+      const none = tile({
+        platformCounts: android(11, 4),
+        compliancePolicies: policies([compliance('androidWorkProfile', {})]),
+      });
+      const check = none.checks.find((c) => c.id === 'postureCoverage:androidCorporate');
+      expect(check?.status).toBe('notChecked');
+      // Der Grund behauptet nicht mehr, der Typ sei „über v1.0 nicht lesbar“
+      expect(check?.reason).toContain('kein sicherer Nachweis');
+      expect(check?.reason).not.toContain('über v1.0 nicht sicher lesbar');
+      expect(none.findings.filter((f) => f.severity === 'critical')).toEqual([]);
+    });
+
+    it('Beta-Liste nicht lesbar → Grund und Befund sagen das, weiterhin nicht prüfbar', () => {
+      const t = tile({
+        platformCounts: android(0, 4),
+        compliancePolicies: policiesWithBeta(
+          [compliance('other', {}, { displayName: 'Contoso – Android Lager' })],
+          'failed',
+        ),
+      });
+      const check = t.checks.find((c) => c.id === 'postureCoverage:androidCorporate');
+      expect(check?.status).toBe('notChecked');
+      expect(check?.reason).toContain('Beta-Liste der Compliance-Richtlinien konnte nicht gelesen');
+      const finding = t.findings.find((f) => f.id === 'postureCoverage-androidCorporate-beta');
+      expect(finding?.severity).toBe('unknown');
+      expect(finding?.detail).toContain('konnte nicht gelesen werden');
+      expect(finding?.source).toEqual(BETA_SOURCE);
+      expect(t.sources).toContainEqual(BETA_SOURCE);
     });
 
     it('Geräteeigner-Richtlinie nicht zugewiesen → weiterhin nicht prüfbar, nie Abweichung', () => {
@@ -706,15 +789,11 @@ describe('Compliance-Kacheln', () => {
     expect(postureScore([t])).toEqual({ met: 0, deviating: 0, notChecked: 0, total: 0 });
   });
 
-  it('Android-Geräteadministrator → kein Sollwert; vollständig verwaltet (beta) → nicht prüfbar', () => {
+  it('Android-Geräteadministrator → kein Sollwert; Android-Typ ohne Einstellungen (other) → nicht prüfbar', () => {
     const t = tile(
       [
         compliance('androidDeviceAdministrator', {}),
-        compliance(
-          'other',
-          {},
-          { odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy' },
-        ),
+        compliance('other', {}, { odataType: DEVICE_OWNER_TYPE }),
       ],
       'postureComplianceAndroid',
     );
@@ -726,10 +805,26 @@ describe('Compliance-Kacheln', () => {
     );
     expect(t.checks.map((c) => c.status)).toEqual(['notChecked']);
     expect(t.value).toBe('Nicht prüfbar');
-    // Die Kachel sagt, welches Framework sie bewertet
-    expect(t.facts.find((f) => f.label === 'Bewertetes Framework')?.value).toContain(
-      'persönliches Gerät mit Arbeitsprofil',
+    // Kein Framework bewertet → die Kachel behauptet auch keines
+    expect(t.facts.map((f) => f.label)).not.toContain('Bewertetes Framework');
+    // Texte behaupten nicht mehr, „vollständig verwaltet“ sei grundsätzlich nicht lesbar
+    const finding = t.findings.find((f) => f.id === 'postureComplianceAndroid-betaOnly');
+    expect(finding?.detail).toContain('Über die Beta-API liest sie nur Richtlinien des Typs');
+    expect(JSON.stringify(t)).not.toContain('werden nicht bewertet');
+  });
+
+  it('Android: der Fakt nennt nur das tatsächlich bewertete Framework', () => {
+    const t = tile(
+      [compliance('androidWorkProfile', satisfying(ANDROID_WORK_PROFILE_COMPLIANCE))],
+      'postureComplianceAndroid',
     );
+    expect(t.facts.find((f) => f.label === 'Bewertetes Framework')?.value).toBe(
+      'Android Enterprise, persönliches Gerät mit Arbeitsprofil',
+    );
+    // ohne Richtlinie aus der Beta-Liste: keine Beta-Kennzeichnung, kein Hinweis zum Richtlinientyp
+    expect(t.facts.map((f) => f.label)).not.toContain('Datenquelle');
+    expect(t.facts.map((f) => f.label)).not.toContain('Geltung des Richtlinientyps');
+    expect(t.summary).not.toContain('Beta-API');
   });
 
   it('iOS „Maximale Minuten nach Bildschirmsperre“ = 0 → nicht prüfbar (Bedeutung nicht dokumentiert)', () => {
@@ -835,6 +930,388 @@ describe('Compliance-Kacheln', () => {
     ] as const) {
       expect(tileOf(tiles, id).availability).toBe(name);
     }
+  });
+});
+
+// ---------- Compliance: Android Enterprise vollständig verwaltet (Beta) ----------
+
+describe('Compliance: Android vollständig verwaltet (androidDeviceOwner, Beta-Liste)', () => {
+  const AFM = ANDROID_FULLY_MANAGED_COMPLIANCE;
+  const ID = 'postureComplianceAndroid';
+  const fullyManaged = (
+    settings: PostureSettings = {},
+    overrides: Partial<CompliancePolicyConfig> = {},
+  ) =>
+    compliance(
+      'androidDeviceOwner',
+      { ...satisfying(AFM), ...settings },
+      { odataType: DEVICE_OWNER_TYPE, beta: true, ...overrides },
+    );
+  const workProfile = (settings: PostureSettings = {}) =>
+    compliance('androidWorkProfile', {
+      ...satisfying(ANDROID_WORK_PROFILE_COMPLIANCE),
+      ...settings,
+    });
+  const tile = (
+    list: CompliancePolicyConfig[],
+    level: PostureLevel,
+    status: 'ok' | 'failed' = 'ok',
+    betaTruncated = false,
+  ) =>
+    tileOf(run({ compliancePolicies: policiesWithBeta(list, status, betaTruncated) }, level), ID);
+  const checkOf = (t: PostureTile, checkId: string) =>
+    t.checks.find((c) => c.id.includes(`:${checkId}`));
+  const fact = (t: PostureTile, label: string) => t.facts.find((f) => f.label === label)?.value;
+  const level1Count = AFM.checks.filter((check) => check.level === 1).length;
+  const level2Count = AFM.checks.filter((check) => (check.level ?? 0) <= 2).length;
+
+  it('Stufe 1: nur Stufe-1-Prüfungen; erfüllt → „Stufe 1 erreicht“ (vollständig prüfbar)', () => {
+    // Stufe-2-Werte fehlen/weichen ab – bei Stufe 1 ohne Belang
+    const t = tile(
+      [
+        fullyManaged({
+          passwordExpirationDays: null,
+          passwordPreviousPasswordCountToBlock: null,
+          securityRequiredAndroidSafetyNetEvaluationType: 'basic',
+        }),
+      ],
+      1,
+    );
+    expect(t.checks).toHaveLength(level1Count);
+    expect(t.checks.every((c) => c.level === 1 && c.status === 'met')).toBe(true);
+    expect(t.value).toBe('Stufe 1 erreicht');
+    expect(t.severity).toBe('ok');
+    expect(fact(t, 'Bewertete Stufe')).toBe('Stufe 1 (Basis)');
+    expect(fact(t, 'Bewertetes Framework')).toBe('Android Enterprise, vollständig verwaltet');
+    for (const check of t.checks) expect(check.docsUrl).toContain('#device-compliance-level-1');
+  });
+
+  it('Stufe 2: Abweichungen → warning mit Tabelle; der Befund nennt dedizierte Geräte', () => {
+    const policy = fullyManaged({
+      passwordPreviousPasswordCountToBlock: 3,
+      securityRequiredAndroidSafetyNetEvaluationType: 'basic',
+    });
+    const t = tile([policy], 2);
+    expect(t.checks).toHaveLength(level2Count);
+    expect(t.checks.filter((c) => c.status === 'deviating').map((c) => c.id)).toEqual([
+      `${ID}:afmPasswordReuse:${policy.id}`,
+      `${ID}:afmStrongIntegrity:${policy.id}`,
+    ]);
+    expect(t.value).toBe(`${level2Count - 2} von ${level2Count} erfüllt`);
+    expect(t.severity).toBe('warning');
+    const finding = t.findings.find((f) => f.id === `${ID}-policy-${policy.id}`);
+    expect(finding?.table?.rows.map((r) => r.cells.slice(0, 3))).toEqual([
+      ['Anzahl vorheriger Kennwörter, die nicht wiederverwendet werden dürfen', '3', '5 oder mehr'],
+      [
+        'Starke Integrität mit hardwaregestützten Sicherheitsfunktionen',
+        'Standard (ohne starke Integrität)',
+        'Starke Integrität prüfen',
+      ],
+    ]);
+    expect(finding?.detail).toContain('Stufe 1 erreicht');
+    expect(finding?.detail).toContain('dedizierte Geräte (Kiosk)');
+    expect(finding?.docsUrl).toContain('android-fully-managed');
+    expect(checkOf(t, 'afmPasswordReuse')?.properties).toEqual([
+      'passwordPreviousPasswordCountToBlock',
+    ]);
+  });
+
+  it('Stufe 3: alles erfüllt → „soweit prüfbar“; die Defender-Zeile ist mit eigenem Grund nicht prüfbar', () => {
+    const t = tile([fullyManaged()], 3);
+    expect(t.checks.filter((c) => c.status === 'deviating')).toEqual([]);
+    expect(t.value).toBe('Stufe 3 erreicht, soweit prüfbar');
+    const mde = t.checks.find((c) => c.id === `${ID}:afmMdeRisk`);
+    expect(mde).toMatchObject({
+      status: 'notChecked',
+      level: 3,
+      expected: 'Frei',
+      reason:
+        'Die Eigenschaft ist dokumentiert, die Zuordnung des Werts im Intune Admin Center zum Enum-Wert der API aber nicht',
+    });
+    expect(mde?.docsUrl).toContain('#device-compliance-level-3');
+    const finding = t.findings.find((f) => f.id === `${ID}-uncheckable`);
+    expect(finding?.detail).toContain('Die Eigenschaft der Graph-API ist dokumentiert');
+    expect(finding?.detail).not.toContain('v1.0');
+    // Stufe 2 hat keine nicht prüfbare Empfehlung → dort vollständig
+    expect(tile([fullyManaged()], 2).value).toBe('Stufe 2 erreicht');
+  });
+
+  describe('Stufe 3: Defender for Endpoint ODER Mobile Threat Defense', () => {
+    const threat = (settings: PostureSettings) => {
+      const t = tile([fullyManaged(settings)], 3);
+      return { t, check: checkOf(t, 'afmThreatLevel:') };
+    };
+
+    it('Bedrohungsstufe nicht aktiviert → nicht prüfbar, keine Abweichung, kein „v1.0“ im Grund', () => {
+      const { t, check } = threat({
+        deviceThreatProtectionEnabled: false,
+        deviceThreatProtectionRequiredSecurityLevel: 'unavailable',
+      });
+      expect(check?.status).toBe('notChecked');
+      expect(check?.reason).toContain(
+        'Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung',
+      );
+      expect(check?.reason).not.toContain('v1.0');
+      expect(t.checks.filter((c) => c.status === 'deviating')).toEqual([]);
+      expect(t.value).toBe('Stufe 3 erreicht, soweit prüfbar');
+    });
+
+    it('aktiviert mit anderer Stufe als „Geschützt“ → weicht ab; mit „Geschützt“ → erfüllt', () => {
+      const medium = threat({
+        deviceThreatProtectionEnabled: true,
+        deviceThreatProtectionRequiredSecurityLevel: 'medium',
+      });
+      expect(medium.check?.status).toBe('deviating');
+      expect(medium.check?.actual).toBe('Bedrohungsstufe aktiviert · Mittel');
+      expect(medium.t.value).not.toContain('Stufe 3');
+      expect(threat({}).check?.status).toBe('met');
+    });
+  });
+
+  it.each(['lowSecurityBiometric', 'customPassword'])(
+    'Kennworttyp %s → nicht prüfbar: weder Abweichung noch bestätigte Stufe',
+    (type) => {
+      const t = tile([fullyManaged({ passwordRequiredType: type })], 1);
+      const check = checkOf(t, 'afmPasswordType:');
+      expect(check?.status).toBe('notChecked');
+      expect(check?.reason).toContain('keinen Rang gegenüber dem empfohlenen Wert');
+      expect(t.checks.filter((c) => c.status === 'deviating')).toEqual([]);
+      expect(t.value).toBe('Stufe 1 erreicht, soweit prüfbar');
+      expect(t.findings.every((f) => f.severity === 'unknown')).toBe(true);
+    },
+  );
+
+  it('Kennworttyp „numerisch“ weicht ab, „alphanumerisch“ erfüllt', () => {
+    const weak = tile([fullyManaged({ passwordRequiredType: 'numeric' })], 1);
+    expect(checkOf(weak, 'afmPasswordType:')?.status).toBe('deviating');
+    expect(weak.value).toBe(`${level1Count - 1} von ${level1Count} erfüllt`);
+    const strict = tile([fullyManaged({ passwordRequiredType: 'alphanumeric' })], 1);
+    expect(checkOf(strict, 'afmPasswordType:')?.status).toBe('met');
+  });
+
+  it('„Maximale Inaktivität“ = 0 → nicht prüfbar (Bedeutung in der Beta-Ressource nicht dokumentiert)', () => {
+    const t = tile([fullyManaged({ passwordMinutesOfInactivityBeforeLock: 0 })], 1);
+    const check = checkOf(t, 'afmPasswordInactivity:');
+    expect(check?.status).toBe('notChecked');
+    expect(check?.actual).toBe('0 (Bedeutung nicht dokumentiert)');
+    expect(check?.reason).toContain('weder einen Wertebereich noch die Bedeutung von 0');
+    expect(
+      checkOf(
+        tile([fullyManaged({ passwordMinutesOfInactivityBeforeLock: 10 })], 1),
+        'afmPasswordInactivity:',
+      )?.status,
+    ).toBe('deviating');
+  });
+
+  it('starke Integrität: basic weicht ab (Stufe 2), hardwareBacked erfüllt', () => {
+    const basic = tile(
+      [fullyManaged({ securityRequiredAndroidSafetyNetEvaluationType: 'basic' })],
+      2,
+    );
+    expect(checkOf(basic, 'afmStrongIntegrity:')?.status).toBe('deviating');
+    expect(checkOf(tile([fullyManaged()], 2), 'afmStrongIntegrity:')).toMatchObject({
+      status: 'met',
+      actual: 'Starke Integrität (hardwaregestützt)',
+    });
+  });
+
+  describe('Beta-Kennzeichnung', () => {
+    it('Richtlinie aus der Beta-Liste (beta: true) → Fakt, Zusammenfassung und Quelle weisen Beta aus', () => {
+      const t = tile([fullyManaged()], 2);
+      expect(fact(t, 'Datenquelle')).toBe('Microsoft Graph Beta-API (freigegebene Ausnahme)');
+      expect(t.summary.endsWith(' · Beta-API')).toBe(true);
+      expect(t.sources).toContainEqual(BETA_SOURCE);
+      expect(t.sources).toContainEqual(SOURCE);
+    });
+
+    it('ohne beta: true keine Kennzeichnung – auch wenn die Beta-Liste gelesen wurde', () => {
+      const t = tile([workProfile()], 2);
+      expect(t.facts.map((f) => f.label)).not.toContain('Datenquelle');
+      expect(t.summary).not.toContain('Beta-API');
+      expect(t.sources).not.toContainEqual(BETA_SOURCE);
+      // andere Plattformen bleiben unberührt
+      const ios = tileOf(
+        run({
+          compliancePolicies: policiesWithBeta([
+            compliance('ios', satisfying(IOS_COMPLIANCE)),
+            fullyManaged(),
+          ]),
+        }),
+        'postureComplianceIos',
+      );
+      expect(ios.summary).not.toContain('Beta-API');
+      expect(ios.sources).not.toContainEqual(BETA_SOURCE);
+    });
+
+    it('Hinweis: Der Richtlinientyp gilt auch für dedizierte Geräte', () => {
+      const t = tile([fullyManaged()], 2);
+      const note = fact(t, 'Geltung des Richtlinientyps');
+      expect(note).toContain('Empfehlung für vollständig verwaltete Geräte');
+      expect(note).toContain('dedizierte Geräte (Kiosk)');
+      expect(note).toContain('unternehmenseigene Geräte mit Arbeitsprofil');
+      expect(note).toContain('Abweichungen beabsichtigt');
+    });
+  });
+
+  describe('gemischte Kachel: Arbeitsprofil (Stufe 2/3) und vollständig verwaltet (Stufe 1–3)', () => {
+    const unique = (values: string[]) => expect(new Set(values).size).toBe(values.length);
+
+    it('Nutzerstufe 1: unterschiedliche effektive Stufen (2 bzw. 1) → Zählwert statt „Stufe N erreicht“', () => {
+      const t = tile([workProfile(), fullyManaged()], 1);
+      expect(t.checks.filter((c) => c.status === 'deviating')).toEqual([]);
+      expect(t.value).not.toContain('Stufe');
+      const evaluated = t.checks.filter((c) => c.counted && c.status !== 'notChecked').length;
+      expect(t.value).toBe(`${evaluated} von ${evaluated} erfüllt`);
+      expect(fact(t, 'Bewertete Stufe (Arbeitsprofil)')).toContain('Stufe 2');
+      expect(fact(t, 'Bewertete Stufe (vollständig verwaltet)')).toBe('Stufe 1 (Basis)');
+      expect(t.facts.map((f) => f.label)).not.toContain('Bewertete Stufe');
+      expect(fact(t, 'Bewertete Frameworks')).toBe(
+        'Android Enterprise, persönliches Gerät mit Arbeitsprofil · Android Enterprise, vollständig verwaltet',
+      );
+      // Arbeitsprofil gegen Stufe 2, vollständig verwaltet nur gegen Stufe 1
+      expect(t.checks.filter((c) => c.id.includes(':afm')).every((c) => c.level === 1)).toBe(true);
+      expect(t.checks.some((c) => c.id.includes(':awp') && c.level === 2)).toBe(true);
+      unique(t.facts.map((f) => f.label));
+    });
+
+    it('Nutzerstufe 2: gleiche Stufe, alle erreichen sie → „Stufe 2 erreicht, soweit prüfbar“', () => {
+      const t = tile([workProfile(), fullyManaged()], 2);
+      // Arbeitsprofil hat auf Stufe 2 eine Empfehlung ohne v1.0-Eigenschaft
+      expect(t.value).toBe('Stufe 2 erreicht, soweit prüfbar');
+      expect(fact(t, 'Bewertete Stufe')).toBe('Stufe 2 (erweitert)');
+      expect(t.facts.filter((f) => f.label.startsWith('Bewertete Stufe'))).toHaveLength(1);
+      unique(t.facts.map((f) => f.label));
+    });
+
+    it('Nutzerstufe 2: eine Richtlinie erreicht die Stufe nicht → Zählwert', () => {
+      const t = tile([workProfile(), fullyManaged({ passwordExpirationDays: 400 })], 2);
+      expect(t.value).not.toContain('Stufe');
+      expect(t.severity).toBe('warning');
+      const other = tile([workProfile({ passwordMinimumLength: 4 }), fullyManaged()], 2);
+      expect(other.value).not.toContain('Stufe');
+    });
+
+    it('Nutzerstufe 1: auch eine nicht zugewiesene Richtlinie des anderen Frameworks verhindert „Stufe N erreicht“', () => {
+      // Die Fakten nennen zwei unterschiedliche Stufen – der Kopfwert darf dann keine einzelne behaupten
+      const t = tile([workProfile(), fullyManaged({}, { assigned: false })], 1);
+      expect(t.value).not.toContain('Stufe');
+      const evaluated = t.checks.filter((c) => c.counted && c.status !== 'notChecked').length;
+      expect(t.value).toBe(`${evaluated} von ${evaluated} erfüllt`);
+      expect(fact(t, 'Bewertete Stufe (vollständig verwaltet)')).toBe('Stufe 1 (Basis)');
+      // bei gleicher Stufe zählt die nicht zugewiesene Richtlinie nicht gegen die Stufe
+      const level2 = tile(
+        [workProfile(), fullyManaged({ passwordExpirationDays: 400 }, { assigned: false })],
+        2,
+      );
+      expect(level2.value).toBe('Stufe 2 erreicht, soweit prüfbar');
+    });
+
+    it('Nutzerstufe 3: Befunde, Fakten und Prüfungen bleiben eindeutig; je Framework ein eigener Hinweis', () => {
+      const t = tile([workProfile(), fullyManaged()], 3);
+      unique(t.findings.map((f) => f.id));
+      unique(t.facts.map((f) => f.label));
+      unique(t.checks.map((c) => c.id));
+      const awp = t.findings.find((f) => f.id === `${ID}-uncheckable-androidWorkProfileCompliance`);
+      const afm = t.findings.find(
+        (f) => f.id === `${ID}-uncheckable-androidFullyManagedCompliance`,
+      );
+      expect(awp?.table?.rows).toHaveLength(ANDROID_WORK_PROFILE_COMPLIANCE.uncheckable.length);
+      expect(awp?.detail).toContain('v1.0');
+      expect(afm?.table?.rows).toHaveLength(1);
+      expect(afm?.detail).not.toContain('v1.0');
+      expect(afm?.docsUrl).toContain('android-fully-managed');
+      expect(t.findings.map((f) => f.id)).not.toContain(`${ID}-uncheckable`);
+      expect(t.value).toBe('Stufe 3 erreicht, soweit prüfbar');
+    });
+  });
+
+  describe('Beta-Liste nicht lesbar bzw. anderer Beta-Typ (type: other)', () => {
+    const kiosk = () =>
+      compliance(
+        'other',
+        {},
+        { displayName: 'Contoso – Android Kiosk', odataType: DEVICE_OWNER_TYPE },
+      );
+
+    it('Abruf gescheitert → Befund, Grund und Fakt sagen, dass die Beta-Liste nicht lesbar war', () => {
+      const t = tile([kiosk()], 2, 'failed');
+      expect(t.value).toBe('Nicht prüfbar');
+      expect(t.severity).toBe('unknown');
+      const finding = t.findings.find((f) => f.id === `${ID}-betaOnly`);
+      expect(finding?.detail).toContain(
+        'Der Abruf der Beta-Liste der Compliance-Richtlinien ist gescheitert',
+      );
+      expect(finding?.cause).toContain('konnte nicht gelesen werden');
+      expect(finding?.source).toEqual(BETA_SOURCE);
+      expect(finding?.evidence).toMatchObject({ betaList: 'failed' });
+      expect(t.checks[0]?.reason).toContain('konnte nicht gelesen werden');
+      expect(fact(t, 'Beta-Liste der Compliance-Richtlinien')).toContain('Nicht lesbar');
+      expect(t.sources).toContainEqual(BETA_SOURCE);
+      // nichts aus der Beta-Liste angezeigt → keine Beta-Kennzeichnung der Kachel
+      expect(t.facts.map((f) => f.label)).not.toContain('Datenquelle');
+      expect(t.facts.map((f) => f.label)).not.toContain('Bewertetes Framework');
+      // die alten Aussagen stimmen nicht mehr
+      expect(JSON.stringify(t)).not.toContain('nur in der Beta-API mit Einstellungen dokumentiert');
+    });
+
+    it('Abruf gescheitert, Richtlinie ohne erkennbare Plattform → der Befund nennt die Beta-Liste', () => {
+      const t = tile(
+        [compliance('other', {}, { displayName: 'Contoso – Android Lager' })],
+        2,
+        'failed',
+      );
+      expect(t.value).toBe('Nicht prüfbar');
+      const finding = t.findings.find((f) => f.id === `${ID}-unclassified`);
+      expect(finding?.detail).toContain('„Contoso – Android Lager“');
+      expect(finding?.detail).toContain('konnte nicht gelesen werden');
+      expect(finding?.cause).toContain(
+        'Beta-Liste der Compliance-Richtlinien konnte nicht gelesen',
+      );
+      expect(finding?.evidence).toEqual({ odataTypes: 'kein Typ geliefert', betaList: 'failed' });
+      expect(fact(t, 'Beta-Liste der Compliance-Richtlinien')).toContain('Nicht lesbar');
+    });
+
+    it('Beta-Liste gelesen, Richtlinie weiter ohne Plattform → „weder v1.0 noch die Beta-Liste“', () => {
+      const t = tile([compliance('other', {}, { displayName: 'Contoso – Android Lager' })], 2);
+      const finding = t.findings.find((f) => f.id === `${ID}-unclassified`);
+      expect(finding?.cause).toContain('Weder v1.0 noch die Beta-Liste');
+      expect(finding?.detail).toContain('Auch die Beta-Liste');
+      expect(t.facts.map((f) => f.label)).not.toContain('Beta-Liste der Compliance-Richtlinien');
+    });
+
+    it('anderer Beta-Typ (z. B. AOSP) → nicht prüfbar mit zutreffendem Grund, als Beta gekennzeichnet', () => {
+      const aosp = compliance(
+        'other',
+        {},
+        { odataType: '#microsoft.graph.aospDeviceOwnerCompliancePolicy', beta: true },
+      );
+      const t = tile([aosp], 2);
+      expect(t.checks.map((c) => c.status)).toEqual(['notChecked']);
+      expect(t.checks[0]?.actual).toBe('#microsoft.graph.aospDeviceOwnerCompliancePolicy');
+      expect(t.checks[0]?.reason).toContain(
+        'Für diesen Richtlinientyp liest die App keine Einstellungen',
+      );
+      const finding = t.findings.find((f) => f.id === `${ID}-betaOnly`);
+      expect(finding?.detail).not.toContain('gescheitert');
+      // der Typ stammt aus der Beta-Liste
+      expect(fact(t, 'Datenquelle')).toBe('Microsoft Graph Beta-API (freigegebene Ausnahme)');
+      expect(t.facts.map((f) => f.label)).not.toContain('Geltung des Richtlinientyps');
+    });
+
+    it('Beta-Liste abgeschnitten → der Grund nennt die Seitengrenze', () => {
+      const t = tile([kiosk()], 2, 'ok', true);
+      expect(t.checks[0]?.reason).toContain('nicht vollständig gelesen (Seitengrenze)');
+      expect(fact(t, 'Beta-Liste der Compliance-Richtlinien')).toContain('Seitengrenze');
+    });
+
+    it('neben einer bewerteten Richtlinie bleibt die nicht lesbare sichtbar und zählt als nicht prüfbar', () => {
+      const t = tile([workProfile(), kiosk()], 2, 'failed');
+      expect(t.findings.map((f) => f.id)).toContain(`${ID}-betaOnly`);
+      expect(fact(t, 'Bewertetes Framework')).toBe(
+        'Android Enterprise, persönliches Gerät mit Arbeitsprofil',
+      );
+      expect(fact(t, 'Richtlinie „Contoso – Android Kiosk“')).toBe('Nicht prüfbar');
+    });
   });
 });
 
@@ -1369,6 +1846,6 @@ describe('postureScore', () => {
   });
 
   it('Katalog ist vollständig über ALL_FRAMEWORKS erreichbar', () => {
-    expect(ALL_FRAMEWORKS).toHaveLength(5);
+    expect(ALL_FRAMEWORKS).toHaveLength(6);
   });
 });

@@ -35,8 +35,9 @@ export type CatalogCheckId = keyof typeof dePosture.catalog;
 export type UncheckableId = keyof typeof dePosture.uncheckable;
 
 /**
- * Eine Prüfung des Katalogs: Graph-Eigenschaft(en) des v1.0-Typs ↔ Learn-Sollwert. Bezeichnung und
- * Sollwert-Text stehen unter derselben `id` in `de.posture.catalog`.
+ * Eine Prüfung des Katalogs: Graph-Eigenschaft(en) des dokumentierten Typs (v1.0; für Android Enterprise
+ * „vollständig verwaltet“ der nur in beta dokumentierte Typ, freigegebene Ausnahme) ↔ Learn-Sollwert.
+ * Bezeichnung und Sollwert-Text stehen unter derselben `id` in `de.posture.catalog`.
  */
 export interface CatalogCheck {
   id: CatalogCheckId;
@@ -53,7 +54,7 @@ export interface CatalogCheck {
   evaluate(subject: PolicySubject): CheckOutcome;
 }
 
-/** Learn-Sollwert ohne v1.0-Eigenschaft bzw. ohne dokumentierte Zuordnung → „nicht prüfbar“. */
+/** Learn-Sollwert ohne dokumentierte Eigenschaft bzw. ohne dokumentierte Zuordnung → „nicht prüfbar“. */
 export interface UncheckableRecommendation {
   id: UncheckableId;
   level: PostureLevel | null;

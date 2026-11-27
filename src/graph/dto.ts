@@ -1194,6 +1194,47 @@ export const ANDROID_COMPLIANCE_SETTING_FIELDS = [
   'securityRequireCompanyPortalAppIntegrity',
 ] as const;
 
+/**
+ * androidDeviceOwnerCompliancePolicy (Android Enterprise: vollständig verwaltet, dediziert,
+ * unternehmenseigen mit Arbeitsprofil) – NUR in der Beta-API dokumentiert (dritte freigegebene
+ * Beta-Ausnahme, 2026-11-27). Allowlist der Einstellungs-Eigenschaften; Basisfelder (id, displayName,
+ * description, roleScopeTagIds, createdDateTime, version, lastModifiedDateTime) gehören nicht dazu.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-androiddeviceownercompliancepolicy?view=graph-rest-beta
+ */
+export const ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS = [
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'advancedThreatProtectionRequiredSecurityLevel',
+  'securityBlockJailbrokenDevices',
+  'securityRequireSafetyNetAttestationBasicIntegrity',
+  'securityRequireSafetyNetAttestationCertifiedDevice',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'minAndroidSecurityPatchLevel',
+  'passwordRequired',
+  'passwordMinimumLength',
+  'passwordMinimumLetterCharacters',
+  'passwordMinimumLowerCaseCharacters',
+  'passwordMinimumNonLetterCharacters',
+  'passwordMinimumNumericCharacters',
+  'passwordMinimumSymbolCharacters',
+  'passwordMinimumUpperCaseCharacters',
+  'passwordRequiredType',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordExpirationDays',
+  'passwordPreviousPasswordCountToBlock',
+  'storageRequireEncryption',
+  'securityRequireIntuneAppIntegrity',
+  'requireNoPendingSystemUpdates',
+  'securityRequiredAndroidSafetyNetEvaluationType',
+] as const;
+
+/** Eintrag der Beta-Liste `deviceCompliancePolicies` (nur zur Aufwertung von v1.0-Richtlinien ohne Typ). */
+export type GraphCompliancePolicyBeta = GraphCompliancePolicyBase &
+  Partial<
+    Record<(typeof ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS)[number], GraphSettingScalar>
+  >;
+
 /** Basis jeder Compliance-Richtlinie (deviceCompliancePolicy, v1.0). */
 export interface GraphCompliancePolicyBase {
   '@odata.type'?: string | null;

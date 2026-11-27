@@ -146,6 +146,7 @@ describe('Verbindungstest – Vollständigkeit', () => {
     expect(betaPaths).toEqual(
       [
         `/beta/users/${USER_ID}/mobileAppIntentAndStates`,
+        '/beta/deviceManagement/deviceCompliancePolicies',
         '/beta/deviceManagement/configurationPolicies',
         '/beta/deviceManagement/configurationPolicies/e1/settings',
         '/beta/deviceManagement/configurationPolicyTemplates',
@@ -160,6 +161,7 @@ describe('Verbindungstest – Vollständigkeit', () => {
     ).toEqual(
       [
         'mobileAppIntentAndStates',
+        'deviceCompliancePoliciesBeta',
         'catalogPolicies',
         'catalogPolicySettings',
         'policyTemplates',

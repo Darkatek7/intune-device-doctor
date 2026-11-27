@@ -164,8 +164,84 @@ Eine unabhängige Prüfung des Regelwerks gegen die Learn-Quellen hat neun Befun
 
 - **Stufe 3 und Mobile Threat Defense:** MTD ist keine Pflicht – Microsoft nennt Defender for Endpoint **oder** MTD; die Defender-Bewertung ist über v1.0 nicht lesbar und deshalb „nicht prüfbar“.
 - **Endpunktsicherheit je Profil:** Die Zuordnung zum empfohlenen Profil erfolgt über den Vorlagennamen (offen ausgewiesene Heuristik) statt über den Bereich allein.
-- **Android-Abdeckung getrennt:** persönliche und unternehmenseigene Geräte werden unterschieden; der Richtlinientyp für vollständig verwaltete Geräte ist nur in Beta dokumentiert und daher „nicht prüfbar“.
+- **Android-Abdeckung getrennt:** persönliche und unternehmenseigene Geräte werden unterschieden; der Richtlinientyp für vollständig verwaltete Geräte ist nur in Beta dokumentiert und daher „nicht prüfbar“. (Stand 2026-11-25; seit dem Nachtrag vom 2026-11-27 unten wird der Typ über die dritte Beta-Ausnahme gelesen und bewertet.)
 - **iOS-Wert 0:** Bei „Maximum minutes after screen lock“ gilt der Wert 0 jetzt als „nicht prüfbar“ statt als Abweichung – ob Graph damit „Sofort“ oder „nicht konfiguriert“ meint, ist nicht dokumentiert (live zu verifizieren, siehe `docs/live-verification.md`).
 - **Fehlende App-Schutz-Zeilen:** drei Zeilen des Frameworks als „nicht prüfbar“ ergänzt („save copies to selected services“ – das v1.0-Enum kennt „Photo Library“ nicht; „open data from selected services“ und „Select apps to exempt“ – keine v1.0-Eigenschaft).
 - **Vier Textkorrekturen:** Bedingter Zugriff mit Konformität als ODER-Alternative hat einen eigenen, zutreffenden Text; „App-Schutz lässt sich nur zusammen mit Bedingtem Zugriff durchsetzen“ statt „greift erst“; ein nur für iOS belegtes Zitat entfernt; „neuere Baseline-Versionen können …“ statt „enthalten …“.
 - **Secure Score:** Filter nur noch auf die Kategorie „Device“; ohne passende Empfehlungen „Keine Geräte-Empfehlungen gemeldet“ statt „erfüllt“; als „Risiko akzeptiert“ markierte Empfehlungen liest die App bewusst nicht (im Text ausgewiesen).
+
+## Nachtrag 2026-11-27 – Android Enterprise „vollständig verwaltet“ (dritte Beta-Ausnahme)
+
+Freigabe des Projektinhabers (2026-11-27): `GET /beta/deviceManagement/deviceCompliancePolicies` darf gelesen
+werden, um Richtlinien aufzuwerten, die v1.0 ohne dokumentierten Typ liefert. Der Graph-Provider liefert
+Richtlinien des Typs `androidDeviceOwnerCompliancePolicy` als `type: 'androidDeviceOwner'`, `beta: true`,
+mit den 25 Einstellungs-Eigenschaften der Beta-Ressource; `betaRead` beschreibt den Abruf (`ok`/`failed`,
+Seitengrenze). Sollwerte gegengeprüft am 2026-11-27 – nur dieser Zusatz, `POSTURE_CATALOG_VERIFIED_ON`
+bleibt unverändert.
+
+**Framework** `ANDROID_FULLY_MANAGED_COMPLIANCE` (`src/rules/posture/catalog/compliance.ts`), Quelle:
+„Android Enterprise fully managed device security configuration examples“, Tabellen „Device compliance
+(level 1/2/3)“ (`Docs.postureAndroidFullyManagedLevel1…3`). Anders als das Arbeitsprofil kennt es Stufe 1.
+
+| Prüfung                 | Stufe | Graph-Eigenschaft (beta)                                                       | Learn-Sollwert                            |
+| ----------------------- | ----- | ------------------------------------------------------------------------------ | ----------------------------------------- |
+| `afmBasicIntegrity`     | 1     | `securityRequireSafetyNetAttestationBasicIntegrity`                            | Check basic integrity                     |
+| `afmOsMinimum`          | 1     | `osMinimumVersion`                                                             | gesetzt (Learn: nur Format, Beispiel 9.0) |
+| `afmPasswordRequired`   | 1     | `passwordRequired`                                                             | Require                                   |
+| `afmPasswordType`       | 1     | `passwordRequiredType`                                                         | Numeric Complex (oder strenger)           |
+| `afmPasswordMinLength`  | 1     | `passwordMinimumLength`                                                        | 6 (oder mehr)                             |
+| `afmPasswordInactivity` | 1     | `passwordMinutesOfInactivityBeforeLock`                                        | 5 (oder weniger)                          |
+| `afmEncryption`         | 1     | `storageRequireEncryption`                                                     | Require                                   |
+| `afmIntuneAppIntegrity` | 1     | `securityRequireIntuneAppIntegrity`                                            | Require                                   |
+| `afmMarkNoncompliant`   | 1     | – (`scheduledActionsForRule`, `block` mit 0 Stunden)                           | Immediately                               |
+| `afmPasswordExpiration` | 2     | `passwordExpirationDays`                                                       | 365 (oder weniger)                        |
+| `afmPasswordReuse`      | 2     | `passwordPreviousPasswordCountToBlock`                                         | 5 (oder mehr)                             |
+| `afmDeviceIntegrity`    | 2     | `securityRequireSafetyNetAttestationCertifiedDevice`                           | Check basic integrity & device integrity  |
+| `afmStrongIntegrity`    | 2     | `securityRequiredAndroidSafetyNetEvaluationType` = `hardwareBacked`            | Check strong integrity                    |
+| `afmThreatLevel`        | 3     | `deviceThreatProtectionEnabled`, `deviceThreatProtectionRequiredSecurityLevel` | Secured                                   |
+
+**Bewusst nicht geprüft bzw. „nicht prüfbar“ – und warum**
+
+- „Minimum security patch level: Not configured“ (Stufe 1): keine Prüfung – jede Einstellung erfüllt den Wert.
+- „Minimum OS version, Example: 11.0“ (Stufe 3): keine zweite Prüfung – Learn nennt wie in Stufe 1 nur
+  Format und Beispiel, keinen festen Wert.
+- „Require the device to be at or under the machine risk score: Clear“ (Stufe 3, `afmMdeRisk`): Die
+  Eigenschaft `advancedThreatProtectionRequiredSecurityLevel` ist dokumentiert, nicht aber, welcher Wert von
+  `deviceThreatProtectionLevel` dem Portalwert „Clear“ entspricht → `uncheckable` mit dem neuen Grund
+  `valueMappingUndocumented`. Keine Prüfung liest die Eigenschaft.
+- Kennworttyp `lowSecurityBiometric` und `customPassword` (sowie unbekannte Werte): kein dokumentierter Rang
+  gegenüber „Numeric Complex“ → nicht prüfbar (weder erfüllt noch abweichend). `deviceDefault`, `required`,
+  `numeric` weichen ab; `numericComplex`, `alphabetic`, `alphanumeric`, `alphanumericWithSymbols` erfüllen.
+- `passwordMinutesOfInactivityBeforeLock = 0`: Die Beta-Ressource nennt weder Wertebereich noch die
+  Bedeutung von 0 → nicht prüfbar (eigener Grundtext, nicht die iOS-Begründung „Portal bietet Sofort an“).
+- Bedrohungsstufe (Mobile Threat Defense) nicht aktiviert: nicht prüfbar, keine Abweichung – Learn nennt
+  Defender for Endpoint **oder** MTD („It isn't necessary to deploy both“); die Defender-Alternative ist
+  wegen der fehlenden Wertzuordnung nicht bewertbar. Kein Text dieses Frameworks behauptet „v1.0“.
+- Die Tabellen „Device restrictions (level 1–3)“ derselben Seite betreffen Konfigurationsprofile, keine
+  Compliance-Richtlinien – nicht Teil dieser Prüfung.
+
+**Kachel „Compliance: Android“**
+
+- Bewertet bis zu zwei Frameworks (Arbeitsprofil Stufe 2/3, vollständig verwaltet Stufe 1–3). Der Fakt
+  „Bewertetes Framework“ nennt die tatsächlich bewerteten. „Stufe N erreicht“ erscheint nur, wenn alle
+  bewerteten Frameworks gegen dieselbe Stufe bewertet werden und jede gezählte Richtlinie sie erreicht – bei
+  gewählter Stufe 1 (Arbeitsprofil effektiv 2, vollständig verwaltet 1) steht der Zählwert, und die Fakten
+  nennen die Stufe je Framework. Je Framework ein eigener Befund „nicht prüfbar“.
+- **Dedizierte Geräte:** Der Graph-Typ gilt laut Beta-Ressource auch für dedizierte Geräte und
+  unternehmenseigene Geräte mit Arbeitsprofil; die Learn-Empfehlung nennt „fully managed mobile users“. Die
+  Eigenschaften unterscheiden die Arten nicht. Die Kachel sagt das als Fakt „Geltung des Richtlinientyps“
+  und im Befund jeder abweichenden Richtlinie („dort können Abweichungen beabsichtigt sein“).
+- **Beta-Kennzeichnung** (Fakt „Datenquelle“, Zusatz „Beta-API“, Quelle der Beta-Liste) nur, wenn eine
+  Richtlinie der Kachel `beta: true` trägt; ebenso in der Kachel „Abdeckung der Geräte“, wenn die
+  Abdeckung unternehmenseigener Android-Geräte auf einer solchen Richtlinie beruht.
+- `type: 'other'` mit Android-Typ bleibt „nicht prüfbar“ – mit zutreffendem Grund: anderer Beta-Typ
+  (z. B. AOSP), Beta-Liste nicht lesbar (`betaRead.status = 'failed'`) oder abgeschnitten. Dasselbe gilt für
+  Richtlinien ohne erkennbare Plattform.
+- **Abdeckung:** Eine zugewiesene Richtlinie `androidDeviceOwner` erfüllt „Android unternehmenseigen“. Fehlt
+  sie, bleibt es „nicht prüfbar“ (kein kritischer Befund): Die Beta-Liste wird nur gelesen, wenn v1.0
+  Richtlinien ohne dokumentierten Typ liefert, und kann scheitern.
+
+**Quellenwächter:** `docs/posture-sources.lock.json` um die drei Sprungmarken der Seite und um drei
+Beta-Seiten ergänzt (Ressource `androidDeviceOwnerCompliancePolicy`, Enums
+`androidDeviceOwnerRequiredPasswordType` und `androidSafetyNetEvaluationType`); die Hashes aller bisherigen
+Seiten blieben unverändert.

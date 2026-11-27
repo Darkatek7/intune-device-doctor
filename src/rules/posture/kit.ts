@@ -131,8 +131,9 @@ export type PosturePlatform = 'windows' | 'ios' | 'android' | 'macos';
 export const PLATFORMS: readonly PosturePlatform[] = ['windows', 'ios', 'android', 'macos'];
 
 /**
- * Plattform einer Compliance-Richtlinie: aus dem v1.0-Typ, für `other` aus `@odata.type`
- * (z. B. `androidDeviceOwnerCompliancePolicy` → Android). null = keine der vier Plattformen.
+ * Plattform einer Compliance-Richtlinie: aus dem Typ (v1.0 bzw. `androidDeviceOwner` aus der Beta-Liste),
+ * für `other` aus `@odata.type` (z. B. `aospDeviceOwnerCompliancePolicy` → Android). null = keine der
+ * vier Plattformen.
  */
 export function compliancePolicyPlatform(policy: CompliancePolicyConfig): PosturePlatform | null {
   switch (policy.type) {
@@ -144,6 +145,7 @@ export function compliancePolicyPlatform(policy: CompliancePolicyConfig): Postur
       return 'macos';
     case 'androidDeviceAdministrator':
     case 'androidWorkProfile':
+    case 'androidDeviceOwner':
       return 'android';
     case 'other': {
       const type = (policy.odataType ?? '').toLowerCase();
@@ -376,8 +378,10 @@ export function policyOutcome(args: {
 }
 
 /**
- * Learn-Empfehlungen ohne v1.0-Eigenschaft: einmal je Kachel als Befund (Hinweis) und als nicht prüfbare
- * Einzelprüfungen – nur, wenn mindestens eine Richtlinie gegen das Framework bewertet wurde.
+ * Learn-Empfehlungen ohne dokumentierte Eigenschaft bzw. Zuordnung: einmal je Framework als Befund
+ * (Hinweis) und als nicht prüfbare Einzelprüfungen – nur, wenn mindestens eine Richtlinie gegen das
+ * Framework bewertet wurde. Bewertet eine Kachel mehrere Frameworks, braucht jeder Befund eine eigene
+ * `findingId` (Standard: `<Kachel>-uncheckable`).
  */
 export function uncheckableOutcome(
   tile: TileId,
@@ -385,6 +389,7 @@ export function uncheckableOutcome(
   level: PostureLevel | null,
   source: DataSource,
   counted = true,
+  findingId = `${tile}-uncheckable`,
 ): { finding: Finding | null; checks: PostureCheckResult[] } {
   const items = framework.uncheckable.filter(
     (item) => level === null || item.level === null || item.level <= level,
@@ -407,12 +412,15 @@ export function uncheckableOutcome(
       counted,
     };
   });
+  // Eigenschaft dokumentiert, nur die Zuordnung des Sollwerts nicht: der Standardtext („die API liefert
+  // den Wert nicht“) wäre falsch
+  const mappingOnly = items.every((item) => item.reason === 'valueMappingUndocumented');
   const finding: Finding = {
-    id: `${tile}-uncheckable`,
+    id: findingId,
     severity: 'unknown',
     title: dePosture.uncheckableTitle(items.length),
-    detail: dePosture.uncheckableDetail,
-    cause: dePosture.uncheckableCause,
+    detail: mappingOnly ? dePosture.uncheckableDetailMapping : dePosture.uncheckableDetail,
+    cause: mappingOnly ? dePosture.uncheckableCauseMapping : dePosture.uncheckableCause,
     remediation: [...dePosture.compliance.betaTypeRemediation],
     table: {
       columns: [col.setting, col.expected, col.level, col.reason],
@@ -438,12 +446,20 @@ export function truncatedFinding(tile: TileId, source: DataSource): Finding {
   };
 }
 
-/** Fakt „Bewertete Stufe“ (mit Hinweis, wenn Microsoft die gewählte Stufe nicht anbietet). */
-export function levelFact(framework: PostureFramework, selected: PostureLevel): TileFact | null {
+/**
+ * Fakt „Bewertete Stufe“ (mit Hinweis, wenn Microsoft die gewählte Stufe nicht anbietet). `label` nur,
+ * wenn eine Kachel mehrere Frameworks mit unterschiedlicher Stufe ausweist (Fakten brauchen eindeutige
+ * Bezeichnungen).
+ */
+export function levelFact(
+  framework: PostureFramework,
+  selected: PostureLevel,
+  label: string = c.facts.level,
+): TileFact | null {
   const level = effectiveLevel(framework, selected);
   if (level === null) return null;
   return {
-    label: c.facts.level,
+    label,
     value: level === selected ? dePosture.levels[level] : c.facts.levelRaised(selected, level),
   };
 }

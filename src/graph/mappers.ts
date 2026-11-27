@@ -127,6 +127,7 @@ import type {
   GraphDeviceManagementSettingsResponse,
   GraphManagedDeviceOverview,
   GraphCompliancePolicy,
+  GraphCompliancePolicyBeta,
   GraphComplianceScheduledActionRule,
   GraphComplianceActionItem,
   GraphAppProtectionPolicy,
@@ -151,6 +152,7 @@ import {
   IOS_COMPLIANCE_SETTING_FIELDS,
   MACOS_COMPLIANCE_SETTING_FIELDS,
   ANDROID_COMPLIANCE_SETTING_FIELDS,
+  ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS,
   IOS_APP_PROTECTION_FIELDS,
   ANDROID_APP_PROTECTION_FIELDS,
 } from './dto';
@@ -1759,6 +1761,39 @@ export function mapCompliancePolicies(
     });
   }
   return policies;
+}
+
+/**
+ * Wertet Richtlinien ohne in v1.0 dokumentierten Typ (`type: 'other'`) mit der Beta-Liste auf
+ * (dritte freigegebene Beta-Ausnahme). Zuordnung nur über `id`; Beta-Einträge ohne v1.0-Pendant werden nie
+ * hinzugefügt, alle anderen Richtlinien bleiben identisch. `androidDeviceOwnerCompliancePolicy` →
+ * Typ `androidDeviceOwner` mit Einstellungen (Allowlist); ein anderer Beta-Typ setzt nur `odataType`.
+ */
+export function upgradeCompliancePoliciesFromBeta(
+  policies: CompliancePolicyConfig[],
+  betaEntries: GraphCompliancePolicyBeta[] | null | undefined,
+): CompliancePolicyConfig[] {
+  const byId = new Map<string, GraphCompliancePolicyBeta>();
+  for (const dto of Array.isArray(betaEntries) ? betaEntries : []) {
+    const id = text(dto?.id);
+    if (id && !byId.has(id)) byId.set(id, dto);
+  }
+  return policies.map((policy) => {
+    if (policy.type !== 'other') return policy;
+    const dto = byId.get(policy.id);
+    const odataType = text(dto?.['@odata.type']);
+    if (!dto || !odataType) return policy;
+    if (odataTypeName(odataType) === 'androiddeviceownercompliancepolicy') {
+      return {
+        ...policy,
+        type: 'androidDeviceOwner',
+        odataType,
+        settings: pickSettings(dto, ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS),
+        beta: true,
+      };
+    }
+    return { ...policy, odataType, beta: true };
+  });
 }
 
 /** Regeln der Aktionen → Kennungen (nur zum Nachladen der Aktionen). */

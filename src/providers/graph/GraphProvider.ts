@@ -101,6 +101,7 @@ import type {
   GraphDeviceManagementSettingsResponse,
   GraphManagedDeviceOverview,
   GraphCompliancePolicy,
+  GraphCompliancePolicyBeta,
   GraphComplianceScheduledActionRule,
   GraphComplianceActionItem,
   GraphAppProtectionPolicy,
@@ -178,6 +179,7 @@ import {
   mapCatalogPolicies,
   mapComplianceTenantSettings,
   mapCompliancePolicies,
+  upgradeCompliancePoliciesFromBeta,
   mapConditionalAccessPolicies,
   mapPlatformCounts,
   mapPolicyTemplates,
@@ -984,7 +986,8 @@ export class GraphProvider implements DeviceDataProvider {
           MAX_LIST_PAGES,
           options,
         );
-        const policies = mapCompliancePolicies(entries);
+        const v1Policies = mapCompliancePolicies(entries);
+        const { policies, betaRead } = await this.upgradeFromBeta(v1Policies, options);
         const chosen = byRecency(policies).slice(0, MAX_COMPLIANCE_POLICY_DETAILS);
         const details = new Map<
           string,
@@ -1001,6 +1004,7 @@ export class GraphProvider implements DeviceDataProvider {
           {
             policies: policies.map((policy) => ({ ...policy, ...details.get(policy.id) })),
             truncated: truncated || policies.length > chosen.length,
+            ...(betaRead ? { betaRead } : {}),
           },
           source,
         );
@@ -1011,6 +1015,38 @@ export class GraphProvider implements DeviceDataProvider {
         source,
       }),
     );
+  }
+
+  /**
+   * Beta-Ausnahme (2026-11-27): nur wenn v1.0 mindestens eine Richtlinie ohne dokumentierten Typ liefert,
+   * wird die Beta-Liste einmal gelesen und wertet genau diese Richtlinien auf. Jeder Fehler außer Abbruch
+   * → `failed`, die Richtlinien bleiben wie von v1.0 geliefert.
+   */
+  private async upgradeFromBeta(
+    policies: CompliancePolicyConfig[],
+    options: RequestOptions,
+  ): Promise<{
+    policies: CompliancePolicyConfig[];
+    betaRead?: NonNullable<CompliancePolicyConfigList['betaRead']>;
+  }> {
+    if (!policies.some((policy) => policy.type === 'other')) return { policies };
+    const endpoint = Endpoints.deviceCompliancePoliciesBeta;
+    const source = graphSource('deviceCompliancePoliciesBeta');
+    try {
+      const beta = await this.readPages<GraphCompliancePolicyBeta>(
+        endpoint.path(),
+        endpoint.scope,
+        MAX_LIST_PAGES,
+        options,
+      );
+      return {
+        policies: upgradeCompliancePoliciesFromBeta(policies, beta.entries),
+        betaRead: { status: 'ok', source, truncated: beta.truncated },
+      };
+    } catch (error) {
+      if (isAbort(error)) throw error;
+      return { policies, betaRead: { status: 'failed', source, truncated: false } };
+    }
   }
 
   /** Zuweisungen (ja/nein) und Aktionen einer Richtlinie; nicht lesbar → null, nie ein Fehler. */
