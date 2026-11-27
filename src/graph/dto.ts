@@ -52,7 +52,13 @@ export type ManagementAgentType =
   | 'configurationManagerClientMdmEas'
   | 'unknown'
   | 'jamf'
-  | 'googleCloudDevicePolicyController';
+  | 'googleCloudDevicePolicyController'
+  // Die folgenden vier nennt Learn nur auf der Enum-Seite (die es ausschließlich im Beta-Stand gibt);
+  // die v1.0-Seite von managedDevice zählt sie nicht auf. Siehe docs/graph-api-reference.md.
+  | 'microsoft365ManagedMdm'
+  | 'msSense'
+  | 'intuneAosp'
+  | 'google';
 
 export type DeviceEnrollmentType =
   | 'unknown'
@@ -163,6 +169,7 @@ export const FLEET_DEVICE_SELECT = [
   'enrolledDateTime',
   'isEncrypted',
   'jailBroken',
+  'managementAgent',
 ] as const;
 
 /** Weitere Geräte desselben Benutzers (Geräte-Header): nur das Nötigste. */
@@ -1186,6 +1193,47 @@ export const ANDROID_COMPLIANCE_SETTING_FIELDS = [
   'securityRequireUpToDateSecurityProviders',
   'securityRequireCompanyPortalAppIntegrity',
 ] as const;
+
+/**
+ * androidDeviceOwnerCompliancePolicy (Android Enterprise: vollständig verwaltet, dediziert,
+ * unternehmenseigen mit Arbeitsprofil) – NUR in der Beta-API dokumentiert (dritte freigegebene
+ * Beta-Ausnahme, 2026-11-27). Allowlist der Einstellungs-Eigenschaften; Basisfelder (id, displayName,
+ * description, roleScopeTagIds, createdDateTime, version, lastModifiedDateTime) gehören nicht dazu.
+ * https://learn.microsoft.com/en-us/graph/api/resources/intune-deviceconfig-androiddeviceownercompliancepolicy?view=graph-rest-beta
+ */
+export const ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS = [
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'advancedThreatProtectionRequiredSecurityLevel',
+  'securityBlockJailbrokenDevices',
+  'securityRequireSafetyNetAttestationBasicIntegrity',
+  'securityRequireSafetyNetAttestationCertifiedDevice',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'minAndroidSecurityPatchLevel',
+  'passwordRequired',
+  'passwordMinimumLength',
+  'passwordMinimumLetterCharacters',
+  'passwordMinimumLowerCaseCharacters',
+  'passwordMinimumNonLetterCharacters',
+  'passwordMinimumNumericCharacters',
+  'passwordMinimumSymbolCharacters',
+  'passwordMinimumUpperCaseCharacters',
+  'passwordRequiredType',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordExpirationDays',
+  'passwordPreviousPasswordCountToBlock',
+  'storageRequireEncryption',
+  'securityRequireIntuneAppIntegrity',
+  'requireNoPendingSystemUpdates',
+  'securityRequiredAndroidSafetyNetEvaluationType',
+] as const;
+
+/** Eintrag der Beta-Liste `deviceCompliancePolicies` (nur zur Aufwertung von v1.0-Richtlinien ohne Typ). */
+export type GraphCompliancePolicyBeta = GraphCompliancePolicyBase &
+  Partial<
+    Record<(typeof ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS)[number], GraphSettingScalar>
+  >;
 
 /** Basis jeder Compliance-Richtlinie (deviceCompliancePolicy, v1.0). */
 export interface GraphCompliancePolicyBase {

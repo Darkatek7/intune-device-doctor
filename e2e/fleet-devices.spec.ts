@@ -91,6 +91,56 @@ test.describe('Ansicht „Flotte“', () => {
     await expect(rows(page).first()).toBeVisible();
   });
 
+  test('„Verwaltet von“ filtert per Mehrfachauswahl, steht in der URL und zieht alle Zahlen mit', async ({
+    page,
+  }) => {
+    await openFleet(page);
+    const summary = page.getByTestId('fleet-summary');
+    const group = page.getByRole('group', { name: 'Verwaltet von' });
+    const mde = group.getByRole('button', { name: /^Defender for Endpoint \(MDE\)/ });
+    const intune = group.getByRole('button', { name: /^Intune/ });
+    await expect(group.getByRole('button', { name: 'Alle Verwaltungsarten' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(summary).not.toContainText('von');
+
+    await mde.click();
+    await expect(page).toHaveURL(/managed=mde/);
+    await expect(mde).toHaveAttribute('aria-pressed', 'true');
+    const mdeCount = await rows(page).count();
+    expect(mdeCount).toBeGreaterThan(0);
+    for (const row of await rows(page).all()) {
+      await expect(row.locator('[data-management]')).toHaveAttribute('data-management', 'mde');
+    }
+    // Gesamtbild und Plattformzahlen folgen der Auswahl
+    await expect(summary).toContainText(new RegExp(`${mdeCount} von \\d+ Geräten`));
+    await expect(summary).toContainText('Zahlen für die aktuelle Auswahl');
+    await expect(
+      page.getByRole('group', { name: 'Plattform' }).getByRole('button', { name: /^Windows/ }),
+    ).toHaveText(`Windows (${mdeCount})`);
+
+    await intune.click();
+    await expect(page).toHaveURL(/managed=intune%2Cmde/);
+    expect(await rows(page).count()).toBeGreaterThan(mdeCount);
+
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Flotte' })).toBeVisible();
+    await expect(
+      page
+        .getByRole('group', { name: 'Verwaltet von' })
+        .getByRole('button', { name: /^Defender for Endpoint/ }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    await page
+      .getByRole('group', { name: 'Verwaltet von' })
+      .getByRole('button', { name: 'Alle Verwaltungsarten' })
+      .click();
+    await expect(page).not.toHaveURL(/managed=/);
+    await expect(page.getByTestId('fleet-summary')).not.toContainText('von');
+    await expectNoSevereViolations(page, 'Flotte mit Leiste „Verwaltet von“');
+  });
+
   test('Klick auf eine Zeile öffnet das Gerät, Zurück führt in die Flotte', async ({ page }) => {
     await openFleet(page);
     await page.locator('[data-issue="nonCompliant"]').click();

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { TenantPosture } from '../../domain/posture';
 import type { Tile } from '../../domain/types';
+import { ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS } from '../../graph/dto';
 import { Endpoints } from '../../graph/endpoints';
 import { evaluatePosture, postureScore } from '../../rules/posture';
 import { MockProvider } from './MockProvider';
@@ -180,5 +181,81 @@ describe('Zusammenspiel mit dem Regelwerk (Stufe 2)', () => {
     const score = postureScore(tiles);
     expect(score.met).toBeGreaterThan(0);
     expect(score.deviating).toBeGreaterThan(0);
+  });
+});
+
+describe('Demo: Android Enterprise vollständig verwaltet (Beta-Liste, dritte Beta-Ausnahme)', () => {
+  async function demo() {
+    const posture = await standardPosture();
+    if (posture.compliancePolicies.status !== 'ok') throw new Error('compliancePolicies nicht ok');
+    const list = posture.compliancePolicies.data;
+    const policy = list.policies.find((entry) => entry.type === 'androidDeviceOwner');
+    if (!policy) throw new Error('Richtlinie „vollständig verwaltet“ fehlt');
+    return { posture, list, policy };
+  }
+  const fullyManagedChecks = (tile: Tile) =>
+    (tile as Tile & { checks: { id: string; status: string }[] }).checks.filter((check) =>
+      check.id.includes(':afm'),
+    );
+
+  it('enthält eine zugewiesene Richtlinie aus der Beta-Liste mit genau den Eigenschaften des Typs', async () => {
+    const { list, policy } = await demo();
+    expect(policy).toMatchObject({
+      displayName: 'Contoso – Android vollständig verwaltet',
+      odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
+      beta: true,
+      assigned: true,
+      scheduledActions: [{ actionType: 'block', gracePeriodHours: 0 }],
+    });
+    expect(Object.keys(policy.settings).sort()).toEqual(
+      [...ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS].sort(),
+    );
+    expect(list.betaRead).toEqual({
+      status: 'ok',
+      source: {
+        kind: 'mock',
+        label: 'GET /beta/deviceManagement/deviceCompliancePolicies',
+        docsUrl: Endpoints.deviceCompliancePoliciesBeta.docsUrl,
+      },
+      truncated: false,
+    });
+    // die frühere, nicht prüfbare Richtlinie (type: other) ist ersetzt
+    expect(list.policies.filter((entry) => entry.type === 'other')).toEqual([]);
+  });
+
+  it('erfüllt Stufe 1 und weicht bei Stufe 2 in mindestens zwei Einstellungen ab', async () => {
+    const { posture } = await demo();
+    const level1 = fullyManagedChecks(
+      tileOf(evaluatePosture(posture, { level: 1, now: NOW }), 'postureComplianceAndroid'),
+    );
+    expect(level1.length).toBeGreaterThan(0);
+    expect(level1.every((check) => check.status === 'met')).toBe(true);
+    const level2 = fullyManagedChecks(
+      tileOf(evaluatePosture(posture, { level: 2, now: NOW }), 'postureComplianceAndroid'),
+    );
+    expect(level2.filter((check) => check.status === 'deviating').map((check) => check.id)).toEqual(
+      [
+        expect.stringContaining(':afmPasswordReuse:'),
+        expect.stringContaining(':afmStrongIntegrity:'),
+      ],
+    );
+  });
+
+  it('kennzeichnet die Android-Kachel als Beta und deckt unternehmenseigene Geräte ab', async () => {
+    const { posture } = await demo();
+    const tiles = evaluatePosture(posture, { level: 2, now: NOW });
+    const android = tileOf(tiles, 'postureComplianceAndroid');
+    expect(android.summary).toContain('Beta-API');
+    expect(android.sources.map((source) => source.label)).toContain(
+      'GET /beta/deviceManagement/deviceCompliancePolicies',
+    );
+    expect(android.facts.map((fact) => fact.label)).toContain('Geltung des Richtlinientyps');
+    const coverage = checksOf(tileOf(tiles, 'postureCoverage')) as unknown as {
+      id: string;
+      status: string;
+    }[];
+    expect(coverage.find((check) => check.id === 'postureCoverage:androidCorporate')?.status).toBe(
+      'met',
+    );
   });
 });

@@ -115,6 +115,10 @@ export const deRules = {
     unknown: 'Unbekannt',
     jamf: 'Jamf',
     googleCloudDevicePolicyController: 'Google Cloud Device Policy Controller',
+    microsoft365ManagedMdm: 'Microsoft 365 (über Intune)',
+    msSense: 'Microsoft Defender for Endpoint (msSense)',
+    intuneAosp: 'Intune (Android Open Source Project)',
+    google: 'Google',
   },
   /** M14/S5: Ansicht „Mandant“ – mandantenweite Zertifikate und Token */
   tenant: {

@@ -12,6 +12,10 @@
  * Die Verteilung der Betriebssystemversionen ist eine reine Zählung – ob eine Version „veraltet“ ist,
  * bewertet die Liste nicht (dafür fehlt je Plattform eine dokumentierte Quelle; die Geräteansicht prüft
  * Windows-Versionen einzeln).
+ *
+ * „Verwaltet von“ ordnet den Rohwert `managementAgent` einer Gruppe zu (`fleetManagementOf`). Grundlage
+ * sind die Beschreibungen des Enums `managementAgentType` auf Learn; was dort nicht steht oder nicht
+ * geliefert wird, landet sichtbar unter `other` und nie stillschweigend bei Intune.
  */
 import type { FleetDevice, FleetDevicesInfo } from '../domain/fleetDevices';
 import { hoursSince, osFamilyFrom } from '../domain/format';
@@ -48,9 +52,58 @@ export const FLEET_PLATFORMS: readonly OsFamily[] = [
   'other',
 ];
 
+/** Gruppen für „Verwaltet von“ in fester Reihenfolge der Anzeige. */
+export const FLEET_MANAGEMENTS = [
+  'intune',
+  'coManaged',
+  'configMgr',
+  'mde',
+  'eas',
+  'jamf',
+  'other',
+] as const;
+export type FleetManagement = (typeof FLEET_MANAGEMENTS)[number];
+
+/**
+ * Zuordnung `managementAgent` → Gruppe, nach den Beschreibungen auf Learn
+ * (https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-managementagenttype):
+ * - `intune`: alle Werte, die Intune als MDM bzw. Intune-Client nennen. `googleCloudDevicePolicyController`
+ *   („managed by Google's CloudDPC“) zählt dazu, weil Android-Enterprise-Geräte in Intune über diesen
+ *   Agenten verwaltet werden – eine Ableitung, die Learn am Enum nicht ausdrücklich nennt.
+ * - `coManaged`: Configuration Manager **und** MDM; `configMgr`: nur Configuration Manager.
+ * - `mde`: `msSense`. Learn beschreibt den Wert nicht; die Zuordnung zu Microsoft Defender for Endpoint
+ *   ist abgeleitet (Sicherheitseinstellungsverwaltung: solche Geräte zeigen im Intune Admin Center
+ *   „Managed by: MDE“). Der Rohwert steht deshalb immer mit in Zeile und Export.
+ * - alles andere (`unknown`, `google`, künftige Werte, nicht geliefert) → `other`.
+ */
+const MANAGEMENT_BY_AGENT: Readonly<Record<string, FleetManagement>> = {
+  mdm: 'intune',
+  easMdm: 'intune',
+  intuneClient: 'intune',
+  easIntuneClient: 'intune',
+  microsoft365ManagedMdm: 'intune',
+  intuneAosp: 'intune',
+  googleCloudDevicePolicyController: 'intune',
+  configurationManagerClientMdm: 'coManaged',
+  configurationManagerClientMdmEas: 'coManaged',
+  configurationManagerClient: 'configMgr',
+  msSense: 'mde',
+  eas: 'eas',
+  jamf: 'jamf',
+};
+
+export function fleetManagementOf(managementAgent: string | null): FleetManagement {
+  if (!managementAgent) return 'other';
+  return Object.hasOwn(MANAGEMENT_BY_AGENT, managementAgent)
+    ? MANAGEMENT_BY_AGENT[managementAgent]!
+    : 'other';
+}
+
 export interface FleetRow {
   device: FleetDevice;
   platform: OsFamily;
+  /** Gruppe für „Verwaltet von“; der Rohwert steht in `device.managementAgent` */
+  management: FleetManagement;
   issues: FleetIssue[];
   /** Schlimmste Auffälligkeit; `ok` = keine */
   severity: Extract<Severity, 'ok' | 'warning' | 'critical'>;
@@ -70,6 +123,11 @@ export interface FleetPlatformCount {
   withIssues: number;
 }
 
+export interface FleetManagementCount {
+  management: FleetManagement;
+  count: number;
+}
+
 export interface FleetOsVersions {
   platform: OsFamily;
   total: number;
@@ -77,19 +135,25 @@ export interface FleetOsVersions {
   versions: Array<{ version: string | null; count: number }>;
 }
 
-export interface FleetOverview {
+/** Zählung über eine Menge von Zeilen – die ganze Flotte oder ein gefilterter Ausschnitt. */
+export interface FleetCounts {
   total: number;
   /** Geräte mit mindestens einer Auffälligkeit */
   withIssues: number;
   critical: number;
   warning: number;
-  /** Auffällige zuerst (kritisch, Warnung), dann nach Anzahl der Auffälligkeiten, dann nach Name */
-  rows: FleetRow[];
   /** Alle Auffälligkeiten in fester Reihenfolge, auch mit `count: 0` */
   groups: FleetIssueGroup[];
   /** Nur Plattformen mit Geräten */
   platforms: FleetPlatformCount[];
+  /** Nur Gruppen mit Geräten */
+  managements: FleetManagementCount[];
   osVersions: FleetOsVersions[];
+}
+
+export interface FleetOverview extends FleetCounts {
+  /** Auffällige zuerst (kritisch, Warnung), dann nach Anzahl der Auffälligkeiten, dann nach Name */
+  rows: FleetRow[];
   truncated: boolean;
 }
 
@@ -151,30 +215,13 @@ function osVersionsOf(rows: readonly FleetRow[]): FleetOsVersions[] {
   });
 }
 
-export function evaluateFleet(info: FleetDevicesInfo, now: Date): FleetOverview {
-  const rows: FleetRow[] = info.devices.map((device) => {
-    const issues = fleetIssuesOf(device, now);
-    const hours = hoursSince(device.lastSyncDateTime, now);
-    return {
-      device,
-      platform: osFamilyFrom(device.operatingSystem),
-      issues,
-      severity: severityOf(issues),
-      daysSinceCheckIn: hours === null ? null : Math.floor(hours / 24),
-    };
-  });
-  rows.sort(
-    (a, b) =>
-      SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
-      b.issues.length - a.issues.length ||
-      collator.compare(a.device.deviceName, b.device.deviceName),
-  );
+/** Zählt eine Menge von Zeilen aus (Reihenfolge der Zeilen spielt keine Rolle). */
+export function countFleetRows(rows: readonly FleetRow[]): FleetCounts {
   return {
     total: rows.length,
     withIssues: rows.filter((row) => row.severity !== 'ok').length,
     critical: rows.filter((row) => row.severity === 'critical').length,
     warning: rows.filter((row) => row.severity === 'warning').length,
-    rows,
     groups: FLEET_ISSUES.map((issue) => ({
       issue,
       severity: FLEET_ISSUE_SEVERITY[issue],
@@ -192,20 +239,52 @@ export function evaluateFleet(info: FleetDevicesInfo, now: Date): FleetOverview 
             },
           ];
     }),
+    managements: FLEET_MANAGEMENTS.flatMap((management) => {
+      const count = rows.filter((row) => row.management === management).length;
+      return count === 0 ? [] : [{ management, count }];
+    }),
     osVersions: osVersionsOf(rows),
-    truncated: info.truncated,
   };
+}
+
+export function evaluateFleet(info: FleetDevicesInfo, now: Date): FleetOverview {
+  const rows: FleetRow[] = info.devices.map((device) => {
+    const issues = fleetIssuesOf(device, now);
+    const hours = hoursSince(device.lastSyncDateTime, now);
+    return {
+      device,
+      platform: osFamilyFrom(device.operatingSystem),
+      management: fleetManagementOf(device.managementAgent),
+      issues,
+      severity: severityOf(issues),
+      daysSinceCheckIn: hours === null ? null : Math.floor(hours / 24),
+    };
+  });
+  rows.sort(
+    (a, b) =>
+      SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] ||
+      b.issues.length - a.issues.length ||
+      collator.compare(a.device.deviceName, b.device.deviceName),
+  );
+  return { ...countFleetRows(rows), rows, truncated: info.truncated };
 }
 
 export interface FleetFilter {
   /** null = alle Geräte; `'any'` = nur auffällige */
   issue: FleetIssue | 'any' | null;
   platform: OsFamily | null;
+  /** „Verwaltet von“, Mehrfachauswahl; leer = alle */
+  managements: readonly FleetManagement[];
   /** Freitext über Gerätename, Benutzer, Seriennummer, Modell, OS-Version (ohne Groß-/Kleinschreibung) */
   query: string;
 }
 
-export const EMPTY_FLEET_FILTER: FleetFilter = { issue: null, platform: null, query: '' };
+export const EMPTY_FLEET_FILTER: FleetFilter = {
+  issue: null,
+  platform: null,
+  managements: [],
+  query: '',
+};
 
 /** Filtert die (bereits sortierten) Zeilen; die Reihenfolge bleibt erhalten. */
 export function filterFleetRows(rows: readonly FleetRow[], filter: FleetFilter): FleetRow[] {
@@ -214,6 +293,7 @@ export function filterFleetRows(rows: readonly FleetRow[], filter: FleetFilter):
     if (filter.issue === 'any' && row.issues.length === 0) return false;
     if (filter.issue && filter.issue !== 'any' && !row.issues.includes(filter.issue)) return false;
     if (filter.platform && row.platform !== filter.platform) return false;
+    if (filter.managements.length > 0 && !filter.managements.includes(row.management)) return false;
     if (!needle) return true;
     const { device } = row;
     return [
@@ -230,4 +310,55 @@ export function filterFleetRows(rows: readonly FleetRow[], filter: FleetFilter):
 
 export function isFleetIssue(value: string | null | undefined): value is FleetIssue {
   return FLEET_ISSUES.includes(value as FleetIssue);
+}
+
+/**
+ * Zahlen passend zur aktuellen Auswahl. Jede Filterleiste zählt mit allen **anderen** Filtern (so zeigt
+ * eine Zahl, was ein Klick ergibt, und die gewählte Option fällt nicht auf 0); Gesamtbild und
+ * Versionsverteilung zählen genau die Zeilen der Liste.
+ */
+export interface FleetFacets {
+  /** Zeilen der Liste (alle Filter), Reihenfolge wie übergeben */
+  rows: FleetRow[];
+  /** Zählung über genau diese Zeilen */
+  counts: FleetCounts;
+  /** Je Auffälligkeit: Geräte ohne den Auffälligkeiten-Filter */
+  issues: Record<FleetIssue, number>;
+  /** Je Plattform: Geräte ohne den Plattformfilter */
+  platforms: Record<OsFamily, number>;
+  /** Je Gruppe: Geräte ohne den Filter „Verwaltet von“ */
+  managements: Record<FleetManagement, number>;
+}
+
+function tally<K extends string>(keys: readonly K[], values: Iterable<K>): Record<K, number> {
+  const result = Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
+  for (const value of values) result[value] += 1;
+  return result;
+}
+
+export function fleetFacets(rows: readonly FleetRow[], filter: FleetFilter): FleetFacets {
+  const listed = filterFleetRows(rows, filter);
+  const withoutIssue = filterFleetRows(rows, { ...filter, issue: null });
+  const withoutPlatform = filterFleetRows(rows, { ...filter, platform: null });
+  const withoutManagement = filterFleetRows(rows, { ...filter, managements: [] });
+  return {
+    rows: listed,
+    counts: countFleetRows(listed),
+    issues: tally(
+      FLEET_ISSUES,
+      withoutIssue.flatMap((row) => row.issues),
+    ),
+    platforms: tally(
+      FLEET_PLATFORMS,
+      withoutPlatform.map((row) => row.platform),
+    ),
+    managements: tally(
+      FLEET_MANAGEMENTS,
+      withoutManagement.map((row) => row.management),
+    ),
+  };
+}
+
+export function isFleetManagement(value: string | null | undefined): value is FleetManagement {
+  return FLEET_MANAGEMENTS.includes(value as FleetManagement);
 }

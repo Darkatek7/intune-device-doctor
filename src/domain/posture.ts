@@ -13,7 +13,7 @@
  * - Keine personenbezogenen Daten: keine Benutzer-, Gruppen- oder Mandanten-IDs, keine UPNs. Von
  *   Zuweisungen und Bedingungen zählt nur, *ob* etwas zugewiesen bzw. ausgeschlossen ist.
  */
-import type { SectionResult } from './types';
+import type { DataSource, SectionResult } from './types';
 
 /** Wert einer Richtlinien-Einstellung, unverändert aus Graph (Enum-Werte als String, Dauer als ISO-8601-String). */
 export type PostureValue = string | number | boolean | null;
@@ -64,8 +64,20 @@ export interface PlatformDeviceCounts {
  * Abgeleiteter Typ einer Compliance-Richtlinie (`@odata.type`). `other` = Typ, den v1.0 nicht mit
  * Einstellungen dokumentiert (z. B. nur in beta vorhandene Android-Typen) → nicht prüfbar.
  */
+/**
+ * `androidDeviceOwner` (Android Enterprise vollständig verwaltet, dediziert, unternehmenseigen mit
+ * Arbeitsprofil) dokumentiert Microsoft nur in der Beta-API. Der Typ entsteht ausschließlich, wenn die
+ * Beta-Liste eine Richtlinie, die v1.0 ohne dokumentierten Typ liefert, als
+ * `androidDeviceOwnerCompliancePolicy` ausweist (dritte freigegebene Beta-Ausnahme, 2026-11-27).
+ */
 export type CompliancePolicyType =
-  'windows10' | 'ios' | 'macos' | 'androidDeviceAdministrator' | 'androidWorkProfile' | 'other';
+  | 'windows10'
+  | 'ios'
+  | 'macos'
+  | 'androidDeviceAdministrator'
+  | 'androidWorkProfile'
+  | 'androidDeviceOwner'
+  | 'other';
 
 /** Aktion bei Nichtkonformität (`scheduledActionsForRule` → `scheduledActionConfigurations`). */
 export interface ComplianceScheduledAction {
@@ -86,12 +98,24 @@ export interface CompliancePolicyConfig {
   assigned: boolean | null;
   /** null = nicht abgefragt/nicht lesbar */
   scheduledActions: ComplianceScheduledAction[] | null;
+  /**
+   * true = `odataType` (und bei `androidDeviceOwner` auch `settings`) stammen aus der Beta-Liste, weil
+   * v1.0 für diese Richtlinie keinen dokumentierten Typ liefert. Fehlt/false = alles aus v1.0.
+   */
+  beta?: boolean;
 }
 
 export interface CompliancePolicyConfigList {
   policies: CompliancePolicyConfig[];
   /** Mehr Richtlinien vorhanden als gelesen bzw. als im Detail abgefragt */
   truncated: boolean;
+  /**
+   * Beta-Liste `GET /beta/deviceManagement/deviceCompliancePolicies`: wird nur gelesen, wenn v1.0
+   * mindestens eine Richtlinie mit `type: 'other'` liefert. Fehlt = nicht gelesen (nicht nötig).
+   * `failed` = Abruf gescheitert (Berechtigung, Fehler) – die Richtlinien bleiben dann wie von v1.0
+   * geliefert. `truncated` = Seitenlimit der Beta-Liste erreicht.
+   */
+  betaRead?: { status: 'ok' | 'failed'; source: DataSource; truncated: boolean };
 }
 
 // ---------- App-Schutz-Richtlinien (v1.0) ----------

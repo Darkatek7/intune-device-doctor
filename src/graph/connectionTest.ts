@@ -339,6 +339,9 @@ export const Probes: Record<EndpointId, Probe> = {
   secureScoreControlProfiles: {
     request: () => ({ path: Endpoints.secureScoreControlProfiles.path() }),
   },
+  deviceCompliancePoliciesBeta: {
+    request: () => ({ path: Endpoints.deviceCompliancePoliciesBeta.path() }),
+  },
   catalogPolicies: {
     request: () => ({ path: Endpoints.catalogPolicies.path() }),
     capture: (entries, derived) => {

@@ -574,6 +574,103 @@ describe('GraphProvider.getTenantPosture – Seiten- und Mengengrenzen', () => {
   });
 });
 
+describe('GraphProvider.getTenantPosture – Beta-Aufwertung der Compliance-Richtlinien', () => {
+  const V1_PATH = /^\/v1\.0\/deviceManagement\/deviceCompliancePolicies$/;
+  const BETA_PATH = /^\/beta\/deviceManagement\/deviceCompliancePolicies$/;
+  const other = { id: 'o1', displayName: 'Contoso Android Vollverwaltet' };
+  const betaCalls = (calls: FakeCall[]) =>
+    calls.filter((c) => c.parsed.pathname === '/beta/deviceManagement/deviceCompliancePolicies');
+
+  it('ohne `other`-Richtlinie kein Beta-Aufruf, betaRead fehlt', async () => {
+    const { provider, calls } = setup();
+    const posture = await provider.getTenantPosture();
+    const data = expectStatus(posture.compliancePolicies, 'ok').data;
+    expect(betaCalls(calls)).toHaveLength(0);
+    expect(data.betaRead).toBeUndefined();
+    expect(data.policies.every((p) => p.beta === undefined)).toBe(true);
+  });
+
+  it('mit `other` genau ein GET auf die Beta-Liste; Typ und Einstellungen werden aufgewertet', async () => {
+    const { provider, calls } = setup([
+      on(V1_PATH, () => collection([win('w1', '2026-10-01T00:00:00Z'), other])),
+      on(BETA_PATH, () =>
+        collection([
+          {
+            '@odata.type': '#microsoft.graph.windows10CompliancePolicy',
+            id: 'w1',
+            passwordRequired: true,
+          },
+          {
+            '@odata.type': '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
+            id: 'o1',
+            passwordRequired: true,
+            passwordMinimumLength: 6,
+            description: 'nie',
+          },
+          { '@odata.type': '#microsoft.graph.androidDeviceOwnerCompliancePolicy', id: 'nur-beta' },
+        ]),
+      ),
+    ]);
+    const posture = await provider.getTenantPosture();
+    const data = expectStatus(posture.compliancePolicies, 'ok').data;
+    const beta = betaCalls(calls);
+    expect(beta).toHaveLength(1);
+    expect(beta[0]!.method).toBe('GET');
+    expect(beta[0]!.parsed.search).toBe('');
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    expect(data.policies.map((p) => p.id)).toEqual(['w1', 'o1']);
+    expect(data.policies[0]!.type).toBe('windows10');
+    expect(data.policies[0]!.beta).toBeUndefined();
+    expect(data.policies[1]).toMatchObject({
+      type: 'androidDeviceOwner',
+      beta: true,
+      settings: { passwordRequired: true, passwordMinimumLength: 6 },
+    });
+    expect(data.betaRead).toEqual({
+      status: 'ok',
+      truncated: false,
+      source: {
+        kind: 'graph',
+        label: 'GET /beta/deviceManagement/deviceCompliancePolicies',
+        docsUrl: expect.stringContaining('graph-rest-beta'),
+      },
+    });
+    expect(data.truncated).toBe(false);
+  });
+
+  it('Beta 403 → Sektion bleibt ok, Richtlinien unverändert, betaRead failed', async () => {
+    const { provider } = setup([
+      on(V1_PATH, () => collection([other])),
+      on(BETA_PATH, () => graphError(403, 'Forbidden')),
+    ]);
+    const posture = await provider.getTenantPosture();
+    const data = expectStatus(posture.compliancePolicies, 'ok').data;
+    expect(data.policies).toHaveLength(1);
+    expect(data.policies[0]).toMatchObject({ type: 'other', settings: {} });
+    expect(data.policies[0]!.beta).toBeUndefined();
+    expect(data.betaRead?.status).toBe('failed');
+    expect(data.truncated).toBe(false);
+  });
+
+  it('Beta-Seitenlimit → betaRead.truncated, Sektion-truncated unverändert', async () => {
+    let pages = 0;
+    const { provider } = setup([
+      on(V1_PATH, () => collection([other])),
+      on(BETA_PATH, (call) => {
+        pages += 1;
+        const next = new URL(call.url);
+        next.searchParams.set('page', String(pages + 1));
+        return collection([], next.href);
+      }),
+    ]);
+    const posture = await provider.getTenantPosture();
+    const data = expectStatus(posture.compliancePolicies, 'ok').data;
+    expect(pages).toBe(MAX_LIST_PAGES);
+    expect(data.betaRead).toMatchObject({ status: 'ok', truncated: true });
+    expect(data.truncated).toBe(false);
+  });
+});
+
 describe('GraphProvider.getTenantPosture – Baseline-Vergleich', () => {
   it('403 auf den Einstellungen einer Baseline → nur ihr Vergleich ist forbidden', async () => {
     const { provider } = setup([

@@ -5,21 +5,41 @@
  *
  * - Windows 10 und neuer → Zero-Trust-Tabelle (ungestuft); andere Windows-Typen → kein Sollwert.
  * - iOS/iPadOS → Sicherheitskonfiguration Stufe 2/3 (Stufe 1 bietet Microsoft nicht an → Stufe 2).
- * - Android: bewertet wird das Framework „persönliches Gerät mit Arbeitsprofil“ (Stufe 2/3);
- *   Android-Geräteadministrator → kein Sollwert (Verwaltung von Microsoft eingestellt); nur in beta
- *   dokumentierte Typen (z. B. vollständig verwaltet/unternehmenseigen) → nicht prüfbar. Ob unternehmens-
- *   eigene Geräte überhaupt abgedeckt sind, bewertet die Kachel „Abdeckung der Geräte“ getrennt.
- * - „Stufe N erreicht“: nicht prüfbare Empfehlungen verhindern die Stufe nicht und bestätigen sie nicht –
- *   gibt es welche, lautet der Wert „Stufe N erreicht, soweit prüfbar“.
+ * - Android: bis zu **zwei** Frameworks – „persönliches Gerät mit Arbeitsprofil“ (Stufe 2/3, v1.0) und
+ *   „vollständig verwaltet“ (Stufe 1–3; Typ `androidDeviceOwner`, Einstellungen aus der Beta-Liste,
+ *   dritte freigegebene Beta-Ausnahme 2026-11-27 → Kachel als Beta gekennzeichnet). Der Graph-Typ gilt
+ *   auch für dedizierte Geräte und unternehmenseigene Geräte mit Arbeitsprofil – die Kachel weist das aus.
+ *   Android-Geräteadministrator → kein Sollwert (Verwaltung von Microsoft eingestellt). `type: 'other'`
+ *   mit Android-Typ (anderer Beta-Typ wie AOSP, oder Beta-Liste nicht lesbar) → nicht prüfbar, mit dem
+ *   zutreffenden Grund. Ob unternehmenseigene Geräte überhaupt abgedeckt sind, bewertet die Kachel
+ *   „Abdeckung der Geräte“ getrennt.
+ * - „Stufe N erreicht“: nur, wenn alle bewerteten Frameworks der Kachel gegen dieselbe Stufe bewertet
+ *   werden und jede gezählte Richtlinie sie erreicht (Arbeitsprofil kennt keine Stufe 1 – bei Stufe 1
+ *   gilt dort Stufe 2; dann zeigt die Kachel den Zählwert). Nicht prüfbare Empfehlungen verhindern die
+ *   Stufe nicht und bestätigen sie nicht – gibt es welche, lautet der Wert „Stufe N erreicht, soweit prüfbar“.
  * - macOS → Microsoft dokumentiert keinen Sollwert; nur Abdeckung (eigene Kachel).
+ * - Richtlinien, deren Typ keiner Plattform zuzuordnen ist (weder v1.0 noch die Beta-Liste weisen einen
+ *   passenden Typ aus, oder die Beta-Liste war nicht lesbar): Sie verschwinden nicht. Hat eine Plattform
+ *   keine eigene Richtlinie, lautet die Kachel „Nicht prüfbar“ statt „Keine Richtlinie“ und nennt sie;
+ *   sonst stehen sie als Fakt dabei.
  * Plattform ohne Geräte und ohne Richtlinie → „Nicht genutzt“ (kein Befund).
  */
-import type { CompliancePolicyConfig, PostureLevel, TenantPosture } from '../../domain/posture';
+import type {
+  CompliancePolicyConfig,
+  CompliancePolicyConfigList,
+  PostureLevel,
+  TenantPosture,
+} from '../../domain/posture';
 import type { DataSource, Finding, TileFact, TileId } from '../../domain/types';
 import { dePosture } from '../../i18n/de-posture';
 import { Docs } from '../knowledge/docs';
 import { COVERAGE_DOCS } from './coverage';
-import { ANDROID_WORK_PROFILE_COMPLIANCE, IOS_COMPLIANCE, WINDOWS_COMPLIANCE } from './catalog';
+import {
+  ANDROID_FULLY_MANAGED_COMPLIANCE,
+  ANDROID_WORK_PROFILE_COMPLIANCE,
+  IOS_COMPLIANCE,
+  WINDOWS_COMPLIANCE,
+} from './catalog';
 import {
   buildTile,
   compliancePolicyPlatform,
@@ -61,17 +81,30 @@ export function complianceHandling(policy: CompliancePolicyConfig): Handling {
       return { kind: 'framework', framework: IOS_COMPLIANCE };
     case 'androidWorkProfile':
       return { kind: 'framework', framework: ANDROID_WORK_PROFILE_COMPLIANCE };
+    // Einstellungen aus der Beta-Liste (androidDeviceOwnerCompliancePolicy)
+    case 'androidDeviceOwner':
+      return { kind: 'framework', framework: ANDROID_FULLY_MANAGED_COMPLIANCE };
     case 'androidDeviceAdministrator':
     case 'macos':
       return { kind: 'noTarget' };
     case 'other': {
       const platform = compliancePolicyPlatform(policy);
-      // Android- und iOS-Typen, die nur beta mit Einstellungen dokumentiert, haben Learn-Empfehlungen
+      // Android-/iOS-Typ ohne Einstellungen: anderer Beta-Typ (z. B. AOSP) oder Beta-Liste nicht lesbar
       return platform === 'android' || platform === 'ios'
         ? { kind: 'betaOnly' }
         : { kind: 'noTarget' };
     }
   }
+}
+
+/** Zustand der Beta-Liste der Compliance-Richtlinien (nur gelesen, wenn v1.0 Richtlinien ohne Typ liefert). */
+type BetaState = 'notRead' | 'failed' | 'truncated' | 'ok';
+
+function betaState(list: CompliancePolicyConfigList): BetaState {
+  const read = list.betaRead;
+  if (!read) return 'notRead';
+  if (read.status === 'failed') return 'failed';
+  return read.truncated ? 'truncated' : 'ok';
 }
 
 function noTargetFinding(
@@ -113,11 +146,39 @@ export function evaluateComplianceTile(
   const section = posture.compliancePolicies;
   if (section.status !== 'ok') return issueTile(id, section);
   const source = section.source;
-  const sources = [source, posture.platformCounts.source];
   const own = section.data.policies.filter(
     (policy) => compliancePolicyPlatform(policy) === platform,
   );
+  // Typ ohne erkennbare Plattform: könnte zu jeder Plattform gehören – weder zählen noch verschweigen.
+  const unclassified = section.data.policies.filter(
+    (policy) => compliancePolicyPlatform(policy) === null,
+  );
+  const unclassifiedNames = unclassified.map((policy) => `„${policy.displayName}“`);
   const truncated = section.data.truncated;
+
+  // Beta-Liste: Zustand, Kennzeichnung und Quelle
+  const betaRead = section.data.betaRead;
+  const beta = betaState(section.data);
+  const shown = [...own, ...unclassified];
+  // Als Beta gekennzeichnet wird nur, was tatsächlich Daten aus der Beta-Liste zeigt
+  const usesBeta =
+    own.some((policy) => policy.beta === true) ||
+    (own.length === 0 && unclassified.some((policy) => policy.beta === true));
+  // Richtlinien, deren Typ/Einstellungen von der Beta-Liste abhängen (aufgewertet oder offen geblieben)
+  const dependsOnBeta = shown.some((policy) => policy.beta === true || policy.type === 'other');
+  const sources = [
+    source,
+    posture.platformCounts.source,
+    ...(betaRead && (usesBeta || dependsOnBeta) ? [betaRead.source] : []),
+  ];
+  const withBeta = (summary: string) => (usesBeta ? `${summary} · ${c.beta}` : summary);
+  const betaFacts: TileFact[] = [
+    ...(usesBeta ? [{ label: c.betaFact, value: c.betaValue }] : []),
+    ...((beta === 'failed' || beta === 'truncated') && dependsOnBeta
+      ? [{ label: t.betaReadFact, value: t.betaReadValue[beta] }]
+      : []),
+  ];
+
   const findings: Finding[] = truncated ? [truncatedFinding(id, source)] : [];
   const facts: TileFact[] = truncated
     ? [{ label: c.facts.truncated, value: c.facts.truncatedValue }]
@@ -129,6 +190,40 @@ export function evaluateComplianceTile(
         id,
         value: c.valueNotUsed,
         summary: c.summaryNotUsed,
+        findings,
+        facts,
+        sources: [source, posture.platformCounts.source],
+        checks: [],
+        fallback: 'unknown',
+      });
+    }
+    if (unclassified.length > 0) {
+      findings.push({
+        id: `${id}-unclassified`,
+        severity: 'unknown',
+        title: t.unclassifiedTitle(unclassified.length),
+        detail: [t.unclassifiedDetail(unclassifiedNames), t.unclassifiedBetaNote[beta]]
+          .filter(Boolean)
+          .join(' '),
+        cause: t.unclassifiedCause[beta],
+        remediation: [
+          ...(beta === 'failed' ? t.betaFailedRemediation : []),
+          ...t.unclassifiedRemediation,
+        ],
+        evidence: {
+          odataTypes: unclassified
+            .map((policy) => policy.odataType ?? t.unclassifiedNoType)
+            .join(', '),
+          ...(beta === 'notRead' ? {} : { betaList: beta }),
+        },
+        source: beta === 'failed' && betaRead ? betaRead.source : source,
+        docsUrl: COVERAGE_DOCS[platform],
+      });
+      facts.push({ label: t.unclassifiedFact, value: unclassifiedNames.join(', ') }, ...betaFacts);
+      return buildTile({
+        id,
+        value: c.valueNotChecked,
+        summary: withBeta(t.unclassifiedTitle(unclassified.length)),
         findings,
         facts,
         sources,
@@ -166,17 +261,14 @@ export function evaluateComplianceTile(
     { framework: PostureFramework; level: PostureLevel | null; counted: boolean }
   >();
   const reachedLevels: Array<PostureLevel | null> = [];
-  facts.push({ label: c.facts.policies, value: String(own.length) });
-  // Die Android-Kachel bewertet das Arbeitsprofil-Framework; vollständig verwaltet ist nur beta
-  if (platform === 'android')
-    facts.push({ label: t.androidFrameworkFact, value: t.androidFrameworkValue });
+  const policyFacts: TileFact[] = [];
 
   for (const policy of own) {
     const handling = complianceHandling(policy);
     const ref = { id: policy.id, name: policy.displayName, assigned: policy.assigned };
     if (handling.kind === 'noTarget') {
       noTarget.push(policy);
-      facts.push({ label: c.policyFact(policyLabel(ref)), value: c.valueNoTarget });
+      policyFacts.push({ label: c.policyFact(policyLabel(ref)), value: c.valueNoTarget });
       continue;
     }
     if (handling.kind === 'betaOnly') {
@@ -194,10 +286,11 @@ export function evaluateComplianceTile(
             ? Docs.postureAndroidFullyManaged
             : Docs.postureIosComplianceLevel2,
         subject: policy.displayName,
-        reason: t.betaTypeReason,
+        // Die Beta-Liste nennt einen anderen Typ → der Zustand der Liste ist nicht der Grund
+        reason: t.betaTypeReason[policy.beta === true ? 'otherType' : beta],
         counted: policy.assigned !== false,
       });
-      facts.push({ label: c.policyFact(policyLabel(ref)), value: c.valueNotChecked });
+      policyFacts.push({ label: c.policyFact(policyLabel(ref)), value: c.valueNotChecked });
       continue;
     }
     const { framework } = handling;
@@ -224,57 +317,121 @@ export function evaluateComplianceTile(
       source,
       texts: { cause: t.cause, remediation: t.remediation },
     });
-    facts.push(outcome.fact);
-    if (outcome.finding) findings.push(outcome.finding);
+    policyFacts.push(outcome.fact);
+    if (outcome.finding) {
+      findings.push(
+        policy.type === 'androidDeviceOwner'
+          ? { ...outcome.finding, detail: `${outcome.finding.detail} ${t.deviceOwnerScopeNote}` }
+          : outcome.finding,
+      );
+    }
   }
 
-  for (const { framework, level, counted } of evaluatedFrameworks.values()) {
-    const uncheckable = uncheckableOutcome(id, framework, level, source, counted);
+  const frameworks = [...evaluatedFrameworks.values()];
+  for (const { framework, level, counted } of frameworks) {
+    const uncheckable = uncheckableOutcome(
+      id,
+      framework,
+      level,
+      source,
+      counted,
+      // Zwei Frameworks auf einer Kachel (Android): je Framework ein eigener Befund
+      frameworks.length > 1 ? `${id}-uncheckable-${framework.id}` : undefined,
+    );
     checks.push(...uncheckable.checks);
     if (uncheckable.finding) findings.push(uncheckable.finding);
-    const fact = levelFact(framework, options.level);
-    if (fact) facts.unshift(fact);
   }
   if (noTarget.length > 0) findings.push(noTargetFinding(id, platform, noTarget, source));
   if (betaOnly.length > 0) {
+    // Zustand der Beta-Liste zählt nur für Richtlinien, die sie nicht aufgewertet hat
+    const open = betaOnly.some((policy) => policy.beta !== true);
+    const state: BetaState = open ? beta : 'ok';
     findings.push({
       id: `${id}-betaOnly`,
       severity: 'unknown',
       title: t.betaTypeTitle(betaOnly.length),
-      detail: t.betaTypeDetail(betaOnly.map((policy) => `„${policy.displayName}“`)),
-      cause: t.betaTypeCause,
-      remediation: [...t.betaTypeRemediation],
-      evidence: { odataTypes: betaOnly.map((policy) => policy.odataType ?? '').join(', ') },
-      source,
+      detail: [
+        t.betaTypeDetail(betaOnly.map((policy) => `„${policy.displayName}“`)),
+        t.betaTypeDetailNote[state],
+      ]
+        .filter(Boolean)
+        .join(' '),
+      cause: t.betaTypeCause[state],
+      remediation: [
+        ...(state === 'failed' ? t.betaFailedRemediation : []),
+        ...t.betaTypeManualRemediation,
+      ],
+      evidence: {
+        odataTypes: betaOnly.map((policy) => policy.odataType ?? '').join(', '),
+        ...(beta === 'notRead' ? {} : { betaList: beta }),
+      },
+      source: state === 'failed' && betaRead ? betaRead.source : source,
       docsUrl:
         platform === 'android' ? Docs.postureAndroidFullyManaged : Docs.postureIosComplianceLevel2,
     });
   }
 
+  // Fakten: Stufe(n) zuerst, dann Überblick, dann je Richtlinie
+  const levelFacts = frameworks.flatMap(({ framework }) => {
+    const fact = levelFact(framework, options.level);
+    return fact ? [{ framework, fact }] : [];
+  });
+  const firstLevelFact = levelFacts[0]?.fact;
+  // Gleiche Stufe für alle Frameworks → ein Fakt; sonst je Framework einer mit eigener Bezeichnung
+  const headFacts: TileFact[] = !firstLevelFact
+    ? []
+    : levelFacts.every(({ fact }) => fact.value === firstLevelFact.value)
+      ? [firstLevelFact]
+      : levelFacts.map(({ framework, fact }) => ({
+          ...fact,
+          label: c.facts.levelFor(t.frameworkShort[framework.id] ?? framework.id),
+        }));
+  const overview: TileFact[] = [{ label: c.facts.policies, value: String(own.length) }];
+  if (unclassified.length > 0)
+    overview.push({ label: t.unclassifiedFact, value: unclassifiedNames.join(', ') });
+  // Android bewertet bis zu zwei Frameworks – die Kachel nennt, welche tatsächlich bewertet wurden
+  if (platform === 'android' && frameworks.length > 0) {
+    overview.push({
+      label: t.frameworksFact(frameworks.length),
+      value: frameworks
+        .map(({ framework }) => t.frameworkNames[framework.id] ?? framework.id)
+        .join(' · '),
+    });
+  }
+  if (own.some((policy) => policy.type === 'androidDeviceOwner'))
+    overview.push({ label: t.deviceOwnerScopeFact, value: t.deviceOwnerScopeNote });
+  facts.unshift(...headFacts);
+  facts.push(...overview, ...betaFacts, ...policyFacts);
+
+  // „Stufe N erreicht“ nur, wenn alle bewerteten Frameworks (auch die nur nicht zugewiesener Richtlinien)
+  // gegen dieselbe Stufe bewertet werden und jede gezählte Richtlinie sie erreicht
   const counts = countChecks(checks);
-  const leveled = [...evaluatedFrameworks.values()].find((entry) => entry.level !== null);
+  const frameworkLevels = frameworks.map((entry) => entry.level);
+  const commonLevel =
+    frameworkLevels.length > 0 && frameworkLevels.every((level) => level === frameworkLevels[0])
+      ? (frameworkLevels[0] ?? null)
+      : null;
   const allReached =
-    leveled?.level != null &&
+    commonLevel !== null &&
     reachedLevels.length > 0 &&
     counts.deviating === 0 &&
-    reachedLevels.every(
-      (reached) => reached !== null && reached >= (leveled.level as PostureLevel),
-    );
+    reachedLevels.every((reached) => reached !== null && reached >= commonLevel);
   const value =
     evaluatedFrameworks.size === 0
       ? noTarget.length > 0 && betaOnly.length === 0
         ? c.valueNoTarget
         : c.valueNotChecked
       : allReached
-        ? c.valueLevel(leveled.level as PostureLevel, counts.notChecked === 0)
+        ? c.valueLevel(commonLevel, counts.notChecked === 0)
         : valueOfChecks(checks);
   return buildTile({
     id,
     value,
-    summary:
+    summary: withBeta(
       checks.length > 0
         ? t.summaryPolicies(own.length, summaryOfChecks(checks))
         : t.summaryPolicies(own.length, null),
+    ),
     findings,
     facts,
     sources,

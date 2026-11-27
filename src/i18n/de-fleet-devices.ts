@@ -3,6 +3,7 @@
  * `de.fleetDevices`. (`de.fleet` gehört der Compliance-Übersicht aus M20.)
  */
 import type { OsFamily } from '../domain/types';
+import type { FleetManagement } from '../rules/fleetDevices';
 import { THRESHOLDS } from '../rules/thresholds';
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -19,6 +20,8 @@ export const deFleetDevices = {
       user: 'Benutzer',
       upn: 'UPN',
       platform: 'Plattform',
+      management: 'Verwaltet von',
+      managementAgent: 'managementAgent (Rohwert)',
       osVersion: 'Version',
       model: 'Modell',
       serial: 'Seriennummer',
@@ -34,6 +37,9 @@ export const deFleetDevices = {
     label: 'Gesamtbild der Flotte',
     total: (n: number) => count(n, 'Gerät', 'Geräte'),
     totalMin: (n: number) => `mind. ${count(n, 'Gerät', 'Geräte')}`,
+    filtered: (n: number, total: number) => `${n} von ${count(total, 'Gerät', 'Geräten')}`,
+    filteredMin: (n: number, total: number) => `${n} von mind. ${count(total, 'Gerät', 'Geräten')}`,
+    filterNote: 'Zahlen für die aktuelle Auswahl',
     withIssues: (n: number) => `${n} auffällig`,
     critical: (n: number) => `${n} kritisch`,
     warning: (n: number) => (n === 1 ? '1 Warnung' : `${n} Warnungen`),
@@ -69,6 +75,24 @@ export const deFleetDevices = {
       linux: 'Linux',
       other: 'Sonstige',
     } satisfies Record<OsFamily, string>,
+  },
+  management: {
+    label: 'Verwaltet von',
+    all: 'Alle Verwaltungsarten',
+    names: {
+      intune: 'Intune',
+      coManaged: 'Co-Management',
+      configMgr: 'Configuration Manager',
+      mde: 'Defender for Endpoint (MDE)',
+      eas: 'Exchange ActiveSync',
+      jamf: 'Jamf',
+      other: 'Sonstige',
+    } satisfies Record<FleetManagement, string>,
+    notReported: 'Verwaltung nicht gemeldet',
+    /** Gruppe „Sonstige“ nennt den Rohwert, damit nichts hinter einem Sammelbegriff verschwindet */
+    otherWithAgent: (agent: string) => `Sonstige (${agent})`,
+    rawTitle: (agent: string) => `managementAgent: ${agent}`,
+    hint: 'Mehrfachauswahl. „Defender for Endpoint (MDE)“ sind Geräte, die in Defender for Endpoint eingebunden, aber nicht von Intune verwaltet sind.',
   },
   search: {
     label: 'Geräte durchsuchen',

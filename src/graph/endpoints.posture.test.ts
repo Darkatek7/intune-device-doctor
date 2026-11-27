@@ -17,6 +17,7 @@ const POSTURE_IDS: EndpointId[] = [
   'catalogPolicySettings',
   'policyTemplates',
   'policyTemplateSettingTemplates',
+  'deviceCompliancePoliciesBeta',
 ];
 
 describe('Endpunkte – Empfehlungen (M21)', () => {
@@ -30,14 +31,21 @@ describe('Endpunkte – Empfehlungen (M21)', () => {
     }
   });
 
-  it('Beta nur für die vier freigegebenen Katalog-Endpunkte; absolute Beta-URL', () => {
+  it('Beta nur für die vier Katalog-Endpunkte und die Compliance-Beta-Liste; absolute Beta-URL', () => {
     const beta = POSTURE_IDS.filter((id) => Endpoints[id].version === 'beta').sort();
     expect(beta).toEqual([
       'catalogPolicies',
       'catalogPolicySettings',
+      'deviceCompliancePoliciesBeta',
       'policyTemplateSettingTemplates',
       'policyTemplates',
     ]);
+    expect(Endpoints.deviceCompliancePoliciesBeta.path()).toBe(
+      `${GRAPH_BETA_URL}/deviceManagement/deviceCompliancePolicies`,
+    );
+    expect(Endpoints.deviceCompliancePoliciesBeta.scope).toBe(
+      'DeviceManagementConfiguration.Read.All',
+    );
     expect(Endpoints.catalogPolicies.path()).toBe(
       `${GRAPH_BETA_URL}/deviceManagement/configurationPolicies`,
     );

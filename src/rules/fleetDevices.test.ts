@@ -6,8 +6,11 @@ import {
   evaluateFleet,
   filterFleetRows,
   FLEET_ISSUES,
+  fleetFacets,
   fleetIssuesOf,
+  fleetManagementOf,
   isFleetIssue,
+  isFleetManagement,
 } from './fleetDevices';
 
 const NOW = new Date('2026-11-25T12:00:00Z');
@@ -29,6 +32,7 @@ function device(name: string, extra: Partial<FleetDevice> = {}): FleetDevice {
     enrolledDateTime: daysAgo(200),
     isEncrypted: true,
     jailBroken: 'False',
+    managementAgent: 'mdm',
     ...extra,
   };
 }
@@ -184,7 +188,7 @@ describe('evaluateFleet', () => {
         'MB002',
         'MB003',
       ]);
-      expect(names({ issue: 'any', platform: 'ios', query: '' })).toEqual(['IP001']);
+      expect(names({ ...EMPTY_FLEET_FILTER, issue: 'any', platform: 'ios' })).toEqual(['IP001']);
     });
     it('sucht ohne Groß-/Kleinschreibung in Name, Benutzer, Seriennummer und Version', () => {
       expect(names({ ...EMPTY_FLEET_FILTER, query: ' pc00 ' })).toEqual([
@@ -214,5 +218,149 @@ describe('isFleetIssue', () => {
     expect(isFleetIssue('notEncrypted')).toBe(true);
     expect(isFleetIssue('any')).toBe(false);
     expect(isFleetIssue(null)).toBe(false);
+  });
+});
+
+describe('fleetManagementOf', () => {
+  it('ordnet die dokumentierten Werte von managementAgent den Gruppen zu', () => {
+    expect(fleetManagementOf('mdm')).toBe('intune');
+    expect(fleetManagementOf('easMdm')).toBe('intune');
+    expect(fleetManagementOf('intuneClient')).toBe('intune');
+    expect(fleetManagementOf('microsoft365ManagedMdm')).toBe('intune');
+    expect(fleetManagementOf('intuneAosp')).toBe('intune');
+    expect(fleetManagementOf('googleCloudDevicePolicyController')).toBe('intune');
+    expect(fleetManagementOf('configurationManagerClientMdm')).toBe('coManaged');
+    expect(fleetManagementOf('configurationManagerClientMdmEas')).toBe('coManaged');
+    expect(fleetManagementOf('configurationManagerClient')).toBe('configMgr');
+    expect(fleetManagementOf('msSense')).toBe('mde');
+    expect(fleetManagementOf('eas')).toBe('eas');
+    expect(fleetManagementOf('jamf')).toBe('jamf');
+  });
+  it('rät nicht: unbekannte, künftige und fehlende Werte landen unter „Sonstige“', () => {
+    expect(fleetManagementOf('unknown')).toBe('other');
+    expect(fleetManagementOf('google')).toBe('other');
+    expect(fleetManagementOf('unknownFutureValue')).toBe('other');
+    expect(fleetManagementOf('MsSense')).toBe('other');
+    expect(fleetManagementOf('toString')).toBe('other');
+    expect(fleetManagementOf('')).toBe('other');
+    expect(fleetManagementOf(null)).toBe('other');
+  });
+  it('isFleetManagement erkennt nur die Gruppennamen', () => {
+    expect(isFleetManagement('mde')).toBe(true);
+    expect(isFleetManagement('msSense')).toBe(false);
+    expect(isFleetManagement(null)).toBe(false);
+  });
+});
+
+describe('Verwaltet von: Zählung, Filter und Zahlen zur Auswahl', () => {
+  const overview = evaluateFleet(
+    {
+      devices: [
+        device('PC001', { complianceState: 'noncompliant' }),
+        device('PC002'),
+        device('PC003', { managementAgent: 'configurationManagerClientMdm' }),
+        device('SRV001', {
+          managementAgent: 'msSense',
+          complianceState: 'unknown',
+          isEncrypted: false,
+        }),
+        device('SRV002', { managementAgent: 'msSense', complianceState: 'unknown' }),
+        device('MB001', { operatingSystem: 'macOS', osVersion: '15.1', isEncrypted: false }),
+        device('AND001', {
+          operatingSystem: 'Android',
+          osVersion: '15',
+          managementAgent: 'googleCloudDevicePolicyController',
+        }),
+        device('X001', { managementAgent: 'somethingNew' }),
+        device('X002', { managementAgent: null }),
+      ],
+      truncated: false,
+      pagesRead: 1,
+    },
+    NOW,
+  );
+  const names = (rows: ReturnType<typeof filterFleetRows>) =>
+    rows.map((row) => row.device.deviceName).sort();
+
+  it('zählt je Gruppe und lässt Gruppen ohne Geräte weg', () => {
+    expect(overview.managements).toEqual([
+      { management: 'intune', count: 4 },
+      { management: 'coManaged', count: 1 },
+      { management: 'mde', count: 2 },
+      { management: 'other', count: 2 },
+    ]);
+    expect(overview.rows.find((row) => row.device.deviceName === 'SRV001')?.management).toBe('mde');
+  });
+
+  it('filtert auf eine oder mehrere Gruppen; leer = alle', () => {
+    expect(filterFleetRows(overview.rows, EMPTY_FLEET_FILTER)).toHaveLength(9);
+    expect(
+      names(filterFleetRows(overview.rows, { ...EMPTY_FLEET_FILTER, managements: ['mde'] })),
+    ).toEqual(['SRV001', 'SRV002']);
+    expect(
+      names(
+        filterFleetRows(overview.rows, { ...EMPTY_FLEET_FILTER, managements: ['intune', 'mde'] }),
+      ),
+    ).toEqual(['AND001', 'MB001', 'PC001', 'PC002', 'SRV001', 'SRV002']);
+    expect(
+      names(
+        filterFleetRows(overview.rows, {
+          ...EMPTY_FLEET_FILTER,
+          managements: ['intune'],
+          issue: 'notEncrypted',
+        }),
+      ),
+    ).toEqual(['MB001']);
+  });
+
+  it('ohne Filter entsprechen die Zahlen der ganzen Flotte', () => {
+    const facets = fleetFacets(overview.rows, EMPTY_FLEET_FILTER);
+    expect(facets.rows).toHaveLength(9);
+    expect(facets.counts.total).toBe(overview.total);
+    expect(facets.counts.withIssues).toBe(overview.withIssues);
+    expect(facets.issues.notEncrypted).toBe(2);
+    expect(facets.platforms.windows).toBe(7);
+    expect(facets.managements).toMatchObject({
+      intune: 4,
+      coManaged: 1,
+      mde: 2,
+      other: 2,
+      jamf: 0,
+    });
+  });
+
+  it('Gesamtbild und Versionen zählen genau die gefilterten Zeilen', () => {
+    const facets = fleetFacets(overview.rows, { ...EMPTY_FLEET_FILTER, managements: ['intune'] });
+    expect(facets.counts.total).toBe(4);
+    expect(facets.counts.withIssues).toBe(2);
+    expect(facets.counts.critical).toBe(2);
+    expect(facets.counts.osVersions.map((entry) => [entry.platform, entry.total])).toEqual([
+      ['windows', 2],
+      ['macos', 1],
+      ['android', 1],
+    ]);
+  });
+
+  it('jede Filterleiste zählt mit den anderen Filtern, nicht mit dem eigenen', () => {
+    const facets = fleetFacets(overview.rows, {
+      ...EMPTY_FLEET_FILTER,
+      issue: 'notEncrypted',
+      managements: ['intune'],
+    });
+    // Liste: nur das unverschlüsselte Intune-Gerät
+    expect(names(facets.rows)).toEqual(['MB001']);
+    // Auffälligkeiten: innerhalb von Intune, ohne den Auffälligkeiten-Filter
+    expect(facets.issues).toMatchObject({ notEncrypted: 1, nonCompliant: 1 });
+    // Verwaltet von: innerhalb von „nicht verschlüsselt“, ohne den eigenen Filter
+    expect(facets.managements).toMatchObject({ intune: 1, mde: 1, coManaged: 0 });
+    // Plattformen: mit beiden anderen Filtern
+    expect(facets.platforms).toMatchObject({ macos: 1, windows: 0, android: 0 });
+  });
+
+  it('die Suche wirkt auf alle Zahlen', () => {
+    const facets = fleetFacets(overview.rows, { ...EMPTY_FLEET_FILTER, query: 'srv' });
+    expect(facets.counts.total).toBe(2);
+    expect(facets.managements).toMatchObject({ mde: 2, intune: 0 });
+    expect(facets.issues.notEncrypted).toBe(1);
   });
 });

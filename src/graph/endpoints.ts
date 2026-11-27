@@ -922,6 +922,23 @@ export const Endpoints = {
     path: (templateId: string) =>
       `${GRAPH_BETA_URL}/deviceManagement/configurationPolicyTemplates/${enc(templateId)}/settingTemplates`,
   },
+  /**
+   * BETA – dritte freigegebene Ausnahme (2026-11-27): Compliance-Richtlinien inkl. `@odata.type` und
+   * Einstellungen abgeleiteter Typen, die v1.0 nicht dokumentiert (`androidDeviceOwnerCompliancePolicy`).
+   * Wird nur gelesen, wenn v1.0 mindestens eine Richtlinie ohne dokumentierten Typ liefert; dient
+   * ausschließlich der Aufwertung dieser Richtlinien (Zuordnung über `id`). Keine Query-Optionen
+   * dokumentiert. Least privileged laut Doku: DeviceManagementConfiguration.Read.All.
+   */
+  deviceCompliancePoliciesBeta: {
+    id: 'deviceCompliancePoliciesBeta',
+    method: 'GET',
+    version: 'beta',
+    scope: GraphScope.ConfigurationRead,
+    docsUrl:
+      'https://learn.microsoft.com/en-us/graph/api/intune-deviceconfig-devicecompliancepolicy-list?view=graph-rest-beta',
+    display: 'GET /beta/deviceManagement/deviceCompliancePolicies',
+    path: () => `${GRAPH_BETA_URL}/deviceManagement/deviceCompliancePolicies`,
+  },
 } satisfies Record<string, GraphEndpointDef<string[]>>;
 
 export type EndpointId = keyof typeof Endpoints;

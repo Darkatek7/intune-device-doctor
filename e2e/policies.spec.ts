@@ -38,6 +38,31 @@ async function expectNoSevereViolations(page: Page, label: string): Promise<void
 }
 
 test.describe('Ansicht „Richtlinien“', () => {
+  test('Plattformfilter schränkt die Liste ein und lässt sich wieder aufheben', async ({
+    page,
+  }) => {
+    await openPolicies(page);
+    const total = await rows(page).count();
+    const group = page.getByRole('group', { name: 'Plattform' });
+    await expect(group.getByRole('button', { name: 'Alle Plattformen' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const windows = group.getByRole('button', { name: /^Windows \(\d+\)$/ });
+    await windows.click();
+    await expect(windows).toHaveAttribute('aria-pressed', 'true');
+    const shown = await rows(page).count();
+    expect(shown).toBeGreaterThan(0);
+    expect(shown).toBeLessThan(total);
+    await expect(windows).toHaveText(`Windows (${shown})`);
+    for (const row of await rows(page).all()) {
+      await expect(row).toContainText('· Windows');
+    }
+    await expectNoSevereViolations(page, 'Richtlinien mit Plattformfilter');
+    await group.getByRole('button', { name: 'Alle Plattformen' }).click();
+    await expect(rows(page)).toHaveCount(total);
+  });
+
   test('Toolbar öffnet die Liste, sortiert nach Problemen, mit Namensfilter und Beta-Hinweis', async ({
     page,
   }) => {

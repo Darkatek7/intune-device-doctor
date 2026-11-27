@@ -4,6 +4,7 @@ import { dePosture } from '../../../i18n/de-posture';
 import { parseIsoDurationMinutes } from '../duration';
 import {
   ALL_FRAMEWORKS,
+  ANDROID_FULLY_MANAGED_COMPLIANCE,
   ANDROID_WORK_PROFILE_COMPLIANCE,
   APP_PROTECTION_ANDROID,
   APP_PROTECTION_IOS,
@@ -126,10 +127,44 @@ const V1_PROPERTIES = {
   ],
 };
 
+/**
+ * Eigenschaften der Beta-Ressource androidDeviceOwnerCompliancePolicy laut Learn (abgerufen 2026-11-27,
+ * dritte freigegebene Beta-Ausnahme). Dieselbe Allowlist steht in `src/graph/dto.ts`
+ * (`ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS`) – nur diese Schlüssel liefert der Graph-Provider.
+ */
+const BETA_ANDROID_DEVICE_OWNER_PROPERTIES = [
+  'deviceThreatProtectionEnabled',
+  'deviceThreatProtectionRequiredSecurityLevel',
+  'advancedThreatProtectionRequiredSecurityLevel',
+  'securityBlockJailbrokenDevices',
+  'securityRequireSafetyNetAttestationBasicIntegrity',
+  'securityRequireSafetyNetAttestationCertifiedDevice',
+  'osMinimumVersion',
+  'osMaximumVersion',
+  'minAndroidSecurityPatchLevel',
+  'passwordRequired',
+  'passwordMinimumLength',
+  'passwordMinimumLetterCharacters',
+  'passwordMinimumLowerCaseCharacters',
+  'passwordMinimumNonLetterCharacters',
+  'passwordMinimumNumericCharacters',
+  'passwordMinimumSymbolCharacters',
+  'passwordMinimumUpperCaseCharacters',
+  'passwordRequiredType',
+  'passwordMinutesOfInactivityBeforeLock',
+  'passwordExpirationDays',
+  'passwordPreviousPasswordCountToBlock',
+  'storageRequireEncryption',
+  'securityRequireIntuneAppIntegrity',
+  'requireNoPendingSystemUpdates',
+  'securityRequiredAndroidSafetyNetEvaluationType',
+];
+
 const ALLOWED_PROPERTIES = new Map([
   [WINDOWS_COMPLIANCE, V1_PROPERTIES.windows10CompliancePolicy],
   [IOS_COMPLIANCE, V1_PROPERTIES.iosCompliancePolicy],
   [ANDROID_WORK_PROFILE_COMPLIANCE, V1_PROPERTIES.androidWorkProfileCompliancePolicy],
+  [ANDROID_FULLY_MANAGED_COMPLIANCE, BETA_ANDROID_DEVICE_OWNER_PROPERTIES],
   [
     APP_PROTECTION_IOS,
     [...V1_PROPERTIES.managedAppProtection, ...V1_PROPERTIES.iosManagedAppProtection],
@@ -143,9 +178,9 @@ const ALLOWED_PROPERTIES = new Map([
 /**
  * Prüfungen, bei denen „nicht konfiguriert“ (null) bewusst nicht prüfbar ist: Bedrohungsstufe nicht
  * aktiviert – Learn empfiehlt Defender for Endpoint ODER Mobile Threat Defense, die Defender-Bewertung ist
- * über v1.0 nicht lesbar.
+ * über v1.0 nicht lesbar (vollständig verwaltet: Zuordnung des Portalwerts „Clear“ nicht dokumentiert).
  */
-const NULL_NOT_CHECKED = new Set(['iosThreatLevel', 'awpThreatLevel']);
+const NULL_NOT_CHECKED = new Set(['iosThreatLevel', 'awpThreatLevel', 'afmThreatLevel']);
 
 const allChecks = ALL_FRAMEWORKS.flatMap((framework) =>
   framework.checks.map((check) => ({ framework, check })),
@@ -196,7 +231,9 @@ describe('Katalog – Quellen und Texte', () => {
     }
   });
 
-  it('verwendet nur auf Learn dokumentierte v1.0-Eigenschaftsnamen', () => {
+  it('verwendet nur auf Learn dokumentierte Eigenschaftsnamen (v1.0; vollständig verwaltet: Beta-Ressource)', () => {
+    // Jedes Framework hat eine Allowlist – ein neues ohne Liste fiele sonst unbemerkt durch
+    expect([...ALLOWED_PROPERTIES.keys()]).toEqual(expect.arrayContaining([...ALL_FRAMEWORKS]));
     for (const [framework, allowed] of ALLOWED_PROPERTIES) {
       for (const check of framework.checks) {
         for (const property of check.properties) {
@@ -210,6 +247,7 @@ describe('Katalog – Quellen und Texte', () => {
     expect(WINDOWS_COMPLIANCE.levels).toBeNull();
     expect(IOS_COMPLIANCE.levels).toEqual([2, 3]);
     expect(ANDROID_WORK_PROFILE_COMPLIANCE.levels).toEqual([2, 3]);
+    expect(ANDROID_FULLY_MANAGED_COMPLIANCE.levels).toEqual([1, 2, 3]);
     expect(APP_PROTECTION_IOS.levels).toEqual([1, 2, 3]);
   });
 });
@@ -300,7 +338,7 @@ describe('Katalog – Vergleichsrichtung', () => {
     );
   });
 
-  it.each(['iosThreatLevel', 'awpThreatLevel'])(
+  it.each(['iosThreatLevel', 'awpThreatLevel', 'afmThreatLevel'])(
     '%s: aktiviert → nur „secured“ erfüllt; nicht aktiviert → nicht prüfbar (Defender ODER MTD)',
     (id) => {
       const check = byId(id);
@@ -322,7 +360,7 @@ describe('Katalog – Vergleichsrichtung', () => {
     },
   );
 
-  it('„höchstens“: 0 ist nur bei iOS „nach Bildschirmsperre“ mehrdeutig (Portal kennt „Sofort“)', () => {
+  it('„höchstens“: 0 ist bei iOS „nach Bildschirmsperre“ mehrdeutig (Portal kennt „Sofort“), bei Android-Arbeitsprofil und Windows nicht', () => {
     const s = (property: string, value: number | null) => ({ settings: { [property]: value } });
     const afterLock = byId('iosPasscodeAfterLock');
     expect(afterLock?.evaluate(s('passcodeMinutesOfInactivityBeforeLock', 0)).status).toBe(
@@ -364,5 +402,183 @@ describe('Katalog – Vergleichsrichtung', () => {
       'notChecked',
     );
     expect(parseIsoDurationMinutes('P1M')).toBeNull();
+  });
+});
+
+describe('Katalog – Android Enterprise vollständig verwaltet (Beta-Ressource, Stand 2026-11-27)', () => {
+  const afm = ANDROID_FULLY_MANAGED_COMPLIANCE;
+  const check = (id: string) => {
+    const found = afm.checks.find((entry) => entry.id === id);
+    if (!found) throw new Error(`Prüfung ${id} fehlt`);
+    return found;
+  };
+  const s = (settings: Record<string, string | number | boolean | null>) => ({ settings });
+
+  it('Prüfungen je Stufe mit genau den Eigenschaften der Beta-Ressource', () => {
+    expect(afm.checks.map((entry) => [entry.id, entry.level, [...entry.properties]])).toEqual([
+      ['afmBasicIntegrity', 1, ['securityRequireSafetyNetAttestationBasicIntegrity']],
+      ['afmOsMinimum', 1, ['osMinimumVersion']],
+      ['afmPasswordRequired', 1, ['passwordRequired']],
+      ['afmPasswordType', 1, ['passwordRequiredType']],
+      ['afmPasswordMinLength', 1, ['passwordMinimumLength']],
+      ['afmPasswordInactivity', 1, ['passwordMinutesOfInactivityBeforeLock']],
+      ['afmEncryption', 1, ['storageRequireEncryption']],
+      ['afmIntuneAppIntegrity', 1, ['securityRequireIntuneAppIntegrity']],
+      ['afmMarkNoncompliant', 1, []],
+      ['afmPasswordExpiration', 2, ['passwordExpirationDays']],
+      ['afmPasswordReuse', 2, ['passwordPreviousPasswordCountToBlock']],
+      ['afmDeviceIntegrity', 2, ['securityRequireSafetyNetAttestationCertifiedDevice']],
+      ['afmStrongIntegrity', 2, ['securityRequiredAndroidSafetyNetEvaluationType']],
+      [
+        'afmThreatLevel',
+        3,
+        ['deviceThreatProtectionEnabled', 'deviceThreatProtectionRequiredSecurityLevel'],
+      ],
+    ]);
+  });
+
+  it('jede Prüfung verweist auf die Tabelle ihrer Stufe', () => {
+    for (const entry of afm.checks) {
+      expect(entry.docsUrl, entry.id).toBe(
+        `https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#device-compliance-level-${entry.level}`,
+      );
+    }
+  });
+
+  it('Kennworttyp: „Numerisch komplex“ oder strenger erfüllt; schwächere weichen ab', () => {
+    const type = (value: string) =>
+      check('afmPasswordType').evaluate(s({ passwordRequiredType: value }));
+    for (const value of [
+      'numericComplex',
+      'alphabetic',
+      'alphanumeric',
+      'alphanumericWithSymbols',
+    ]) {
+      expect(type(value).status, value).toBe('met');
+    }
+    for (const value of ['deviceDefault', 'required', 'numeric']) {
+      expect(type(value).status, value).toBe('deviating');
+    }
+    expect(type('numeric').actual).toBe('Mindestens numerisch');
+    expect(type('required').actual).toBe('Kennwort erforderlich, Typ beliebig');
+  });
+
+  it.each(['lowSecurityBiometric', 'customPassword', 'futureValue'])(
+    'Kennworttyp %s hat keinen dokumentierten Rang → nicht prüfbar (weder erfüllt noch abweichend)',
+    (value) => {
+      const outcome = check('afmPasswordType').evaluate(s({ passwordRequiredType: value }));
+      expect(outcome.status).toBe('notChecked');
+      expect(outcome.reason).toContain('keinen Rang gegenüber dem empfohlenen Wert');
+    },
+  );
+
+  it('Kennwort-Wiederverwendung liest passwordPreviousPasswordCountToBlock (nicht den Arbeitsprofil-Namen)', () => {
+    const reuse = check('afmPasswordReuse');
+    expect(reuse.evaluate(s({ passwordPreviousPasswordCountToBlock: 5 })).status).toBe('met');
+    expect(reuse.evaluate(s({ passwordPreviousPasswordCountToBlock: 24 })).status).toBe('met');
+    expect(reuse.evaluate(s({ passwordPreviousPasswordCountToBlock: 4 })).status).toBe('deviating');
+    // Der v1.0-Name des Arbeitsprofils zählt hier nicht
+    expect(reuse.evaluate(s({ passwordPreviousPasswordBlockCount: 5 })).status).toBe('notChecked');
+  });
+
+  it('Inaktivität: höchstens 5 Minuten; 0 ist nicht dokumentiert → nicht prüfbar, ohne iOS-Begründung', () => {
+    const inactivity = (value: number | null) =>
+      check('afmPasswordInactivity').evaluate(s({ passwordMinutesOfInactivityBeforeLock: value }));
+    expect(inactivity(5).status).toBe('met');
+    expect(inactivity(1).status).toBe('met');
+    expect(inactivity(6).status).toBe('deviating');
+    expect(inactivity(null).status).toBe('deviating');
+    const zero = inactivity(0);
+    expect(zero.status).toBe('notChecked');
+    expect(zero.reason).toContain('weder einen Wertebereich noch die Bedeutung von 0');
+    // Die iOS-Begründung („Admin Center bietet Sofort an“) ist für diesen Typ nicht belegt
+    expect(zero.reason).not.toContain('bietet für diese Einstellung');
+  });
+
+  it('starke Integrität: nur hardwareBacked erfüllt; basic weicht ab; unbekannter Wert nicht prüfbar', () => {
+    const strong = (value: string | null) =>
+      check('afmStrongIntegrity').evaluate(
+        s({ securityRequiredAndroidSafetyNetEvaluationType: value }),
+      );
+    expect(strong('hardwareBacked')).toEqual({
+      status: 'met',
+      actual: 'Starke Integrität (hardwaregestützt)',
+    });
+    expect(strong('basic').status).toBe('deviating');
+    expect(strong(null).status).toBe('deviating');
+    expect(strong('futureValue').status).toBe('notChecked');
+  });
+
+  it('Kennwortablauf höchstens 365 Tage, Mindestlänge 6, Betriebssystemversion nur „gesetzt“', () => {
+    expect(check('afmPasswordExpiration').evaluate(s({ passwordExpirationDays: 90 })).status).toBe(
+      'met',
+    );
+    expect(check('afmPasswordExpiration').evaluate(s({ passwordExpirationDays: 0 })).status).toBe(
+      'deviating',
+    );
+    expect(check('afmPasswordMinLength').evaluate(s({ passwordMinimumLength: 8 })).status).toBe(
+      'met',
+    );
+    // Learn nennt nur Format und Beispiel (9.0 bzw. 11.0) – jeder gesetzte Wert erfüllt
+    expect(check('afmOsMinimum').evaluate(s({ osMinimumVersion: '8.0' })).status).toBe('met');
+    expect(
+      afm.checks.filter((entry) => entry.properties.includes('osMinimumVersion')),
+    ).toHaveLength(1);
+  });
+
+  it('Bedrohungsstufe nicht aktiviert: Grund nennt die fehlende Zuordnung von „Clear“, nicht „v1.0“', () => {
+    const off = check('afmThreatLevel').evaluate(
+      s({
+        deviceThreatProtectionEnabled: false,
+        deviceThreatProtectionRequiredSecurityLevel: null,
+      }),
+    );
+    expect(off.status).toBe('notChecked');
+    expect(off.reason).toContain('advancedThreatProtectionRequiredSecurityLevel');
+    expect(off.reason).toContain('„Clear“');
+    expect(off.reason).not.toContain('v1.0');
+  });
+
+  it('Computerrisikobewertung „Clear“: Eigenschaft dokumentiert, Wertzuordnung nicht → nicht prüfbar', () => {
+    expect(afm.uncheckable).toEqual([
+      {
+        id: 'afmMdeRisk',
+        level: 3,
+        docsUrl:
+          'https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed#device-compliance-level-3',
+        reason: 'valueMappingUndocumented',
+      },
+    ]);
+    expect(dePosture.uncheckableReason.valueMappingUndocumented).toContain(
+      'Die Eigenschaft ist dokumentiert',
+    );
+    // Keine Prüfung liest die Defender-Eigenschaft – sie stünde sonst für eine geratene Zuordnung
+    expect(afm.checks.flatMap((entry) => [...entry.properties])).not.toContain(
+      'advancedThreatProtectionRequiredSecurityLevel',
+    );
+  });
+
+  it('kein Ergebnistext dieses Frameworks behauptet „v1.0“', () => {
+    const subjects: PolicySubject[] = [
+      { settings: {}, scheduledActions: null },
+      {
+        settings: Object.fromEntries(
+          BETA_ANDROID_DEVICE_OWNER_PROPERTIES.map((key) => [key, null]),
+        ),
+        scheduledActions: [],
+      },
+      s({
+        passwordMinutesOfInactivityBeforeLock: 0,
+        passwordRequiredType: 'customPassword',
+        deviceThreatProtectionEnabled: false,
+        securityRequiredAndroidSafetyNetEvaluationType: 'futureValue',
+      }),
+    ];
+    for (const entry of afm.checks) {
+      for (const subject of [...subjects, entry.satisfiedBy, entry.deviatingWith]) {
+        const outcome = entry.evaluate(subject);
+        expect(`${outcome.actual} ${outcome.reason ?? ''}`, entry.id).not.toContain('v1.0');
+      }
+    }
   });
 });

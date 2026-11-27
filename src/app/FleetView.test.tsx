@@ -40,6 +40,7 @@ function device(index: number, overrides: Partial<FleetDevice> = {}): FleetDevic
     enrolledDateTime: null,
     isEncrypted: true,
     jailBroken: null,
+    managementAgent: 'mdm',
     ...overrides,
   };
 }
@@ -63,7 +64,7 @@ function providerWith(
 /** Hält den Filter wie die URL in AppShell. */
 function Harness({
   provider,
-  initial = { issue: null, platform: null },
+  initial = { issue: null, platform: null, managements: [] },
   onOpenDevice = () => {},
   onFilter,
 }: {
@@ -79,6 +80,7 @@ function Harness({
         provider={provider}
         issue={filter.issue}
         platform={filter.platform}
+        managements={filter.managements}
         onFilterChange={(next) => {
           onFilter?.(next);
           setFilter(next);
@@ -126,17 +128,21 @@ describe('FleetView', { timeout: 15_000 }, () => {
 
     expect(issueCard('notEncrypted')).toHaveAttribute('aria-pressed', 'false');
     await user.click(issueCard('notEncrypted'));
-    expect(onFilter).toHaveBeenLastCalledWith({ issue: 'notEncrypted', platform: null });
+    expect(onFilter).toHaveBeenLastCalledWith({
+      issue: 'notEncrypted',
+      platform: null,
+      managements: [],
+    });
     expect(issueCard('notEncrypted')).toHaveAttribute('aria-pressed', 'true');
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toHaveTextContent('CONTOSO-PC002');
 
     await user.click(issueCard('notEncrypted'));
-    expect(onFilter).toHaveBeenLastCalledWith({ issue: null, platform: null });
+    expect(onFilter).toHaveBeenLastCalledWith({ issue: null, platform: null, managements: [] });
     expect(rows()).toHaveLength(5);
 
     await user.click(screen.getByRole('button', { name: t.issues.any }));
-    expect(onFilter).toHaveBeenLastCalledWith({ issue: 'any', platform: null });
+    expect(onFilter).toHaveBeenLastCalledWith({ issue: 'any', platform: null, managements: [] });
     expect(rows()).toHaveLength(3);
     // Karte ohne Treffer bleibt sichtbar und bedienbar
     expect(issueCard('jailbroken')).toHaveTextContent('0');
@@ -152,6 +158,96 @@ describe('FleetView', { timeout: 15_000 }, () => {
     await user.click(within(group).getByRole('button', { name: 'macOS (1)' }));
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toHaveTextContent('CONTOSO-PC003');
+  });
+
+  it('ohne gemischte Verwaltung bleibt die Leiste „Verwaltet von“ weg', async () => {
+    render(<Harness provider={providerWith(MIXED)} />);
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    expect(screen.queryByRole('group', { name: t.management.label })).not.toBeInTheDocument();
+    expect(rows()[0]).toHaveTextContent('Intune');
+  });
+
+  it('„Verwaltet von“ filtert per Mehrfachauswahl; alle Zahlen folgen der Auswahl', async () => {
+    const user = userEvent.setup();
+    const onFilter = vi.fn();
+    const devices = [
+      ...MIXED,
+      device(6, { deviceName: 'CONTOSO-SRV006', managementAgent: 'msSense', isEncrypted: false }),
+      device(7, { deviceName: 'CONTOSO-SRV007', managementAgent: 'msSense' }),
+      device(8, { managementAgent: 'configurationManagerClientMdm' }),
+      device(9, { managementAgent: 'somethingNew' }),
+    ];
+    render(<Harness provider={providerWith(devices)} onFilter={onFilter} />);
+    await waitFor(() => expect(rows()).toHaveLength(9));
+
+    const group = screen.getByRole('group', { name: t.management.label });
+    const choice = (name: string) => within(group).getByRole('button', { name });
+    expect(choice(t.management.all)).toHaveAttribute('aria-pressed', 'true');
+    expect(choice('Intune (5)')).toHaveAttribute('aria-pressed', 'false');
+    expect(choice('Defender for Endpoint (MDE) (2)')).toBeInTheDocument();
+    expect(choice('Co-Management (1)')).toBeInTheDocument();
+    expect(choice('Sonstige (1)')).toBeInTheDocument();
+    expect(within(group).queryByRole('button', { name: /Jamf/ })).not.toBeInTheDocument();
+    // Rohwert bleibt sichtbar, wenn die Gruppe nur „Sonstige“ ist
+    expect(screen.getByText('Sonstige (somethingNew)')).toBeInTheDocument();
+    expect(issueCard('notEncrypted')).toHaveTextContent('2');
+
+    await user.click(choice('Intune (5)'));
+    expect(onFilter).toHaveBeenLastCalledWith({
+      issue: null,
+      platform: null,
+      managements: ['intune'],
+    });
+    expect(rows()).toHaveLength(5);
+    const summary = screen.getByTestId('fleet-summary');
+    expect(summary).toHaveTextContent('5 von 9 Geräten');
+    expect(summary).toHaveTextContent('3 auffällig');
+    expect(summary).toHaveTextContent(t.summary.filterNote);
+    // Karten zählen innerhalb der Auswahl, die eigene Leiste nicht
+    expect(issueCard('notEncrypted')).toHaveTextContent('1');
+    expect(choice('Defender for Endpoint (MDE) (2)')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: t.platform.label })).getByRole('button', {
+        name: 'Windows (3)',
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(choice('Defender for Endpoint (MDE) (2)'));
+    expect(onFilter).toHaveBeenLastCalledWith({
+      issue: null,
+      platform: null,
+      managements: ['intune', 'mde'],
+    });
+    expect(rows()).toHaveLength(7);
+    expect(issueCard('notEncrypted')).toHaveTextContent('2');
+
+    await user.click(choice('Intune (5)'));
+    expect(rows()).toHaveLength(2);
+    expect(rows().every((row) => row.textContent?.includes('CONTOSO-SRV'))).toBe(true);
+
+    await user.click(choice(t.management.all));
+    expect(onFilter).toHaveBeenLastCalledWith({ issue: null, platform: null, managements: [] });
+    expect(rows()).toHaveLength(9);
+    expect(screen.getByTestId('fleet-summary')).toHaveTextContent('9 Geräte');
+    expect(screen.getByTestId('fleet-summary')).not.toHaveTextContent(t.summary.filterNote);
+  });
+
+  it('Zahlen der Plattformen und des Gesamtbilds folgen einem Auffälligkeiten-Filter', async () => {
+    const user = userEvent.setup();
+    render(<Harness provider={providerWith(MIXED)} />);
+    await waitFor(() => expect(rows()).toHaveLength(5));
+    const platforms = screen.getByRole('group', { name: t.platform.label });
+    expect(within(platforms).getByRole('button', { name: 'Windows (3)' })).toBeInTheDocument();
+
+    await user.click(issueCard('notEncrypted'));
+    expect(within(platforms).getByRole('button', { name: 'Windows (1)' })).toBeInTheDocument();
+    expect(within(platforms).getByRole('button', { name: 'macOS (0)' })).toBeInTheDocument();
+    const summary = screen.getByTestId('fleet-summary');
+    expect(summary).toHaveTextContent('1 von 5 Geräten');
+    expect(summary).toHaveTextContent('1 kritisch');
+    // die gewählte Karte behält ihre Zahl, die anderen bleiben vergleichbar
+    expect(issueCard('notEncrypted')).toHaveTextContent('1');
+    expect(issueCard('checkInOverdue')).toHaveTextContent('1');
   });
 
   it('Suche filtert lokal nach Name, Benutzer, Seriennummer, Modell; Löschen-Knopf leert sie', async () => {

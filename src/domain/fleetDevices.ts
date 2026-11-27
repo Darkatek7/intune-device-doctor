@@ -28,6 +28,11 @@ export interface FleetDevice {
   isEncrypted: boolean | null;
   /** Rohwert von Graph: `'True'`, `'False'` oder `'Unknown'`; null = nicht geliefert */
   jailBroken: string | null;
+  /**
+   * Rohwert von Graph (`managementAgentType`, z. B. `mdm`, `msSense`); null = nicht geliefert. Bewusst
+   * kein Enum: Die Einordnung in „Verwaltet von“ (rules/fleetDevices.ts) zeigt unbekannte Werte an.
+   */
+  managementAgent: string | null;
 }
 
 export interface FleetDevicesInfo {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ANDROID_APP_PROTECTION_FIELDS,
   ANDROID_COMPLIANCE_SETTING_FIELDS,
+  ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS,
   IOS_APP_PROTECTION_FIELDS,
   IOS_COMPLIANCE_SETTING_FIELDS,
   MACOS_COMPLIANCE_SETTING_FIELDS,
@@ -20,6 +21,7 @@ import {
   mapPolicyTemplates,
   mapScheduledActionItems,
   mapSecureScore,
+  upgradeCompliancePoliciesFromBeta,
 } from './mappers';
 
 const USER_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
@@ -642,5 +644,138 @@ describe('mapBaselineComparison', () => {
         templateSettingsTruncated: true,
       }).truncated,
     ).toBe(true);
+  });
+});
+
+describe('upgradeCompliancePoliciesFromBeta', () => {
+  const v1 = () =>
+    mapCompliancePolicies([
+      {
+        '@odata.type': '#microsoft.graph.windows10CompliancePolicy',
+        id: 'w',
+        displayName: 'Contoso Windows',
+        bitLockerEnabled: true,
+      } as never,
+      {
+        id: 'o1',
+        displayName: 'Contoso Android Vollverwaltet',
+        lastModifiedDateTime: '2026-10-01T10:00:00Z',
+      } as never,
+      { id: 'o2', displayName: 'Contoso AOSP' } as never,
+      { id: 'o3', displayName: 'Contoso ohne Beta' } as never,
+    ]);
+
+  it('wertet nur `other` über die id auf: androidDeviceOwner mit Allowlist-Einstellungen', () => {
+    const base = v1();
+    const [win, ado, aosp, none] = upgradeCompliancePoliciesFromBeta(base, [
+      {
+        '@odata.type': '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
+        id: 'o1',
+        displayName: 'Beta-Name wird ignoriert',
+        description: 'nie',
+        roleScopeTagIds: ['0'],
+        version: 4,
+        passwordRequired: true,
+        passwordMinimumLength: 8,
+        passwordRequiredType: 'numericComplex',
+        osMinimumVersion: null,
+        securityRequireIntuneAppIntegrity: true,
+        passwordPreviousPasswordCountToBlock: { nested: 1 },
+        requireNoPendingSystemUpdates: ['x'],
+      } as never,
+      {
+        '@odata.type': '#microsoft.graph.aospDeviceOwnerCompliancePolicy',
+        id: 'o2',
+        passwordRequired: true,
+      } as never,
+    ]);
+    expect(win).toBe(base[0]);
+    expect(ado).toMatchObject({
+      id: 'o1',
+      type: 'androidDeviceOwner',
+      odataType: '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
+      displayName: 'Contoso Android Vollverwaltet',
+      lastModifiedDateTime: '2026-10-01T10:00:00Z',
+      assigned: null,
+      scheduledActions: null,
+      beta: true,
+      settings: {
+        passwordRequired: true,
+        passwordMinimumLength: 8,
+        passwordRequiredType: 'numericComplex',
+        osMinimumVersion: null,
+        securityRequireIntuneAppIntegrity: true,
+      },
+    });
+    expect(Object.keys(ado!.settings).sort()).toEqual(
+      [
+        'osMinimumVersion',
+        'passwordMinimumLength',
+        'passwordRequired',
+        'passwordRequiredType',
+        'securityRequireIntuneAppIntegrity',
+      ].sort(),
+    );
+    // fremder Beta-Typ: nur odataType + beta, keine Einstellungen
+    expect(aosp).toMatchObject({
+      type: 'other',
+      odataType: '#microsoft.graph.aospDeviceOwnerCompliancePolicy',
+      settings: {},
+      beta: true,
+    });
+    // kein Beta-Eintrag → unverändert
+    expect(none).toBe(base[3]);
+  });
+
+  it('fügt nie Beta-Einträge ohne v1.0-Pendant hinzu und lässt Nicht-`other` unangetastet', () => {
+    const base = v1();
+    const result = upgradeCompliancePoliciesFromBeta(base, [
+      { '@odata.type': '#microsoft.graph.androidDeviceOwnerCompliancePolicy', id: 'neu' },
+      {
+        '@odata.type': '#microsoft.graph.androidDeviceOwnerCompliancePolicy',
+        id: 'w',
+        passwordRequired: true,
+      },
+    ] as never);
+    expect(result.map((p) => p.id)).toEqual(['w', 'o1', 'o2', 'o3']);
+    expect(result[0]).toBe(base[0]);
+    expect(result[0]!.type).toBe('windows10');
+  });
+
+  it('Beta-Eintrag ohne Typ oder leere/fehlende Liste → unverändert; Typvergleich ohne Groß-/Kleinschreibung', () => {
+    const base = v1();
+    expect(upgradeCompliancePoliciesFromBeta(base, [{ id: 'o1' }] as never)).toEqual(base);
+    expect(
+      upgradeCompliancePoliciesFromBeta(base, [{ id: 'o1', '@odata.type': '' }] as never),
+    ).toEqual(base);
+    expect(upgradeCompliancePoliciesFromBeta(base, null)).toEqual(base);
+    expect(upgradeCompliancePoliciesFromBeta(base, undefined)).toEqual(base);
+    const [, ado] = upgradeCompliancePoliciesFromBeta(base, [
+      {
+        '@odata.type': '#Microsoft.Graph.AndroidDeviceOwnerCompliancePolicy',
+        id: 'o1',
+        passwordRequired: false,
+      },
+    ] as never);
+    expect(ado).toMatchObject({
+      type: 'androidDeviceOwner',
+      settings: { passwordRequired: false },
+    });
+  });
+
+  it('Allowlist enthält keine Basisfelder', () => {
+    const fields: readonly string[] = ANDROID_DEVICE_OWNER_COMPLIANCE_SETTING_FIELDS;
+    for (const base of [
+      'id',
+      'displayName',
+      'description',
+      'roleScopeTagIds',
+      'createdDateTime',
+      'version',
+      'lastModifiedDateTime',
+    ]) {
+      expect(fields).not.toContain(base);
+    }
+    expect(fields).toHaveLength(25);
   });
 });

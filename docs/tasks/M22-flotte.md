@@ -29,7 +29,12 @@ ganzen Bestand.
 - Regelwerk `src/rules/fleetDevices.ts`: `evaluateFleet(info, now)` → `FleetOverview` (Zeilen sortiert,
   Auffälligkeiten `FLEET_ISSUES`, Plattformzähler, Versionsverteilung), `filterFleetRows`,
   `fleetIssuesOf`, `isFleetIssue`. Das Regelwerk enthält keine Texte.
-- URL: `?view=fleet`, optional `&issue=<FleetIssue|any>`, `&platform=<OsFamily>`.
+- URL: `?view=fleet`, optional `&issue=<FleetIssue|any>`, `&platform=<OsFamily>`,
+  `&managed=<FleetManagement>[,…]`.
+- Nachtrag (2026-11-27): Filter „Verwaltet von“ über `managementAgent` (`fleetManagementOf`,
+  Mehrfachauswahl, Gruppen `FLEET_MANAGEMENTS`; Rohwert in Zeile und Export) und Zahlen, die der Auswahl
+  folgen (`fleetFacets`: Gesamtbild und Versionsverteilung zählen die Zeilen der Liste, jede Filterleiste
+  zählt mit den jeweils anderen Filtern). Zuordnung und Quellen: `docs/graph-api-reference.md` › „Flotte“.
 
 ## S1 – Graph-Anbindung (`graph-implementer`)
 

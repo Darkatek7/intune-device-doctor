@@ -212,7 +212,9 @@ export class MockProvider implements DeviceDataProvider {
   private fixtures(): MockDeviceFixture[] {
     const now = this.now();
     const scenarioFixtures = this.scenarios.map((s) => s.build(now));
-    return this.withFleet ? [...scenarioFixtures, ...generatedFleetFixtures(now)] : scenarioFixtures;
+    return this.withFleet
+      ? [...scenarioFixtures, ...generatedFleetFixtures(now)]
+      : scenarioFixtures;
   }
 
   /**
@@ -531,6 +533,7 @@ export class MockProvider implements DeviceDataProvider {
       enrolledDateTime: device.enrolledDateTime,
       isEncrypted: device.isEncrypted,
       jailBroken: device.jailBroken,
+      managementAgent: device.managementAgent,
     }));
     return this.fromSpec<FleetDevicesInfo>(
       this.tenant.fleetDevices ?? {

@@ -49,6 +49,45 @@ describe('Ansicht „Richtlinien“ (M15)', () => {
     expect(screen.getByText(t.emptyFilter('gibtsnicht'))).toBeInTheDocument();
   });
 
+  it('Plattformfilter zeigt die vorkommenden Plattformen mit Anzahl und filtert; Zahlen folgen dem Namen', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await openPolicies(user);
+    const total = rows().length;
+    const group = screen.getByRole('group', { name: t.platformFilter.label });
+    const chips = () => within(group).getAllByRole('button');
+    const countOf = (chip: HTMLElement) => Number(/\((\d+)\)$/.exec(chip.textContent ?? '')?.[1]);
+    expect(within(group).getByRole('button', { name: t.platformFilter.all })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const platformChips = chips().slice(1);
+    expect(platformChips.length).toBeGreaterThan(1);
+    expect(platformChips.reduce((sum, chip) => sum + countOf(chip), 0)).toBe(total);
+
+    const windows = within(group).getByRole('button', { name: /^Windows \(\d+\)$/ });
+    const windowsCount = countOf(windows);
+    await user.click(windows);
+    expect(windows).toHaveAttribute('aria-pressed', 'true');
+    expect(rows()).toHaveLength(windowsCount);
+    expect(rows().every((row) => row.textContent?.includes('· Windows'))).toBe(true);
+
+    // Namensfilter und Plattform wirken zusammen; die Zahl im Chip folgt dem Namen
+    await user.type(screen.getByRole('searchbox', { name: t.filterLabel }), 'vpn');
+    expect(rows()).toHaveLength(1);
+    expect(within(group).getByRole('button', { name: 'Windows (1)' })).toBeInTheDocument();
+
+    // Kombination ohne Treffer: eigener Hinweis mit „Filter zurücksetzen“
+    const other = chips().find(
+      (chip) => chip.getAttribute('aria-pressed') === 'false' && countOf(chip) === 0,
+    )!;
+    await user.click(other);
+    expect(rows()).toHaveLength(0);
+    expect(screen.getByText(t.emptyPlatform)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: t.resetFilters }));
+    expect(rows()).toHaveLength(total);
+  });
+
   it('Klick öffnet den Gerätestatus (nur Probleme), „Alle Geräte“ zeigt alle; Zurück fokussiert die Zeile', async () => {
     const user = userEvent.setup();
     renderApp();

@@ -27,6 +27,21 @@
       "reportedDate": "2026-04-06",
       "fragments": []
     },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androiddeviceownercompliancepolicy?view=graph-rest-beta": {
+      "sha256": "1d829325272eeae77ee08d7bc57a006ae0ed838ac872fca981ca23375b440229",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androiddeviceownerrequiredpasswordtype?view=graph-rest-beta": {
+      "sha256": "2d6aa8a54a65c45748675d3f2d8d9788f83d114f73836526714e758776daaece",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
+    "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androidsafetynetevaluationtype?view=graph-rest-beta": {
+      "sha256": "7a43e2c11f85655198c21b39d540ed44c6f55d3f16d6486799965cdef9d1fd42",
+      "reportedDate": "2024-08-01",
+      "fragments": []
+    },
     "https://learn.microsoft.com/graph/api/resources/intune-deviceconfig-androidworkprofilecompliancepolicy?view=graph-rest-1.0": {
       "sha256": "e025d46bb0e76d99452376fb4f4cfacb9907f87d24c83c919726e036334ed3ba",
       "reportedDate": "2024-08-01",
@@ -169,7 +184,11 @@
     "https://learn.microsoft.com/intune/device-security/security-configurations/android-fully-managed": {
       "sha256": "6850ce614308c918b475da8d6dbfe26cdc9f8cf87cc0a700a611a6774bf63a6f",
       "reportedDate": "2025-03-26",
-      "fragments": []
+      "fragments": [
+        "device-compliance-level-1",
+        "device-compliance-level-2",
+        "device-compliance-level-3"
+      ]
     },
     "https://learn.microsoft.com/intune/device-security/security-configurations/android-personally-owned": {
       "sha256": "4e155f6348191fb648648a797b91abc1280fafab49cc6460da4f4e05a4f5e296",

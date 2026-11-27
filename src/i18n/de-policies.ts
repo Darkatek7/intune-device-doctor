@@ -20,6 +20,15 @@ export const dePolicies = {
       : `${shown} von ${total} Richtlinien`,
   empty: 'Keine Konfigurationsprofile oder Compliance-Richtlinien gefunden.',
   emptyFilter: (query: string) => `Keine Richtlinie enthält „${query}“.`,
+  emptyPlatform: 'Keine Richtlinie passt zu Plattform und Namensfilter.',
+  resetFilters: 'Filter zurücksetzen',
+  platformFilter: {
+    label: 'Plattform',
+    all: 'Alle Plattformen',
+    unknown: 'Nicht erkennbar',
+    unknownHint:
+      '„Nicht erkennbar“: Aus dem Typ, den Microsoft Graph (v1.0) für diese Richtlinien liefert, geht die Plattform nicht hervor – zum Beispiel bei Android Enterprise „vollständig verwaltet“, das Microsoft nur in der Beta-API dokumentiert. Aus dem Namen leitet MDM Doctor nichts ab.',
+  },
   kind: {
     configuration: 'Konfiguration',
     compliance: 'Compliance',

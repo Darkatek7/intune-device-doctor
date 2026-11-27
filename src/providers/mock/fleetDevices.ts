@@ -12,6 +12,11 @@
  * nicht konform, nicht verschlüsselt, Jailbreak/Root (nur iOS/Android), Check-in > 30 Tage, Check-in
  * 8–30 Tage, Karenzzeit, ohne Verschlüsselungs- und Check-in-Angabe, ohne Benutzer. Kombinationen
  * liegen an einzelnen Geräten. Alle Werte fiktiv (Contoso, contoso.com, CONTOSO-…, DEMO-…).
+ *
+ * „Verwaltet von“: Die meisten Geräte meldet die Demo mit `managementAgent: 'mdm'`, Android mit
+ * `googleCloudDevicePolicyController`. Sechs Windows-Server (`CONTOSO-SRV…`, Compliance `unknown`, ohne
+ * Benutzer) sind nur über Defender for Endpoint eingebunden (`msSense`), drei Windows-Geräte sind
+ * co-verwaltet (`configurationManagerClientMdm`). Die Compliance-Zählung ändert sich dadurch nicht.
  */
 import type { ComplianceState, PolicyPlatformType } from '../../graph/dto';
 import { de } from '../../i18n/de';
@@ -49,6 +54,10 @@ interface Flags {
   noInfo?: readonly number[];
   /** ohne Benutzer */
   noUser?: readonly number[];
+  /** Server, nur über Defender for Endpoint eingebunden (`managementAgent: 'msSense'`), ohne Benutzer */
+  mde?: readonly number[];
+  /** Co-Management (`managementAgent: 'configurationManagerClientMdm'`) */
+  coManaged?: readonly number[];
 }
 
 interface PlatformPlan {
@@ -79,6 +88,9 @@ const PLAN: readonly PlatformPlan[] = [
       late: [30, 77, 133],
       noInfo: [100, 101],
       noUser: [185, 186, 187, 188, 189],
+      // Indizes 29–39 sind die Geräte mit Compliance `unknown` (Intune bewertet MDE-Geräte nicht).
+      mde: [29, 30, 31, 32, 33, 34],
+      coManaged: [60, 61, 62],
     },
   },
   {
@@ -132,18 +144,55 @@ const NAMING: Record<Platform, { prefix: string; first: number }> = {
 };
 
 const FIRST_NAMES = [
-  'Clara', 'Tobias', 'Nina', 'Paul', 'Mira', 'Ben', 'Hanna', 'Elias', 'Ida', 'Jan',
-  'Greta', 'Leon', 'Mia', 'Karim', 'Pia', 'Oskar', 'Yara', 'Emil', 'Carla', 'Julian',
+  'Clara',
+  'Tobias',
+  'Nina',
+  'Paul',
+  'Mira',
+  'Ben',
+  'Hanna',
+  'Elias',
+  'Ida',
+  'Jan',
+  'Greta',
+  'Leon',
+  'Mia',
+  'Karim',
+  'Pia',
+  'Oskar',
+  'Yara',
+  'Emil',
+  'Carla',
+  'Julian',
 ];
 const LAST_NAMES = [
-  'Keller', 'Brandt', 'Lorenz', 'Vogt', 'Pohl', 'Engel', 'Sander', 'Krause', 'Albrecht', 'Hofmann',
-  'Richter', 'Maier', 'Stark', 'Winter', 'Berger', 'Schulz', 'Jansen', 'Kraft', 'Seidel', 'Hahn',
+  'Keller',
+  'Brandt',
+  'Lorenz',
+  'Vogt',
+  'Pohl',
+  'Engel',
+  'Sander',
+  'Krause',
+  'Albrecht',
+  'Hofmann',
+  'Richter',
+  'Maier',
+  'Stark',
+  'Winter',
+  'Berger',
+  'Schulz',
+  'Jansen',
+  'Kraft',
+  'Seidel',
+  'Hahn',
 ];
 
 const GB = 1024 ** 3;
 
 const WINDOWS_MODELS = ['Contoso Book 5', 'Contoso Book 5 Pro', 'Contoso Desk 3'];
 const WINDOWS_OS = ['10.0.26200.9711', '10.0.26100.7171', '10.0.22631.4317', '10.0.19045.6456'];
+const SERVER_OS = ['10.0.26100.7171', '10.0.20348.4405'];
 const MAC_MODELS = ['MacBook Air 13 (M2)', 'MacBook Pro 14 (M3)', 'iMac 24 (M3)'];
 const MAC_OS = ['15.6.1', '15.5', '14.7.8', '26.1'];
 const IOS_MODELS = ['iPhone 15', 'iPhone 14', 'iPad (10. Gen.)'];
@@ -154,7 +203,12 @@ const ANDROID_OS = ['16', '15', '14', '13'];
 /** Richtlinien der Nicht-Windows-Geräte (IDs fiktiv, nur für die Geräteansicht). */
 const OTHER_POLICIES: Record<
   Exclude<Platform, 'windows'>,
-  { platformType: PolicyPlatformType; compliance: string; configuration: string; ids: [number, number] }
+  {
+    platformType: PolicyPlatformType;
+    compliance: string;
+    configuration: string;
+    ids: [number, number];
+  }
 > = {
   macos: {
     platformType: 'macOS',
@@ -179,9 +233,7 @@ const OTHER_POLICIES: Record<
 const at = <T>(list: readonly T[], i: number): T => list[i % list.length] as T;
 
 function statesOf(counts: StateCounts): ComplianceState[] {
-  return STATE_ORDER.flatMap((state) =>
-    Array.from({ length: counts[state] ?? 0 }, () => state),
-  );
+  return STATE_ORDER.flatMap((state) => Array.from({ length: counts[state] ?? 0 }, () => state));
 }
 
 /** Fiktiver Benutzer; 20 × 20 Kombinationen, die Zuordnung je Gerät ist eindeutig (37 teilerfremd zu 400). */
@@ -204,7 +256,9 @@ function platformFields(
 ): Partial<DeviceBase> {
   const storage = {
     totalStorageSpaceInBytes: at([128, 256, 512], i) * GB,
-    freeStorageSpaceInBytes: Math.floor((at([128, 256, 512], i) * GB * (10 + ((i * 13) % 70))) / 100),
+    freeStorageSpaceInBytes: Math.floor(
+      (at([128, 256, 512], i) * GB * (10 + ((i * 13) % 70))) / 100,
+    ),
   };
   switch (platform) {
     case 'windows':
@@ -252,6 +306,7 @@ function platformFields(
         model: at(ANDROID_MODELS, local),
         manufacturer: at(ANDROID_MODELS, local).startsWith('Pixel') ? 'Google' : 'Contoso Mobile',
         deviceEnrollmentType: 'unknown',
+        managementAgent: 'googleCloudDevicePolicyController',
         androidSecurityPatchLevel: ago(now, { days: 20 + ((i * 11) % 260) }).slice(0, 10),
         enrollmentProfileName: 'Contoso – Android Enterprise vollständig verwaltet',
         jailBroken: jailbroken ? 'True' : 'False',
@@ -272,7 +327,8 @@ function buildFixture(
   const n = 1000 + i;
   const has = (list?: readonly number[]) => list?.includes(local) ?? false;
   const noInfo = has(flags.noInfo);
-  const noUser = has(flags.noUser);
+  const mde = has(flags.mde);
+  const noUser = has(flags.noUser) || mde;
   const user = userOf(i);
   const jailbroken = has(flags.jailbroken);
   const isWindows = platform === 'windows';
@@ -285,8 +341,21 @@ function buildFixture(
 
   const device: DeviceBase = windowsDevice(now, n, {
     ...platformFields(platform, local, i, now, jailbroken),
-    deviceName: `CONTOSO-${prefix}${num}`,
-    serialNumber: `DEMO-${prefix}${String(num).padStart(4, '0')}`,
+    ...(mde
+      ? {
+          managementAgent: 'msSense' as const,
+          model: 'Contoso Server 2',
+          osVersion: at(SERVER_OS, local),
+          deviceEnrollmentType: 'unknown' as const,
+        }
+      : has(flags.coManaged)
+        ? {
+            managementAgent: 'configurationManagerClientMdm' as const,
+            deviceEnrollmentType: 'windowsCoManagement' as const,
+          }
+        : {}),
+    deviceName: mde ? `CONTOSO-SRV${String(num).padStart(3, '0')}` : `CONTOSO-${prefix}${num}`,
+    serialNumber: `DEMO-${mde ? 'SRV' : prefix}${String(num).padStart(4, '0')}`,
     complianceState: state,
     complianceGracePeriodExpirationDateTime:
       state === 'inGracePeriod' ? inFuture(now, { days: 2 + (i % 3) }) : null,

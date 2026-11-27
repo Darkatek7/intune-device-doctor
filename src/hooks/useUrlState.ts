@@ -4,13 +4,20 @@
  * Der Verbindungstest (M14/S6, nur Live) ist ?view=connection-test&device=<id> (ohne Kachel-Sheet).
  * Die Ansicht „Richtlinien“ (M15) ist ?view=policies (+ &policy=<kind>:<id> für den Gerätestatus einer Richtlinie).
  * Die Ansicht „Empfehlungen“ (M21) ist ?view=recommendations (+ &level=1|2|3, nur wenn ≠ Standard; &tile=<tileId>).
- * Die Ansicht „Flotte“ (M22) ist ?view=fleet (+ &issue=<FleetIssue|any>, &platform=<OsFamily>; ungültige Werte entfallen).
+ * Die Ansicht „Flotte“ (M22) ist ?view=fleet (+ &issue=<FleetIssue|any>, &platform=<OsFamily>,
+ * &managed=<FleetManagement>[,<FleetManagement>…]; ungültige Werte entfallen).
  * Änderungen laufen über history.pushState/replaceState; Browser-Zurück (popstate) wird mitgeführt.
  */
 import { useMemo, useSyncExternalStore } from 'react';
 import { DEFAULT_POSTURE_LEVEL, type PostureLevel } from '../domain/posture';
 import type { DataMode, OsFamily } from '../domain/types';
-import { FLEET_PLATFORMS, isFleetIssue, type FleetIssue } from '../rules/fleetDevices';
+import {
+  FLEET_MANAGEMENTS,
+  FLEET_PLATFORMS,
+  isFleetIssue,
+  type FleetIssue,
+  type FleetManagement,
+} from '../rules/fleetDevices';
 
 export interface UrlState {
   device: string | null;
@@ -26,6 +33,8 @@ export interface UrlState {
   issue?: FleetIssue | 'any' | null;
   /** Nur in der Ansicht „Flotte“: Plattformfilter; fehlt/null = alle */
   platform?: OsFamily | null;
+  /** Nur in der Ansicht „Flotte“: „Verwaltet von“ (Mehrfachauswahl); fehlt/null/leer = alle */
+  managed?: readonly FleetManagement[] | null;
 }
 
 function parseView(value: string | null): UrlState['view'] {
@@ -50,6 +59,14 @@ function parsePlatform(value: string | null): OsFamily | null {
   return FLEET_PLATFORMS.find((platform) => platform === value) ?? null;
 }
 
+/** Kommagetrennte Liste; ungültige und doppelte Werte entfallen, Reihenfolge wie `FLEET_MANAGEMENTS`. */
+function parseManaged(value: string | null): FleetManagement[] | null {
+  if (!value) return null;
+  const wanted = new Set(value.split(','));
+  const valid = FLEET_MANAGEMENTS.filter((management) => wanted.has(management));
+  return valid.length > 0 ? valid : null;
+}
+
 export function parseUrl(search: string): UrlState {
   const params = new URLSearchParams(search);
   const mode = params.get('mode');
@@ -62,6 +79,7 @@ export function parseUrl(search: string): UrlState {
     level: parseLevel(params.get('level')),
     issue: parseIssue(params.get('issue')),
     platform: parsePlatform(params.get('platform')),
+    managed: parseManaged(params.get('managed')),
   };
 }
 
@@ -88,6 +106,7 @@ export function buildSearch(state: UrlState): string {
   if (!state.device && state.view === 'fleet') {
     if (state.issue) params.set('issue', state.issue);
     if (state.platform) params.set('platform', state.platform);
+    if (state.managed && state.managed.length > 0) params.set('managed', state.managed.join(','));
   }
   if (state.mode) params.set('mode', state.mode);
   // Kachel-Sheets gibt es nur in der Geräte-, der Mandanten- und der Empfehlungen-Ansicht

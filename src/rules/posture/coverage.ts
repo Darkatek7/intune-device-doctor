@@ -6,10 +6,12 @@
  * Gerätegruppen = die getrennten Learn-Empfehlungen: Windows, macOS, iOS/iPadOS und Android **zweimal**
  * („fully managed and corporate-owned“ bzw. „personally owned“):
  * - Android persönlich (`androidPersonal`) → zugewiesene Richtlinie vom Typ `androidWorkProfile`.
- * - Android unternehmenseigen (`androidCorporate`) → zugewiesene Richtlinie mit `@odata.type`
- *   `#microsoft.graph.androidDeviceOwnerCompliancePolicy`. Dieser Typ ist nur in beta dokumentiert (kommt
- *   als `type: 'other'`). Wird keine zugewiesene gefunden, ist das **keine** Abweichung, sondern nicht
- *   prüfbar – über v1.0 ist nicht sicher lesbar, ob es solche Richtlinien gibt.
+ * - Android unternehmenseigen (`androidCorporate`) → zugewiesene Richtlinie vom Typ `androidDeviceOwner`
+ *   (aus der Beta-Liste aufgewertet, dritte freigegebene Beta-Ausnahme) bzw. mit `@odata.type`
+ *   `#microsoft.graph.androidDeviceOwnerCompliancePolicy`. Dieser Typ ist nur in beta dokumentiert. Wird
+ *   keine zugewiesene gefunden, ist das **keine** Abweichung, sondern nicht prüfbar – die Beta-Liste wird
+ *   nur für Richtlinien gelesen, die v1.0 ohne dokumentierten Typ liefert (und kann scheitern); das
+ *   Fehlen ist damit nicht sicher belegt.
  * - Android-Geräteadministrator gehört zu keiner Learn-Empfehlung (kein Android Enterprise) → keine Prüfung.
  *
  * Severity: Gruppe mit Geräten ohne zugewiesene Richtlinie → `critical`. Begründung: Die Learn-Seite
@@ -65,7 +67,10 @@ const GROUP_DOCS: Record<CoverageGroup, string> = {
   macos: Docs.postureCoverageMacos,
 };
 
-/** Nur in beta mit Einstellungen dokumentiert; v1.0 liefert ihn – wenn überhaupt – als `type: 'other'`. */
+/**
+ * Nur in beta mit Einstellungen dokumentiert. Mit gelesener Beta-Liste kommt die Richtlinie als
+ * `type: 'androidDeviceOwner'`; liefert v1.0 den Typnamen selbst, als `type: 'other'` mit diesem Wert.
+ */
 export const ANDROID_DEVICE_OWNER_TYPE = '#microsoft.graph.androidDeviceOwnerCompliancePolicy';
 
 /** Richtlinien, die Geräte der Gruppe abdecken können. */
@@ -80,7 +85,9 @@ export function coveringPolicies(
       return policies.filter((policy) => policy.type === 'androidWorkProfile');
     case 'androidCorporate':
       return policies.filter(
-        (policy) => policy.odataType?.toLowerCase() === ANDROID_DEVICE_OWNER_TYPE.toLowerCase(),
+        (policy) =>
+          policy.type === 'androidDeviceOwner' ||
+          policy.odataType?.toLowerCase() === ANDROID_DEVICE_OWNER_TYPE.toLowerCase(),
       );
     case 'ios':
     case 'macos':
@@ -101,6 +108,7 @@ function coverageOutcome(
   devices: number | null,
   covering: CompliancePolicyConfig[],
   truncated: boolean,
+  betaFailed: boolean,
 ): CheckOutcome {
   const assigned = covering.filter((policy) => policy.assigned === true);
   if (devices === null) {
@@ -121,7 +129,11 @@ function coverageOutcome(
   const actual = covering.length > 0 ? t.actualUnassigned(covering.length) : t.actualNone;
   // Vollständig verwaltet/unternehmenseigen: Richtlinientyp nur in beta → Fehlen ist keine Abweichung
   if (group === 'androidCorporate') {
-    return { status: 'notChecked', actual, reason: t.corporateBetaReason };
+    return {
+      status: 'notChecked',
+      actual,
+      reason: betaFailed ? t.corporateBetaFailedReason : t.corporateBetaReason,
+    };
   }
   if (truncated) {
     return { status: 'notChecked', actual, reason: dePosture.common.noPolicyInList };
@@ -141,9 +153,14 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
   if (countsSection.status !== 'ok') {
     return issueTile(ID, countsSection, { sources: [policiesSection.source] });
   }
-  const { policies, truncated } = policiesSection.data;
+  const { policies, truncated, betaRead } = policiesSection.data;
+  const betaFailed = betaRead?.status === 'failed';
   const counts = countsSection.data;
   const source = policiesSection.source;
+  // Die Abdeckung unternehmenseigener Android-Geräte stützt sich auf den Typ aus der Beta-Liste
+  const usesBeta = coveringPolicies(policies, 'androidCorporate').some(
+    (policy) => policy.beta === true,
+  );
   const checks: PostureCheckResult[] = [];
   const findings: Finding[] = truncated ? [truncatedFinding(ID, source)] : [];
   const facts: TileFact[] = [];
@@ -162,7 +179,7 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
     });
     if (devices === 0) continue;
     used += 1;
-    const outcome = coverageOutcome(group, devices, covering, truncated);
+    const outcome = coverageOutcome(group, devices, covering, truncated, betaFailed);
     checks.push({
       id: `${ID}:${group}`,
       tile: ID,
@@ -203,11 +220,15 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
         id: `${ID}-androidCorporate-beta`,
         severity: 'unknown',
         title: t.corporateBetaTitle(devices),
-        detail: t.corporateBetaDetail,
-        cause: t.corporateBetaCause,
+        detail: betaFailed ? t.corporateBetaFailedDetail : t.corporateBetaDetail,
+        cause: betaFailed ? t.corporateBetaFailedCause : t.corporateBetaCause,
         remediation: [...t.corporateBetaRemediation],
-        evidence: { managedDevices: devices, policies: covering.length },
-        source,
+        evidence: {
+          managedDevices: devices,
+          policies: covering.length,
+          ...(betaFailed ? { betaList: 'failed' } : {}),
+        },
+        source: betaFailed && betaRead ? betaRead.source : source,
         docsUrl: GROUP_DOCS[group],
       });
     }
@@ -217,6 +238,10 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
     facts.push({ label: t.androidTotalFact, value: t.androidTotalValue(counts.android) });
   }
 
+  if (usesBeta) {
+    facts.push({ label: dePosture.common.betaFact, value: dePosture.common.betaValue });
+  }
+
   const met = checks.filter((check) => check.status === 'met').length;
   return buildTile({
     id: ID,
@@ -224,7 +249,11 @@ export function evaluateCoverage(posture: TenantPosture): PostureTile {
     summary: t.summary(used),
     findings,
     facts,
-    sources: [source, countsSection.source],
+    sources: [
+      source,
+      countsSection.source,
+      ...(betaRead && (usesBeta || betaFailed) ? [betaRead.source] : []),
+    ],
     checks,
     fallback: used === 0 ? 'unknown' : 'ok',
   });

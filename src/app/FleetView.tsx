@@ -2,6 +2,8 @@
  * Ansicht „Flotte“ (M22): alle verwalteten Geräte des Mandanten, auffällige zuerst, Klick öffnet das Gerät.
  * Daten kommen ausschließlich über useFleetDevices (Provider-Schnittstelle). Ausgewertet wird auf den
  * Rohdaten (Zählen, Sortieren); Liste, Suche und Export laufen über die maskierte Sicht (Präsentationsmodus).
+ * Alle Zahlen folgen der Auswahl: Gesamtbild und Versionsverteilung zählen die Zeilen der Liste, jede
+ * Filterleiste zählt mit den jeweils anderen Filtern (`fleetFacets`).
  */
 import {
   Check,
@@ -26,12 +28,15 @@ import { useBuildPrivacyView } from '../privacy/privacyContext';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import {
   evaluateFleet,
-  filterFleetRows,
+  FLEET_MANAGEMENTS,
+  fleetFacets,
   type FleetIssue,
+  type FleetManagement,
   type FleetRow,
 } from '../rules/fleetDevices';
 import { fleetDevicesCsv, fleetExportFileName } from '../rules/fleetDevicesExport';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { ChoiceChip } from '../ui/ChoiceChip';
 import { ErrorState } from '../ui/ErrorState';
 import { FleetDeviceRow, FLEET_GRID_COLUMNS } from '../ui/FleetDeviceRow';
 import { FleetVersions } from '../ui/FleetVersions';
@@ -42,12 +47,12 @@ const PAGE_SIZE = 50;
 
 const ACTION_BUTTON =
   'inline-flex items-center gap-1.5 rounded-full bg-fill px-3 py-1.5 text-sm font-medium text-label outline-none transition-transform focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60';
-const CHOICE_BASE =
-  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent';
 
 export interface FleetFilterState {
   issue: FleetIssue | 'any' | null;
   platform: OsFamily | null;
+  /** „Verwaltet von“, Mehrfachauswahl; leer = alle */
+  managements: readonly FleetManagement[];
 }
 
 interface Props {
@@ -56,37 +61,13 @@ interface Props {
   issue: FleetIssue | 'any' | null;
   /** Aus der URL: ?platform=… (null = alle) */
   platform: OsFamily | null;
+  /** Aus der URL: ?managed=… (leer = alle); die Referenz muss zwischen Renderings stabil sein */
+  managements: readonly FleetManagement[];
   onFilterChange: (filter: FleetFilterState) => void;
   onOpenDevice: (device: { id: string; deviceName: string }) => void;
   onBack: () => void;
   /** Gesamtzustand für das Umgebungslicht (accent, solange geladen wird) */
   onToneChange?: (tone: AmbientTone) => void;
-}
-
-function Choice({
-  pressed,
-  onClick,
-  children,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`${CHOICE_BASE} ${
-        pressed
-          ? 'bg-accent/15 text-label ring-1 ring-accent'
-          : 'bg-fill text-secondary-label hover:text-label'
-      }`}
-    >
-      {pressed && <Check aria-hidden="true" size={14} className="text-accent" />}
-      {children}
-    </button>
-  );
 }
 
 function PanelNote({
@@ -126,6 +107,7 @@ export function FleetView({
   provider,
   issue,
   platform,
+  managements,
   onFilterChange,
   onOpenDevice,
   onBack,
@@ -149,12 +131,13 @@ export function FleetView({
     overview?.rows.forEach((raw, index) => map.set(shownRows[index]!, raw));
     return map;
   }, [overview, shownRows]);
-  const filtered = useMemo(
-    () => filterFleetRows(shownRows, { issue, platform, query }),
-    [shownRows, issue, platform, query],
+  const facets = useMemo(
+    () => fleetFacets(shownRows, { issue, platform, managements, query }),
+    [shownRows, issue, platform, managements, query],
   );
+  const filtered = facets.rows;
 
-  const filterKey = `${issue ?? ''}|${platform ?? ''}|${query}`;
+  const filterKey = `${issue ?? ''}|${platform ?? ''}|${managements.join(',')}|${query}`;
   const limit = limitState.key === filterKey ? limitState.count : PAGE_SIZE;
   const visibleRows = filtered.slice(0, limit);
   const remaining = filtered.length - visibleRows.length;
@@ -193,7 +176,10 @@ export function FleetView({
 
   const loading = state.status === 'loading';
   const section = state.section;
-  const filterActive = issue !== null || platform !== null || query.trim() !== '';
+  const filterActive =
+    issue !== null || platform !== null || managements.length > 0 || query.trim() !== '';
+  // Gesamtbild: ohne Filter die ganze Flotte, mit Filter genau die Zeilen der Liste.
+  const counts = facets.counts;
 
   const exportCsv = () => {
     if (!now) return;
@@ -206,10 +192,26 @@ export function FleetView({
   };
   const resetFilters = () => {
     setQuery('');
-    onFilterChange({ issue: null, platform: null });
+    onFilterChange({ issue: null, platform: null, managements: [] });
   };
   const toggleIssue = (next: FleetIssue | 'any' | null) =>
-    onFilterChange({ issue: next === issue ? null : next, platform });
+    onFilterChange({ issue: next === issue ? null : next, platform, managements });
+  const toggleManagement = (management: FleetManagement) =>
+    onFilterChange({
+      issue,
+      platform,
+      // feste Reihenfolge, damit dieselbe Auswahl immer dieselbe URL ergibt
+      managements: FLEET_MANAGEMENTS.filter(
+        (entry) => managements.includes(entry) !== (entry === management),
+      ),
+    });
+
+  // Gruppen der ganzen Flotte plus gewählte (auch wenn die URL eine Gruppe ohne Geräte nennt).
+  const managementChoices = FLEET_MANAGEMENTS.filter(
+    (management) =>
+      managements.includes(management) ||
+      overview?.managements.some((entry) => entry.management === management),
+  );
 
   const liveText = loading
     ? t.states.loading
@@ -270,29 +272,38 @@ export function FleetView({
               data-testid="fleet-summary"
               className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm"
             >
-              <span className="font-semibold text-label">
-                {overview.truncated
-                  ? t.summary.totalMin(overview.total)
-                  : t.summary.total(overview.total)}
+              <span className="font-semibold tabular-nums text-label">
+                {filterActive
+                  ? overview.truncated
+                    ? t.summary.filteredMin(counts.total, overview.total)
+                    : t.summary.filtered(counts.total, overview.total)
+                  : overview.truncated
+                    ? t.summary.totalMin(overview.total)
+                    : t.summary.total(overview.total)}
               </span>
-              {overview.withIssues === 0 ? (
+              {counts.withIssues === 0 ? (
                 <span className="text-secondary-label">{t.summary.allClear}</span>
               ) : (
                 <>
-                  <span className="text-label">{t.summary.withIssues(overview.withIssues)}</span>
-                  {overview.critical > 0 && (
-                    <span className="inline-flex items-center gap-1 font-medium text-critical">
+                  <span className="tabular-nums text-label">
+                    {t.summary.withIssues(counts.withIssues)}
+                  </span>
+                  {counts.critical > 0 && (
+                    <span className="inline-flex items-center gap-1 font-medium tabular-nums text-critical">
                       <OctagonAlert aria-hidden="true" size={14} />
-                      {t.summary.critical(overview.critical)}
+                      {t.summary.critical(counts.critical)}
                     </span>
                   )}
-                  {overview.warning > 0 && (
-                    <span className="inline-flex items-center gap-1 font-medium text-warning">
+                  {counts.warning > 0 && (
+                    <span className="inline-flex items-center gap-1 font-medium tabular-nums text-warning">
                       <TriangleAlert aria-hidden="true" size={14} />
-                      {t.summary.warning(overview.warning)}
+                      {t.summary.warning(counts.warning)}
                     </span>
                   )}
                 </>
+              )}
+              {filterActive && (
+                <span className="text-xs text-secondary-label">{t.summary.filterNote}</span>
               )}
             </div>
           )}
@@ -380,20 +391,21 @@ export function FleetView({
                   <p className="text-xs text-secondary-label">{t.issues.hint}</p>
                 </div>
                 <div role="group" aria-label={t.issues.label} className="flex flex-wrap gap-2">
-                  <Choice
+                  <ChoiceChip
                     pressed={issue === null}
-                    onClick={() => onFilterChange({ issue: null, platform })}
+                    onClick={() => onFilterChange({ issue: null, platform, managements })}
                   >
                     {t.issues.all}
-                  </Choice>
-                  <Choice pressed={issue === 'any'} onClick={() => toggleIssue('any')}>
+                  </ChoiceChip>
+                  <ChoiceChip pressed={issue === 'any'} onClick={() => toggleIssue('any')}>
                     {t.issues.any}
-                  </Choice>
+                  </ChoiceChip>
                 </div>
               </div>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {overview.groups.map((group) => {
                   const pressed = issue === group.issue;
+                  const groupCount = facets.issues[group.issue];
                   const Icon = group.severity === 'critical' ? OctagonAlert : TriangleAlert;
                   return (
                     <li key={group.issue}>
@@ -408,7 +420,7 @@ export function FleetView({
                       >
                         <span
                           className={`flex items-center gap-1 text-xs font-medium ${
-                            group.count === 0
+                            groupCount === 0
                               ? 'text-secondary-label'
                               : group.severity === 'critical'
                                 ? 'text-critical'
@@ -421,17 +433,17 @@ export function FleetView({
                         </span>
                         <span
                           className={`text-sm font-medium ${
-                            group.count === 0 ? 'text-secondary-label' : 'text-label'
+                            groupCount === 0 ? 'text-secondary-label' : 'text-label'
                           }`}
                         >
                           {t.issues.names[group.issue]}
                         </span>
                         <span
                           className={`text-2xl font-semibold tabular-nums ${
-                            group.count === 0 ? 'text-secondary-label' : 'text-label'
+                            groupCount === 0 ? 'text-secondary-label' : 'text-label'
                           }`}
                         >
-                          {group.count}
+                          {groupCount}
                         </span>
                       </button>
                     </li>
@@ -446,25 +458,26 @@ export function FleetView({
               </h2>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div role="group" aria-label={t.platform.label} className="flex flex-wrap gap-2">
-                  <Choice
+                  <ChoiceChip
                     pressed={platform === null}
-                    onClick={() => onFilterChange({ issue, platform: null })}
+                    onClick={() => onFilterChange({ issue, platform: null, managements })}
                   >
                     {t.platform.all}
-                  </Choice>
+                  </ChoiceChip>
                   {overview.platforms.map((entry) => (
-                    <Choice
+                    <ChoiceChip
                       key={entry.platform}
                       pressed={platform === entry.platform}
                       onClick={() =>
                         onFilterChange({
                           issue,
                           platform: platform === entry.platform ? null : entry.platform,
+                          managements,
                         })
                       }
                     >
-                      {t.platform.names[entry.platform]} ({entry.count})
-                    </Choice>
+                      {t.platform.names[entry.platform]} ({facets.platforms[entry.platform]})
+                    </ChoiceChip>
                   ))}
                 </div>
                 <div className="relative w-full sm:max-w-xs">
@@ -498,6 +511,37 @@ export function FleetView({
                   )}
                 </div>
               </div>
+
+              {(overview.managements.length > 1 || managements.length > 0) && (
+                <div className="flex flex-col gap-1.5">
+                  <div
+                    role="group"
+                    aria-label={t.management.label}
+                    data-testid="fleet-management"
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <span aria-hidden="true" className="text-xs font-medium text-secondary-label">
+                      {t.management.label}
+                    </span>
+                    <ChoiceChip
+                      pressed={managements.length === 0}
+                      onClick={() => onFilterChange({ issue, platform, managements: [] })}
+                    >
+                      {t.management.all}
+                    </ChoiceChip>
+                    {managementChoices.map((management) => (
+                      <ChoiceChip
+                        key={management}
+                        pressed={managements.includes(management)}
+                        onClick={() => toggleManagement(management)}
+                      >
+                        {t.management.names[management]} ({facets.managements[management]})
+                      </ChoiceChip>
+                    ))}
+                  </div>
+                  <p className="text-xs text-secondary-label">{t.management.hint}</p>
+                </div>
+              )}
 
               <p
                 role="status"
@@ -563,7 +607,7 @@ export function FleetView({
               )}
             </section>
 
-            <FleetVersions versions={overview.osVersions} />
+            <FleetVersions versions={counts.osVersions} />
           </>
         )}
       </div>

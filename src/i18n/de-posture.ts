@@ -201,6 +201,8 @@ export const dePosture = {
       level: 'Bewertete Stufe',
       levelRaised: (selected: PostureLevel, used: PostureLevel) =>
         `Stufe ${used} (Microsoft bietet hier keine Stufe ${selected} an – Stufe ${used} ist das empfohlene Minimum)`,
+      /** Bewerten mehrere Frameworks einer Kachel gegen unterschiedliche Stufen: je Framework ein Fakt */
+      levelFor: (framework: string) => `Bewertete Stufe (${framework})`,
       policies: 'Richtlinien',
       truncated: 'Vollständigkeit',
       truncatedValue: 'Nicht alle Richtlinien gelesen (Seitengrenze)',
@@ -249,10 +251,18 @@ export const dePosture = {
     zeroUndocumented: '0 (Bedeutung nicht dokumentiert)',
     zeroUndocumentedReason:
       'Graph liefert 0. Das Intune Admin Center bietet für diese Einstellung „Sofort“ an, wie Graph das kodiert, ist aber nicht dokumentiert – 0 kann „Sofort“ (strenger als empfohlen) oder „nicht konfiguriert“ bedeuten.',
+    /** Beta-Ressource androidDeviceOwnerCompliancePolicy: weder Wertebereich noch Bedeutung von 0 dokumentiert */
+    zeroUndocumentedBetaReason:
+      'Graph liefert 0. Microsoft dokumentiert für diese Eigenschaft der Beta-API weder einen Wertebereich noch die Bedeutung von 0 – 0 kann „nicht konfiguriert“ oder „sofort“ (strenger als empfohlen) bedeuten.',
+    unrankedValueReason:
+      'Microsoft dokumentiert für diesen Wert keinen Rang gegenüber dem empfohlenen Wert – ob er die Empfehlung erfüllt, lässt sich nicht belegen.',
     threatEnabled: 'Bedrohungsstufe aktiviert',
     threatNotEnabled: 'Bedrohungsstufe (Mobile Threat Defense) nicht aktiviert',
     threatNotEnabledReason:
       'Microsoft empfiehlt für Stufe 3 Microsoft Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung – beides ist nicht nötig. Die Bedrohungsstufe ist in dieser Richtlinie nicht aktiviert; ob stattdessen die Risikobewertung von Defender for Endpoint verlangt wird, ist über die dokumentierte API (v1.0) nicht lesbar.',
+    /** Android Enterprise vollständig verwaltet: Die Defender-Eigenschaft existiert (beta), die Zuordnung von „Clear“ nicht */
+    threatNotEnabledReasonDeviceOwner:
+      'Microsoft empfiehlt für Stufe 3 Microsoft Defender for Endpoint oder eine Mobile-Threat-Defense-Lösung – beides ist nicht nötig. Die Bedrohungsstufe ist in dieser Richtlinie nicht aktiviert. Ob stattdessen die Risikobewertung von Defender for Endpoint in der empfohlenen Stufe verlangt wird, kann die App nicht bewerten: Microsoft dokumentiert nicht, welcher Wert der Eigenschaft advancedThreatProtectionRequiredSecurityLevel dem Wert „Clear“ im Intune Admin Center entspricht.',
     join: (parts: string[]) => parts.join(' · '),
     /** Enum-Werte laut Graph → deutsch (unbekannte Werte bleiben roh) */
     enums: {
@@ -270,6 +280,23 @@ export const dePosture = {
         numeric: 'Mindestens numerisch',
         numericComplex: 'Numerisch komplex',
         any: 'Beliebig',
+      } as Record<string, string>,
+      /** androidDeviceOwnerRequiredPasswordType (Beta-API) */
+      androidDeviceOwnerRequiredPasswordType: {
+        deviceDefault: 'Gerätestandard',
+        required: 'Kennwort erforderlich, Typ beliebig',
+        numeric: 'Mindestens numerisch',
+        numericComplex: 'Numerisch komplex',
+        alphabetic: 'Mindestens alphabetisch',
+        alphanumeric: 'Mindestens alphanumerisch',
+        alphanumericWithSymbols: 'Mindestens alphanumerisch mit Symbolen',
+        lowSecurityBiometric: 'Biometrie mit niedriger Sicherheit',
+        customPassword: 'Benutzerdefiniertes Kennwort (vom Administrator festgelegt)',
+      } as Record<string, string>,
+      /** androidSafetyNetEvaluationType (Beta-API) */
+      androidSafetyNetEvaluationType: {
+        basic: 'Standard (ohne starke Integrität)',
+        hardwareBacked: 'Starke Integrität (hardwaregestützt)',
       } as Record<string, string>,
       deviceThreatProtectionLevel: {
         unavailable: 'Nicht verfügbar',
@@ -401,6 +428,49 @@ export const dePosture = {
       expected: '5 oder mehr',
     },
 
+    // Android Enterprise, vollständig verwaltet – Stufe 1–3 (androidDeviceOwnerCompliancePolicy, Beta-API)
+    afmBasicIntegrity: {
+      label: 'Play Integrity: grundlegende Integrität',
+      expected: REQUIRED,
+    },
+    afmOsMinimum: {
+      label: 'Minimale Betriebssystemversion',
+      expected: 'Gesetzt (Microsoft: von Microsoft-Apps unterstützte Version)',
+    },
+    afmPasswordRequired: { label: 'Kennwort zum Entsperren erforderlich', expected: REQUIRED },
+    afmPasswordType: {
+      label: 'Erforderlicher Kennworttyp',
+      expected: 'Numerisch komplex (oder strenger)',
+    },
+    afmPasswordMinLength: { label: 'Minimale Kennwortlänge', expected: '6 Zeichen oder mehr' },
+    afmPasswordInactivity: {
+      label: 'Maximale Inaktivität, bevor ein Kennwort nötig ist',
+      expected: 'Höchstens 5 Minuten',
+    },
+    afmEncryption: { label: 'Verschlüsselung des Datenspeichers', expected: REQUIRED },
+    afmIntuneAppIntegrity: { label: 'Laufzeitintegrität der Intune-App', expected: REQUIRED },
+    afmMarkNoncompliant: { label: 'Gerät als nicht konform markieren', expected: 'Sofort' },
+    afmPasswordExpiration: {
+      label: 'Tage bis zum Kennwortablauf',
+      expected: 'Höchstens 365 Tage',
+    },
+    afmPasswordReuse: {
+      label: 'Anzahl vorheriger Kennwörter, die nicht wiederverwendet werden dürfen',
+      expected: '5 oder mehr',
+    },
+    afmDeviceIntegrity: {
+      label: 'Play Integrity: Geräteintegrität',
+      expected: REQUIRED,
+    },
+    afmStrongIntegrity: {
+      label: 'Starke Integrität mit hardwaregestützten Sicherheitsfunktionen',
+      expected: 'Starke Integrität prüfen',
+    },
+    afmThreatLevel: {
+      label: 'Gerät höchstens auf Bedrohungsstufe (Mobile Threat Defense)',
+      expected: 'Geschützt',
+    },
+
     // App-Schutz – Data Protection Framework (iOS/iPadOS und Android)
     appPinRequired: { label: 'PIN für den Zugriff', expected: REQUIRED },
     appPinMinLength4: { label: 'Minimale PIN-Länge', expected: '4 oder mehr' },
@@ -466,7 +536,10 @@ export const dePosture = {
     },
   } satisfies Record<string, CheckText>,
 
-  /** Learn-Sollwerte, für die es keine v1.0-Eigenschaft gibt (bzw. keine dokumentierte Zuordnung). */
+  /**
+   * Learn-Sollwerte, für die es keine dokumentierte Eigenschaft gibt (bzw. keine dokumentierte Zuordnung
+   * des Sollwerts zu einem Wert der Eigenschaft).
+   */
   uncheckable: {
     winFirewall: { label: 'Firewall', expected: REQUIRED },
     winAntivirus: { label: 'Antivirus', expected: REQUIRED },
@@ -498,6 +571,10 @@ export const dePosture = {
       expected: 'Starke Integrität prüfen',
     },
     awpMdeRisk: {
+      label: 'Gerät höchstens auf Computerrisikobewertung (Defender for Endpoint)',
+      expected: 'Frei',
+    },
+    afmMdeRisk: {
       label: 'Gerät höchstens auf Computerrisikobewertung (Defender for Endpoint)',
       expected: 'Frei',
     },
@@ -583,12 +660,19 @@ export const dePosture = {
     noMapping: 'Zuordnung zur v1.0-Eigenschaft nicht dokumentiert',
     enumIncomplete:
       'Der Wertebereich der v1.0-Eigenschaft enthält nicht alle empfohlenen Ziele (z. B. „Photo Library“)',
+    valueMappingUndocumented:
+      'Die Eigenschaft ist dokumentiert, die Zuordnung des Werts im Intune Admin Center zum Enum-Wert der API aber nicht',
   },
   uncheckableTitle: (n: number) =>
     `${n} ${plural(n, 'Empfehlung ist', 'Empfehlungen sind')} über die dokumentierte API nicht prüfbar`,
   uncheckableDetail:
     'Microsoft nennt für diese Einstellungen einen Sollwert, die dokumentierte Graph-API (v1.0) liefert den Wert aber nicht. Die App rät nicht – bitte im Intune Admin Center selbst prüfen.',
   uncheckableCause: 'Einstellung nur in der Beta-API oder ohne dokumentierte Zuordnung.',
+  /** Variante, wenn jede betroffene Empfehlung den Grund `valueMappingUndocumented` hat */
+  uncheckableDetailMapping:
+    'Microsoft nennt für diese Einstellungen einen Sollwert. Die Eigenschaft der Graph-API ist dokumentiert, nicht aber, welcher ihrer Werte dem Sollwert im Intune Admin Center entspricht. Die App rät nicht – bitte im Intune Admin Center selbst prüfen.',
+  uncheckableCauseMapping:
+    'Zuordnung des Sollwerts zum Wert der Graph-Eigenschaft nicht dokumentiert.',
 
   // ---------- Kacheln ----------
 
@@ -648,12 +732,18 @@ export const dePosture = {
     expectedCorporate:
       'Mindestens eine zugewiesene Richtlinie „Android Enterprise – vollständig verwaltet, dediziert und unternehmenseigenes Arbeitsprofil“',
     corporateBetaReason:
-      'Der Richtlinientyp für vollständig verwaltete und unternehmenseigene Android-Geräte ist nur in der Beta-API dokumentiert und über v1.0 nicht sicher lesbar – ob eine passende Richtlinie zugewiesen ist, kann die App nicht feststellen.',
+      'Die App fand keine zugewiesene Richtlinie für vollständig verwaltete und unternehmenseigene Android-Geräte. Der Richtlinientyp ist nur in der Beta-API dokumentiert; die App liest die Beta-Liste nur für Richtlinien, die v1.0 ohne dokumentierten Typ liefert. Das ist kein sicherer Nachweis, dass keine solche Richtlinie zugewiesen ist.',
+    corporateBetaFailedReason:
+      'Die Beta-Liste der Compliance-Richtlinien konnte nicht gelesen werden. Nur sie weist den Richtlinientyp für vollständig verwaltete und unternehmenseigene Android-Geräte aus – ob eine passende Richtlinie zugewiesen ist, kann die App deshalb nicht feststellen.',
     corporateBetaTitle: (devices: number) =>
       `Android unternehmenseigen: ${devices} ${plural(devices, 'Gerät', 'Geräte')} – Abdeckung nicht prüfbar`,
     corporateBetaDetail:
-      'Microsoft führt eine eigene Empfehlung für vollständig verwaltete und unternehmenseigene Android-Geräte („Compliance policies protect fully managed and corporate-owned Android devices“). Der zugehörige Richtlinientyp ist nur in der Beta-API dokumentiert; über die dokumentierte v1.0-API fand die App keine zugewiesene Richtlinie dieses Typs. Das ist kein Nachweis, dass sie fehlt – deshalb „nicht prüfbar“ statt „weicht ab“.',
+      'Microsoft führt eine eigene Empfehlung für vollständig verwaltete und unternehmenseigene Android-Geräte („Compliance policies protect fully managed and corporate-owned Android devices“). Der zugehörige Richtlinientyp ist nur in der Beta-API dokumentiert. Die App liest die Beta-Liste der Compliance-Richtlinien nur, wenn v1.0 Richtlinien ohne dokumentierten Typ liefert, und fand keine zugewiesene Richtlinie dieses Typs. Das ist kein sicherer Nachweis, dass sie fehlt – deshalb „nicht prüfbar“ statt „weicht ab“.',
+    corporateBetaFailedDetail:
+      'Microsoft führt eine eigene Empfehlung für vollständig verwaltete und unternehmenseigene Android-Geräte („Compliance policies protect fully managed and corporate-owned Android devices“). Der zugehörige Richtlinientyp ist nur in der Beta-API dokumentiert, und die Beta-Liste der Compliance-Richtlinien konnte nicht gelesen werden. Ob eine passende Richtlinie zugewiesen ist, bleibt deshalb offen – „nicht prüfbar“ statt „weicht ab“.',
     corporateBetaCause: 'Richtlinientyp nur in der Beta-API dokumentiert.',
+    corporateBetaFailedCause:
+      'Die Beta-Liste der Compliance-Richtlinien war nicht lesbar (Berechtigung oder Fehler).',
     corporateBetaRemediation: [
       'Im Intune Admin Center unter Geräte › Compliance prüfen, ob eine Richtlinie für „Android Enterprise – vollständig verwaltet, dediziert und unternehmenseigenes Arbeitsprofil“ existiert und zugewiesen ist.',
     ],
@@ -771,6 +861,44 @@ export const dePosture = {
     noPolicyRemediation: [
       'Im Intune Admin Center unter Geräte › Compliance eine Richtlinie für die Plattform anlegen und zuweisen.',
     ],
+    unclassifiedTitle: (n: number) => `${policies(n)} ohne erkennbare Plattform`,
+    unclassifiedDetail: (names: string[]) =>
+      `Für diese Plattform fand die App keine Compliance-Richtlinie, deren Typ sie zuordnen kann. Der Mandant enthält aber ${names.join(', ')}: Für diese Richtlinien liefert Microsoft Graph keinen Typ, aus dem Plattform und Einstellungen hervorgehen. Sie können zu dieser Plattform gehören – die App leitet aus dem Namen nichts ab.`,
+    /**
+     * Zusatz zum Befund je Zustand der Beta-Liste (`GET /beta/deviceManagement/deviceCompliancePolicies`):
+     * notRead = nicht gelesen, failed = Abruf gescheitert, truncated = Seitengrenze, ok = vollständig gelesen.
+     */
+    unclassifiedBetaNote: {
+      notRead: '',
+      failed:
+        'Die Beta-Liste der Compliance-Richtlinien, die den Typ ausweisen könnte, konnte nicht gelesen werden.',
+      truncated:
+        'Die Beta-Liste der Compliance-Richtlinien wurde nicht vollständig gelesen (Seitengrenze) – der Typ kann deshalb offen geblieben sein.',
+      ok: 'Auch die Beta-Liste der Compliance-Richtlinien weist für sie keinen Typ aus, aus dem die Plattform hervorgeht.',
+    },
+    unclassifiedCause: {
+      notRead: 'Richtlinientyp, den Microsoft Graph (v1.0) nicht ausweist.',
+      failed:
+        'Die Beta-Liste der Compliance-Richtlinien konnte nicht gelesen werden (Berechtigung oder Fehler). Nur sie weist Typen aus, die v1.0 nicht dokumentiert – zum Beispiel Android Enterprise „vollständig verwaltet, dediziert, unternehmenseigen“ (androidDeviceOwnerCompliancePolicy).',
+      truncated:
+        'Die Beta-Liste der Compliance-Richtlinien wurde nicht vollständig gelesen (Seitengrenze der App).',
+      ok: 'Weder v1.0 noch die Beta-Liste weisen für diese Richtlinien einen Typ aus, aus dem die Plattform hervorgeht.',
+    },
+    /** Fakt und Schritte, wenn die Beta-Liste nicht (vollständig) gelesen wurde und Richtlinien ohne Typ betroffen sind */
+    betaReadFact: 'Beta-Liste der Compliance-Richtlinien',
+    betaReadValue: {
+      failed: 'Nicht lesbar – Typ und Einstellungen von Richtlinien ohne v1.0-Typ fehlen',
+      truncated: 'Nicht vollständig gelesen (Seitengrenze)',
+    },
+    betaFailedRemediation: [
+      'Die Ansicht später erneut laden – der Abruf der Beta-Liste kann vorübergehend scheitern.',
+    ],
+    unclassifiedRemediation: [
+      'Im Intune Admin Center unter Geräte › Compliance nachsehen, für welche Plattform die genannten Richtlinien gelten.',
+      'Die Einstellungen dort mit der verlinkten Microsoft-Empfehlung vergleichen.',
+    ],
+    unclassifiedFact: 'Richtlinien ohne erkennbare Plattform',
+    unclassifiedNoType: 'kein Typ geliefert',
     noTargetTitle: 'Microsoft dokumentiert dafür keinen Sollwert',
     noTargetMacos:
       'Für macOS-Compliance-Richtlinien nennt Microsoft Learn keine Sicherheitskonfiguration mit Sollwerten. Geprüft wird nur, ob eine Richtlinie zugewiesen ist (Kachel „Abdeckung der Geräte“).',
@@ -781,20 +909,66 @@ export const dePosture = {
     noTargetCause: 'Kein dokumentierter Sollwert – reine Information.',
     noTargetRemediation: ['Keine Aktion nötig.'],
     betaTypeLabel: 'Richtlinientyp prüfen',
-    betaTypeExpected: 'Sicherheitskonfiguration laut Microsoft Learn',
+    betaTypeExpected: 'Richtlinientyp, dessen Einstellungen die App lesen kann',
     betaTypeActual: (odataType: string | null) => odataType ?? 'Unbekannter Typ',
-    betaTypeReason:
-      'Dieser Richtlinientyp ist nur in der Beta-API mit Einstellungen dokumentiert (z. B. Android Enterprise vollständig verwaltet) – über die dokumentierte v1.0-API nicht prüfbar.',
-    betaTypeTitle: (n: number) => `${policies(n)} über die dokumentierte API nicht prüfbar`,
+    /**
+     * Warum eine Richtlinie mit Android-/iOS-Typ ohne Einstellungen blieb. otherType = die Beta-Liste nennt
+     * einen anderen Typ als androidDeviceOwnerCompliancePolicy; sonst Zustand der Beta-Liste.
+     */
+    betaTypeReason: {
+      otherType:
+        'Für diesen Richtlinientyp liest die App keine Einstellungen. Über die Beta-API bewertet sie nur Android Enterprise „vollständig verwaltet, dediziert, unternehmenseigenes Arbeitsprofil“ (androidDeviceOwnerCompliancePolicy).',
+      failed:
+        'Die Beta-Liste der Compliance-Richtlinien konnte nicht gelesen werden – die Einstellungen dieser Richtlinie liegen deshalb nicht vor.',
+      truncated:
+        'Die Beta-Liste der Compliance-Richtlinien wurde nicht vollständig gelesen (Seitengrenze) – die Einstellungen dieser Richtlinie lagen nicht vor.',
+      ok: 'Die Beta-Liste der Compliance-Richtlinien lieferte für diese Richtlinie keine Einstellungen.',
+      notRead:
+        'Für diese Richtlinie liegen keine Einstellungen vor: Die v1.0-API dokumentiert den Typ nicht, und die Beta-Liste der Compliance-Richtlinien wurde nicht gelesen.',
+    },
+    betaTypeTitle: (n: number) => `${policies(n)} nicht prüfbar`,
     betaTypeDetail: (names: string[]) =>
-      `Für ${names.join(', ')} gibt es Microsoft-Empfehlungen (z. B. Android Enterprise vollständig verwaltet, Stufe 1–3), der Richtlinientyp ist aber nur in der Beta-API mit Einstellungen dokumentiert. Die App rät nicht.`,
-    betaTypeCause: 'Richtlinientyp ohne Einstellungen in der v1.0-API.',
+      `Für ${names.join(', ')} liegen der App keine Einstellungen vor. Über die Beta-API liest sie nur Richtlinien des Typs Android Enterprise „vollständig verwaltet, dediziert, unternehmenseigenes Arbeitsprofil“ (androidDeviceOwnerCompliancePolicy); andere Typen ohne v1.0-Dokumentation bewertet sie nicht. Die App rät nicht.`,
+    betaTypeDetailNote: {
+      notRead: '',
+      failed:
+        'Der Abruf der Beta-Liste der Compliance-Richtlinien ist gescheitert – deshalb fehlen Typ und Einstellungen auch für Richtlinien, die die App sonst bewerten könnte.',
+      truncated:
+        'Die Beta-Liste der Compliance-Richtlinien wurde nicht vollständig gelesen (Seitengrenze).',
+      ok: '',
+    },
+    betaTypeCause: {
+      notRead: 'Richtlinientyp, für den die App keine Einstellungen liest.',
+      failed:
+        'Die Beta-Liste der Compliance-Richtlinien konnte nicht gelesen werden (Berechtigung oder Fehler).',
+      truncated:
+        'Die Beta-Liste der Compliance-Richtlinien wurde nicht vollständig gelesen (Seitengrenze der App).',
+      ok: 'Richtlinientyp, für den die App keine Einstellungen liest.',
+    },
     betaTypeRemediation: [
       'Die Richtlinie im Intune Admin Center unter Geräte › Compliance mit der verlinkten Microsoft-Empfehlung vergleichen.',
     ],
-    androidFrameworkFact: 'Bewertetes Framework',
-    androidFrameworkValue:
-      'Android Enterprise, persönliches Gerät mit Arbeitsprofil (Richtlinien für vollständig verwaltete Geräte sind nur in der Beta-API dokumentiert und werden nicht bewertet)',
+    /** Schritte für Richtlinien, deren Einstellungen der App nicht vorliegen (anderer Beta-Typ, Beta-Liste nicht lesbar) */
+    betaTypeManualRemediation: [
+      'Die Richtlinie im Intune Admin Center unter Geräte › Compliance öffnen und die Einstellungen dort prüfen. Für Android Enterprise „vollständig verwaltet“ nennt die verlinkte Microsoft-Seite die empfohlenen Werte.',
+    ],
+    /** Fakt „Bewertetes Framework“ der Android-Kachel: nennt die tatsächlich bewerteten Frameworks */
+    frameworksFact: (n: number) => plural(n, 'Bewertetes Framework', 'Bewertete Frameworks'),
+    frameworkNames: {
+      androidWorkProfileCompliance: 'Android Enterprise, persönliches Gerät mit Arbeitsprofil',
+      androidFullyManagedCompliance: 'Android Enterprise, vollständig verwaltet',
+    } as Record<string, string>,
+    frameworkShort: {
+      androidWorkProfileCompliance: 'Arbeitsprofil',
+      androidFullyManagedCompliance: 'vollständig verwaltet',
+    } as Record<string, string>,
+    /**
+     * androidDeviceOwnerCompliancePolicy gilt laut Graph auch für dedizierte Geräte und unternehmenseigene
+     * Geräte mit Arbeitsprofil; die Learn-Empfehlung nennt „fully managed mobile users“.
+     */
+    deviceOwnerScopeFact: 'Geltung des Richtlinientyps',
+    deviceOwnerScopeNote:
+      'Bewertet gegen die Empfehlung für vollständig verwaltete Geräte. Der Richtlinientyp gilt auch für dedizierte Geräte (Kiosk) und unternehmenseigene Geräte mit Arbeitsprofil; die Einstellungen unterscheiden diese Arten nicht – dort können Abweichungen beabsichtigt sein.',
     summaryPolicies: (n: number, reached: string | null) =>
       [policies(n), reached].filter(Boolean).join(' · '),
   },

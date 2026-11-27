@@ -7,6 +7,18 @@
  *   empfohlene Minimum, Stufe 3 ergänzt. Eigenschaften: iosCompliancePolicy (v1.0).
  * - Android Enterprise, persönliches Gerät mit Arbeitsprofil: „Device compliance (level 2/3)“ – keine
  *   Stufe 1. Eigenschaften: androidWorkProfileCompliancePolicy (v1.0).
+ * - Android Enterprise, vollständig verwaltet (Nachtrag, Sollwerte gegengeprüft **2026-11-27**, dritte
+ *   freigegebene Beta-Ausnahme): „Device compliance (level 1/2/3)“. Eigenschaften:
+ *   androidDeviceOwnerCompliancePolicy – **nur in der Beta-API dokumentiert**; die Namen unterscheiden sich
+ *   vom Arbeitsprofil (z. B. `passwordPreviousPasswordCountToBlock`, `securityRequireIntuneAppIntegrity`).
+ *   Der Graph-Typ gilt auch für dedizierte Geräte und unternehmenseigene Geräte mit Arbeitsprofil; die
+ *   Learn-Empfehlung nennt „fully managed mobile users“ (Hinweis in der Kachel).
+ *   Stufe-3-Zeile „Minimum OS version, Example: 11.0“: wie Stufe 1 nur Format und Beispiel, kein fester
+ *   Wert → dieselbe Prüfung „gesetzt“ (Stufe 1), keine zweite.
+ *   Stufe-1-Zeile „Minimum security patch level: Not configured“: keine Prüfung (jede Einstellung erfüllt).
+ *   Stufe 3 „machine risk score: Clear“: Die Eigenschaft `advancedThreatProtectionRequiredSecurityLevel`
+ *   ist dokumentiert, Learn nennt aber nicht, welcher Wert von deviceThreatProtectionLevel dem Portalwert
+ *   „Clear“ entspricht → `uncheckable` (`valueMappingUndocumented`), nicht geraten.
  *
  * Stufe 3 „Device Threat Level: Secured“: Learn empfiehlt Defender for Endpoint **oder** Mobile Threat
  * Defense („It isn't necessary to deploy both“) – ist die Bedrohungsstufe nicht aktiviert, ist die
@@ -29,9 +41,10 @@ import {
   requireValue,
   type Where,
 } from './build';
-import { deviceThreatLevelSecured, markNoncompliantImmediately } from './compare';
+import { deviceThreatLevelSecured, markNoncompliantImmediately, rankedEnum } from './compare';
 
 const enums = dePosture.values.enums;
+const values = dePosture.values;
 
 // ---------- Windows 10 und neuer (ohne Stufen) ----------
 
@@ -105,7 +118,10 @@ const threatLevelSecured = custom(
   },
 );
 
-const markImmediately = (id: 'iosMarkNoncompliant' | 'awpMarkNoncompliant', where: Where) =>
+const markImmediately = (
+  id: 'iosMarkNoncompliant' | 'awpMarkNoncompliant' | 'afmMarkNoncompliant',
+  where: Where,
+) =>
   custom(
     id,
     [],
@@ -237,6 +253,103 @@ export const ANDROID_WORK_PROFILE_COMPLIANCE: PostureFramework = {
       level: 3,
       docsUrl: Docs.postureAndroidWorkProfileLevel3,
       reason: 'noV1Property',
+    },
+  ],
+};
+
+// ---------- Android Enterprise, vollständig verwaltet (Stufe 1 bis 3, Eigenschaften nur beta) ----------
+
+const AFM1: Where = { level: 1, docsUrl: Docs.postureAndroidFullyManagedLevel1 };
+const AFM2: Where = { level: 2, docsUrl: Docs.postureAndroidFullyManagedLevel2 };
+const AFM3: Where = { level: 3, docsUrl: Docs.postureAndroidFullyManagedLevel3 };
+
+export const ANDROID_FULLY_MANAGED_COMPLIANCE: PostureFramework = {
+  id: 'androidFullyManagedCompliance',
+  levels: [1, 2, 3],
+  docsUrl: Docs.postureAndroidFullyManagedLevel1,
+  checks: [
+    // Stufe 1 – „Play Integrity Verdict: Check basic integrity“
+    requireValue(
+      'afmBasicIntegrity',
+      'securityRequireSafetyNetAttestationBasicIntegrity',
+      true,
+      AFM1,
+    ),
+    // „Minimum OS version – Format: Major.Minor, Example: 9.0“ (Stufe 3 nennt nur ein anderes Beispiel)
+    anyValueSet('afmOsMinimum', 'osMinimumVersion', '9.0', AFM1),
+    requireValue('afmPasswordRequired', 'passwordRequired', true, AFM1),
+    // androidDeviceOwnerRequiredPasswordType: „At least numeric“ < „At least numeric with no repeating or
+    // ordered sequences“ (numericComplex) < „At least alphabetic“ < alphanumeric < alphanumericWithSymbols.
+    // deviceDefault („no intent“) und required („no restrictions on type“) verlangen keinen Typ → weichen ab.
+    // lowSecurityBiometric und customPassword haben keinen dokumentierten Rang → nicht prüfbar.
+    custom(
+      'afmPasswordType',
+      ['passwordRequiredType'],
+      AFM1,
+      rankedEnum(
+        'passwordRequiredType',
+        ['numericComplex', 'alphabetic', 'alphanumeric', 'alphanumericWithSymbols'],
+        ['deviceDefault', 'required', 'numeric'],
+        enums.androidDeviceOwnerRequiredPasswordType,
+      ),
+      { settings: { passwordRequiredType: 'numericComplex' } },
+      { settings: { passwordRequiredType: 'numeric' } },
+    ),
+    minimum('afmPasswordMinLength', 'passwordMinimumLength', 6, 'characters', AFM1),
+    // Die Beta-Ressource nennt für diese Eigenschaft weder Wertebereich noch die Bedeutung von 0
+    maximum('afmPasswordInactivity', 'passwordMinutesOfInactivityBeforeLock', 5, 'minutes', AFM1, {
+      zeroUndocumented: true,
+      zeroReason: values.zeroUndocumentedBetaReason,
+    }),
+    requireValue('afmEncryption', 'storageRequireEncryption', true, AFM1),
+    // „Intune app runtime integrity: Require“
+    requireValue('afmIntuneAppIntegrity', 'securityRequireIntuneAppIntegrity', true, AFM1),
+    markImmediately('afmMarkNoncompliant', AFM1),
+    // Stufe 2
+    maximum('afmPasswordExpiration', 'passwordExpirationDays', 365, 'days', AFM2),
+    minimum('afmPasswordReuse', 'passwordPreviousPasswordCountToBlock', 5, 'count', AFM2),
+    // „Play Integrity Verdict: Check basic integrity & device integrity“ → zusätzlich die Geräteintegrität
+    requireValue(
+      'afmDeviceIntegrity',
+      'securityRequireSafetyNetAttestationCertifiedDevice',
+      true,
+      AFM2,
+    ),
+    // androidSafetyNetEvaluationType: hardwareBacked = „Strong Integrity checks (such as a hardware-backed
+    // proof of boot integrity) were used“; basic = „Default value. Typical measurements …“
+    custom(
+      'afmStrongIntegrity',
+      ['securityRequiredAndroidSafetyNetEvaluationType'],
+      AFM2,
+      rankedEnum(
+        'securityRequiredAndroidSafetyNetEvaluationType',
+        ['hardwareBacked'],
+        ['basic'],
+        enums.androidSafetyNetEvaluationType,
+      ),
+      { settings: { securityRequiredAndroidSafetyNetEvaluationType: 'hardwareBacked' } },
+      { settings: { securityRequiredAndroidSafetyNetEvaluationType: 'basic' } },
+    ),
+    // Stufe 3 – Defender for Endpoint ODER Mobile Threat Defense (eigener Grund: kein „v1.0“-Bezug)
+    custom(
+      'afmThreatLevel',
+      ['deviceThreatProtectionEnabled', 'deviceThreatProtectionRequiredSecurityLevel'],
+      AFM3,
+      deviceThreatLevelSecured(
+        enums.deviceThreatProtectionLevel,
+        values.threatNotEnabledReasonDeviceOwner,
+      ),
+      threatLevelSecured.satisfiedBy,
+      threatLevelSecured.deviatingWith,
+    ),
+  ],
+  uncheckable: [
+    // „Require the device to be at or under the machine risk score: Clear“
+    {
+      id: 'afmMdeRisk',
+      level: 3,
+      docsUrl: Docs.postureAndroidFullyManagedLevel3,
+      reason: 'valueMappingUndocumented',
     },
   ],
 };
