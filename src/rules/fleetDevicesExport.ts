@@ -5,6 +5,7 @@
  */
 import { de } from '../i18n/de';
 import type { FleetRow } from './fleetDevices';
+import { fleetManagementLabel } from './fleetDevicesText';
 import { csvField } from './posture/export';
 
 const t = de.fleetDevices;
@@ -25,6 +26,8 @@ export function fleetDevicesCsv(rows: readonly FleetRow[]): string {
       c.user,
       c.upn,
       c.platform,
+      c.management,
+      c.managementAgent,
       c.osVersion,
       c.model,
       c.serial,
@@ -35,12 +38,15 @@ export function fleetDevicesCsv(rows: readonly FleetRow[]): string {
       c.issues,
     ],
   ];
-  for (const { device, platform, issues, daysSinceCheckIn } of rows) {
+  for (const row of rows) {
+    const { device, platform, issues, daysSinceCheckIn } = row;
     lines.push([
       device.deviceName,
       device.userDisplayName ?? '',
       device.userPrincipalName ?? '',
       t.platform.names[platform],
+      fleetManagementLabel(row),
+      device.managementAgent ?? '',
       device.osVersion ?? '',
       device.model ?? '',
       device.serialNumber ?? '',

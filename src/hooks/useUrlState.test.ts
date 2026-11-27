@@ -75,6 +75,21 @@ describe('URL-State: Ansicht „Flotte“', () => {
     );
   });
 
+  it('liest und schreibt „Verwaltet von“ als Liste; ungültige und doppelte Werte entfallen', () => {
+    const state = parseUrl('?view=fleet&managed=mde,intune,kaputt,mde');
+    expect(state.managed).toEqual(['intune', 'mde']);
+    expect(buildSearch(state)).toBe('?view=fleet&managed=intune%2Cmde');
+    expect(parseUrl(buildSearch(state)).managed).toEqual(['intune', 'mde']);
+    expect(parseUrl('?view=fleet&managed=kaputt').managed).toBeNull();
+    expect(parseUrl('?view=fleet&managed=').managed).toBeNull();
+    expect(buildSearch({ device: null, tile: null, mode: null, view: 'fleet', managed: [] })).toBe(
+      '?view=fleet',
+    );
+    expect(
+      buildSearch({ device: null, tile: null, mode: null, view: 'tenant', managed: ['mde'] }),
+    ).toBe('?view=tenant');
+  });
+
   it('ignoriert ungültige Werte', () => {
     const state = parseUrl('?view=fleet&issue=kaputt&platform=beos');
     expect(state.issue).toBeNull();

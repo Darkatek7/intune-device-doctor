@@ -51,7 +51,11 @@ import {
   ZipView,
 } from './lazyViews';
 import { useProviderContext } from './providerContextValue';
+import type { FleetManagement } from '../rules/fleetDevices';
 import { EnrollmentFailuresHint } from '../ui/EnrollmentFailuresHint';
+
+/** Stabile leere Auswahl für „Verwaltet von“ (die Flotte merkt sich Zwischenergebnisse je Referenz). */
+const NO_MANAGEMENTS: readonly FleetManagement[] = [];
 
 interface Props {
   /** Slot für das Konto in der Toolbar (M4: AuthGate/Account-Menü) */
@@ -472,9 +476,18 @@ function Shell({ account, extraChips }: Props) {
         provider={provider}
         issue={url.issue ?? null}
         platform={url.platform ?? null}
-        onFilterChange={({ issue, platform }) =>
+        managements={url.managed ?? NO_MANAGEMENTS}
+        onFilterChange={({ issue, platform, managements }) =>
           navigateTo(
-            { device: null, tile: null, mode, view: 'fleet', issue, platform },
+            {
+              device: null,
+              tile: null,
+              mode,
+              view: 'fleet',
+              issue,
+              platform,
+              managed: managements,
+            },
             { replace: true },
           )
         }

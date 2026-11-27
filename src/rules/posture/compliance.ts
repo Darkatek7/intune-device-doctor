@@ -12,6 +12,10 @@
  * - „Stufe N erreicht“: nicht prüfbare Empfehlungen verhindern die Stufe nicht und bestätigen sie nicht –
  *   gibt es welche, lautet der Wert „Stufe N erreicht, soweit prüfbar“.
  * - macOS → Microsoft dokumentiert keinen Sollwert; nur Abdeckung (eigene Kachel).
+ * - Richtlinien, deren Typ keiner Plattform zuzuordnen ist (v1.0 weist nur fünf Typen aus; z. B.
+ *   Android Enterprise „vollständig verwaltet“ dokumentiert Microsoft nur in beta): Sie verschwinden
+ *   nicht. Hat eine Plattform keine eigene Richtlinie, lautet die Kachel „Nicht prüfbar“ statt „Keine
+ *   Richtlinie“ und nennt sie; sonst stehen sie als Fakt dabei.
  * Plattform ohne Geräte und ohne Richtlinie → „Nicht genutzt“ (kein Befund).
  */
 import type { CompliancePolicyConfig, PostureLevel, TenantPosture } from '../../domain/posture';
@@ -117,6 +121,11 @@ export function evaluateComplianceTile(
   const own = section.data.policies.filter(
     (policy) => compliancePolicyPlatform(policy) === platform,
   );
+  // Typ ohne erkennbare Plattform: könnte zu jeder Plattform gehören – weder zählen noch verschweigen.
+  const unclassified = section.data.policies.filter(
+    (policy) => compliancePolicyPlatform(policy) === null,
+  );
+  const unclassifiedNames = unclassified.map((policy) => `„${policy.displayName}“`);
   const truncated = section.data.truncated;
   const findings: Finding[] = truncated ? [truncatedFinding(id, source)] : [];
   const facts: TileFact[] = truncated
@@ -129,6 +138,34 @@ export function evaluateComplianceTile(
         id,
         value: c.valueNotUsed,
         summary: c.summaryNotUsed,
+        findings,
+        facts,
+        sources,
+        checks: [],
+        fallback: 'unknown',
+      });
+    }
+    if (unclassified.length > 0) {
+      findings.push({
+        id: `${id}-unclassified`,
+        severity: 'unknown',
+        title: t.unclassifiedTitle(unclassified.length),
+        detail: t.unclassifiedDetail(unclassifiedNames),
+        cause: t.unclassifiedCause,
+        remediation: [...t.unclassifiedRemediation],
+        evidence: {
+          odataTypes: unclassified
+            .map((policy) => policy.odataType ?? t.unclassifiedNoType)
+            .join(', '),
+        },
+        source,
+        docsUrl: COVERAGE_DOCS[platform],
+      });
+      facts.push({ label: t.unclassifiedFact, value: unclassifiedNames.join(', ') });
+      return buildTile({
+        id,
+        value: c.valueNotChecked,
+        summary: t.unclassifiedTitle(unclassified.length),
         findings,
         facts,
         sources,
@@ -167,6 +204,8 @@ export function evaluateComplianceTile(
   >();
   const reachedLevels: Array<PostureLevel | null> = [];
   facts.push({ label: c.facts.policies, value: String(own.length) });
+  if (unclassified.length > 0)
+    facts.push({ label: t.unclassifiedFact, value: unclassifiedNames.join(', ') });
   // Die Android-Kachel bewertet das Arbeitsprofil-Framework; vollständig verwaltet ist nur beta
   if (platform === 'android')
     facts.push({ label: t.androidFrameworkFact, value: t.androidFrameworkValue });

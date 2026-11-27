@@ -771,6 +771,17 @@ export const dePosture = {
     noPolicyRemediation: [
       'Im Intune Admin Center unter Geräte › Compliance eine Richtlinie für die Plattform anlegen und zuweisen.',
     ],
+    unclassifiedTitle: (n: number) => `${policies(n)} ohne erkennbare Plattform`,
+    unclassifiedDetail: (names: string[]) =>
+      `Für diese Plattform gibt es keine Compliance-Richtlinie eines Typs, den die v1.0-API ausweist. Der Mandant enthält aber ${names.join(', ')}: Für diese Richtlinien liefert Microsoft Graph (v1.0) keinen Typ, aus dem Plattform und Einstellungen hervorgehen. Sie können zu dieser Plattform gehören – die App leitet aus dem Namen nichts ab.`,
+    unclassifiedCause:
+      'Richtlinientyp, den die v1.0-API nicht ausweist. Dazu gehört zum Beispiel Android Enterprise „vollständig verwaltet, dediziert, unternehmenseigen“ (androidDeviceOwnerCompliancePolicy): Microsoft dokumentiert ihn nur in der Beta-API.',
+    unclassifiedRemediation: [
+      'Im Intune Admin Center unter Geräte › Compliance nachsehen, für welche Plattform die genannten Richtlinien gelten.',
+      'Die Einstellungen dort mit der verlinkten Microsoft-Empfehlung vergleichen.',
+    ],
+    unclassifiedFact: 'Richtlinien ohne erkennbare Plattform',
+    unclassifiedNoType: 'kein Typ geliefert',
     noTargetTitle: 'Microsoft dokumentiert dafür keinen Sollwert',
     noTargetMacos:
       'Für macOS-Compliance-Richtlinien nennt Microsoft Learn keine Sicherheitskonfiguration mit Sollwerten. Geprüft wird nur, ob eine Richtlinie zugewiesen ist (Kachel „Abdeckung der Geräte“).',

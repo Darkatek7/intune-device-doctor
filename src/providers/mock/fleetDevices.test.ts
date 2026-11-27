@@ -35,7 +35,7 @@ describe('Demo-Flotte (M22/S2) – Erzeugung', () => {
     const scenarioNames = new Set(scenarios.map((s) => s.deviceName));
     const generated = devices.filter((d) => !scenarioNames.has(d.deviceName));
     expect(generated).toHaveLength(GENERATED_FLEET_SIZE);
-    expect(generated.every((d) => /^CONTOSO-(PC|MB|IP|AND)\d+$/.test(d.deviceName))).toBe(true);
+    expect(generated.every((d) => /^CONTOSO-(PC|MB|IP|AND|SRV)\d+$/.test(d.deviceName))).toBe(true);
   });
 
   it('nur fiktive Adressen (@contoso.com) und fiktive Seriennummern', async () => {
@@ -83,7 +83,27 @@ describe('Demo-Flotte (M22/S2) – Zähler und Verteilung', () => {
   it('Kombinationen: mindestens ein Gerät mit drei Auffälligkeiten', async () => {
     const overview = evaluateFleet({ devices: await fleet(), truncated: false, pagesRead: 1 }, NOW);
     expect(overview.rows.some((row) => row.issues.length >= 3)).toBe(true);
-    expect(overview.rows.some((row) => row.issues.includes('nonCompliant') && row.issues.includes('notEncrypted'))).toBe(true);
+    expect(
+      overview.rows.some(
+        (row) => row.issues.includes('nonCompliant') && row.issues.includes('notEncrypted'),
+      ),
+    ).toBe(true);
+  });
+
+  it('Verwaltet von: MDE-Server ohne Benutzer und Compliance-Bewertung, Co-Management, Android über Cloud DPC', async () => {
+    const devices = await fleet();
+    const mde = devices.filter((d) => d.managementAgent === 'msSense');
+    expect(mde).toHaveLength(6);
+    expect(mde.every((d) => /^CONTOSO-SRV\d+$/.test(d.deviceName))).toBe(true);
+    expect(mde.every((d) => d.complianceState === 'unknown' && d.userPrincipalName === null)).toBe(
+      true,
+    );
+    expect(
+      devices.filter((d) => d.managementAgent === 'configurationManagerClientMdm'),
+    ).toHaveLength(3);
+    const android = devices.filter((d) => d.operatingSystem === 'Android');
+    expect(android.length).toBeGreaterThan(0);
+    expect(devices.every((d) => d.managementAgent !== null)).toBe(true);
   });
 
   it('Jailbreak/Root nur auf iOS/iPadOS und Android', async () => {
@@ -112,7 +132,8 @@ describe('Demo-Flotte (M22/S2) – Zähler und Verteilung', () => {
     const overview = evaluateFleet({ devices: await fleet(), truncated: false, pagesRead: 1 }, NOW);
     const count = (p: string) => overview.platforms.find((x) => x.platform === p)?.count ?? 0;
     expect(count('windows')).toBeGreaterThan(count('macos') + count('ios') + count('android'));
-    for (const platform of ['windows', 'macos', 'ios', 'android']) expect(count(platform)).toBeGreaterThan(0);
+    for (const platform of ['windows', 'macos', 'ios', 'android'])
+      expect(count(platform)).toBeGreaterThan(0);
   });
 
   it('Geräte ohne Verschlüsselungs- und Check-in-Angabe (null/null) sind vorhanden', async () => {
@@ -147,7 +168,9 @@ describe('Demo-Flotte (M22/S2) – Öffnen und Konsistenz', () => {
     const byName = await provider.searchDevices('CONTOSO-MB101');
     expect(byName).toHaveLength(1);
     expect(byName[0]?.deviceName).toBe('CONTOSO-MB101');
-    const [sample] = (await fleet()).filter((d) => d.userPrincipalName && d.deviceName.startsWith('CONTOSO-PC2'));
+    const [sample] = (await fleet()).filter(
+      (d) => d.userPrincipalName && d.deviceName.startsWith('CONTOSO-PC2'),
+    );
     const byUser = await provider.searchDevices(sample!.userPrincipalName!);
     expect(byUser.some((d) => d.id === sample!.id)).toBe(true);
   });

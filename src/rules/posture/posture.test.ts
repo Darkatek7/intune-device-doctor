@@ -781,6 +781,45 @@ describe('Compliance-Kacheln', () => {
     expect(ios.severity).toBe('unknown');
   });
 
+  it('Richtlinie ohne erkennbaren Typ: Plattform ohne eigene Richtlinie → „Nicht prüfbar“ statt „Keine Richtlinie“', () => {
+    const untyped = compliance('other', {}, { displayName: 'Contoso – Android Kiosk' });
+    const base = compliance(
+      'other',
+      {},
+      {
+        displayName: 'Contoso – Android Lager',
+        odataType: '#microsoft.graph.deviceCompliancePolicy',
+      },
+    );
+    const ios = tile([untyped, base], 'postureComplianceIos');
+    expect(ios.value).toBe('Nicht prüfbar');
+    expect(ios.severity).toBe('unknown');
+    expect(ios.checks).toEqual([]);
+    expect(ios.findings.map((f) => f.id)).toEqual(['postureComplianceIos-unclassified']);
+    expect(ios.findings[0]?.title).toBe('2 Richtlinien ohne erkennbare Plattform');
+    expect(ios.findings[0]?.detail).toContain('„Contoso – Android Kiosk“');
+    expect(ios.findings[0]?.detail).toContain('„Contoso – Android Lager“');
+    expect(ios.findings[0]?.evidence).toEqual({
+      odataTypes: 'kein Typ geliefert, #microsoft.graph.deviceCompliancePolicy',
+    });
+    // Plattform nachweislich ohne Geräte bleibt „nicht genutzt“
+    expect(tile([untyped], 'postureComplianceMacos').value).toBe('Nicht genutzt');
+  });
+
+  it('Richtlinie ohne erkennbaren Typ steht bei Plattformen mit eigener Richtlinie als Fakt dabei', () => {
+    const t = tile(
+      [windowsOk(), compliance('other', {}, { displayName: 'Contoso – Android Kiosk' })],
+      'postureComplianceWindows',
+    );
+    expect(t.facts.find((f) => f.label === 'Richtlinien ohne erkennbare Plattform')?.value).toBe(
+      '„Contoso – Android Kiosk“',
+    );
+    expect(t.findings.map((f) => f.id)).not.toContain('postureComplianceWindows-unclassified');
+    expect(tile([windowsOk()], 'postureComplianceWindows').facts.map((f) => f.label)).not.toContain(
+      'Richtlinien ohne erkennbare Plattform',
+    );
+  });
+
   it('abgeschnittene Liste wird ausgewiesen', () => {
     const t = tile([windowsOk()], 'postureComplianceWindows', 2, true);
     expect(t.findings.map((f) => f.id)).toContain('postureComplianceWindows-truncated');

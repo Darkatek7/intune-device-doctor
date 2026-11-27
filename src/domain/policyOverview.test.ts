@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterPolicies,
+  policyPlatformCounts,
   isProblemStatus,
   parsePolicyUrlKey,
   policySeverity,
@@ -92,6 +93,41 @@ describe('policyOverview', () => {
       'Contoso – VPN Always On',
     ]);
     expect(filterPolicies(list, '')).toHaveLength(2);
+  });
+
+  it('Plattformfilter: eine Plattform, „nicht erkennbar“ oder alle – kombinierbar mit dem Namen', () => {
+    const list = [
+      policy('Contoso – Windows VPN', null),
+      policy('Contoso – iOS VPN', null, { platform: 'ios' }),
+      policy('Contoso – Android Kiosk', null, { platform: null }),
+      policy('Contoso – Android Lager', null, { platform: null }),
+    ];
+    const names = (result: TenantPolicyInfo[]) => result.map((p) => p.displayName);
+    expect(names(filterPolicies(list, '', 'ios'))).toEqual(['Contoso – iOS VPN']);
+    expect(names(filterPolicies(list, '', 'unknown'))).toEqual([
+      'Contoso – Android Kiosk',
+      'Contoso – Android Lager',
+    ]);
+    // Der Name „Android“ macht eine Richtlinie nicht zur Android-Richtlinie
+    expect(filterPolicies(list, '', 'android')).toEqual([]);
+    expect(names(filterPolicies(list, 'vpn', 'windows'))).toEqual(['Contoso – Windows VPN']);
+    expect(filterPolicies(list, 'vpn', 'unknown')).toEqual([]);
+    expect(filterPolicies(list, '', null)).toHaveLength(4);
+  });
+
+  it('zählt die vorkommenden Plattformen in fester Reihenfolge, „nicht erkennbar“ zuletzt', () => {
+    const list = [
+      policy('A', null, { platform: null }),
+      policy('B', null, { platform: 'ios' }),
+      policy('C', null),
+      policy('D', null),
+    ];
+    expect(policyPlatformCounts(list)).toEqual([
+      { platform: 'windows', count: 2 },
+      { platform: 'ios', count: 1 },
+      { platform: 'unknown', count: 1 },
+    ]);
+    expect(policyPlatformCounts([])).toEqual([]);
   });
 
   it('URL-Schlüssel kind:id hin und zurück; ungültige Werte → null', () => {

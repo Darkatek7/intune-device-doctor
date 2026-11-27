@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { formatDateTime, formatRelativeTime } from '../domain/format';
 import { de } from '../i18n/de';
 import { FLEET_ISSUE_SEVERITY, type FleetRow } from '../rules/fleetDevices';
+import { fleetManagementLabel } from '../rules/fleetDevicesText';
 
 const t = de.fleetDevices;
 
@@ -92,6 +93,16 @@ export function FleetDeviceRow({ row, now, onOpen }: Props) {
             {t.platform.names[row.platform]}{' '}
             <span className="tabular-nums text-secondary-label">
               {device.osVersion ?? t.list.noVersion}
+            </span>
+            <span
+              data-management={row.management}
+              title={
+                device.managementAgent ? t.management.rawTitle(device.managementAgent) : undefined
+              }
+              className="block text-xs text-secondary-label"
+            >
+              <span className="sr-only">{t.management.label}: </span>
+              {fleetManagementLabel(row)}
             </span>
           </Cell>
         </span>

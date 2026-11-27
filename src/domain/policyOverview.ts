@@ -4,6 +4,7 @@
  */
 import type { ComplianceStatus } from '../graph/dto';
 import type {
+  OsFamily,
   PolicyDeviceStatusEntry,
   Severity,
   TenantPolicies,
@@ -57,14 +58,49 @@ export function sortPolicies(policies: readonly TenantPolicyInfo[]): TenantPolic
   });
 }
 
-/** Namensfilter (Teilstring, ohne Groß-/Kleinschreibung). */
+/** Plattformfilter der Liste: eine Plattform, `unknown` = „Plattform nicht erkennbar“, null = alle. */
+export type PolicyPlatformFilter = OsFamily | 'unknown' | null;
+
+const platformKey = (policy: TenantPolicyInfo): OsFamily | 'unknown' =>
+  policy.platform ?? 'unknown';
+
+/** Namensfilter (Teilstring, ohne Groß-/Kleinschreibung) und optional Plattformfilter. */
 export function filterPolicies(
   policies: readonly TenantPolicyInfo[],
   query: string,
+  platform: PolicyPlatformFilter = null,
 ): TenantPolicyInfo[] {
   const q = query.trim().toLocaleLowerCase('de');
-  if (!q) return [...policies];
-  return policies.filter((policy) => policy.displayName.toLocaleLowerCase('de').includes(q));
+  return policies.filter(
+    (policy) =>
+      (platform === null || platformKey(policy) === platform) &&
+      (!q || policy.displayName.toLocaleLowerCase('de').includes(q)),
+  );
+}
+
+/** Reihenfolge der Plattformen in der Filterleiste; „nicht erkennbar“ steht am Ende. */
+export const POLICY_PLATFORM_ORDER: ReadonlyArray<OsFamily | 'unknown'> = [
+  'windows',
+  'macos',
+  'ios',
+  'android',
+  'linux',
+  'other',
+  'unknown',
+];
+
+/**
+ * Plattformen, die in der Liste vorkommen, mit Anzahl. Die Plattform stammt allein aus dem dokumentierten
+ * `@odata.type` der Richtlinie; ohne erkennbaren Typ zählt sie unter `unknown` – aus dem Namen wird
+ * nichts abgeleitet.
+ */
+export function policyPlatformCounts(
+  policies: readonly TenantPolicyInfo[],
+): Array<{ platform: OsFamily | 'unknown'; count: number }> {
+  return POLICY_PLATFORM_ORDER.flatMap((platform) => {
+    const count = policies.filter((policy) => platformKey(policy) === platform).length;
+    return count === 0 ? [] : [{ platform, count }];
+  });
 }
 
 /** Anzahl Richtlinien, deren Zähler nicht abgefragt wurden (Grenze). */

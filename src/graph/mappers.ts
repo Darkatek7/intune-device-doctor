@@ -221,6 +221,10 @@ const MANAGEMENT_AGENTS: readonly ManagementAgentType[] = [
   'unknown',
   'jamf',
   'googleCloudDevicePolicyController',
+  'microsoft365ManagedMdm',
+  'msSense',
+  'intuneAosp',
+  'google',
 ];
 
 const ENROLLMENT_TYPES: readonly DeviceEnrollmentType[] = [
@@ -402,6 +406,9 @@ export function mapFleetDevice(
     enrolledDateTime: validDate(dto.enrolledDateTime),
     isEncrypted: bool(dto.isEncrypted),
     jailBroken: str(dto.jailBroken)?.trim() || null,
+    // Rohwert: Die Einordnung („Verwaltet von“) passiert in rules/fleetDevices.ts, damit auch ein
+    // nicht dokumentierter Wert sichtbar bleibt statt zu „unknown“ zu werden.
+    managementAgent: str(dto.managementAgent)?.trim() || null,
   };
 }
 

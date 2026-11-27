@@ -21,9 +21,11 @@ import {
   flattenPolicies,
   notRequestedCount,
   parsePolicyUrlKey,
+  policyPlatformCounts,
   policySeverity,
   policyUrlKey,
   sortPolicies,
+  type PolicyPlatformFilter,
 } from '../domain/policyOverview';
 import { formatDateTime, formatRelativeTime } from '../domain/format';
 import type {
@@ -37,6 +39,7 @@ import { useTenantPolicies } from '../hooks/useTenantPolicies';
 import { de } from '../i18n/de';
 import type { DeviceDataProvider } from '../providers/DeviceDataProvider';
 import type { AmbientTone } from '../ui/AmbientGlow';
+import { ChoiceChip } from '../ui/ChoiceChip';
 import { ErrorState } from '../ui/ErrorState';
 import { fade, spring, STAGGER } from '../ui/motion';
 import { SeverityBadge, SeverityIcon } from '../ui/SeverityBadge';
@@ -74,13 +77,27 @@ export function PoliciesView({
 }: Props) {
   const { state, reload } = useTenantPolicies(provider);
   const [query, setQuery] = useState('');
+  // Wie der Namensfilter lokal: Die Ansicht bleibt eingehängt, während eine Richtlinie offen ist.
+  const [platform, setPlatform] = useState<PolicyPlatformFilter>(null);
   const reduced = useReducedMotion();
 
   const all = useMemo(
     () => (state.status === 'done' ? sortPolicies(flattenPolicies(state.data)) : []),
     [state],
   );
-  const shown = useMemo(() => filterPolicies(all, query), [all, query]);
+  const shown = useMemo(() => filterPolicies(all, query, platform), [all, query, platform]);
+  // Leiste: Plattformen der ganzen Liste; die Zahlen folgen dem Namensfilter.
+  const platformChoices = useMemo(() => policyPlatformCounts(all), [all]);
+  const platformCounts = useMemo(
+    () =>
+      new Map(
+        policyPlatformCounts(filterPolicies(all, query)).map((entry) => [
+          entry.platform,
+          entry.count,
+        ]),
+      ),
+    [all, query],
+  );
   const problemCount = all.filter((policy) => policySeverity(policy) === 'critical').length;
 
   const openKey = parsePolicyUrlKey(openPolicyKey);
@@ -218,6 +235,36 @@ export function PoliciesView({
         )}
       </div>
 
+      {!loading && platformChoices.length > 1 && (
+        <div className="flex flex-col gap-1.5">
+          <div
+            role="group"
+            aria-label={t.platformFilter.label}
+            data-testid="policies-platform"
+            className="flex flex-wrap gap-2"
+          >
+            <ChoiceChip pressed={platform === null} onClick={() => setPlatform(null)}>
+              {t.platformFilter.all}
+            </ChoiceChip>
+            {platformChoices.map((entry) => (
+              <ChoiceChip
+                key={entry.platform}
+                pressed={platform === entry.platform}
+                onClick={() => setPlatform(platform === entry.platform ? null : entry.platform)}
+              >
+                {entry.platform === 'unknown'
+                  ? t.platformFilter.unknown
+                  : t.platform[entry.platform]}{' '}
+                ({platformCounts.get(entry.platform) ?? 0})
+              </ChoiceChip>
+            ))}
+          </div>
+          {platformChoices.some((entry) => entry.platform === 'unknown') && (
+            <p className="text-xs text-secondary-label">{t.platformFilter.unknownHint}</p>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <ul aria-busy="true" aria-label={t.listLabel} className="flex flex-col gap-2">
           {[0, 1, 2, 3, 4].map((n) => (
@@ -235,9 +282,29 @@ export function PoliciesView({
           ))}
         </ul>
       ) : shown.length === 0 ? (
-        <p className="rounded-2xl bg-fill p-4 text-sm text-secondary-label">
-          {all.length > 0 && query.trim() ? t.emptyFilter(query.trim()) : t.empty}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-fill p-4 text-sm text-secondary-label">
+          <p>
+            {all.length === 0
+              ? t.empty
+              : platform !== null
+                ? t.emptyPlatform
+                : query.trim()
+                  ? t.emptyFilter(query.trim())
+                  : t.empty}
+          </p>
+          {all.length > 0 && platform !== null && (
+            <button
+              type="button"
+              onClick={() => {
+                setPlatform(null);
+                setQuery('');
+              }}
+              className="inline-flex items-center rounded-full bg-control px-3 py-1.5 font-medium text-label outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.97]"
+            >
+              {t.resetFilters}
+            </button>
+          )}
+        </div>
       ) : (
         <ul aria-label={t.listLabel} className="flex flex-col gap-2">
           {shown.map((policy, index) => (

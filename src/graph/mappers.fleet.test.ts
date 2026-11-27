@@ -209,6 +209,20 @@ describe('mapFleetDevice / mapFleetDevices (M22/S1)', () => {
     expect(mapFleetDevice({ ...base, jailBroken: '' })!.jailBroken).toBeNull();
   });
 
+  it('managementAgent bleibt der Rohwert – auch ein nicht dokumentierter; leer/fehlend → null', () => {
+    expect(mapFleetDevice({ ...base, managementAgent: 'msSense' })!.managementAgent).toBe(
+      'msSense',
+    );
+    expect(mapFleetDevice({ ...base, managementAgent: ' mdm ' as never })!.managementAgent).toBe(
+      'mdm',
+    );
+    expect(
+      mapFleetDevice({ ...base, managementAgent: 'somethingNew' as never })!.managementAgent,
+    ).toBe('somethingNew');
+    expect(mapFleetDevice({ ...base, managementAgent: '' as never })!.managementAgent).toBeNull();
+    expect(mapFleetDevice(base)!.managementAgent).toBeNull();
+  });
+
   it('Datum ohne Aussage (Jahr 0001) → null; fehlender Name → Gedankenstrich', () => {
     const device = mapFleetDevice({
       id: 'dev-2',

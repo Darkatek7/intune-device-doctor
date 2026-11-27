@@ -52,7 +52,13 @@ export type ManagementAgentType =
   | 'configurationManagerClientMdmEas'
   | 'unknown'
   | 'jamf'
-  | 'googleCloudDevicePolicyController';
+  | 'googleCloudDevicePolicyController'
+  // Die folgenden vier nennt Learn nur auf der Enum-Seite (die es ausschließlich im Beta-Stand gibt);
+  // die v1.0-Seite von managedDevice zählt sie nicht auf. Siehe docs/graph-api-reference.md.
+  | 'microsoft365ManagedMdm'
+  | 'msSense'
+  | 'intuneAosp'
+  | 'google';
 
 export type DeviceEnrollmentType =
   | 'unknown'
@@ -163,6 +169,7 @@ export const FLEET_DEVICE_SELECT = [
   'enrolledDateTime',
   'isEncrypted',
   'jailBroken',
+  'managementAgent',
 ] as const;
 
 /** Weitere Geräte desselben Benutzers (Geräte-Header): nur das Nötigste. */
